@@ -4,22 +4,15 @@ from qbittorrentapi import Client
 import yaml
 import argparse
 
-parser = argparse.ArgumentParser("qBittorrent scripts.",
+parser = argparse.ArgumentParser("qBittorrent Manager.",
                                  description='A mix of scripts combined for managing qBittorrent.')
-parser.add_argument('-c', '--config-file',
-                    dest='config',
-                    action='store',
-                    default='config.yml',
+parser.add_argument('-c', '--config-file', dest='config', action='store', default='config.yml',
                     help='This is used if you want to use different names for your config.yml. Example: tv.yml')
-parser.add_argument('--cat-update',
-                    dest='command',
-                    action='store_const',
-                    const='cat-update',
+parser.add_argument('--manage', dest='command', action='store_const', const='manage',
+                    help='Use this if you would like to update your tags AND categories.')
+parser.add_argument('--cat-update', dest='command', action='store_const', const='cat-update',
                     help='Use this if you would like to update your categories.')
-parser.add_argument('--tag-update',
-                    dest='command',
-                    action='store_const',
-                    const='tag-update',
+parser.add_argument('--tag-update', dest='command', action='store_const', const='tag-update',
                     help='Use this if you would like to update your tags.')
 args = parser.parse_args()
 
@@ -42,7 +35,6 @@ def get_category(path):
         return category
 
 
-# Main command that does the work.
 def update_category():
     num_cat = 0
     for torrent in torrent_list:
@@ -87,10 +79,13 @@ def update_tags():
 
 
 def main():
-    if args.command == 'cat-update':
+    if args.command == 'manage':
         update_category()
+        update_tags()
     elif args.command == 'tag-update':
         update_tags()
+    elif args.command == 'cat-update':
+        update_category()
 
 
 if __name__ == "__main__":
