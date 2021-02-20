@@ -1,0 +1,20 @@
+qbt:
+  host: 'localhost:8080'
+  user: 'username'
+  pass: 'password'
+cat:
+  # <File path keyword>: <Category Name>
+  anime: anime
+  movies: movies
+  tv: tv
+tags:
+  # <Tracker URL Keyword>: <Tag Name>
+  awesome-hd: AHD
+  beyond-hd: Beyond-HD
+  animebytes.tv: AnimeBytes
+  avistaz: Avistaz
+  landof.tv: BroadcasTheNet
+  passthepopcorn: PassThePopcorn
+
+
+
