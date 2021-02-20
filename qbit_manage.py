@@ -24,7 +24,7 @@ with open(args.config, "r") as cfg_file:
 
 # Actual API call to connect to qbt.
 client = Client(host=cfg["qbt"]["host"], username=cfg["qbt"]["user"], password=cfg["qbt"]["pass"])
-# torrent_list = client.torrents.info()
+torrent_list = client.torrents.info()
 
 
 def get_category(path):
@@ -39,7 +39,6 @@ def get_category(path):
 
 
 def update_category():
-    torrent_list = client.torrents.info()
     num_cat = 0
     for torrent in torrent_list:
         if torrent.category == '':
@@ -66,7 +65,6 @@ def get_tags(url):
 
 
 def update_tags():
-    torrent_list = client.torrents.info()
     num_tags = 0
     for torrent in torrent_list:
         if torrent.tags == '':
@@ -84,7 +82,6 @@ def update_tags():
 
 
 def rem_unregistered():
-    torrent_list = client.torrents.info()
     rem_unr = 0
     for torrent in torrent_list:
         for status in torrent.trackers:
