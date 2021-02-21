@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
+
 from qbittorrentapi import Client
 import yaml
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 # import apprise
 
@@ -62,7 +64,10 @@ with open(args.config, "r") as cfg_file:
 log_lev = getattr(logging, args.loglevel.upper())
 file_handler = logging.FileHandler(filename=args.logfile)
 stdout_handler = logging.StreamHandler(sys.stdout)
-handlers = [file_handler, stdout_handler]
+rotate_handler = RotatingFileHandler(filename=args.logfile,
+                                     maxBytes=1024 * 1024 * 2,
+                                     backupCount=5)
+handlers = [file_handler, stdout_handler, rotate_handler]
 
 # noinspection PyArgumentList
 logging.basicConfig(level=log_lev,
