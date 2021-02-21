@@ -72,16 +72,9 @@ logger = logging.getLogger('qBit Manage')
 
 
 # Actual API call to connect to qbt.
-<<<<<<< HEAD
 client = Client(host=cfg["qbt"]["host"],
                 username=cfg["qbt"]["user"],
                 password=cfg["qbt"]["pass"])
-=======
-client = Client(host=cfg["qbt"]["host"], username=cfg["qbt"]["user"], password=cfg["qbt"]["pass"])
-<<<<<<< Updated upstream
-=======
->>>>>>> e45a3f1064b6e19c352a0230194ff0293d13f548
->>>>>>> Stashed changes
 torrent_list = client.torrents.info()
 
 
@@ -96,24 +89,6 @@ def get_category(path):
         return category
 
 
-<<<<<<< HEAD
-=======
-def update_category():
-    num_cat = 0
-    for torrent in torrent_list:
-        if torrent.category == '':
-            new_cat = get_category(torrent.save_path)
-            print('Torrent Name: ' + torrent.name)
-            print('  - New Category: ' + new_cat)
-            torrent.set_category(category=new_cat)
-            num_cat += 1
-    if num_cat >= 1:
-        print('Updated ', num_cat, ' new categories')
-    else:
-        print('No new torrents to categorize.')
-
-
->>>>>>> e45a3f1064b6e19c352a0230194ff0293d13f548
 def get_tags(url):
     tag_path = cfg["tags"]
     for t, n in tag_path.items():
@@ -153,9 +128,6 @@ def update_category():
 
 
 def update_tags():
-<<<<<<< Updated upstream
-=======
-<<<<<<< HEAD
     if args.manage == 'manage' or args.tag_update == 'tag_update':
         num_tags = 0
         for torrent in torrent_list:
@@ -210,38 +182,6 @@ def rem_unregistered():
                 logger.info('Deleted %s torrents.', rem_unr)
             else:
                 logger.info('No unregistered torrents found.')
-=======
->>>>>>> Stashed changes
-    num_tags = 0
-    for torrent in torrent_list:
-        if torrent.tags == '':
-            for x in torrent.trackers:
-                if x.url.startswith('http'):
-                    new_tag = get_tags(x.url)
-                    print('Torrent Name: ' + torrent.name)
-                    print('  - New Tag: ' + new_tag)
-                    torrent.add_tags(tags=new_tag)
-                    num_tags += 1
-    if num_tags >= 1:
-        print('Updated ', num_tags, ' new tags.')
-    else:
-        print('No new torrents to tag.')
-
-
-def rem_unregistered():
-    rem_unr = 0
-    for torrent in torrent_list:
-        for status in torrent.trackers:
-            if 'Unregistered torrent' in status.msg:
-                print(torrent.name, '->', status.msg)
-                print('  - Deleted')
-                torrent.delete(hash=torrent.hash, delete_files=True)
-                rem_unr += 1
-    if rem_unr >= 1:
-        print('Deleted ', rem_unr, 'torrents.')
-    else:
-        print('No unregistered torrents found.')
->>>>>>> e45a3f1064b6e19c352a0230194ff0293d13f548
 
 
 def main():
