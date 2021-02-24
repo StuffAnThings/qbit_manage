@@ -14,9 +14,15 @@ cat:
 # Tag Parameters
 tags:
   # <Tracker URL Keyword>: <Tag Name>
-  awesome-hd: AHD
   beyond-hd: Beyond-HD
+  privatehd: PrivateHD
   animebytes.tv: AnimeBytes
   avistaz: Avistaz
   landof.tv: BroadcasTheNet
   passthepopcorn: PassThePopcorn
+  torrentleech: TorrentLeech
+  tleechreload: TorrentLeech
+  gazellegames: GGn
+  blutopia: Blutopia
+  hdts: HDTorrents
+  tv-vault: TV-Vault
