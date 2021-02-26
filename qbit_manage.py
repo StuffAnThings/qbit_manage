@@ -298,8 +298,8 @@ def rem_unregistered():
                 logger.dryrun('No unregistered torrents found.')
         else:
             if rem_unr >= 1 or del_tor >= 1:
-                logger.dryrun('Deleted %s .torrents(s) but not content files.', rem_unr)
-                logger.dryrun('Deleted %s .torrents(s) AND content files.', del_tor)
+                logger.info('Deleted %s .torrents(s) but not content files.', rem_unr)
+                logger.info('Deleted %s .torrents(s) AND content files.', del_tor)
             else:
                 logger.info('No unregistered torrents found.')
 
