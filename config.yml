@@ -3,14 +3,18 @@ qbt:
   host: 'localhost:8080'
   user: 'username'
   pass: 'password'
-
-# Category Parameters
+directory:
+  # Do not remove these
+  # Cross-seed var: </your/path/here/> Ensure there is a / at the end or it won't work properly
+  cross_seed: '/your/path/here/'
+  movies: '/your/path/here/'
+  tv: '/your/path/here/'
+  unknown: '/your/path/here/'
+# Category/Pathing Parameters
 cat:
   # <File path keyword>: <Category Name>
-  anime: anime
   movies: movies
   tv: tv
-
 # Tag Parameters
 tags:
   # <Tracker URL Keyword>: <Tag Name>
@@ -26,3 +30,4 @@ tags:
   blutopia: Blutopia
   hdts: HDTorrents
   tv-vault: TV-Vault
+  cartoonchaos: CartoonChaos
