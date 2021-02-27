@@ -3,6 +3,8 @@ qbt:
   host: 'localhost:8080'
   user: 'username'
   pass: 'password'
+  
+#Optional parameter to define any remote paths
 remote_dir:
   #'Docker container path of root save directory' : 'Local path of root save directory'
   #<'/container/path/data/'> : <'/host/path/data/'>
