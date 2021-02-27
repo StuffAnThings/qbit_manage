@@ -204,15 +204,15 @@ def cross_seed():
                 dest += file
                 categories.append(category)
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('\n - Not Moving %s to %s', src, dest)
+                    logger.dryrun('Not Moving %s to %s', src, dest)
                 else:
                     shutil.move(src, dest)
-                    logger.info('\n - Moving %s to %s', src, dest)
+                    logger.info('Moving %s to %s', src, dest)
             else:
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('\n - {} not found in torrents.'.format(t_name))
+                    logger.dryrun('{} not found in torrents.'.format(t_name))
                 else:
-                    logger.info('\n - {} not found in torrents.'.format(t_name))
+                    logger.info('{} not found in torrents.'.format(t_name))
 
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
