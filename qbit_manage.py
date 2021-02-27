@@ -116,11 +116,11 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    cat_path = cfg["cat"]
-    for i, f in cat_path.items():
-        if i in path:
-            category = f
-            return category
+    for cat, attr in cfg["cat"].items():
+        for attr_path in attr:
+            if 'save_path' in attr_path and attr_path['save_path'] in path:
+                category = cat
+                return category
     else:
         category = ''
         logger.warning('No categories matched. Check your config.yml file. - Setting tag to NULL')
@@ -182,13 +182,17 @@ def cross_seed():
         torrentdict = get_torrent_info(torrent_list)
         for file in cs_files:
             t_name = file.split("]",2)[2].split('.torrent')[0]
+            dest = ''
             if t_name in torrentdict:
                 category = torrentdict[t_name]['Category']
-                dest = torrentdict[t_name]['save_path']
-
-                #Replace remote directory with local directory
-                for dir in cfg["remote_dir"]:
-                    if dir in dest : dest = dest.replace(dir,cfg["remote_dir"][dir])
+                dest = os.path.join(torrentdict[t_name]['save_path'],'') #Default save destination to save path if watch_path not defined
+                for attr_path in cfg["cat"][category]:
+                     if 'watch_path' in attr_path: #Update to watch path if defined
+                        dest=os.path.join(attr_path['watch_path'],'')
+                if "remote_dir" in cfg:
+                    #Replace remote directory with local directory
+                    for dir in cfg["remote_dir"]:
+                        if dir in dest : dest = dest.replace(dir,cfg["remote_dir"][dir])
                 src = dir_cs + file
                 dest += file
                 categories.append(category)
