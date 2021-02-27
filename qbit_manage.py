@@ -183,8 +183,15 @@ def cross_seed():
         for file in cs_files:
             t_name = file.split("]",2)[2].split('.torrent')[0]
             dest = ''
-            if t_name in torrentdict:
+            #Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
+            #Returned the dictionary of filtered item
+            torrentdict_file = dict(filter(lambda item: t_name in item[0], torrentdict.items()))
+
+            if torrentdict_file:
+                #Get the exact torrent match name from torrentdict
+                t_name = next(iter(torrentdict_file))
                 category = torrentdict[t_name]['Category']
+                
                 dest = os.path.join(torrentdict[t_name]['save_path'],'') #Default save destination to save path if watch_path not defined
                 for attr_path in cfg["cat"][category]:
                      if 'watch_path' in attr_path: #Update to watch path if defined
@@ -197,15 +204,15 @@ def cross_seed():
                 dest += file
                 categories.append(category)
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('Not Moving %s to %s', src, dest)
+                    logger.dryrun('\n - Not Moving %s to %s', src, dest)
                 else:
                     shutil.move(src, dest)
-                    logger.info('Moving %s to %s', src, dest)
+                    logger.info('\n - Moving %s to %s', src, dest)
             else:
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('{} not found in torrents.'.format(t_name))
+                    logger.dryrun('\n - {} not found in torrents.'.format(t_name))
                 else:
-                    logger.info('{} not found in torrents.'.format(t_name))
+                    logger.info('\n - {} not found in torrents.'.format(t_name))
 
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
