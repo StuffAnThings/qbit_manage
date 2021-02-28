@@ -8,6 +8,7 @@ import logging
 import logging.handlers
 from qbittorrentapi import Client
 import urllib3
+from collections import Counter
 
 # import apprise
 
@@ -115,11 +116,11 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    cat_path = cfg["cat"]
-    for i, f in cat_path.items():
-        if i in path:
-            category = f
-            return category
+    for cat, attr in cfg["cat"].items():
+        for attr_path in attr:
+            if 'save_path' in attr_path and attr_path['save_path'] in path:
+                category = cat
+                return category
     else:
         category = ''
         logger.warning('No categories matched. Check your config.yml file. - Setting tag to NULL')
@@ -154,43 +155,78 @@ def get_name(t_list):
                 no_dupes.append(s)
     return dupes, no_dupes
 
+#Will create a 2D Dictionary with the torrent name as the key
+# torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV'},
+#                'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}}
+def get_torrent_info(t_list):
+    torrentdict = {}
+    for torrent in t_list:
+        save_path = torrent.save_path
+        category = get_category(save_path)
+        torrentattr = {'Category':category, 'save_path':save_path}
+        torrentdict[torrent.name] = torrentattr
+    return torrentdict
 
-# def check_cs_cat():
-
-
+#Function used to move any torrents from the cross seed directory to the correct save directory
 def cross_seed():
     if args.cross_seed == 'cross_seed':
-        num_cs_tv = 0
-        num_cs_movie = 0
-        num_cs_unknown = 0
-        cs_files = os.listdir(cfg["directory"]["cross_seed"])
-        dir_cs = cfg["directory"]["cross_seed"]
-        dir_tv = cfg["directory"]["tv"]
-        dir_movie = cfg["directory"]["movies"]
-        dir_unknown = cfg["directory"]["unknown"]
-        for file in cs_files:
-            if '[episode]' in file or '[pack]' in file:
-                src = dir_cs + file
-                dest = dir_tv + file
-                shutil.move(src, dest)
-                logger.info('Moving %s to %s', src, dest)
-                num_cs_tv += 1
-            elif '[movie]' in file:
-                src = dir_cs + file
-                dest = dir_movie + file
-                shutil.move(src, dest)
-                logger.info('Moving %s to %s', src, dest)
-                num_cs_movie += 1
-            elif '[unknown]' in file:
-                src = dir_cs + file
-                dest = dir_unknown + file
-                shutil.move(src, dest)
-                logger.info('Moving %s to %s', src, dest)
-                num_cs_unknown += 1
-        total = num_cs_tv + num_cs_movie + num_cs_unknown
-        logger.info('\n - TV .torrents moved: %s \n - Movie .torrents moved: %s \n - Unknown .torrents moved: %s '
-                    '\n -- Total .torrents moved: %s', num_cs_tv, num_cs_movie, num_cs_unknown, total)
+        categories = [] #List of categories for all torrents moved
+        
+        total = 0 #Keep track of total torrents moved
+        torrents_moved = "" #Used to output the final list torrents moved to output in the log
 
+        cs_files = [f for f in os.listdir(os.path.join(cfg["directory"]["cross_seed"],'')) if f.endswith('torrent')] #Only get torrent files
+        dir_cs = os.path.join(cfg["directory"]["cross_seed"],'')
+        
+        torrent_list = client.torrents.info()
+        torrentdict = get_torrent_info(torrent_list)
+        for file in cs_files:
+            t_name = file.split("]",2)[2].split('.torrent')[0]
+            dest = ''
+            #Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
+            #Returned the dictionary of filtered item
+            torrentdict_file = dict(filter(lambda item: t_name in item[0], torrentdict.items()))
+
+            if torrentdict_file:
+                #Get the exact torrent match name from torrentdict
+                t_name = next(iter(torrentdict_file))
+                category = torrentdict[t_name]['Category']
+                
+                dest = os.path.join(torrentdict[t_name]['save_path'],'') #Default save destination to save path if watch_path not defined
+                for attr_path in cfg["cat"][category]:
+                     if 'watch_path' in attr_path: #Update to watch path if defined
+                        dest=os.path.join(attr_path['watch_path'],'')
+                if "remote_dir" in cfg:
+                    #Replace remote directory with local directory
+                    for dir in cfg["remote_dir"]:
+                        if dir in dest : dest = dest.replace(dir,cfg["remote_dir"][dir])
+                src = dir_cs + file
+                dest += file
+                categories.append(category)
+                if args.dry_run == 'dry_run':
+                    logger.dryrun('Not Moving %s to %s', src, dest)
+                else:
+                    shutil.move(src, dest)
+                    logger.info('Moving %s to %s', src, dest)
+            else:
+                if args.dry_run == 'dry_run':
+                    logger.dryrun('{} not found in torrents.'.format(t_name))
+                else:
+                    logger.info('{} not found in torrents.'.format(t_name))
+
+        numcategory = Counter(categories)
+        if args.dry_run == 'dry_run':
+            for c in numcategory:
+                total += numcategory[c]
+                torrents_moved+="\n - {} .torrents not moved: {} ".format(c, numcategory[c])
+            torrents_moved+="\n -- Total .torrents not moved: {} ".format(total)
+            logger.dryrun(torrents_moved)
+        else:
+            for c in numcategory:
+                total += numcategory[c]
+                torrents_moved+="\n - {} .torrents moved: {} ".format(c, numcategory[c])
+            torrents_moved+="\n -- Total .torrents moved: {} ".format(total)
+            logger.info(torrents_moved)
 
 def update_category():
     if args.manage == 'manage' or args.cat_update == 'cat_update':
