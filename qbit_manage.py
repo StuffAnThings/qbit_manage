@@ -12,7 +12,7 @@ from collections import Counter
 
 # import apprise
 
-parser = argparse.ArgumentParser("qBittorrent Manager.",
+parser = argparse.ArgumentParser('qBittorrent Manager.',
                                  description='A mix of scripts combined for managing qBittorrent.')
 parser.add_argument('-c', '--config-file',
                     dest='config',
@@ -64,7 +64,7 @@ parser.add_argument('--log',
                     help='Change your log level. ')
 args = parser.parse_args()
 
-with open(args.config, "r") as cfg_file:
+with open(args.config, 'r') as cfg_file:
     cfg = yaml.load(cfg_file, Loader=yaml.FullLoader)
 
 urllib3.disable_warnings()
@@ -96,13 +96,13 @@ stream_handler.setFormatter(stream_formatter)
 logger.addHandler(stream_handler)
 
 # Actual API call to connect to qbt.
-host = cfg["qbt"]["host"]
-if 'user' in cfg["qbt"]:
-    username = cfg["qbt"]["user"]
+host = cfg['qbt']['host']
+if 'user' in cfg['qbt']:
+    username = cfg['qbt']['user']
 else:
     username = ''
-if 'pass' in cfg["qbt"]:
-    password = cfg["qbt"]["pass"]
+if 'pass' in cfg['qbt']:
+    password = cfg['qbt']['pass']
 else:
     password = ''
 
@@ -116,46 +116,39 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    for cat, attr in cfg["cat"].items():
+    for cat, attr in cfg['cat'].items():
         for attr_path in attr:
             if 'save_path' in attr_path and attr_path['save_path'] in path:
                 category = cat
                 return category
     else:
         category = ''
-        logger.warning('No categories matched. Check your config.yml file. - Setting tag to NULL')
+        logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
         return category
 
 
 def get_tags(url):
-    tag_path = cfg["tags"]
+    tag_path = cfg['tags']
     for i, f in tag_path.items():
         if i in url:
             tag = f
             return tag
     else:
         tag = ''
-        logger.warning('No tags matched. Check your config.yml file. Setting category to NULL')
+        logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
 
 
 def get_name(t_list):
     dupes = []
     no_dupes = []
-    t_name = []
-    for torrent in t_list:
-        n = torrent.name
-        t_name.append(n)
-    for s in t_name:
-        if t_name.count(s) > 1:
-            if s not in dupes:
-                dupes.append(s)
-        if t_name.count(s) == 1:
-            if s not in no_dupes:
-                no_dupes.append(s)
+    t_name = [torrent.name for torrent in t_list]
+    dupes = [s for s in t_name if t_name.count(s) > 1 if s not in dupes]
+    no_dupes = [s for s in t_name if t_name.count(s) == 1 if s not in no_dupes]
     return dupes, no_dupes
 
-#Will create a 2D Dictionary with the torrent name as the key
+
+# Will create a 2D Dictionary with the torrent name as the key
 # torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV'},
 #                'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}}
 def get_torrent_info(t_list):
@@ -163,70 +156,72 @@ def get_torrent_info(t_list):
     for torrent in t_list:
         save_path = torrent.save_path
         category = get_category(save_path)
-        torrentattr = {'Category':category, 'save_path':save_path}
+        torrentattr = {'Category': category, 'save_path': save_path}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
-#Function used to move any torrents from the cross seed directory to the correct save directory
+
+# Function used to move any torrents from the cross seed directory to the correct save directory
 def cross_seed():
     if args.cross_seed == 'cross_seed':
-        categories = [] #List of categories for all torrents moved
-        
-        total = 0 #Keep track of total torrents moved
-        torrents_moved = "" #Used to output the final list torrents moved to output in the log
-
-        cs_files = [f for f in os.listdir(os.path.join(cfg["directory"]["cross_seed"],'')) if f.endswith('torrent')] #Only get torrent files
-        dir_cs = os.path.join(cfg["directory"]["cross_seed"],'')
-        
+        # List of categories for all torrents moved
+        categories = []
+        # Keep track of total torrents moved
+        total = 0
+        # Used to output the final list torrents moved to output in the log
+        torrents_moved = ''
+        # Only get torrent files
+        cs_files = [f for f in os.listdir(os.path.join(cfg['directory']['cross_seed'], '')) if f.endswith('torrent')]
+        dir_cs = os.path.join(cfg['directory']['cross_seed'], '')
         torrent_list = client.torrents.info()
         torrentdict = get_torrent_info(torrent_list)
         for file in cs_files:
-            t_name = file.split("]",2)[2].split('.torrent')[0]
-            dest = ''
-            #Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
-            #Returned the dictionary of filtered item
+            t_name = file.split(']', 2)[2].split('.torrent')[0]
+            # Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
+            # Returned the dictionary of filtered item
             torrentdict_file = dict(filter(lambda item: t_name in item[0], torrentdict.items()))
-
             if torrentdict_file:
-                #Get the exact torrent match name from torrentdict
+                # Get the exact torrent match name from torrentdict
                 t_name = next(iter(torrentdict_file))
                 category = torrentdict[t_name]['Category']
-                
-                dest = os.path.join(torrentdict[t_name]['save_path'],'') #Default save destination to save path if watch_path not defined
-                for attr_path in cfg["cat"][category]:
-                     if 'watch_path' in attr_path: #Update to watch path if defined
-                        dest=os.path.join(attr_path['watch_path'],'')
-                if "remote_dir" in cfg:
-                    #Replace remote directory with local directory
-                    for dir in cfg["remote_dir"]:
-                        if dir in dest : dest = dest.replace(dir,cfg["remote_dir"][dir])
+                # Default save destination to save path if watch_path not defined
+                dest = os.path.join(torrentdict[t_name]['save_path'], '')
+                for attr_path in cfg['cat'][category]:
+                    # Update to watch path if defined
+                    if 'watch_path' in attr_path:
+                        dest = os.path.join(attr_path['watch_path'], '')
+                if 'remote_dir' in cfg:
+                    # Replace remote directory with local directory
+                    for dir in cfg['remote_dir']:
+                        if dir in dest:
+                            dest = dest.replace(dir, cfg['remote_dir'][dir])
                 src = dir_cs + file
                 dest += file
                 categories.append(category)
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('Not Moving %s to %s', src, dest)
+                    logger.dryrun(f'Not Moving {src} to {dest}')
                 else:
                     shutil.move(src, dest)
-                    logger.info('Moving %s to %s', src, dest)
+                    logger.info(f'Moving {src} to {dest}')
             else:
                 if args.dry_run == 'dry_run':
-                    logger.dryrun('{} not found in torrents.'.format(t_name))
+                    logger.dryrun(f'{t_name} not found in torrents.')
                 else:
-                    logger.info('{} not found in torrents.'.format(t_name))
-
+                    logger.warning(f'{t_name} not found in torrents.')
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
             for c in numcategory:
                 total += numcategory[c]
-                torrents_moved+="\n - {} .torrents not moved: {} ".format(c, numcategory[c])
-            torrents_moved+="\n -- Total .torrents not moved: {} ".format(total)
+                torrents_moved += f'\n - {c} .torrents not moved: {numcategory[c]}'
+            torrents_moved += f'\n -- Total .torrents not moved: {total}'
             logger.dryrun(torrents_moved)
         else:
             for c in numcategory:
                 total += numcategory[c]
-                torrents_moved+="\n - {} .torrents moved: {} ".format(c, numcategory[c])
-            torrents_moved+="\n -- Total .torrents moved: {} ".format(total)
+                torrents_moved += f'\n - {c} .torrents moved: {numcategory[c]}'
+            torrents_moved += f'\n -- Total .torrents moved: {total}'
             logger.info(torrents_moved)
+
 
 def update_category():
     if args.manage == 'manage' or args.cat_update == 'cat_update':
@@ -239,24 +234,26 @@ def update_category():
                         t_url = trunc_val(x.url, '/')
                         new_cat = get_category(torrent.save_path)
                         if args.dry_run == 'dry_run':
-                            logger.dryrun('\n - Torrent Name: %s \n - New Category: %s \n - Tracker: %s',
-                                          torrent.name, new_cat, t_url)
+                            logger.dryrun(f'\n - Torrent Name: {torrent.name}'
+                                          f'\n - New Category: {new_cat}'
+                                          f'\n - Tracker: {t_url}')
                             num_cat += 1
                         else:
-                            logger.info('\n - Torrent Name: %s \n - New Category: %s \n - Tracker: %s',
-                                        torrent.name, new_cat, t_url)
+                            logger.info(f'\n - Torrent Name: {torrent.name}'
+                                        f'\n - New Category: {new_cat}'
+                                        f'\n - Tracker: {t_url}')
                             torrent.set_category(category=new_cat)
                             num_cat += 1
         if args.dry_run == 'dry_run':
             if num_cat >= 1:
-                logger.dryrun('Did not update %s new categories.', num_cat)
+                logger.dryrun(f'Did not update {num_cat} new categories.')
             else:
-                logger.dryrun('No new torrents to categorize.')
+                logger.dryrun(f'No new torrents to categorize.')
         else:
             if num_cat >= 1:
-                logger.info('Updated %s new categories.', num_cat)
+                logger.info(f'Updated {num_cat} new categories.')
             else:
-                logger.info('No new torrents to categorize.')
+                logger.info(f'No new torrents to categorize.')
 
 
 def update_tags():
@@ -270,24 +267,26 @@ def update_tags():
                         t_url = trunc_val(x.url, '/')
                         new_tag = get_tags(x.url)
                         if args.dry_run == 'dry_run':
-                            logger.dryrun('\n - Torrent Name: %s \n - New Tag: %s \n - Tracker: %s',
-                                          torrent.name, new_tag, t_url)
+                            logger.dryrun(f'\n - Torrent Name: {torrent.name}'
+                                          f'\n - New Tag: {new_tag}'
+                                          f'\n - Tracker: {t_url}')
                             num_tags += 1
                         else:
-                            logger.info('\n - Torrent Name: %s \n - New Tag: %s \n - Tracker: %s',
-                                        torrent.name, new_tag, t_url)
+                            logger.info(f'\n - Torrent Name: {torrent.name}'
+                                        f'\n - New Tag: {new_tag}'
+                                        f'\n - Tracker: {t_url}')
                             torrent.add_tags(tags=new_tag)
                             num_tags += 1
         if args.dry_run == 'dry_run':
             if num_tags >= 1:
-                logger.dryrun('Did not update %s new tags.', num_tags)
+                logger.dryrun(f'Did not update {num_tags} new tags.')
             else:
                 logger.dryrun('No new torrents to tag.')
         else:
             if num_tags >= 1:
-                logger.info('Updated %s new tags.', num_tags)
+                logger.info(f'Updated {num_tags} new tags.')
             else:
-                logger.info('No new torrents to tag.')
+                logger.info('No new torrents to tag. ')
 
 
 def rem_unregistered():
@@ -301,51 +300,51 @@ def rem_unregistered():
                 for x in torrent.trackers:
                     if x.url.startswith('http'):
                         t_url = trunc_val(x.url, '/')
+                        n_info = (f'\n - Torrent Name: {torrent.name} '
+                                  f'\n - Status: {status.msg} '
+                                  f'\n - Tracker: {t_url} '
+                                  f'\n - Deleted .torrent but not content files.')
+                        n_d_info = (f'\n - Torrent Name: {torrent.name} '
+                                    f'\n - Status: {status.msg} '
+                                    f'\n - Tracker: {t_url} '
+                                    f'\n - Deleted .torrent AND content files.')
                         if 'Unregistered torrent' in status.msg or 'Torrent is not found' in status.msg:
                             if torrent.name in dupes:
                                 if args.dry_run == 'dry_run':
-                                    logger.dryrun('\n - Torrent Name: %s \n - Status: %s \n - Tracker: %s \n '
-                                                  '- Deleted .torrent but not content files.',
-                                                  torrent.name, status.msg, t_url)
+                                    logger.dryrun(n_info)
                                     rem_unr += 1
                                 else:
-                                    logger.info('\n - Torrent Name: %s \n - Status: %s \n - Tracker: %s \n '
-                                                '- Deleted .torrent but not content files.',
-                                                torrent.name, status.msg, t_url)
+                                    logger.info(n_info)
                                     torrent.delete(hash=torrent.hash, delete_files=False)
                                     rem_unr += 1
                             elif torrent.name in no_dupes:
                                 if args.dry_run == 'dry_run':
-                                    logger.dryrun('\n - Torrent Name: %s \n - Status: %s \n - Tracker: %s \n '
-                                                  '- Deleted .torrent AND content files.',
-                                                  torrent.name, status.msg, t_url)
+                                    logger.dryrun(n_d_info)
                                     del_tor += 1
                                 else:
-                                    logger.info('\n - Torrent Name: %s \n - Status: %s \n - Tracker: %s \n '
-                                                '- Deleted .torrent AND content files.',
-                                                torrent.name, status.msg, t_url)
+                                    logger.info(n_d_info)
                                     torrent.delete(hash=torrent.hash, delete_files=True)
                                     del_tor += 1
         if args.dry_run == 'dry_run':
             if rem_unr >= 1 or del_tor >= 1:
-                logger.dryrun('Did not delete %s .torrents(s) but not content files.', rem_unr)
-                logger.dryrun('Did not delete %s .torrents(s) AND content files.', del_tor)
+                logger.dryrun(f'Did not delete {rem_unr} .torrents(s) or content files.')
+                logger.dryrun(f'Did not delete {del_tor} .torrents(s) or content files.')
             else:
                 logger.dryrun('No unregistered torrents found.')
         else:
             if rem_unr >= 1 or del_tor >= 1:
-                logger.info('Deleted %s .torrents(s) but not content files.', rem_unr)
-                logger.info('Deleted %s .torrents(s) AND content files.', del_tor)
+                logger.info(f'Deleted {rem_unr} .torrents(s) but not content files.')
+                logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')
             else:
                 logger.info('No unregistered torrents found.')
 
 
 def run():
-    cross_seed()
     update_category()
     update_tags()
     rem_unregistered()
+    cross_seed()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     run()
