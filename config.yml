@@ -4,10 +4,11 @@ qbt:
   user: 'username'
   pass: 'password'
   
-#Optional parameter to define any remote paths
+# Optional parameter to define any remote paths
+# If not using remote_dir just add a # in front of the whole section.
 remote_dir:
-  #'Docker container path of root save directory' : 'Local path of root save directory'
-  #<'/container/path/data/'> : <'/host/path/data/'>
+  # 'Docker container path of root save directory' : 'Local path of root save directory'
+  # <'/container/path/data/'> : <'/host/path/data/'>
   '/data/torrents/' : '/mnt/cache/data/torrents/'
 directory:
   # Do not remove these
