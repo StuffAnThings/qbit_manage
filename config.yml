@@ -3,27 +3,16 @@ qbt:
   host: 'localhost:8080'
   user: 'username'
   pass: 'password'
-  
-# Optional parameter to define any remote paths
-# If not using remote_dir just add a # in front of the whole section.
-remote_dir:
-  # 'Docker container path of root save directory' : 'Local path of root save directory'
-  # <'/container/path/data/'> : <'/host/path/data/'>
-  '/data/torrents/' : '/mnt/cache/data/torrents/'
+
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/>
   cross_seed: '/your/path/here/'
 # Category/Pathing Parameters
 cat:
-  # <Category Name>
-  #   - save_path #Path of your save directory. Can be a keyword or full path
-  #   - watch_path #OPTIONAL parameter: where cross_seed will drop the torrents to. (Defaults to save_path if not defined)
-  movies:
-    - save_path: '/data/torrents/Movies'
-    - watch_path: '/data/torrents/watch/Movies'
-  tv:
-    - save_path: 'TV'
+  # <Category Name> : <save_path> #Path of your save directory. Can be a keyword or full path
+  movies: '/data/torrents/Movies'
+  tv: 'TV'
 
 # Tag Parameters
 tags:
