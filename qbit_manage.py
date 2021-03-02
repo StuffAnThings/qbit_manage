@@ -328,35 +328,34 @@ def rem_unregistered():
         rem_unr = 0
         del_tor = 0
         for torrent in torrent_list:
-            for status in torrent.trackers:
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        t_url = trunc_val(x.url, '/')
-                        n_info = (f'\n - Torrent Name: {torrent.name} '
-                                  f'\n - Status: {status.msg} '
-                                  f'\n - Tracker: {t_url} '
-                                  f'\n - Deleted .torrent but not content files.')
-                        n_d_info = (f'\n - Torrent Name: {torrent.name} '
-                                    f'\n - Status: {status.msg} '
-                                    f'\n - Tracker: {t_url} '
-                                    f'\n - Deleted .torrent AND content files.')
-                        if 'Unregistered torrent' in status.msg or 'Torrent is not found' in status.msg:
-                            if torrent.name in dupes:
-                                if args.dry_run == 'dry_run':
-                                    logger.dryrun(n_info)
-                                    rem_unr += 1
-                                else:
-                                    logger.info(n_info)
-                                    torrent.delete(hash=torrent.hash, delete_files=False)
-                                    rem_unr += 1
-                            elif torrent.name in no_dupes:
-                                if args.dry_run == 'dry_run':
-                                    logger.dryrun(n_d_info)
-                                    del_tor += 1
-                                else:
-                                    logger.info(n_d_info)
-                                    torrent.delete(hash=torrent.hash, delete_files=True)
-                                    del_tor += 1
+            for x in torrent.trackers:
+                if x.url.startswith('http'):
+                    t_url = trunc_val(x.url, '/')
+                    n_info = (f'\n - Torrent Name: {torrent.name} '
+                              f'\n - Status: {x.msg} '
+                              f'\n - Tracker: {t_url} '
+                              f'\n - Deleted .torrent but not content files.')
+                    n_d_info = (f'\n - Torrent Name: {torrent.name} '
+                                f'\n - Status: {x.msg} '
+                                f'\n - Tracker: {t_url} '
+                                f'\n - Deleted .torrent AND content files.')
+                    if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg:
+                        if torrent.name in dupes:
+                            if args.dry_run == 'dry_run':
+                                logger.dryrun(n_info)
+                                rem_unr += 1
+                            else:
+                                logger.info(n_info)
+                                torrent.delete(hash=torrent.hash, delete_files=False)
+                                rem_unr += 1
+                        elif torrent.name in no_dupes:
+                            if args.dry_run == 'dry_run':
+                                logger.dryrun(n_d_info)
+                                del_tor += 1
+                            else:
+                                logger.info(n_d_info)
+                                torrent.delete(hash=torrent.hash, delete_files=True)
+                                del_tor += 1
         if args.dry_run == 'dry_run':
             if rem_unr >= 1 or del_tor >= 1:
                 logger.dryrun(f'Did not delete {rem_unr} .torrents(s) or content files.')
