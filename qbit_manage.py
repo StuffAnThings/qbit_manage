@@ -144,15 +144,6 @@ def get_tags(url):
     return tag
 
 
-def get_name(t_list):
-    dupes = []
-    no_dupes = []
-    t_name = [torrent.name for torrent in t_list]
-    dupes = [s for s in t_name if t_name.count(s) > 1 if s not in dupes]
-    no_dupes = [s for s in t_name if t_name.count(s) == 1 if s not in no_dupes]
-    return dupes, no_dupes
-
-
 # Will create a 2D Dictionary with the torrent name as the key
 # torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV'},
 #                'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}}
@@ -161,7 +152,12 @@ def get_torrent_info(t_list):
     for torrent in t_list:
         save_path = torrent.save_path
         category = get_category(save_path)
-        torrentattr = {'Category': category, 'save_path': save_path}
+        if torrent.name in torrentdict:
+            t_count = torrentdict[torrent.name]['count'] + 1
+        else:
+            t_count = 1
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count}
+        print(torrent.name,t_count)
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
@@ -324,23 +320,25 @@ def update_tags():
 def rem_unregistered():
     if args.manage == 'manage' or args.rem_unregistered == 'rem_unregistered':
         torrent_list = client.torrents.info()
-        dupes, no_dupes = get_name(torrent_list)
+        torrentdict = get_torrent_info(torrent_list)
         rem_unr = 0
         del_tor = 0
         for torrent in torrent_list:
+            t_name = torrent.name
+            t_count = torrentdict[t_name]['count']
             for x in torrent.trackers:
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
-                    n_info = (f'\n - Torrent Name: {torrent.name} '
+                    n_info = (f'\n - Torrent Name: {t_name} '
                               f'\n - Status: {x.msg} '
                               f'\n - Tracker: {t_url} '
                               f'\n - Deleted .torrent but not content files.')
-                    n_d_info = (f'\n - Torrent Name: {torrent.name} '
+                    n_d_info = (f'\n - Torrent Name: {t_name} '
                                 f'\n - Status: {x.msg} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
                     if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg:
-                        if torrent.name in dupes:
+                        if t_count > 1:
                             if args.dry_run == 'dry_run':
                                 logger.dryrun(n_info)
                                 rem_unr += 1
@@ -348,7 +346,7 @@ def rem_unregistered():
                                 logger.info(n_info)
                                 torrent.delete(hash=torrent.hash, delete_files=False)
                                 rem_unr += 1
-                        elif torrent.name in no_dupes:
+                        else:
                             if args.dry_run == 'dry_run':
                                 logger.dryrun(n_d_info)
                                 del_tor += 1
@@ -368,7 +366,6 @@ def rem_unregistered():
                 logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')
             else:
                 logger.info('No unregistered torrents found.')
-
 
 def run():
     update_category()
