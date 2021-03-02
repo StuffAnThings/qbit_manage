@@ -36,6 +36,11 @@ parser.add_argument('-s', '--cross-seed',
                     const='cross_seed',
                     help='Use this after running cross-seed script to organize your torrents into specified '
                          'watch folders.')
+parser.add_argument('-re', '--recheck',
+                    dest='recheck',
+                    action='store_const',
+                    const='recheck',
+                    help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
 parser.add_argument('-g', '--cat-update',
                     dest='cat_update',
                     action='store_const',
@@ -116,14 +121,14 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    for cat, attr in cfg['cat'].items():
-        for attr_path in attr:
-            if 'save_path' in attr_path and attr_path['save_path'] in path:
-                category = cat
-                return category
+    cat_path = cfg["cat"]
+    for i, f in cat_path.items():
+        if f in path:
+            category = i
+            return category
     else:
         category = ''
-        logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
+        logger.warning('No categories matched. Check your config.yml file. - Setting tag to NULL')
         return category
 
 
@@ -160,6 +165,30 @@ def get_torrent_info(t_list):
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
+# Function used to recheck paused torrents sorted by size and resume torrents that are completed 
+def recheck():
+    if args.cross_seed == 'cross_seed' or args.manage == 'manage' or args.recheck == 'recheck':
+        #sort by size and paused
+        torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
+        for torrent in torrent_sorted_list:
+            #Tag the torrents
+            new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
+            torrent.add_tags(tags=new_tag)
+            #print(f'{torrent.hash[-6:]}: {torrent.name} ({torrent.state}) {torrent.progress}')
+            #Resume torrent if completed
+            if torrent.progress == 1: 
+                if args.dry_run == 'dry_run': 
+                    logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
+                else:
+                    logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
+                    torrent.resume()
+            #Recheck
+            elif torrent.progress == 0:
+                if args.dry_run == 'dry_run':
+                    logger.dryrun(f'\n - Not Rechecking {new_tag} - {torrent.name}')
+                else:
+                    logger.info(f'\n - Rechecking {new_tag} - {torrent.name}')
+                    torrent.recheck()
 
 # Function used to move any torrents from the cross seed directory to the correct save directory
 def cross_seed():
@@ -169,10 +198,12 @@ def cross_seed():
         # Keep track of total torrents moved
         total = 0
         # Used to output the final list torrents moved to output in the log
-        torrents_moved = ''
+        torrents_added = ''
         # Only get torrent files
         cs_files = [f for f in os.listdir(os.path.join(cfg['directory']['cross_seed'], '')) if f.endswith('torrent')]
         dir_cs = os.path.join(cfg['directory']['cross_seed'], '')
+        dir_cs_out = os.path.join(dir_cs,'qbit_manage_added')
+        os.makedirs(dir_cs_out,exist_ok=True)
         torrent_list = client.torrents.info()
         torrentdict = get_torrent_info(torrent_list)
         for file in cs_files:
@@ -184,43 +215,44 @@ def cross_seed():
                 # Get the exact torrent match name from torrentdict
                 t_name = next(iter(torrentdict_file))
                 category = torrentdict[t_name]['Category']
-                # Default save destination to save path if watch_path not defined
                 dest = os.path.join(torrentdict[t_name]['save_path'], '')
-                for attr_path in cfg['cat'][category]:
-                    # Update to watch path if defined
-                    if 'watch_path' in attr_path:
-                        dest = os.path.join(attr_path['watch_path'], '')
-                if 'remote_dir' in cfg:
-                    # Replace remote directory with local directory
-                    for dir in cfg['remote_dir']:
-                        if dir in dest:
-                            dest = dest.replace(dir, cfg['remote_dir'][dir])
-                src = dir_cs + file
-                dest += file
+                src = os.path.join(dir_cs,file)
+                dir_cs_out = os.path.join(dir_cs,'qbit_manage_added',file)
                 categories.append(category)
                 if args.dry_run == 'dry_run':
-                    logger.dryrun(f'Not Moving {src} to {dest}')
+                    logger.dryrun(f'Adding {t_name} to qBittorrent with: '
+                                  f'\n - Category: {category}'
+                                  f'\n - Save_Path: {dest}'
+                                  f'\n - Paused: True')
                 else:
-                    shutil.move(src, dest)
-                    logger.info(f'Moving {src} to {dest}')
+                    client.torrents.add(torrent_files=src,
+                                        save_path=dest,
+                                        category=category,
+                                        is_paused=True)
+                    shutil.move(src, dir_cs_out)
+                    logger.info(f'Adding {t_name} to qBittorrent with: '
+                                f'\n - Category: {category}'
+                                f'\n - Save_Path: {dest}'
+                                f'\n - Paused: True')
             else:
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'{t_name} not found in torrents.')
                 else:
                     logger.warning(f'{t_name} not found in torrents.')
+        recheck()
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
             for c in numcategory:
                 total += numcategory[c]
-                torrents_moved += f'\n - {c} .torrents not moved: {numcategory[c]}'
-            torrents_moved += f'\n -- Total .torrents not moved: {total}'
-            logger.dryrun(torrents_moved)
+                torrents_added += f'\n - {c} .torrents not added: {numcategory[c]}'
+            torrents_added += f'\n -- Total .torrents not added: {total}'
+            logger.dryrun(torrents_added)
         else:
             for c in numcategory:
                 total += numcategory[c]
-                torrents_moved += f'\n - {c} .torrents moved: {numcategory[c]}'
-            torrents_moved += f'\n -- Total .torrents moved: {total}'
-            logger.info(torrents_moved)
+                torrents_added += f'\n - {c} .torrents added: {numcategory[c]}'
+            torrents_added += f'\n -- Total .torrents added: {total}'
+            logger.info(torrents_added)
 
 
 def update_category():
@@ -344,7 +376,7 @@ def run():
     update_tags()
     rem_unregistered()
     cross_seed()
-
+    recheck()
 
 if __name__ == '__main__':
     run()
