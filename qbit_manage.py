@@ -157,7 +157,7 @@ def get_torrent_info(t_list):
         else:
             t_count = 1
         torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count}
-        print(torrent.name,t_count)
+        logger.debug(torrent.name, t_count)
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
