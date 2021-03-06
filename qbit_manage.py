@@ -153,11 +153,7 @@ def get_torrent_info(t_list):
         save_path = torrent.save_path
         category = get_category(save_path)
         if torrent.name in torrentdict:
-            #Only count if original torrent is complete
-            if(torrent.state_enum.is_complete):
-                t_count = torrentdict[torrent.name]['count'] + 1
-            else:
-                t_count = torrentdict[torrent.name]['count']
+            t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
         else:
             t_count = 1
@@ -174,10 +170,18 @@ def recheck():
     if args.cross_seed == 'cross_seed' or args.manage == 'manage' or args.recheck == 'recheck':
         #sort by size and paused
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
+        #Get a dictionary of hash:name to create a list of original torrents to compare
+        t_hash_map = {}
+        t_hash_recheck = {}
+        for t in torrent_sorted_list:
+            t_hash_map[t.hash] = t.name
+        for t2 in client.torrents.info(status_filter='completed'):
+            if t2.name in t_hash_map.values() and t2.hash not in t_hash_map.keys():
+                t_hash_recheck[t2.name] = True
+                
         for torrent in torrent_sorted_list:
-            #Tag the torrents
             new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
-            torrent.add_tags(tags=new_tag)
+            if torrent.tags == '': torrent.add_tags(tags=new_tag)
             #Resume torrent if completed
             if torrent.progress == 1: 
                 if args.dry_run == 'dry_run': 
@@ -186,7 +190,7 @@ def recheck():
                     logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
                     torrent.resume()
             #Recheck
-            elif torrent.progress == 0:
+            elif torrent.progress == 0 and (torrent.name in t_hash_recheck):
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'\n - Not Rechecking {new_tag} - {torrent.name}')
                 else:
