@@ -145,18 +145,26 @@ def get_tags(url):
 
 
 # Will create a 2D Dictionary with the torrent name as the key
-# torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV'},
-#                'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}}
+# torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'count':1, 'msg':'[]'},
+#                'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}, 'count':2, 'msg':'[]'}
 def get_torrent_info(t_list):
     torrentdict = {}
     for torrent in t_list:
         save_path = torrent.save_path
         category = get_category(save_path)
         if torrent.name in torrentdict:
-            t_count = torrentdict[torrent.name]['count'] + 1
+            #Only count if original torrent is complete
+            if(torrent.state_enum.is_complete):
+                t_count = torrentdict[torrent.name]['count'] + 1
+            else:
+                t_count = torrentdict[torrent.name]['count']
+            msg_list = torrentdict[torrent.name]['msg']
         else:
             t_count = 1
-        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count}
+            msg_list = []
+        msg = [x.msg for x in torrent.trackers if x.url.startswith('http')][0]
+        msg_list.append(msg)
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list}
         logger.debug(torrent.name, t_count)
         torrentdict[torrent.name] = torrentattr
     return torrentdict
@@ -170,7 +178,6 @@ def recheck():
             #Tag the torrents
             new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
             torrent.add_tags(tags=new_tag)
-            #print(f'{torrent.hash[-6:]}: {torrent.name} ({torrent.state}) {torrent.progress}')
             #Resume torrent if completed
             if torrent.progress == 1: 
                 if args.dry_run == 'dry_run': 
@@ -200,7 +207,7 @@ def cross_seed():
         dir_cs = os.path.join(cfg['directory']['cross_seed'], '')
         dir_cs_out = os.path.join(dir_cs,'qbit_manage_added')
         os.makedirs(dir_cs_out,exist_ok=True)
-        torrent_list = client.torrents.info()
+        torrent_list = client.torrents.info(sort='added_on',reverse=True)
         torrentdict = get_torrent_info(torrent_list)
         for file in cs_files:
             t_name = file.split(']', 2)[2].split('.torrent')[0]
@@ -254,7 +261,7 @@ def cross_seed():
 def update_category():
     if args.manage == 'manage' or args.cat_update == 'cat_update':
         num_cat = 0
-        torrent_list = client.torrents.info()
+        torrent_list = client.torrents.info(sort='added_on',reverse=True)
         for torrent in torrent_list:
             if torrent.category == '':
                 for x in torrent.trackers:
@@ -287,7 +294,7 @@ def update_category():
 def update_tags():
     if args.manage == 'manage' or args.tag_update == 'tag_update':
         num_tags = 0
-        torrent_list = client.torrents.info()
+        torrent_list = client.torrents.info(sort='added_on',reverse=True)
         for torrent in torrent_list:
             if torrent.tags == '':
                 for x in torrent.trackers:
@@ -319,13 +326,14 @@ def update_tags():
 
 def rem_unregistered():
     if args.manage == 'manage' or args.rem_unregistered == 'rem_unregistered':
-        torrent_list = client.torrents.info()
+        torrent_list = client.torrents.info(sort='added_on',reverse=True)
         torrentdict = get_torrent_info(torrent_list)
         rem_unr = 0
         del_tor = 0
         for torrent in torrent_list:
             t_name = torrent.name
             t_count = torrentdict[t_name]['count']
+            t_msg = torrentdict[t_name]['msg']
             for x in torrent.trackers:
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
@@ -340,12 +348,22 @@ def rem_unregistered():
                     if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg:
                         if t_count > 1:
                             if args.dry_run == 'dry_run':
-                                logger.dryrun(n_info)
-                                rem_unr += 1
+                                if '' in t_msg: 
+                                    logger.dryrun(n_info)
+                                    rem_unr += 1
+                                else:
+                                    logger.dryrun(n_d_info)
+                                    del_tor += 1
                             else:
-                                logger.info(n_info)
-                                torrent.delete(hash=torrent.hash, delete_files=False)
-                                rem_unr += 1
+                                # Checks if any of the original torrents are working
+                                if '' in t_msg: 
+                                    logger.info(n_info)
+                                    torrent.delete(hash=torrent.hash, delete_files=False)
+                                    rem_unr += 1
+                                else:
+                                    logger.info(n_d_info)
+                                    torrent.delete(hash=torrent.hash, delete_files=True)
+                                    del_tor += 1                                  
                         else:
                             if args.dry_run == 'dry_run':
                                 logger.dryrun(n_d_info)
