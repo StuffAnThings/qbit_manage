@@ -167,11 +167,11 @@ def get_torrent_info(t_list):
     return torrentdict
 
 # Function used to recheck paused torrents sorted by size and resume torrents that are completed 
-def recheck(torrentdict=None):
+def recheck():
     if args.cross_seed == 'cross_seed' or args.manage == 'manage' or args.recheck == 'recheck':
         #sort by size and paused
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
-        if torrentdict is None: torrentdict = get_torrent_info(client.torrents.info(sort='added_on',reverse=True))
+        torrentdict = get_torrent_info(client.torrents.info(sort='added_on',reverse=True))
         for torrent in torrent_sorted_list:
             new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
             if torrent.tags == '': torrent.add_tags(tags=new_tag)
@@ -242,7 +242,6 @@ def cross_seed():
                     logger.dryrun(f'{t_name} not found in torrents.')
                 else:
                     logger.warning(f'{t_name} not found in torrents.')
-        recheck(torrentdict)
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
             for c in numcategory:
