@@ -28,13 +28,13 @@ parser.add_argument('-m', '--manage',
                     dest='manage',
                     action='store_const',
                     const='manage',
-                    help='Use this if you would like to update your tags AND'
-                         ' categories AND remove unregistered torrents.')
+                    help='Use this if you would like to update your tags, categories,'
+                         ' remove unregistered torrents, AND recheck/resume paused torrents.')
 parser.add_argument('-s', '--cross-seed',
                     dest='cross_seed',
                     action='store_const',
                     const='cross_seed',
-                    help='Use this after running cross-seed script to add your torrents into qBittorrent')
+                    help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
 parser.add_argument('-re', '--recheck',
                     dest='recheck',
                     action='store_const',
