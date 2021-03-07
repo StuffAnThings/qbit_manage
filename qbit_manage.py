@@ -34,8 +34,7 @@ parser.add_argument('-s', '--cross-seed',
                     dest='cross_seed',
                     action='store_const',
                     const='cross_seed',
-                    help='Use this after running cross-seed script to organize your torrents into specified '
-                         'watch folders.')
+                    help='Use this after running cross-seed script to add your torrents into qBittorrent')
 parser.add_argument('-re', '--recheck',
                     dest='recheck',
                     action='store_const',
@@ -152,33 +151,27 @@ def get_torrent_info(t_list):
     for torrent in t_list:
         save_path = torrent.save_path
         category = get_category(save_path)
+        is_complete = False
         if torrent.name in torrentdict:
             t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
+            is_complete = True if torrentdict[torrent.name]['is_complete'] == True else torrent.state_enum.is_complete
         else:
             t_count = 1
             msg_list = []
+            is_complete = torrent.state_enum.is_complete
         msg = [x.msg for x in torrent.trackers if x.url.startswith('http')][0]
         msg_list.append(msg)
-        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list}
-        logger.debug(torrent.name, t_count)
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'is_complete': is_complete}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
 # Function used to recheck paused torrents sorted by size and resume torrents that are completed 
-def recheck():
+def recheck(torrentdict=None):
     if args.cross_seed == 'cross_seed' or args.manage == 'manage' or args.recheck == 'recheck':
         #sort by size and paused
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
-        #Get a dictionary of hash:name to create a list of original torrents to compare
-        t_hash_map = {}
-        t_hash_recheck = {}
-        for t in torrent_sorted_list:
-            t_hash_map[t.hash] = t.name
-        for t2 in client.torrents.info(status_filter='completed'):
-            if t2.name in t_hash_map.values() and t2.hash not in t_hash_map.keys():
-                t_hash_recheck[t2.name] = True
-                
+        if torrentdict is None: torrentdict = get_torrent_info(client.torrents.info(sort='added_on',reverse=True))
         for torrent in torrent_sorted_list:
             new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
             if torrent.tags == '': torrent.add_tags(tags=new_tag)
@@ -190,7 +183,7 @@ def recheck():
                     logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
                     torrent.resume()
             #Recheck
-            elif torrent.progress == 0 and (torrent.name in t_hash_recheck):
+            elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete']:
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'\n - Not Rechecking {new_tag} - {torrent.name}')
                 else:
@@ -227,26 +220,29 @@ def cross_seed():
                 dir_cs_out = os.path.join(dir_cs,'qbit_manage_added',file)
                 categories.append(category)
                 if args.dry_run == 'dry_run':
-                    logger.dryrun(f'Adding {t_name} to qBittorrent with: '
+                    logger.dryrun(f'Not Adding {t_name} to qBittorrent with: '
                                   f'\n - Category: {category}'
                                   f'\n - Save_Path: {dest}'
                                   f'\n - Paused: True')
                 else:
-                    client.torrents.add(torrent_files=src,
-                                        save_path=dest,
-                                        category=category,
-                                        is_paused=True)
-                    shutil.move(src, dir_cs_out)
-                    logger.info(f'Adding {t_name} to qBittorrent with: '
-                                f'\n - Category: {category}'
-                                f'\n - Save_Path: {dest}'
-                                f'\n - Paused: True')
+                    if torrentdict[t_name]['is_complete']:
+                        client.torrents.add(torrent_files=src,
+                                            save_path=dest,
+                                            category=category,
+                                            is_paused=True)
+                        shutil.move(src, dir_cs_out)
+                        logger.info(f'Adding {t_name} to qBittorrent with: '
+                                    f'\n - Category: {category}'
+                                    f'\n - Save_Path: {dest}'
+                                    f'\n - Paused: True')
+                    else:
+                        logger.info(f'Found {t_name} in {dir_cs} but original torrent is not complete. Not adding to qBittorrent')
             else:
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'{t_name} not found in torrents.')
                 else:
                     logger.warning(f'{t_name} not found in torrents.')
-        recheck()
+        recheck(torrentdict)
         numcategory = Counter(categories)
         if args.dry_run == 'dry_run':
             for c in numcategory:
