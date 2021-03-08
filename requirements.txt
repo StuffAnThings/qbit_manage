@@ -1,5 +1,2 @@
 PyYAML
 qbittorrent-api
-
-
-
