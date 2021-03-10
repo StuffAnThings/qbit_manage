@@ -125,21 +125,20 @@ def get_category(path):
         if f in path:
             category = i
             return category
-    else:
-        category = ''
-        logger.warning('No categories matched. Check your config.yml file. - Setting tag to NULL')
-        return category
+    category = ''
+    logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
+    return category
 
 
-def get_tags(url):
+def get_tags(urls):
     tag_path = cfg['tags']
     for i, f in tag_path.items():
-        if i in url:
-            tag = f
-            return tag
-    else:
-        tag = ''
-        logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
+        for url in urls:
+            if i in url:
+                tag = f
+                if tag: return tag,trunc_val(url, '/')
+    tag = ''
+    logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
 
 
@@ -173,7 +172,7 @@ def recheck():
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
         torrentdict = get_torrent_info(client.torrents.info(sort='added_on',reverse=True))
         for torrent in torrent_sorted_list:
-            new_tag = [get_tags(x.url) for x in torrent.trackers if x.url.startswith('http')]
+            new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
             if torrent.tags == '': torrent.add_tags(tags=new_tag)
             #Resume torrent if completed
             if torrent.progress == 1: 
@@ -296,21 +295,18 @@ def update_tags():
         torrent_list = client.torrents.info(sort='added_on',reverse=True)
         for torrent in torrent_list:
             if torrent.tags == '':
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        t_url = trunc_val(x.url, '/')
-                        new_tag = get_tags(x.url)
-                        if args.dry_run == 'dry_run':
-                            logger.dryrun(f'\n - Torrent Name: {torrent.name}'
-                                          f'\n - New Tag: {new_tag}'
-                                          f'\n - Tracker: {t_url}')
-                            num_tags += 1
-                        else:
-                            logger.info(f'\n - Torrent Name: {torrent.name}'
-                                        f'\n - New Tag: {new_tag}'
-                                        f'\n - Tracker: {t_url}')
-                            torrent.add_tags(tags=new_tag)
-                            num_tags += 1
+                new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                if args.dry_run == 'dry_run':
+                    logger.dryrun(f'\n - Torrent Name: {torrent.name}'
+                                    f'\n - New Tag: {new_tag}'
+                                    f'\n - Tracker: {t_url}')
+                    num_tags += 1
+                else:
+                    logger.info(f'\n - Torrent Name: {torrent.name}'
+                                f'\n - New Tag: {new_tag}'
+                                f'\n - Tracker: {t_url}')
+                    torrent.add_tags(tags=new_tag)
+                    num_tags += 1
         if args.dry_run == 'dry_run':
             if num_tags >= 1:
                 logger.dryrun(f'Did not update {num_tags} new tags.')
