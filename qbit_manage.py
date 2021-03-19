@@ -9,6 +9,8 @@ import logging.handlers
 from qbittorrentapi import Client
 import urllib3
 from collections import Counter
+import glob
+from pathlib import Path
 
 # import apprise
 
@@ -55,6 +57,11 @@ parser.add_argument('-r', '--rem-unregistered',
                     action='store_const',
                     const='rem_unregistered',
                     help='Use this if you would like to remove unregistered torrents.')
+parser.add_argument('-ro', '--rem-orphaned',
+                    dest='rem_orphaned',
+                    action='store_const',
+                    const='rem_orphaned',
+                    help='Use this if you would like to remove orphaned files from your downloads directory that is not referenced by any torrents')
 parser.add_argument('--dry-run',
                     dest='dry_run',
                     action='store_const',
@@ -141,6 +148,19 @@ def get_tags(urls):
     logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
 
+def remove_empty_directories(pathlib_root_dir):
+  # list all directories recursively and sort them by path,
+  # longest first
+  L = sorted(
+      pathlib_root_dir.glob("**"),
+      key=lambda p: len(str(p)),
+      reverse=True,
+  )
+  for pdir in L:
+    try:
+      pdir.rmdir()  # remove directory if empty
+    except OSError:
+      continue  # catch and continue if non-empty       
 
 # Will create a 2D Dictionary with the torrent name as the key
 # torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'count':1, 'msg':'[]'},
@@ -380,12 +400,76 @@ def rem_unregistered():
             else:
                 logger.info('No unregistered torrents found.')
 
+def rem_orphaned():
+    if args.rem_orphaned == 'rem_orphaned':
+        torrent_list = client.torrents.info()
+        torrent_files = []
+        root_files = []
+        orphaned_files = []
+
+        if 'root_dir' in cfg['directory']:
+            root_path = os.path.join(cfg['directory']['root_dir'], '')
+        else:
+            logger.error('root_dir not defined in config.')
+            return
+
+        if 'remote_dir' in cfg['directory']:
+            remote_path = os.path.join(cfg['directory']['remote_dir'], '')
+            root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path]
+        else:
+            remote_path = root_path
+            root_files = [os.path.join(path, name) for path, subdirs, files in os.walk(root_path) for name in files if os.path.join(root_path,'orphaned_data') not in path]
+
+        for torrent in torrent_list:
+            for file in torrent.files:
+                torrent_files.append(os.path.join(torrent.save_path,file.name))
+            
+        orphaned_files = set(root_files) - set(torrent_files)
+        orphaned_files = sorted(orphaned_files)
+        #print('----------torrent files-----------')
+        #print("\n".join(torrent_files))
+        # print('----------root_files-----------')
+        # print("\n".join(root_files))
+        # print('----------orphaned_files-----------')
+        # print("\n".join(orphaned_files))
+        # print('----------Deleting orphan files-----------')
+        if (orphaned_files):
+            if args.dry_run == 'dry_run':
+                dir_out = os.path.join(remote_path,'orphaned_data')
+                logger.dryrun(f'\n----------{len(orphaned_files)} Orphan files found-----------'
+                                f'\n - '+'\n - '.join(orphaned_files)+
+                                f'\n - Did not move {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
+            else:
+                dir_out = os.path.join(remote_path,'orphaned_data')
+                os.makedirs(dir_out,exist_ok=True)
+
+                for file in orphaned_files:
+                    src = file.replace(root_path,remote_path)
+                    dest = os.path.join(dir_out,file.replace(root_path,''))
+                    src_path = trunc_val(src, '/',len(remote_path.split('/')))
+                    dest_path = os.path.dirname(dest)
+                    if os.path.isdir(dest_path) == False:
+                        os.makedirs(dest_path)
+                    shutil.move(src, dest)
+                logger.info(f'\n----------{len(orphaned_files)} Orphan files found-----------'
+                                f'\n - '+'\n - '.join(orphaned_files)+
+                                f'\n - Moved {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
+                #Delete empty directories after moving orphan files
+                remove_empty_directories(Path(remote_path))
+        else:
+            if args.dry_run == 'dry_run':
+                logger.dryrun('No Orphaned Files found.')
+            else:
+                logger.info('No Orphaned Files found.')
+
+
 def run():
     update_category()
     update_tags()
     rem_unregistered()
     cross_seed()
     recheck()
+    rem_orphaned()
 
 if __name__ == '__main__':
     run()
