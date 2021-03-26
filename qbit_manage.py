@@ -61,7 +61,7 @@ parser.add_argument('-ro', '--rem-orphaned',
                     dest='rem_orphaned',
                     action='store_const',
                     const='rem_orphaned',
-                    help='Use this if you would like to remove orphaned files from your downloads directory that is not referenced by any torrents')
+                    help='Use this if you would like to remove orphaned files from your downloads directory that are not referenced by any torrents')
 parser.add_argument('--dry-run',
                     dest='dry_run',
                     action='store_const',
