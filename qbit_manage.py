@@ -51,7 +51,7 @@ parser.add_argument('-t', '--tag-update',
                     dest='tag_update',
                     action='store_const',
                     const='tag_update',
-                    help='Use this if you would like to update your tags.')
+                    help='Use this if you would like to update your tags. (Only adds tags to untagged torrents)')
 parser.add_argument('-r', '--rem-unregistered',
                     dest='rem_unregistered',
                     action='store_const',
@@ -61,12 +61,14 @@ parser.add_argument('-ro', '--rem-orphaned',
                     dest='rem_orphaned',
                     action='store_const',
                     const='rem_orphaned',
-                    help='Use this if you would like to remove orphaned files from your downloads directory that are not referenced by any torrents')
+                    help='Use this if you would like to remove orphaned files from your `root_dir` directory that are not referenced by any torrents.'
+                    ' It will scan your `root_dir` directory and compare it with what is in Qbitorrent. Any data not referenced in Qbitorrent will be moved into '
+                    ' `/data/torrents/orphaned_data` folder for you to review/delete.')
 parser.add_argument('--dry-run',
                     dest='dry_run',
                     action='store_const',
                     const='dry_run',
-                    help='If you would like to see what is gonna happen but not actually delete or '
+                    help='If you would like to see what is gonna happen but not actually move/delete or '
                          'tag/categorize anything.')
 parser.add_argument('--log',
                     dest='loglevel',
