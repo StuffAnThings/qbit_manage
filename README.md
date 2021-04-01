@@ -33,19 +33,19 @@ python qbit_manage.py -h
 ```
 
 ## Commands
-|      Name     | Shell Command | Description | Default Value | 
-| :-----------  | :------------ | :------------  | :------------ |
-| Config  | `-c CONFIG` or `--config-file CONFIG`  | This is used if you want to use a different name for your config.yml. `Example: tv.yml`  | config.yml |
-| Log File| `-l LOGFILE,` or `--log-file LOGFILE,` | This is used if you want to use a different name for your log file. `Example: tv.log` | activity.log |
-| Manage| `-m` or `--manage` | Use this if you would like to update your tags, categories, remove unregistered torrents, AND recheck/resume paused torrents.  |  |
-| Cross-Seed| `-s` or `--cross-seed` | Use this after running [cross-seed script](https://github.com/mmgoodnow/cross-seed) to add torrents from the cross-seed output folder to qBittorrent  |  |
-| Recheck| `-re` or `--recheck` | Recheck paused torrents sorted by lowest size. Resume if Completed.  |  |
-| Update Category| `-g` or `--cat-update` |  Use this if you would like to update your categories.  |  |
-| Add Tags| `-t` or `--tag-update` |  Use this if you would like to update your tags. (Only adds tags to untagged torrents) |  |
-| Remove Unregistered Torrents| `-r` or `--rem-unregistered` |  Use this if you would like to remove unregistered torrents. (It will the delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent without deleting data) |  |
-| Remove Orphaned Data| `-ro` or `--rem-orphaned` | Use this if you would like to remove orphaned files from your `root_dir` directory that are not referenced by any torrents. It will scan your `root_dir` directory and compare it with what is in Qbitorrent. Any data not referenced in Qbitorrent will be moved into `/data/torrents/orphaned_data` folder for you to review/delete. |  |
-| Dry-Run | `--dry-run` |   If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything. |  |
-| Log Level | `--log LOGLEVEL` |   Change the ouput log level. | INFO |
+| Shell Command | Description | Default Value | 
+| :------------ | :------------  | :------------ |
+| `-c CONFIG` or `--config-file CONFIG`  | This is used if you want to use a different name for your config.yml. `Example: tv.yml`  | config.yml |
+| `-l LOGFILE,` or `--log-file LOGFILE,` | This is used if you want to use a different name for your log file. `Example: tv.log` | activity.log |
+| `-m` or `--manage` | Use this if you would like to update your tags, categories, remove unregistered torrents, AND recheck/resume paused torrents.  |  |
+| `-s` or `--cross-seed` | Use this after running [cross-seed script](https://github.com/mmgoodnow/cross-seed) to add torrents from the cross-seed output folder to qBittorrent  |  |
+| `-re` or `--recheck` | Recheck paused torrents sorted by lowest size. Resume if Completed.  |  |
+| `-g` or `--cat-update` |  Use this if you would like to update your categories.  |  |
+| `-t` or `--tag-update` |  Use this if you would like to update your tags. (Only adds tags to untagged torrents) |  |
+| `-r` or `--rem-unregistered` |  Use this if you would like to remove unregistered torrents. (It will the delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent without deleting data) |  |
+| `-ro` or `--rem-orphaned` | Use this if you would like to remove orphaned files from your `root_dir` directory that are not referenced by any torrents. It will scan your `root_dir` directory and compare it with what is in Qbitorrent. Any data not referenced in Qbitorrent will be moved into `/data/torrents/orphaned_data` folder for you to review/delete. |  |
+| `--dry-run` |   If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything. |  |
+| `--log LOGLEVEL` |   Change the ouput log level. | INFO |
 
 ### Config
 To choose the location of the YAML config file
