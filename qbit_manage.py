@@ -533,7 +533,6 @@ def tag_nohardlinks():
                                 n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
                             else:
                                 n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
-                                #torrent.delete(hash=torrent.hash, delete_files=True)
             
             
             #loop through torrent list again for cleanup purposes
@@ -542,10 +541,11 @@ def tag_nohardlinks():
                     #Double check that the content path is the same before we delete anything
                     if torrent['content_path'].replace(root_path,remote_path) == tdel_dict[torrent.name]:
                         t_del_cs += 1
-                        if (os.path.exists(torrent['content_path'].replace(root_path,remote_path))):
-                            torrent.delete(hash=torrent.hash, delete_files=True)
-                        else:
-                            torrent.delete(hash=torrent.hash, delete_files=False)
+                        if args.dry_run != 'dry_run':
+                            if (os.path.exists(torrent['content_path'].replace(root_path,remote_path))):
+                                torrent.delete(hash=torrent.hash, delete_files=True)
+                            else:
+                                torrent.delete(hash=torrent.hash, delete_files=False)
 
 
                 #Checks to see if previous noHL tagged torrents now have hard links.
