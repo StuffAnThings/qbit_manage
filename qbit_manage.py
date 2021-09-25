@@ -486,9 +486,11 @@ def tag_nohardlinks():
             remote_path = root_path
 
         if 'Movie' in nohardlinks:
-            t_count = 0
-            t_del = 0
+            t_count = 0 #counter for the number of torrents that has no hard links
+            t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
+            t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
             n_info = ''
+            tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
             if 'category' not in nohardlinks['Movie']:
                 logger.error('category not defined in config inside the nohardlinks/Movies variable. Please make sure to fill out category in nohardlinks Movie section.')
             torrent_list = client.torrents.info(category=nohardlinks['Movie']['category'],filter='completed')
@@ -519,18 +521,32 @@ def tag_nohardlinks():
                             #set the tag for no hard links
                             torrent.add_tags(tags='noHL')
                             client.torrents_set_share_limits(ratio_limit,seeding_time_limit,torrent.hash)
-                            
+
                     #Cleans up previously tagged noHL torrents
                     else:
                         # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                         if ('cleanup' in nohardlinks['Movie'] and nohardlinks['Movie']['cleanup'] and torrent.state_enum.is_paused):
                             t_del += 1
                             n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.')
+                            tdel_dict[torrent.name] = torrent['content_path'].replace(root_path,remote_path)
                             if args.dry_run == 'dry_run':
                                 n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
                             else:
                                 n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
-                                torrent.delete(hash=torrent.hash, delete_files=True)
+                                #torrent.delete(hash=torrent.hash, delete_files=True)
+            
+            
+            #loop through torrent list again for cleanup purposes
+            for torrent in torrent_list:
+                if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
+                    #Double check that the content path is the same before we delete anything
+                    if torrent['content_path'].replace(root_path,remote_path) == tdel_dict[torrent.name]:
+                        t_del_cs += 1
+                        if (os.path.exists(torrent['content_path'].replace(root_path,remote_path))):
+                            torrent.delete(hash=torrent.hash, delete_files=True)
+                        else:
+                            torrent.delete(hash=torrent.hash, delete_files=False)
+
 
                 #Checks to see if previous noHL tagged torrents now have hard links.
                 if (not (nohardlink(torrent['content_path'].replace(root_path,remote_path))) and ('noHL' in torrent.tags)):
@@ -548,6 +564,7 @@ def tag_nohardlinks():
                     logger.dryrun(f'Did not tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
                     if t_del >= 1:
                         logger.dryrun(f'Did not delete {t_del} .torrents(s) or content files.')
+                        logger.dryrun(f'Did not delete {t_del_cs} .torrents(s) (including cross-seed) or content files.')
                 else:
                     logger.dryrun('No torrents to tag with no hard links.')
             else:
@@ -557,6 +574,7 @@ def tag_nohardlinks():
                     logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
                     if t_del >= 1:
                         logger.dryrun(f'Deleted {t_del} .torrents(s) AND content files.')
+                        logger.dryrun(f'Deleted {t_del_cs} .torrents(s) (includes cross-seed torrents) AND content files.')
                 else:
                     logger.info('No torrents to tag with no hard links.')
 
