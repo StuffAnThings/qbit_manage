@@ -153,7 +153,7 @@ def get_tags(urls):
             if i in url:
                 tag = f
                 if tag: return tag,trunc_val(url, '/')
-    tag = ''
+    tag = ('','')
     logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
 
@@ -568,7 +568,7 @@ def nohardlink(file):
     else:
         for path, subdirs, files in os.walk(file):
             for x in files:
-                if (os.stat(os.path.join(file,x)).st_nlink > 1):
+                if (os.stat(os.path.join(path,x)).st_nlink > 1):
                     check = False
     return check
 
