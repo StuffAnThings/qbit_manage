@@ -496,36 +496,41 @@ def tag_nohardlinks():
                 if args.dry_run != 'dry_run':
                     torrent.resume()
                 #Checks for any hard links and not already tagged
-                if (nohardlink(torrent['content_path'].replace(root_path,remote_path)) and 'noHL' not in torrent.tags):
-                    t_count += 1
-                    n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found.')
-                    n_info += (' Adding tags noHL.')
-                    #set the max seeding time for the torrent
-                    if ('max_seeding_time' in nohardlinks['Movie']):
-                        seeding_time_limit = nohardlinks['Movie']['max_seeding_time']
-                        n_info += (' \n    Setting max seed time to ' + str(seeding_time_limit) + '.')
-                    else:
-                        seeding_time_limit = -2
-                    #set the max ratio for the torrent
-                    if ('max_ratio' in nohardlinks['Movie']):
-                        ratio_limit = nohardlinks['Movie']['max_ratio']
-                        n_info += (' \n    Setting max ratio to ' + str(ratio_limit)+ '.')
-                    else:
-                        ratio_limit = -2
-
-                    # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
-                    if ('cleanup' in nohardlinks['Movie'] and nohardlinks['Movie']['cleanup'] and torrent.state_enum.is_paused):
-                        t_del += 1
-                        if args.dry_run == 'dry_run':
-                            n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
-                        else:
-                            n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
-                            torrent.delete(hash=torrent.hash, delete_files=True)
+                if (nohardlink(torrent['content_path'].replace(root_path,remote_path))):
                     
-                    if args.dry_run != 'dry_run':
-                        #set the tag for no hard links
-                        torrent.add_tags(tags='noHL')
-                        client.torrents_set_share_limits(ratio_limit,seeding_time_limit,torrent.hash)
+                    #Will only tag new torrents that don't have noHL tag
+                    if('noHL' not in torrent.tags):
+                        t_count += 1
+                        n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found.')
+                        n_info += (' Adding tags noHL.')
+                        #set the max seeding time for the torrent
+                        if ('max_seeding_time' in nohardlinks['Movie']):
+                            seeding_time_limit = nohardlinks['Movie']['max_seeding_time']
+                            n_info += (' \n    Setting max seed time to ' + str(seeding_time_limit) + '.')
+                        else:
+                            seeding_time_limit = -2
+                        #set the max ratio for the torrent
+                        if ('max_ratio' in nohardlinks['Movie']):
+                            ratio_limit = nohardlinks['Movie']['max_ratio']
+                            n_info += (' \n    Setting max ratio to ' + str(ratio_limit)+ '.')
+                        else:
+                            ratio_limit = -2
+                        if args.dry_run != 'dry_run':
+                            #set the tag for no hard links
+                            torrent.add_tags(tags='noHL')
+                            client.torrents_set_share_limits(ratio_limit,seeding_time_limit,torrent.hash)
+                            
+                    #Cleans up previously tagged noHL torrents
+                    else:
+                        # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
+                        if ('cleanup' in nohardlinks['Movie'] and nohardlinks['Movie']['cleanup'] and torrent.state_enum.is_paused):
+                            t_del += 1
+                            n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.')
+                            if args.dry_run == 'dry_run':
+                                n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
+                            else:
+                                n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
+                                torrent.delete(hash=torrent.hash, delete_files=True)
 
                 #Checks to see if previous noHL tagged torrents now have hard links.
                 if (not (nohardlink(torrent['content_path'].replace(root_path,remote_path))) and ('noHL' in torrent.tags)):
