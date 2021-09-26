@@ -202,7 +202,7 @@ def recheck():
         torrentdict = get_torrent_info(client.torrents.info(sort='added_on',reverse=True))
         for torrent in torrent_sorted_list:
             new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-            if torrent.tags == '' or 'cross-seed' in torrent.tags: torrent.add_tags(tags=new_tag)
+            if torrent.tags == '' or ('cross-seed' in torrent.tags and len(torrent.tags.split(",")) == 1): torrent.add_tags(tags=new_tag)
             #Resume torrent if completed
             if torrent.progress == 1: 
                 if args.dry_run == 'dry_run': 
@@ -323,7 +323,7 @@ def update_tags():
         num_tags = 0
         torrent_list = client.torrents.info(sort='added_on',reverse=True)
         for torrent in torrent_list:
-            if torrent.tags == '' or 'cross-seed' in torrent.tags:
+            if torrent.tags == '' or ('cross-seed' in torrent.tags and len(torrent.tags.split(",")) == 1):
                 new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'\n - Torrent Name: {torrent.name}'
@@ -574,8 +574,8 @@ def tag_nohardlinks():
                     logger.info(n_info)
                     logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
                     if t_del >= 1:
-                        logger.dryrun(f'Deleted {t_del} .torrents(s) AND content files.')
-                        logger.dryrun(f'Deleted {t_del_cs} .torrents(s) (includes cross-seed torrents) AND content files.')
+                        logger.info(f'Deleted {t_del} .torrents(s) AND content files.')
+                        logger.info(f'Deleted {t_del_cs} .torrents(s) (includes cross-seed torrents) AND content files.')
                 else:
                     logger.info('No torrents to tag with no hard links.')
 
