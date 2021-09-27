@@ -161,13 +161,13 @@ def remove_empty_directories(pathlib_root_dir):
   # list all directories recursively and sort them by path,
   # longest first
   L = sorted(
-      pathlib_root_dir.glob("**"),
+      pathlib_root_dir.glob("*/*"),
       key=lambda p: len(str(p)),
       reverse=True,
   )
   for pdir in L:
     try:
-      pdir.rmdir()  # remove directory if empty
+        pdir.rmdir()  # remove directory if empty
     except OSError:
       continue  # catch and continue if non-empty       
 
