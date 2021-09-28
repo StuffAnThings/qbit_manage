@@ -35,3 +35,24 @@ tags:
   hdts: HDTorrents
   tv-vault: TV-Vault
   cartoonchaos: CartoonChaos
+
+#Tag Movies/Series that are not hard linked
+nohardlinks:
+  # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
+  # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
+  movies-completed: 
+    #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    cleanup: false
+    #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    max_ratio: 4.0
+    #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    max_seeding_time: 86400
+    
+  #Can have additional categories set with separate ratio/seeding times defined.
+  series-completed: 
+    #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    cleanup: false
+    #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    max_ratio: 4.0
+    #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    max_seeding_time: 86400
