@@ -69,7 +69,7 @@ parser.add_argument('-tnhl', '--tag-nohardlinks',
                     action='store_const',
                     const='tag_nohardlinks',
                     help='Use this to tag any torrents that do not have any hard links associated with any of the files. This is useful for those that use Sonarr/Radarr'
-                    'to hard link your media files with the torrents for seeding. When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL'
+                    'that hard link your media files with the torrents for seeding. When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL'
                     'You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')                    
 parser.add_argument('--dry-run',
                     dest='dry_run',
