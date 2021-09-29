@@ -422,7 +422,7 @@ def rem_orphaned():
             logger.error('root_dir not defined in config.')
             return
 
-        if 'remote_dir' in cfg['directory']:
+        if ('remote_dir' in cfg['directory'] and cfg['directory']['remote_dir'] != ''):
             remote_path = os.path.join(cfg['directory']['remote_dir'], '')
             root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path]
         else:
@@ -480,11 +480,11 @@ def tag_nohardlinks():
         else:
             logger.error('root_dir not defined in config.')
             return
-        if 'remote_dir' in cfg['directory']:
+        if ('remote_dir' in cfg['directory'] and cfg['directory']['remote_dir'] != ''):
             remote_path = os.path.join(cfg['directory']['remote_dir'], '')
         else:
             remote_path = root_path
-
+        
         for category in nohardlinks:
             t_count = 0 #counter for the number of torrents that has no hard links
             t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
@@ -551,7 +551,17 @@ def tag_nohardlinks():
                                         n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
                                     else:
                                         n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
-            
+                
+                #Checks to see if previous noHL tagged torrents now have hard links.
+                if (not (nohardlink(torrent['content_path'].replace(root_path,remote_path))) and ('noHL' in torrent.tags)):
+                    n_info += (f'\n - Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.')
+                    n_info += (' Removing tags noHL.')
+                    n_info += (' Removing ratio and seeding time limits.')
+                    if args.dry_run != 'dry_run':
+                        #Remove tags and share limits
+                        torrent.remove_tags(tags='noHL')
+                        client.torrents_set_share_limits(-2,-2,torrent.hash)
+                        
             if(nohardlinks[category] != None):
                 #loop through torrent list again for cleanup purposes
                 if ('cleanup' in nohardlinks[category] and nohardlinks[category]['cleanup']):
@@ -565,17 +575,6 @@ def tag_nohardlinks():
                                         torrent.delete(hash=torrent.hash, delete_files=True)
                                     else:
                                         torrent.delete(hash=torrent.hash, delete_files=False)
-
-
-                #Checks to see if previous noHL tagged torrents now have hard links.
-                if (not (nohardlink(torrent['content_path'].replace(root_path,remote_path))) and ('noHL' in torrent.tags)):
-                    n_info += (f'\n - Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.')
-                    n_info += (' Removing tags noHL.')
-                    n_info += (' Removing ratio and seeding time limits.')
-                    if args.dry_run != 'dry_run':
-                        #Remove tags and share limits
-                        torrent.remove_tags(tags='noHL')
-                        client.torrents_set_share_limits(-2,-2,torrent.hash)
 
             if args.dry_run == 'dry_run':
                 if t_count >= 1 or len(n_info) > 1:
