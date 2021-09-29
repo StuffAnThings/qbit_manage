@@ -489,6 +489,7 @@ def tag_nohardlinks():
             t_count = 0 #counter for the number of torrents that has no hard links
             t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
             t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
+            tdel_tags = 0 #counter for number of torrents that previously had no hard links but now have hard links
             n_info = ''
             tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
             t_excl_tags = []#list of tags to exclude based on config.yml
@@ -557,6 +558,7 @@ def tag_nohardlinks():
                     n_info += (f'\n - Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.')
                     n_info += (' Removing tags noHL.')
                     n_info += (' Removing ratio and seeding time limits.')
+                    tdel_tags += 1
                     if args.dry_run != 'dry_run':
                         #Remove tags and share limits
                         torrent.remove_tags(tags='noHL')
@@ -576,25 +578,29 @@ def tag_nohardlinks():
                                     else:
                                         torrent.delete(hash=torrent.hash, delete_files=False)
 
-            if args.dry_run == 'dry_run':
-                if t_count >= 1 or len(n_info) > 1:
-                    logger.dryrun(n_info)
-                    logger.dryrun(f'Did not tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
-                    if t_del >= 1:
-                        logger.dryrun(f'Did not delete {t_del} .torrents(s) or content files.')
-                        logger.dryrun(f'Did not delete {t_del_cs} .torrents(s) (including cross-seed) or content files.')
-                else:
-                    logger.dryrun('No torrents to tag with no hard links.')
+        if args.dry_run == 'dry_run':
+            if t_count >= 1 or len(n_info) > 1:
+                logger.dryrun(n_info)
+                logger.dryrun(f'Did not tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
+                if t_del >= 1:
+                    logger.dryrun(f'Did not delete {t_del} .torrents(s) or content files.')
+                    logger.dryrun(f'Did not delete {t_del_cs} .torrents(s) (including cross-seed) or content files.')
+                if tdel_tags >= 1:
+                    logger.dryrun(f'Did not delete noHL tags/unset ratio limit/seeding time for  {tdel_tags} .torrents(s)')
             else:
-                
-                if t_count >= 1 or len(n_info) > 1:
-                    logger.info(n_info)
-                    logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
-                    if t_del >= 1:
-                        logger.info(f'Deleted {t_del} .torrents(s) AND content files.')
-                        logger.info(f'Deleted {t_del_cs} .torrents(s) (includes cross-seed torrents) AND content files.')
-                else:
-                    logger.info('No torrents to tag with no hard links.')
+                logger.dryrun('No torrents to tag with no hard links.')
+        else:
+            
+            if t_count >= 1 or len(n_info) > 1:
+                logger.info(n_info)
+                logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
+                if t_del >= 1:
+                    logger.info(f'Deleted {t_del} .torrents(s) AND content files.')
+                    logger.info(f'Deleted {t_del_cs} .torrents(s) (includes cross-seed torrents) AND content files.')
+                if tdel_tags >= 1:
+                    logger.info(f'Deleted noHL tags/ remove ratio limit/seeding time for  {tdel_tags} .torrents(s)')
+            else:
+                logger.info('No torrents to tag with no hard links.')
 
 
 #will check if there are any hard links if it passes a file or folder
