@@ -586,7 +586,7 @@ def tag_nohardlinks():
                     logger.dryrun(f'Did not delete {t_del} .torrents(s) or content files.')
                     logger.dryrun(f'Did not delete {t_del_cs} .torrents(s) (including cross-seed) or content files.')
                 if tdel_tags >= 1:
-                    logger.dryrun(f'Did not delete noHL tags/unset ratio limit/seeding time for  {tdel_tags} .torrents(s)')
+                    logger.dryrun(f'Did not delete noHL tags/ remove ratio limit/seeding time for  {tdel_tags} .torrents(s)')
             else:
                 logger.dryrun('No torrents to tag with no hard links.')
         else:
