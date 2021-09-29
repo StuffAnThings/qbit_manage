@@ -40,7 +40,11 @@ tags:
 nohardlinks:
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
-  movies-completed: 
+  movies-completed:
+    #<OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
+    exclude_tags:
+      - Beyond-HD
+      - AnimeBytes
     #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
     cleanup: false
     #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
@@ -50,6 +54,10 @@ nohardlinks:
     
   #Can have additional categories set with separate ratio/seeding times defined.
   series-completed: 
+    #<OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
+    exclude_tags:
+      - Beyond-HD
+      - BroadcasTheNet
     #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
     cleanup: false
     #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
