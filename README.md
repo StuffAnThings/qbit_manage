@@ -1,5 +1,7 @@
 # qBit Management
+
 This is a program used to manage your qBittorrent instance such as:
+
 * Tag torrents based on tracker URL (only tag torrents that have no tags)
 * Update categories based on save directory
 * Remove unregistered torrents (delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent)
@@ -10,33 +12,91 @@ This is a program used to manage your qBittorrent instance such as:
 
 ## Installation
 
-#### Unraid Installation:
+* Dependencies
+  * Requires `python 3`
+
+### Unraid Installation
+
 * [Guide to setup on Unraid](https://github.com/StuffAnThings/qbit_manage/wiki/qBit-Manager-on-unRAID)
-#### Local Installation:
-* Requires `python 3`. Dependencies must be installed by running:
+
+### *Nix Installation
+
+* Download the script
+
+```bash
+wget -O qbit_manage.py 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/qbit_manage.py'
 ```
+
+* Make it executable
+
+```bash
+chmod +x qbit_manage.py
+```
+
+* Get & Install Requirements
+
+```bash
+wget -O requirements.txt 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/requirements.txt'
 pip install -r requirements.txt
 ```
-If there are issues installing dependencies try:
+
+* Get Example Config
+
+```bash
+wget -O config.yml.sample 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/config.yml.sample'
 ```
+
+* Create Config
+
+```bash
+cp config.yml.sample config.yml
+nano -e config.yml
+```
+
+* Updating
+
+```bash
+wget -O qbit_manage.py 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/qbit_manage.py'
+chmod +x qbit_manage.py
+wget -O requirements.txt 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/requirements.txt'
+pip install -r requirements.txt
+wget -O config.yml.sample 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/config.yml.sample'
+dff -ui config.yml config.yml.sample
+```
+
+#### Other Local Installation
+
+* Requires `python 3`. Dependencies must be installed by running:
+
+```bash
+pip install -r requirements.txt
+```
+
+If there are issues installing dependencies try:
+
+```bash
 pip install -r requirements.txt --ignore-installed
 ```
 
 ## Usage
+
 To run the script in an interactive terminal run:
+
 * copy the `config.yml.sample` file to `config.yml`
-* add your qBittorrent host, user and pass. If you are not using a username and password you can remove the `user` and `pass` lines. 
+* add your qBittorrent host, user and pass. If you are not using a username and password you can remove the `user` and `pass` lines.
 * add your `cross_seed` and `root_dir`. If you are using a docker container you must fill out `remote_dir` as well.
 * Add your categories and save path to match with what is being used in your qBittorrent instance. I suggest using the full path when defining `save_path`
 * Add the `tag` definition based on tracker URL
 * Modify the  `nohardlinks` by specifying your completed movies/series category to match with qBittorrent. Please ensure the `root_dir` and/or  `remote_dir` is added in the `directory` section
 * To run the script in an interactive terminal with a list of possible commands run:
-```
+
+```bash
 python qbit_manage.py -h
 ```
 
 ## Commands
-| Shell Command | Description | Default Value | 
+
+| Shell Command | Description | Default Value |
 | :------------ | :------------  | :------------ |
 | `-c CONFIG` or `--config-file CONFIG`  | This is used if you want to use a different name for your config.yml. `Example: tv.yml`  | config.yml |
 | `-l LOGFILE,` or `--log-file LOGFILE,` | This is used if you want to use a different name for your log file. `Example: tv.log` | activity.log |
@@ -52,12 +112,17 @@ python qbit_manage.py -h
 | `--log LOGLEVEL` |   Change the ouput log level. | INFO |
 
 ### Config
+
 To choose the location of the YAML config file
-```
+
+```bash
 python qbit_manage.py --config-file <path_to_config>
 ```
+
 ### Log
+
 To choose the location of the Log File
-```
+
+```bash
 python qbit_manage.py --log-file <path_to_log>
 ```
