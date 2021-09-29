@@ -484,7 +484,7 @@ def tag_nohardlinks():
             remote_path = os.path.join(cfg['directory']['remote_dir'], '')
         else:
             remote_path = root_path
-        
+
         for category in nohardlinks:
             t_count = 0 #counter for the number of torrents that has no hard links
             t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
