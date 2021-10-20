@@ -183,14 +183,17 @@ def get_torrent_info(t_list):
         if torrent.name in torrentdict:
             t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
+            status_list = torrentdict[torrent.name]['status']
             is_complete = True if torrentdict[torrent.name]['is_complete'] == True else torrent.state_enum.is_complete
         else:
             t_count = 1
             msg_list = []
+            status_list = []
             is_complete = torrent.state_enum.is_complete
-        msg = [x.msg for x in torrent.trackers if x.url.startswith('http')][0]
+        msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
         msg_list.append(msg)
-        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'is_complete': is_complete}
+        status_list.append(status)
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
@@ -358,6 +361,7 @@ def rem_unregistered():
             t_name = torrent.name
             t_count = torrentdict[t_name]['count']
             t_msg = torrentdict[t_name]['msg']
+            t_status = torrentdict[t_name]['status']
             for x in torrent.trackers:
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
@@ -369,7 +373,10 @@ def rem_unregistered():
                                 f'\n - Status: {x.msg} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg or 'Torrent not found' in x.msg:
+                    if ('Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg or 'Torrent not found' in x.msg or 'https://beyond-hd.me/torrents' in x.msg) and x.status == 4:
+                        logger.debug(f'Torrent counts: {t_count}')
+                        logger.debug(f'msg: {t_msg}')
+                        logger.debug(f'status: {t_status}')
                         if t_count > 1:
                             if args.dry_run == 'dry_run':
                                 if '' in t_msg: 
@@ -380,7 +387,7 @@ def rem_unregistered():
                                     del_tor += 1
                             else:
                                 # Checks if any of the original torrents are working
-                                if '' in t_msg: 
+                                if '' in t_msg or 2 in t_status: 
                                     logger.info(n_info)
                                     torrent.delete(hash=torrent.hash, delete_files=False)
                                     rem_unr += 1
@@ -435,13 +442,13 @@ def rem_orphaned():
             
         orphaned_files = set(root_files) - set(torrent_files)
         orphaned_files = sorted(orphaned_files)
-        #print('----------torrent files-----------')
-        #print("\n".join(torrent_files))
-        # print('----------root_files-----------')
-        # print("\n".join(root_files))
-        # print('----------orphaned_files-----------')
-        # print("\n".join(orphaned_files))
-        # print('----------Deleting orphan files-----------')
+        logger.debug('----------torrent files-----------')
+        logger.debug("\n".join(torrent_files))
+        logger.debug('----------root_files-----------')
+        logger.debug("\n".join(root_files))
+        logger.debug('----------orphaned_files-----------')
+        logger.debug("\n".join(orphaned_files))
+        logger.debug('----------Deleting orphan files-----------')
         if (orphaned_files):
             if args.dry_run == 'dry_run':
                 dir_out = os.path.join(remote_path,'orphaned_data')
