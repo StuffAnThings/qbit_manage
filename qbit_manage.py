@@ -369,7 +369,7 @@ def rem_unregistered():
                                 f'\n - Status: {x.msg} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg:
+                    if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg or 'Torrent not found' in x.msg:
                         if t_count > 1:
                             if args.dry_run == 'dry_run':
                                 if '' in t_msg: 
