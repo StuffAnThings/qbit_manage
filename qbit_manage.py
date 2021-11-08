@@ -357,6 +357,7 @@ def rem_unregistered():
         torrentdict = get_torrent_info(torrent_list)
         rem_unr = 0
         del_tor = 0
+        pot_unr = ''
         for torrent in torrent_list:
             t_name = torrent.name
             t_count = torrentdict[t_name]['count']
@@ -373,7 +374,19 @@ def rem_unregistered():
                                 f'\n - Status: {x.msg} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if ('Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg or 'Torrent not found' in x.msg or 'https://beyond-hd.me/torrents' in x.msg) and x.status == 4:
+                    if (x.status == 4):
+                        pot_unr += (f'\n - {torrent.name}')
+                    if ('Unregistered torrent' in x.msg or \
+                        'unregistered torrent' in x.msg or \
+                        'Torrent is not found' in x.msg or \
+                        'Torrent not registered' in x.msg or \
+                        'Torrent not found' in x.msg or \
+                        'https://beyond-hd.me/torrents' in x.msg or \
+                        'does not exist' in x.msg or \
+                        'not registered' in x.msg or \
+                        'Unknown torrent' in x.msg or \
+                        'Packs are available' in x.msg \
+                        ) and x.status == 4:
                         logger.debug(f'Torrent counts: {t_count}')
                         logger.debug(f'msg: {t_msg}')
                         logger.debug(f'status: {t_status}')
@@ -415,7 +428,8 @@ def rem_unregistered():
                 logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')
             else:
                 logger.info('No unregistered torrents found.')
-
+        if (len(pot_unr) > 0):
+            logger.debug(f'Potential Unregistered torrents: {pot_unr}')
 def rem_orphaned():
     if args.rem_orphaned == 'rem_orphaned':
         torrent_list = client.torrents.info()
@@ -597,7 +611,6 @@ def tag_nohardlinks():
             else:
                 logger.dryrun('No torrents to tag with no hard links.')
         else:
-            
             if t_count >= 1 or len(n_info) > 1:
                 logger.info(n_info)
                 logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
