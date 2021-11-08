@@ -384,7 +384,8 @@ def rem_unregistered():
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
                     if (x.status == 4 and 'DOWN' not in msg_up):
-                        pot_unr += (f'\n - {torrent.name}')
+                        pot_unr += (f'\n - Torrent: {torrent.name}')
+                        pot_unr += (f'\n     - Message: {x.msg}')
                     if ('UNREGISTERED' in msg_up or \
                         'NOT FOUND' in msg_up or \
                         'NOT REGISTERED' in msg_up or \
