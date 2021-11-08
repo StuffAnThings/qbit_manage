@@ -136,23 +136,31 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    cat_path = cfg["cat"]
-    for i, f in cat_path.items():
-        if f in path:
-            category = i
-            return category
+    if 'cat' in cfg and cfg["cat"] != None:
+        cat_path = cfg["cat"]
+        for i, f in cat_path.items():
+            if f in path:
+                category = i
+                return category
+    else:
+        category = ''
+        return category
     category = ''
     logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
     return category
 
 
 def get_tags(urls):
-    tag_path = cfg['tags']
-    for i, f in tag_path.items():
-        for url in urls:
-            if i in url:
-                tag = f
-                if tag: return tag,trunc_val(url, '/')
+    if 'tags' in cfg and cfg["tags"] != None:
+        tag_path = cfg['tags']
+        for i, f in tag_path.items():
+            for url in urls:
+                if i in url:
+                    tag = f
+                    if tag: return tag,trunc_val(url, '/')
+    else:
+        tag = ('','')
+        return tag
     tag = ('','')
     logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
@@ -430,6 +438,7 @@ def rem_unregistered():
                 logger.info('No unregistered torrents found.')
         if (len(pot_unr) > 0):
             logger.debug(f'Potential Unregistered torrents: {pot_unr}')
+
 def rem_orphaned():
     if args.rem_orphaned == 'rem_orphaned':
         torrent_list = client.torrents.info()
