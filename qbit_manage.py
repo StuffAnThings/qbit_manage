@@ -504,7 +504,13 @@ def rem_orphaned():
 def tag_nohardlinks():
     if args.tag_nohardlinks == 'tag_nohardlinks':
         nohardlinks = cfg['nohardlinks']
-
+        n_info = ''
+        t_count = 0 #counter for the number of torrents that has no hard links
+        t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
+        t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
+        tdel_tags = 0 #counter for number of torrents that previously had no hard links but now have hard links
+        tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
+        t_excl_tags = []#list of tags to exclude based on config.yml
         if 'root_dir' in cfg['directory']:
             root_path = os.path.join(cfg['directory']['root_dir'], '')
         else:
@@ -516,15 +522,7 @@ def tag_nohardlinks():
             remote_path = root_path
 
         for category in nohardlinks:
-            t_count = 0 #counter for the number of torrents that has no hard links
-            t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
-            t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
-            tdel_tags = 0 #counter for number of torrents that previously had no hard links but now have hard links
-            n_info = ''
-            tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
-            t_excl_tags = []#list of tags to exclude based on config.yml
             torrent_list = client.torrents.info(category=category,filter='completed')
-            
             #Convert string to list if only one tag defined.
             if ('exclude_tags' in nohardlinks[category]):
                 if isinstance(nohardlinks[category]['exclude_tags'],str):
