@@ -374,27 +374,25 @@ def rem_unregistered():
             for x in torrent.trackers:
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
+                    msg_up = x.msg.upper()
                     n_info = (f'\n - Torrent Name: {t_name} '
-                              f'\n - Status: {x.msg} '
+                              f'\n - Status: {msg_up} '
                               f'\n - Tracker: {t_url} '
                               f'\n - Deleted .torrent but not content files.')
                     n_d_info = (f'\n - Torrent Name: {t_name} '
-                                f'\n - Status: {x.msg} '
+                                f'\n - Status: {msg_up} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if (x.status == 4):
+                    if (x.status == 4 and 'DOWN' not in msg_up):
                         pot_unr += (f'\n - {torrent.name}')
-                    if ('Unregistered torrent' in x.msg or \
-                        'unregistered torrent' in x.msg or \
-                        'Torrent is not found' in x.msg or \
-                        'Torrent not registered' in x.msg or \
-                        'Torrent not found' in x.msg or \
-                        'https://beyond-hd.me/torrents' in x.msg or \
-                        'does not exist' in x.msg or \
-                        'not registered' in x.msg or \
-                        'Unknown torrent' in x.msg or \
-                        'Packs are available' in x.msg \
-                        ) and x.status == 4:
+                    if ('UNREGISTERED' in msg_up or \
+                        'NOT FOUND' in msg_up or \
+                        'NOT REGISTERED' in msg_up or \
+                        'HTTPS://BEYOND-HD.ME/TORRENTS' in msg_up or \
+                        'NOT EXIST' in msg_up or \
+                        'UNKNOWN TORRENT' in msg_up or \
+                        'PACKS ARE AVAILABLE' in msg_up \
+                        ) and x.status == 4 and 'down' not in msg_up:
                         logger.debug(f'Torrent counts: {t_count}')
                         logger.debug(f'msg: {t_msg}')
                         logger.debug(f'status: {t_status}')
