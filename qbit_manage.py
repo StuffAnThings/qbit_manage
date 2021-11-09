@@ -392,7 +392,9 @@ def rem_unregistered():
                         'HTTPS://BEYOND-HD.ME/TORRENTS' in msg_up or \
                         'NOT EXIST' in msg_up or \
                         'UNKNOWN TORRENT' in msg_up or \
-                        'PACKS ARE AVAILABLE' in msg_up \
+                        'PACKS' in msg_up or \
+                        'REPACKED' in msg_up or \
+                        'PACK' in msg_up \
                         ) and x.status == 4 and ('DOWN' not in msg_up or 'UNREACHABLE' not in msg_up):
                         logger.debug(f'Torrent counts: {t_count}')
                         logger.debug(f'msg: {t_msg}')
