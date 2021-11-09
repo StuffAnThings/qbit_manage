@@ -387,7 +387,8 @@ def rem_unregistered():
                         pot_unr += (f'\n - Torrent: {torrent.name}')
                         pot_unr += (f'\n     - Message: {x.msg}')
                     if ('UNREGISTERED' in msg_up or \
-                        'NOT FOUND' in msg_up or \
+                        'TORRENT NOT FOUND' in msg_up or \
+                        'TORRENT IS NOT FOUND' in msg_up or \
                         'NOT REGISTERED' in msg_up or \
                         'HTTPS://BEYOND-HD.ME/TORRENTS' in msg_up or \
                         'NOT EXIST' in msg_up or \
