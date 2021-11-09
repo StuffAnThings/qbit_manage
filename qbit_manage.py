@@ -383,7 +383,7 @@ def rem_unregistered():
                                 f'\n - Status: {msg_up} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if (x.status == 4 and ('DOWN' not in msg_up or '(UNREACHABLE)' not in msg_up)):
+                    if (x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up):
                         pot_unr += (f'\n - Torrent: {torrent.name}')
                         pot_unr += (f'\n     - Message: {x.msg}')
                     if ('UNREGISTERED' in msg_up or \
@@ -396,7 +396,7 @@ def rem_unregistered():
                         'PACKS' in msg_up or \
                         'REPACKED' in msg_up or \
                         'PACK' in msg_up \
-                        ) and x.status == 4 and ('DOWN' not in msg_up or '(UNREACHABLE)' not in msg_up):
+                        ) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
                         logger.debug(f'Torrent counts: {t_count}')
                         logger.debug(f'msg: {t_msg}')
                         logger.debug(f'status: {t_status}')
