@@ -22,19 +22,19 @@ cat:
 # Tag Parameters
 tags:
   # <Tracker URL Keyword>: <Tag Name>
-  beyond-hd: Beyond-HD
-  privatehd: PrivateHD
   animebytes.tv: AnimeBytes
   avistaz: Avistaz
+  beyond-hd: Beyond-HD
+  blutopia: Blutopia
+  cartoonchaos: CartoonChaos
+  gazellegames: GGn
+  hdts: HDTorrents
   landof.tv: BroadcasTheNet
   passthepopcorn: PassThePopcorn
-  torrentleech: TorrentLeech
+  privatehd: PrivateHD
   tleechreload: TorrentLeech
-  gazellegames: GGn
-  blutopia: Blutopia
-  hdts: HDTorrents
+  torrentleech: TorrentLeech
   tv-vault: TV-Vault
-  cartoonchaos: CartoonChaos
 
 #Tag Movies/Series that are not hard linked
 nohardlinks:
