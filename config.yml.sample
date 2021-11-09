@@ -1,23 +1,23 @@
 # qBittorrent parameters
 qbt:
-  host: 'localhost:8080'
-  user: 'username'
-  pass: 'password'
+  host: "localhost:8080"
+  user: "username"
+  pass: "password"
 
 directory:
   # Do not remove these
-  # Cross-seed var: </your/path/here/> #Output directory of cross-seed 
+  # Cross-seed var: </your/path/here/> #Output directory of cross-seed
   # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files
   # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir
-  cross_seed: '/your/path/here/'
-  root_dir:  '/data/torrents/'
-  remote_dir: '/mnt/user/data/torrents/'
+  cross_seed: "/your/path/here/"
+  root_dir: "/data/torrents/"
+  remote_dir: "/mnt/user/data/torrents/"
 
 # Category/Pathing Parameters
 cat:
   # <Category Name> : <save_path> #Path of your save directory. Can be a keyword or full path
-  movies: '/data/torrents/Movies'
-  tv: 'TV'
+  movies: "/data/torrents/Movies"
+  tv: "TV"
 
 # Tag Parameters
 tags:
@@ -51,9 +51,9 @@ nohardlinks:
     max_ratio: 4.0
     #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
-    
+
   #Can have additional categories set with separate ratio/seeding times defined.
-  series-completed: 
+  series-completed:
     #<OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
     exclude_tags:
       - Beyond-HD
