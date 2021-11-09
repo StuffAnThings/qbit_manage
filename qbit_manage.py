@@ -136,23 +136,31 @@ def trunc_val(s, d, n=3):
 
 
 def get_category(path):
-    cat_path = cfg["cat"]
-    for i, f in cat_path.items():
-        if f in path:
-            category = i
-            return category
+    if 'cat' in cfg and cfg["cat"] != None:
+        cat_path = cfg["cat"]
+        for i, f in cat_path.items():
+            if f in path:
+                category = i
+                return category
+    else:
+        category = ''
+        return category
     category = ''
     logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
     return category
 
 
 def get_tags(urls):
-    tag_path = cfg['tags']
-    for i, f in tag_path.items():
-        for url in urls:
-            if i in url:
-                tag = f
-                if tag: return tag,trunc_val(url, '/')
+    if 'tags' in cfg and cfg["tags"] != None:
+        tag_path = cfg['tags']
+        for i, f in tag_path.items():
+            for url in urls:
+                if i in url:
+                    tag = f
+                    if tag: return tag,trunc_val(url, '/')
+    else:
+        tag = ('','')
+        return tag
     tag = ('','')
     logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
@@ -183,14 +191,17 @@ def get_torrent_info(t_list):
         if torrent.name in torrentdict:
             t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
+            status_list = torrentdict[torrent.name]['status']
             is_complete = True if torrentdict[torrent.name]['is_complete'] == True else torrent.state_enum.is_complete
         else:
             t_count = 1
             msg_list = []
+            status_list = []
             is_complete = torrent.state_enum.is_complete
-        msg = [x.msg for x in torrent.trackers if x.url.startswith('http')][0]
+        msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
         msg_list.append(msg)
-        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'is_complete': is_complete}
+        status_list.append(status)
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
@@ -354,22 +365,41 @@ def rem_unregistered():
         torrentdict = get_torrent_info(torrent_list)
         rem_unr = 0
         del_tor = 0
+        pot_unr = ''
         for torrent in torrent_list:
             t_name = torrent.name
             t_count = torrentdict[t_name]['count']
             t_msg = torrentdict[t_name]['msg']
+            t_status = torrentdict[t_name]['status']
             for x in torrent.trackers:
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
+                    msg_up = x.msg.upper()
                     n_info = (f'\n - Torrent Name: {t_name} '
-                              f'\n - Status: {x.msg} '
+                              f'\n - Status: {msg_up} '
                               f'\n - Tracker: {t_url} '
                               f'\n - Deleted .torrent but not content files.')
                     n_d_info = (f'\n - Torrent Name: {t_name} '
-                                f'\n - Status: {x.msg} '
+                                f'\n - Status: {msg_up} '
                                 f'\n - Tracker: {t_url} '
                                 f'\n - Deleted .torrent AND content files.')
-                    if 'Unregistered torrent' in x.msg or 'Torrent is not found' in x.msg or 'Torrent not registered' in x.msg or 'Torrent not found' in x.msg:
+                    if (x.status == 4 and ('DOWN' not in msg_up or '(UNREACHABLE)' not in msg_up)):
+                        pot_unr += (f'\n - Torrent: {torrent.name}')
+                        pot_unr += (f'\n     - Message: {x.msg}')
+                    if ('UNREGISTERED' in msg_up or \
+                        'NOT FOUND' in msg_up or \
+                        'NOT REGISTERED' in msg_up or \
+                        'HTTPS://BEYOND-HD.ME/TORRENTS' in msg_up or \
+                        'NOT EXIST' in msg_up or \
+                        'UNKNOWN TORRENT' in msg_up or \
+                        'REDOWNLOAD' in msg_up or \
+                        'PACKS' in msg_up or \
+                        'REPACKED' in msg_up or \
+                        'PACK' in msg_up \
+                        ) and x.status == 4 and ('DOWN' not in msg_up or '(UNREACHABLE)' not in msg_up):
+                        logger.debug(f'Torrent counts: {t_count}')
+                        logger.debug(f'msg: {t_msg}')
+                        logger.debug(f'status: {t_status}')
                         if t_count > 1:
                             if args.dry_run == 'dry_run':
                                 if '' in t_msg: 
@@ -380,7 +410,7 @@ def rem_unregistered():
                                     del_tor += 1
                             else:
                                 # Checks if any of the original torrents are working
-                                if '' in t_msg: 
+                                if '' in t_msg or 2 in t_status: 
                                     logger.info(n_info)
                                     torrent.delete(hash=torrent.hash, delete_files=False)
                                     rem_unr += 1
@@ -408,6 +438,8 @@ def rem_unregistered():
                 logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')
             else:
                 logger.info('No unregistered torrents found.')
+        if (len(pot_unr) > 0):
+            logger.debug(f'Potential Unregistered torrents: {pot_unr}')
 
 def rem_orphaned():
     if args.rem_orphaned == 'rem_orphaned':
@@ -435,13 +467,13 @@ def rem_orphaned():
             
         orphaned_files = set(root_files) - set(torrent_files)
         orphaned_files = sorted(orphaned_files)
-        #print('----------torrent files-----------')
-        #print("\n".join(torrent_files))
-        # print('----------root_files-----------')
-        # print("\n".join(root_files))
-        # print('----------orphaned_files-----------')
-        # print("\n".join(orphaned_files))
-        # print('----------Deleting orphan files-----------')
+        logger.debug('----------torrent files-----------')
+        logger.debug("\n".join(torrent_files))
+        logger.debug('----------root_files-----------')
+        logger.debug("\n".join(root_files))
+        logger.debug('----------orphaned_files-----------')
+        logger.debug("\n".join(orphaned_files))
+        logger.debug('----------Deleting orphan files-----------')
         if (orphaned_files):
             if args.dry_run == 'dry_run':
                 dir_out = os.path.join(remote_path,'orphaned_data')
@@ -474,7 +506,13 @@ def rem_orphaned():
 def tag_nohardlinks():
     if args.tag_nohardlinks == 'tag_nohardlinks':
         nohardlinks = cfg['nohardlinks']
-
+        n_info = ''
+        t_count = 0 #counter for the number of torrents that has no hard links
+        t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
+        t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
+        tdel_tags = 0 #counter for number of torrents that previously had no hard links but now have hard links
+        tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
+        t_excl_tags = []#list of tags to exclude based on config.yml
         if 'root_dir' in cfg['directory']:
             root_path = os.path.join(cfg['directory']['root_dir'], '')
         else:
@@ -486,15 +524,7 @@ def tag_nohardlinks():
             remote_path = root_path
 
         for category in nohardlinks:
-            t_count = 0 #counter for the number of torrents that has no hard links
-            t_del = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
-            t_del_cs = 0 #counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including cross-seeds
-            tdel_tags = 0 #counter for number of torrents that previously had no hard links but now have hard links
-            n_info = ''
-            tdel_dict = {} #dictionary to track the torrent names and content path that meet the deletion criteria
-            t_excl_tags = []#list of tags to exclude based on config.yml
             torrent_list = client.torrents.info(category=category,filter='completed')
-            
             #Convert string to list if only one tag defined.
             if ('exclude_tags' in nohardlinks[category]):
                 if isinstance(nohardlinks[category]['exclude_tags'],str):
@@ -590,7 +620,6 @@ def tag_nohardlinks():
             else:
                 logger.dryrun('No torrents to tag with no hard links.')
         else:
-            
             if t_count >= 1 or len(n_info) > 1:
                 logger.info(n_info)
                 logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
