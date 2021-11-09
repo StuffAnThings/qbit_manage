@@ -61,7 +61,7 @@ chmod +x qbit_manage.py
 wget -O requirements.txt 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/requirements.txt'
 pip install -r requirements.txt
 wget -O config.yml.sample 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/config.yml.sample'
-dff -ui config.yml config.yml.sample
+diff -ui config.yml config.yml.sample
 ```
 
 #### Other Local Installation
