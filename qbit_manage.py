@@ -193,15 +193,17 @@ def get_torrent_info(t_list):
             msg_list = torrentdict[torrent.name]['msg']
             status_list = torrentdict[torrent.name]['status']
             is_complete = True if torrentdict[torrent.name]['is_complete'] == True else torrent.state_enum.is_complete
+            first_hash = torrentdict[torrent.name]['first_hash']
         else:
             t_count = 1
             msg_list = []
             status_list = []
             is_complete = torrent.state_enum.is_complete
+            first_hash = torrent.hash
         msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
         msg_list.append(msg)
         status_list.append(status)
-        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete}
+        torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete, 'first_hash':first_hash}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
 
@@ -238,12 +240,14 @@ def cross_seed():
         total = 0
         # Used to output the final list torrents moved to output in the log
         torrents_added = ''
+        #Track # of torrents tagged that are not cross-seeded
+        t_tagged = 0
         # Only get torrent files
         cs_files = [f for f in os.listdir(os.path.join(cfg['directory']['cross_seed'], '')) if f.endswith('torrent')]
         dir_cs = os.path.join(cfg['directory']['cross_seed'], '')
         dir_cs_out = os.path.join(dir_cs,'qbit_manage_added')
         os.makedirs(dir_cs_out,exist_ok=True)
-        torrent_list = client.torrents.info(sort='added_on',reverse=True)
+        torrent_list = client.torrents.info(sort='added_on')
         torrentdict = get_torrent_info(torrent_list)
         for file in cs_files:
             t_name = file.split(']', 2)[2].split('.torrent')[0]
@@ -268,6 +272,7 @@ def cross_seed():
                         client.torrents.add(torrent_files=src,
                                             save_path=dest,
                                             category=category,
+                                            tags='cross-seed',
                                             is_paused=True)
                         shutil.move(src, dir_cs_out)
                         logger.info(f'Adding {t_name} to qBittorrent with: '
@@ -282,17 +287,31 @@ def cross_seed():
                 else:
                     logger.warning(f'{t_name} not found in torrents.')
         numcategory = Counter(categories)
+        #Tag missing cross-seed torrents tags
+        for torrent in torrent_list:
+            t_name = torrent.name
+            if 'cross-seed' not in torrent.tags and torrentdict[t_name]['count'] > 1 and torrentdict[t_name]['first_hash'] != torrent.hash:
+                t_tagged += 1
+                if args.dry_run == 'dry_run':
+                    logger.dryrun(f'Not Adding cross-seed tag to {t_name}')
+                else:
+                    logger.info(f'Adding cross-seed tag to {t_name}')
+                    torrent.add_tags(tags='cross-seed')
+
+
         if args.dry_run == 'dry_run':
             for c in numcategory:
                 total += numcategory[c]
                 torrents_added += f'\n - {c} .torrents not added: {numcategory[c]}'
             torrents_added += f'\n -- Total .torrents not added: {total}'
+            torrents_added += f'\n -- Total .torrents not tagged: {t_tagged}'
             logger.dryrun(torrents_added)
         else:
             for c in numcategory:
                 total += numcategory[c]
                 torrents_added += f'\n - {c} .torrents added: {numcategory[c]}'
             torrents_added += f'\n -- Total .torrents added: {total}'
+            torrents_added += f'\n -- Total .torrents tagged: {t_tagged}'
             logger.info(torrents_added)
 
 
