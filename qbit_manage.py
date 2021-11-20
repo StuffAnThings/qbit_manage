@@ -11,6 +11,8 @@ import urllib3
 from collections import Counter
 import glob
 from pathlib import Path
+import time
+import stat
 
 # import apprise
 
@@ -31,7 +33,7 @@ parser.add_argument('-m', '--manage',
                     action='store_const',
                     const='manage',
                     help='Use this if you would like to update your tags, categories,'
-                         ' remove unregistered torrents, AND recheck/resume paused torrents.')
+                         ' remove unregistered torrents, recheck/resume paused torrents, and empty recycle bin.')
 parser.add_argument('-s', '--cross-seed',
                     dest='cross_seed',
                     action='store_const',
@@ -71,6 +73,11 @@ parser.add_argument('-tnhl', '--tag-nohardlinks',
                     help='Use this to tag any torrents that do not have any hard links associated with any of the files. This is useful for those that use Sonarr/Radarr'
                     'that hard link your media files with the torrents for seeding. When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL'
                     'You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')                    
+parser.add_argument('-er', '--empty-recycle',
+                    dest='empty_recycle',
+                    action='store_const',
+                    const='empty_recycle',
+                    help='Use this to empty your Reycle Bin folder based on x number of days defined in the config.')        
 parser.add_argument('--dry-run',
                     dest='dry_run',
                     action='store_const',
@@ -165,11 +172,22 @@ def get_tags(urls):
     logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
     return tag
 
-def remove_empty_directories(pathlib_root_dir):
+def move_files(src,dest,mod=False):
+    dest_path = os.path.dirname(dest)
+    if os.path.isdir(dest_path) == False:
+        os.makedirs(dest_path)
+    shutil.move(src, dest)
+    if(mod == True):
+        modTime = time.time()
+        os.utime(dest,(modTime,modTime))
+        
+
+
+def remove_empty_directories(pathlib_root_dir,pattern):
   # list all directories recursively and sort them by path,
   # longest first
   L = sorted(
-      pathlib_root_dir.glob("*/*"),
+      pathlib_root_dir.glob(pattern),
       key=lambda p: len(str(p)),
       reverse=True,
   )
@@ -436,7 +454,7 @@ def rem_unregistered():
                                     rem_unr += 1
                                 else:
                                     logger.info(n_d_info)
-                                    torrent.delete(hash=torrent.hash, delete_files=True)
+                                    tor_delete_recycle(torrent)
                                     del_tor += 1                                  
                         else:
                             if args.dry_run == 'dry_run':
@@ -444,7 +462,7 @@ def rem_unregistered():
                                 del_tor += 1
                             else:
                                 logger.info(n_d_info)
-                                torrent.delete(hash=torrent.hash, delete_files=True)
+                                tor_delete_recycle(torrent)
                                 del_tor += 1
         if args.dry_run == 'dry_run':
             if rem_unr >= 1 or del_tor >= 1:
@@ -476,10 +494,10 @@ def rem_orphaned():
 
         if ('remote_dir' in cfg['directory'] and cfg['directory']['remote_dir'] != ''):
             remote_path = os.path.join(cfg['directory']['remote_dir'], '')
-            root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path]
+            root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path and os.path.join(remote_path,'.RecycleBin') not in path]
         else:
             remote_path = root_path
-            root_files = [os.path.join(path, name) for path, subdirs, files in os.walk(root_path) for name in files if os.path.join(root_path,'orphaned_data') not in path]
+            root_files = [os.path.join(path, name) for path, subdirs, files in os.walk(root_path) for name in files if os.path.join(root_path,'orphaned_data') not in path and os.path.join(root_path,'.RecycleBin') not in path]
 
         for torrent in torrent_list:
             for file in torrent.files:
@@ -507,21 +525,19 @@ def rem_orphaned():
                 for file in orphaned_files:
                     src = file.replace(root_path,remote_path)
                     dest = os.path.join(dir_out,file.replace(root_path,''))
-                    src_path = trunc_val(src, '/',len(remote_path.split('/')))
-                    dest_path = os.path.dirname(dest)
-                    if os.path.isdir(dest_path) == False:
-                        os.makedirs(dest_path)
-                    shutil.move(src, dest)
+                    move_files(src,dest)
                 logger.info(f'\n----------{len(orphaned_files)} Orphan files found-----------'
                                 f'\n - '+'\n - '.join(orphaned_files)+
                                 f'\n - Moved {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
                 #Delete empty directories after moving orphan files
-                remove_empty_directories(Path(remote_path))
+                logger.info(f'Cleaning up any empty directories...')
+                remove_empty_directories(Path(remote_path),"**/*/*")
         else:
             if args.dry_run == 'dry_run':
                 logger.dryrun('No Orphaned Files found.')
             else:
                 logger.info('No Orphaned Files found.')
+
 
 def tag_nohardlinks():
     if args.tag_nohardlinks == 'tag_nohardlinks':
@@ -624,7 +640,7 @@ def tag_nohardlinks():
                                 t_del_cs += 1
                                 if args.dry_run != 'dry_run':
                                     if (os.path.exists(torrent['content_path'].replace(root_path,remote_path))):
-                                        torrent.delete(hash=torrent.hash, delete_files=True)
+                                        tor_delete_recycle(torrent)
                                     else:
                                         torrent.delete(hash=torrent.hash, delete_files=False)
 
@@ -665,6 +681,102 @@ def nohardlink(file):
                     check = False
     return check
 
+def tor_delete_recycle(torrent):
+    if 'recyclebin' in cfg and cfg["recyclebin"] != None:
+        if 'enabled' in cfg["recyclebin"] and cfg["recyclebin"]['enabled']:
+            tor_files = []
+            if 'root_dir' in cfg['directory']:
+                root_path = os.path.join(cfg['directory']['root_dir'], '')
+            else:
+                logger.error('root_dir not defined in config.')
+                return
+            if ('remote_dir' in cfg['directory'] and cfg['directory']['remote_dir'] != ''):
+                remote_path = os.path.join(cfg['directory']['remote_dir'], '')
+            else:
+                remote_path = root_path
+            
+            #Define torrent files/folders
+            for file in torrent.files:
+                tor_files.append(os.path.join(torrent.save_path,file.name))
+
+            #Create recycle bin if not exists
+            recycle_path = os.path.join(remote_path,'.RecycleBin')
+            os.makedirs(recycle_path,exist_ok=True)
+
+            #Move files from torrent contents to Recycle bin
+            for file in tor_files:
+                src = file.replace(root_path,remote_path)
+                dest = os.path.join(recycle_path,file.replace(root_path,''))
+                #move files and change date modified
+                move_files(src,dest,True)
+                logger.debug(f'\n----------Moving {len(tor_files)} files to RecycleBin -----------'
+                                f'\n - '+'\n - '.join(tor_files)+
+                                f'\n - Moved {len(tor_files)} files to {recycle_path.replace(remote_path,root_path)}')
+            #Delete torrent and files
+            torrent.delete(hash=torrent.hash, delete_files=False)
+            #Remove any empty directories
+            remove_empty_directories(Path(torrent.save_path.replace(root_path,remote_path)),"**/*")
+        else:
+            torrent.delete(hash=torrent.hash, delete_files=True)
+    else:
+        logger.error('recyclebin not defined in config.')
+        return
+                
+
+
+def empty_recycle():
+    if args.manage == 'manage' or args.empty_recycle == 'empty_recycle':
+        num_del = 0
+        n_info = ''
+        if 'recyclebin' in cfg and cfg["recyclebin"] != None:
+            if 'enabled' in cfg["recyclebin"] and cfg["recyclebin"]['enabled'] and 'empty_after_x_days' in cfg["recyclebin"]:
+                if 'root_dir' in cfg['directory']:
+                    root_path = os.path.join(cfg['directory']['root_dir'], '')
+                else:
+                    logger.error('root_dir not defined in config. This is required to use recyclebin feature')
+                    return
+                
+                if ('remote_dir' in cfg['directory'] and cfg['directory']['remote_dir'] != ''):
+                    remote_path = os.path.join(cfg['directory']['remote_dir'], '')
+                    recycle_path = os.path.join(remote_path,'.RecycleBin')
+                else:
+                    remote_path = root_path
+                    recycle_path = os.path.join(root_path,'.RecycleBin')
+                recycle_files = [os.path.join(path, name) for path, subdirs, files in os.walk(recycle_path) for name in files]
+                recycle_files = sorted(recycle_files)
+                empty_after_x_days = cfg["recyclebin"]['empty_after_x_days']
+                if recycle_files:
+                    for file in recycle_files:
+                        fileStats = os.stat(file)
+                        filename = file.replace(recycle_path,'')
+                        last_modified = fileStats[stat.ST_MTIME] # in seconds (last modified time)
+                        now = time.time() # in seconds
+                        days = (now - last_modified) / (60 * 60 * 24)
+                        if (empty_after_x_days <= days):
+                            num_del += 1
+                            if args.dry_run == 'dry_run':
+                                n_info += (f'Did not delete {filename} from the recycle bin. (Last modified {round(days)} days ago).\n')
+                            else:
+                                n_info += (f'Deleted {filename} from the recycle bin. (Last modified {round(days)} days ago).\n')
+                                os.remove(file)
+                    if num_del > 0:
+                        if args.dry_run == 'dry_run':
+                            logger.dryrun(n_info)
+                            logger.dryrun(f'Did not delete {num_del} files from the Recycle Bin.')
+                        else:
+                            remove_empty_directories(Path(recycle_path),"**/*")
+                            logger.info(n_info)
+                            logger.info(f'Deleted {num_del} files from the Recycle Bin.') 
+                else:
+                    logger.debug('No files found in "' + recycle_path + '"')
+            else:
+                logger.debug('Recycle bin has been disabled or "empty_after_x_days" var not defined in config.')
+
+        else:
+            logger.error('recyclebin not defined in config.')
+            return
+            
+        
 def run():
     update_category()
     update_tags()
@@ -673,6 +785,7 @@ def run():
     recheck()
     rem_orphaned()
     tag_nohardlinks()
+    empty_recycle()
 
 if __name__ == '__main__':
     run()

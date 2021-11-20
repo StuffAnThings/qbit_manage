@@ -7,8 +7,8 @@ qbt:
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/> #Output directory of cross-seed
-  # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files
-  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir
+  # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files and used in RecycleBin
+  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir. Must be set if you are using docker!
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
@@ -68,3 +68,11 @@ nohardlinks:
     max_ratio: 4.0
     #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
+
+#Recycle Bin method of deletion will move files into the recycle bin instead of directly deleting them in qbit
+recyclebin:
+  enabled: true
+  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. 
+  #                                   If this variable is not defined it, the RecycleBin will never be emptied. 
+  #                                   Setting variable to 0 will delete files immediately.
+  empty_after_x_days: 1
