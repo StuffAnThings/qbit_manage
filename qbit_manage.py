@@ -65,7 +65,7 @@ parser.add_argument('-ro', '--rem-orphaned',
                     const='rem_orphaned',
                     help='Use this if you would like to remove orphaned files from your `root_dir` directory that are not referenced by any torrents.'
                     ' It will scan your `root_dir` directory and compare it with what is in Qbitorrent. Any data not referenced in Qbitorrent will be moved into '
-                    ' `/data/torrents/orphaned_data` folder for you to review/delete.')
+                    ' `/root_dir/orphaned_data` folder for you to review/delete.')
 parser.add_argument('-tnhl', '--tag-nohardlinks',
                     dest='tag_nohardlinks',
                     action='store_const',
@@ -77,7 +77,9 @@ parser.add_argument('-er', '--empty-recycle',
                     dest='empty_recycle',
                     action='store_const',
                     const='empty_recycle',
-                    help='Use this to empty your Reycle Bin folder based on x number of days defined in the config.')        
+                    help='Use this to empty your Reycle Bin folder based on x number of days defined in the config.'
+                    'Setting "empty_after_x_days" variable to 0 will delete files immediately.'
+                    'If this variable is not defined the RecycleBin will never be emptied.')       
 parser.add_argument('--dry-run',
                     dest='dry_run',
                     action='store_const',

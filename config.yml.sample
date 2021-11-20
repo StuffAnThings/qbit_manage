@@ -74,5 +74,5 @@ recyclebin:
   enabled: true
   #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. 
   #                                   If this variable is not defined it, the RecycleBin will never be emptied. 
-  #                                   Setting variable to 0 will delete files immediately.
+  #                                   Setting this variable to 0 will delete files immediately.
   empty_after_x_days: 60
