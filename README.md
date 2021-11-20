@@ -102,7 +102,7 @@ python qbit_manage.py -h
 | :------------ | :------------  | :------------ |
 | `-c CONFIG` or `--config-file CONFIG`  | This is used if you want to use a different name for your config.yml. `Example: tv.yml`  | config.yml |
 | `-l LOGFILE,` or `--log-file LOGFILE,` | This is used if you want to use a different name for your log file. `Example: tv.log` | activity.log |
-| `-m` or `--manage` | Use this if you would like to update your tags, categories, remove unregistered torrents, AND recheck/resume paused torrents.  |  |
+| `-m` or `--manage` | Use this if you would like to update your tags, categories, remove unregistered torrents, recheck/resume paused torrents, and empty recycle bin.  |  |
 | `-s` or `--cross-seed` | Use this after running [cross-seed script](https://github.com/mmgoodnow/cross-seed) to add torrents from the cross-seed output folder to qBittorrent  |  |
 | `-re` or `--recheck` | Recheck paused torrents sorted by lowest size. Resume if Completed.  |  |
 | `-g` or `--cat-update` |  Use this if you would like to update your categories.  |  |
