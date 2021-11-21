@@ -11,6 +11,7 @@ import urllib3
 from collections import Counter
 import glob
 from pathlib import Path
+import datetime
 import time
 import stat
 
@@ -21,12 +22,12 @@ parser = argparse.ArgumentParser('qBittorrent Manager.',
 parser.add_argument('-c', '--config-file',
                     dest='config',
                     action='store',
-                    default='config.yml',
+                    default='config/config.yml',
                     help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-l', '--log-file',
                     dest='logfile',
                     action='store',
-                    default='activity.log',
+                    default='config/logs/activity.log',
                     help='This is used if you want to use a different name for your log file. Example: tv.log')
 parser.add_argument('-m', '--manage',
                     dest='manage',
@@ -237,12 +238,18 @@ def recheck():
             new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1): torrent.add_tags(tags=new_tag)
             #Resume torrent if completed
-            if torrent.progress == 1: 
-                if args.dry_run == 'dry_run': 
-                    logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
-                else:
-                    logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
-                    torrent.resume()
+            if torrent.progress == 1:
+                #Check to see if torrent meets AutoTorrentManagement criteria
+                logger.debug(f'Rechecking Torrent to see if torrent meets AutoTorrentManagement Criteria\n'
+                             f' - Torrent Name: {torrent.name}\n'
+                             f'      --Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}\n'
+                             f'      --Seeding Time vs Max Seed Time: {datetime.timedelta(seconds=torrent.seeding_time)} < {datetime.timedelta(minutes=torrent.max_seeding_time)}')
+                if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
+                    if args.dry_run == 'dry_run': 
+                        logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
+                    else:
+                        logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
+                        torrent.resume()
             #Recheck
             elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete']:
                 if args.dry_run == 'dry_run':
