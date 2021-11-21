@@ -23,7 +23,7 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 6:
 
 parser = argparse.ArgumentParser('qBittorrent Manager.',
                                  description='A mix of scripts combined for managing qBittorrent.')
-parser.add_argument("--run", dest="run", help="Run without the scheduler", action="store_true", default=False)
+parser.add_argument("--run", dest="run", help="Run without the scheduler. Script will exit after completion.", action="store_true", default=False)
 parser.add_argument("-sch", "--schedule", dest="sch", help="Schedule to run every x minutes. (Default set to 30)", default=30, type=int)
 parser.add_argument('-c', '--config-file',
                     dest='config',
@@ -855,7 +855,7 @@ if __name__ == '__main__':
     logger.info(f"    Version: {version}")
     try:
         if run:
-            logger.info(f"    Run Mode: Script will exit after one run.")
+            logger.info(f"    Run Mode: Script will exit after completion.")
             start()
         else:
             schedule.every(sch).minutes.do(start)

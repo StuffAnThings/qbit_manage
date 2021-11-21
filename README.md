@@ -100,6 +100,8 @@ python qbit_manage.py -h
 
 | Shell Command | Description | Default Value |
 | :------------ | :------------  | :------------ |
+| `--run` | Run without the scheduler. Script will exit after completion. | False |
+| `-sch` or `--schedule`  | Schedule to run every x minutes. (Default set to 30)  | 30 |
 | `-c CONFIG` or `--config-file CONFIG`  | This is used if you want to use a different name for your config.yml. `Example: tv.yml`  | config.yml |
 | `-l LOGFILE,` or `--log-file LOGFILE,` | This is used if you want to use a different name for your log file. `Example: tv.log` | activity.log |
 | `-m` or `--manage` | Use this if you would like to update your tags, categories, remove unregistered torrents, recheck/resume paused torrents, and empty recycle bin.  |  |
