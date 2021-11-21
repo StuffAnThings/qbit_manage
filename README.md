@@ -5,7 +5,7 @@ This is a program used to manage your qBittorrent instance such as:
 * Tag torrents based on tracker URL (only tag torrents that have no tags)
 * Update categories based on save directory
 * Remove unregistered torrents (delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent)
-* Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state (used in conjunction with the [cross-seed](https://github.com/mmgoodnow/cross-seed) script)
+* Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state (used in conjunction with the [cross-seed](https://github.com/mmgoodnow/cross-seed) script) <-- cross-seed now allows for torrent injections directly to qBit.
 * Recheck paused torrents sorted by lowest size and resume if completed
 * Remove orphaned files from your root directory that are not referenced by qBittorrent
 * Tag any torrents that have no hard links and allows optional cleanup to delete these torrents and contents based on maximum ratio and/or time seeded
