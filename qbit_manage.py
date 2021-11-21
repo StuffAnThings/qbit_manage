@@ -15,6 +15,7 @@ import datetime
 import time
 import stat
 import sys
+import schedule
 
 if sys.version_info[0] != 3 or sys.version_info[1] < 6:
     print("Version Error: Version: %s.%s.%s incompatible please use Python 3.6+" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))
@@ -22,6 +23,8 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 6:
 
 parser = argparse.ArgumentParser('qBittorrent Manager.',
                                  description='A mix of scripts combined for managing qBittorrent.')
+parser.add_argument("--run", dest="run", help="Run without the scheduler", action="store_true", default=False)
+parser.add_argument("-sch", "--schedule", dest="sch", help="Schedule to run every x minutes. (Default set to 30)", default=30, type=int)
 parser.add_argument('-c', '--config-file',
                     dest='config',
                     action='store',
@@ -114,6 +117,8 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
     else:
         return default
 
+run = get_arg("QBT_RUN", args.run, arg_bool=True)
+sch = get_arg("QBT_SCHEDULE", args.sch)
 config_file = get_arg("QBT_CONFIG", args.config)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 
@@ -158,6 +163,14 @@ stream_handler.setLevel(log_lev)
 stream_formatter = logging.Formatter(msg_format)
 stream_handler.setFormatter(stream_formatter)
 logger.addHandler(stream_handler)
+
+version = "Unknown"
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
+    for line in handle.readlines():
+        line = line.strip()
+        if len(line) > 0:
+            version = line
+            break
 
 # Actual API call to connect to qbt.
 host = cfg['qbt']['host']
@@ -820,7 +833,7 @@ def empty_recycle():
             return
             
         
-def run():
+def start():
     update_category()
     update_tags()
     rem_unregistered()
@@ -831,4 +844,24 @@ def run():
     empty_recycle()
 
 if __name__ == '__main__':
-    run()
+    logger.info("        _     _ _                                            ")
+    logger.info("       | |   (_) |                                           ")
+    logger.info("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ ")
+    logger.info("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\")
+    logger.info(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/")
+    logger.info("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")
+    logger.info("     | |         ______                            __/ |     ")
+    logger.info("     |_|        |______|                          |___/      ")
+    logger.info(f"    Version: {version}")
+    try:
+        if run:
+            logger.info(f"    Run Mode: Script will exit after one run.")
+            start()
+        else:
+            schedule.every(sch).minutes.do(start)
+            logger.info(f"    Scheduled Mode: Running every {sch} minutes.")
+            while True:
+                schedule.run_pending()
+                time.sleep(60)
+    except KeyboardInterrupt:
+        logger.info("Exiting Qbit_manage")
