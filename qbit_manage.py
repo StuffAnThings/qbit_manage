@@ -285,7 +285,7 @@ def recheck():
                         logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
                         torrent.resume()
             #Recheck
-            elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete']:
+            elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete'] and 'checking' not in torrent.state:
                 if args.dry_run == 'dry_run':
                     logger.dryrun(f'\n - Not Rechecking {new_tag} - {torrent.name}')
                 else:

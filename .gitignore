@@ -1,3 +1,4 @@
 *.log*
 *.yml
-.vscode/settings.json
+.vscode/*
+!.github/**
