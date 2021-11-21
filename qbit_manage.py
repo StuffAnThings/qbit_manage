@@ -14,20 +14,23 @@ from pathlib import Path
 import datetime
 import time
 import stat
+import sys
 
-# import apprise
+if sys.version_info[0] != 3 or sys.version_info[1] < 6:
+    print("Version Error: Version: %s.%s.%s incompatible please use Python 3.6+" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))
+    sys.exit(0)
 
 parser = argparse.ArgumentParser('qBittorrent Manager.',
                                  description='A mix of scripts combined for managing qBittorrent.')
 parser.add_argument('-c', '--config-file',
                     dest='config',
                     action='store',
-                    default='config/config.yml',
+                    default='config.yml',
                     help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-l', '--log-file',
                     dest='logfile',
                     action='store',
-                    default='config/logs/activity.log',
+                    default='activity.log',
                     help='This is used if you want to use a different name for your log file. Example: tv.log')
 parser.add_argument('-m', '--manage',
                     dest='manage',
@@ -94,15 +97,45 @@ parser.add_argument('--log',
                     help='Change your log level. ')
 args = parser.parse_args()
 
-with open(args.config, 'r') as cfg_file:
+def get_arg(env_str, default, arg_bool=False, arg_int=False):
+    env_var = os.environ.get(env_str)
+    if env_var:
+        if arg_bool:
+            if env_var is True or env_var is False:
+                return env_var
+            elif env_var.lower() in ["t", "true"]:
+                return True
+            else:
+                return False
+        elif arg_int:
+            return int(env_var)
+        else:
+            return str(env_var)
+    else:
+        return default
+
+config_file = get_arg("QBT_CONFIG", args.config)
+log_file = get_arg("QBT_LOGFILE", args.logfile)
+
+default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+if not os.path.exists(os.path.join(default_dir, config_file)):
+    print(f"Config Error: config not found at {os.path.join(os.path.abspath(default_dir),config_file)}")
+    sys.exit(0)
+
+with open(os.path.join(default_dir,config_file), 'r') as cfg_file:
     cfg = yaml.load(cfg_file, Loader=yaml.FullLoader)
+
+
+os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
+
 
 urllib3.disable_warnings()
 
-file_name_format = args.logfile
+file_name_format = os.path.join(default_dir, "logs", log_file)
 msg_format = '%(asctime)s - %(levelname)s: %(message)s'
 max_bytes = 1024 * 1024 * 2
-backup_count = 5
+backup_count = 10
 
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
@@ -113,7 +146,8 @@ logger.setLevel(log_lev)
 
 file_handler = logging.handlers.RotatingFileHandler(filename=file_name_format,
                                                     maxBytes=max_bytes,
-                                                    backupCount=backup_count)
+                                                    backupCount=backup_count,
+                                                    encoding="utf-8")
 file_handler.setLevel(log_lev)
 file_formatter = logging.Formatter(msg_format)
 file_handler.setFormatter(file_formatter)
