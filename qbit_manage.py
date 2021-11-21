@@ -867,6 +867,7 @@ if __name__ == '__main__':
         else:
             schedule.every(sch).minutes.do(start)
             logger.info(f"    Scheduled Mode: Running every {sch} minutes.")
+            start()
             while True:
                 schedule.run_pending()
                 time.sleep(60)
