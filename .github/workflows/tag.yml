@@ -10,9 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.PAT }}
           fetch-depth: 2
-      - uses: salsify/action-detect-and-tag-new-version@v1.0.3
+      - uses: salsify/action-detect-and-tag-new-version@v2
         with:
           version-command: |
             cat VERSION

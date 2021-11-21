@@ -24,7 +24,7 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 6:
 parser = argparse.ArgumentParser('qBittorrent Manager.',
                                  description='A mix of scripts combined for managing qBittorrent.')
 parser.add_argument("--run", dest="run", help="Run without the scheduler. Script will exit after completion.", action="store_true", default=False)
-parser.add_argument("-sch", "--schedule", dest="sch", help="Schedule to run every x minutes. (Default set to 30)", default=30, type=int)
+parser.add_argument("-sch", "--schedule", dest="sch", help="Schedule to run every x minutes. (Default set to 30)", default="30", type=str)
 parser.add_argument('-c', '--config-file',
                     dest='config',
                     action='store',
@@ -123,6 +123,13 @@ config_file = get_arg("QBT_CONFIG", args.config)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 
 default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+if sch.isnumeric():
+    sch = int(sch)
+else:
+    print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
+    sys.exit(0)
+
 
 if not os.path.exists(os.path.join(default_dir, config_file)):
     print(f"Config Error: config not found at {os.path.join(os.path.abspath(default_dir),config_file)}")
