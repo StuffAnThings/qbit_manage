@@ -26,6 +26,7 @@ To run the script in an interactive terminal run:
 * Add the `tag` definition based on tracker URL
 * Modify the  `nohardlinks` by specifying your completed movies/series category to match with qBittorrent. Please ensure the `root_dir` and/or  `remote_dir` is added in the `directory` section
 * `root_dir` needs to be defined in order to use the RecycleBin function. If optional `empty_after_x_days` is not defined then it will never empty the RecycleBin. Setting it to 0 will empty the RecycleBin immediately.
+* Modify the `orphaned` section to define file patterns not to consider as orphans. Use this to exclude your incomplete torrents directory, or to ignore auto-generated files such as Thumbs.db.
 * To run the script in an interactive terminal with a list of possible commands run:
 
 ```bash

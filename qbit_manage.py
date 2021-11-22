@@ -13,6 +13,7 @@ import datetime
 import time
 import stat
 import sys
+import fnmatch
 
 try:
     from qbittorrentapi import Client
@@ -41,7 +42,6 @@ parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action
 parser.add_argument('-sr', '--skip-recycle', dest='skip_recycle', action="store_true", default=False, help='Use this to skip emptying the Reycle Bin folder.')
 parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False, help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
 parser.add_argument('-ll', '--log-level', dest='log_level', action="store", default='INFO', type=str, help='Change your log level.')
-  
 
 args = parser.parse_args()
 
@@ -304,7 +304,7 @@ def set_recheck():
                                 f'      --Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}\n'
                                 f'      --Seeding Time vs Max Seed Time: {datetime.timedelta(seconds=torrent.seeding_time)} < {datetime.timedelta(minutes=torrent.max_seeding_time)}')
                     if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
-                        if dry_run: 
+                        if dry_run:
                             logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
                         else:
                             logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
@@ -491,7 +491,7 @@ def set_rem_unregistered():
                         'PACKS' in msg_up or \
                         'REPACKED' in msg_up or \
                         'PACK' in msg_up or \
-                        'TRUMP' in msg_up 
+                        'TRUMP' in msg_up
                         ) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
                         logger.debug(f'Torrent counts: {t_count}')
                         logger.debug(f'msg: {t_msg}')
@@ -537,6 +537,7 @@ def set_rem_unregistered():
         if (len(pot_unr) > 0):
             logger.debug(f'Potential Unregistered torrents: {pot_unr}')
 
+
 def set_rem_orphaned():
     if rem_orphaned:
         torrent_files = []
@@ -551,13 +552,23 @@ def set_rem_orphaned():
         for torrent in torrent_list:
             for file in torrent.files:
                 torrent_files.append(os.path.join(torrent.save_path,file.name))
-            
+
         orphaned_files = set(root_files) - set(torrent_files)
         orphaned_files = sorted(orphaned_files)
+
+        excluded_orphan_files = []
+        if 'orphaned' in cfg and cfg["orphaned"] is not None and 'exclude_patterns' in cfg['orphaned'] and cfg['orphaned']['exclude_patterns'] != '':
+            exclude_patterns = cfg['orphaned']['exclude_patterns']
+            excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch.fnmatch(file, exclude_pattern)]
+
+        orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
+
         logger.debug('----------torrent files-----------')
         logger.debug("\n".join(torrent_files))
         logger.debug('----------root_files-----------')
         logger.debug("\n".join(root_files))
+        logger.debug('----------excluded_orphan_files-----------')
+        logger.debug("\n".join(excluded_orphan_files))
         logger.debug('----------orphaned_files-----------')
         logger.debug("\n".join(orphaned_files))
         logger.debug('----------Deleting orphan files-----------')
@@ -724,7 +735,7 @@ def nohardlink(file):
 def tor_delete_recycle(torrent):
     if 'recyclebin' in cfg and cfg["recyclebin"] != None:
         if 'enabled' in cfg["recyclebin"] and cfg["recyclebin"]['enabled']:
-            tor_files = []            
+            tor_files = []
             #Define torrent files/folders
             for file in torrent.files:
                 tor_files.append(os.path.join(torrent.save_path,file.name))
@@ -807,7 +818,7 @@ def set_empty_recycle():
             return
 
 
-#Define global parameters 
+#Define global parameters
 torrent_list = None
 torrentdict = None
 def start():

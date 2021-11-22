@@ -8,7 +8,7 @@ directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/> #Output directory of cross-seed
   # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
-  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir. 
+  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir.
                               # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
@@ -74,7 +74,16 @@ nohardlinks:
 #By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
 recyclebin:
   enabled: true
-  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run) 
+  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
   #                                   If this variable is not defined it, the RecycleBin will never be emptied. 
   #                                   WARNING: Setting this variable to 0 will delete all files immediately upon script run!
   empty_after_x_days: 60
+
+# Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
+orphaned:
+    # File patterns that will not be considered orphaned files. Handy for generated files that aren't part of the torrent but belong with the torrent's files
+    exclude_patterns:
+        - "**/.DS_Store"
+        - "**/Thumbs.db"
+        - "**/@eaDir"
+        - "/data/torrents/temp/**"
