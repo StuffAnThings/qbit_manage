@@ -390,9 +390,9 @@ def set_cross_seed():
         else:
             for c in numcategory:
                 total += numcategory[c]
-                if numcategory[c] > 0: logger.info(f'{numcategory[c]} {c} cross-seed .torrents not added.')
-            if total > 0: logger.info(f'Total {total} cross-seed .torrents not added.')
-            if t_tagged > 0:logger.info(f'Total {t_tagged} cross-seed .torrents not tagged.')
+                if numcategory[c] > 0: logger.info(f'{numcategory[c]} {c} cross-seed .torrents added.')
+            if total > 0: logger.info(f'Total {total} cross-seed .torrents added.')
+            if t_tagged > 0:logger.info(f'Total {t_tagged} cross-seed .torrents tagged.')
 
 def set_category():
     if cat_update:
@@ -543,6 +543,7 @@ def set_rem_orphaned():
         torrent_files = []
         root_files = []
         orphaned_files = []
+        excluded_orphan_files = []
 
         if (remote_path != root_path):
             root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path and os.path.join(remote_path,'.RecycleBin') not in path]
@@ -556,10 +557,9 @@ def set_rem_orphaned():
         orphaned_files = set(root_files) - set(torrent_files)
         orphaned_files = sorted(orphaned_files)
 
-        excluded_orphan_files = []
         if 'orphaned' in cfg and cfg["orphaned"] is not None and 'exclude_patterns' in cfg['orphaned'] and cfg['orphaned']['exclude_patterns'] != '':
             exclude_patterns = cfg['orphaned']['exclude_patterns']
-            excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch.fnmatch(file, exclude_pattern)]
+            excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch.fnmatch(file, exclude_pattern.replace(remote_path,root_path))]
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
 
