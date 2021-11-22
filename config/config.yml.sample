@@ -7,8 +7,9 @@ qbt:
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/> #Output directory of cross-seed
-  # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files and used in RecycleBin
-  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir. Must be set if you are using docker!
+  # root_dir var: </your/path/here/> #Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
+  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir. 
+                              # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
@@ -69,10 +70,11 @@ nohardlinks:
     #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
 
-#Recycle Bin method of deletion will move files into the recycle bin instead of directly deleting them in qbit
+#Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
+#By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
 recyclebin:
   enabled: true
-  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. 
+  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run) 
   #                                   If this variable is not defined it, the RecycleBin will never be emptied. 
-  #                                   Setting this variable to 0 will delete files immediately.
+  #                                   WARNING: Setting this variable to 0 will delete all files immediately upon script run!
   empty_after_x_days: 60
