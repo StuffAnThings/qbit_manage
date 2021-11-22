@@ -5,7 +5,7 @@ This is a program used to manage your qBittorrent instance such as:
 * Tag torrents based on tracker URL (only tag torrents that have no tags)
 * Update categories based on save directory
 * Remove unregistered torrents (delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent)
-* Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state (used in conjunction with the [cross-seed](https://github.com/mmgoodnow/cross-seed) script)
+* Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state (used in conjunction with the [cross-seed](https://github.com/mmgoodnow/cross-seed) script) <-- cross-seed now allows for torrent injections directly to qBit.
 * Recheck paused torrents sorted by lowest size and resume if completed
 * Remove orphaned files from your root directory that are not referenced by qBittorrent
 * Tag any torrents that have no hard links and allows optional cleanup to delete these torrents and contents based on maximum ratio and/or time seeded
@@ -13,71 +13,7 @@ This is a program used to manage your qBittorrent instance such as:
 * Built-in scheduler to run the script every x minutes. (Can use `--run` command to run without the scheduler)
 ## Installation
 
-* Dependencies
-  * Requires `python 3`
-
-### Unraid Installation
-
-* [Guide to setup on Unraid](https://github.com/StuffAnThings/qbit_manage/wiki/qBit-Manager-on-unRAID)
-
-### *Nix Installation
-
-* Download the script
-
-```bash
-wget -O qbit_manage.py 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/qbit_manage.py'
-```
-
-* Make it executable
-
-```bash
-chmod +x qbit_manage.py
-```
-
-* Get & Install Requirements
-
-```bash
-wget -O requirements.txt 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/requirements.txt'
-pip install -r requirements.txt
-```
-
-* Get Example Config
-
-```bash
-wget -O config.yml.sample 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/config.yml.sample'
-```
-
-* Create Config
-
-```bash
-cp config.yml.sample config.yml
-nano -e config.yml
-```
-
-* Updating
-
-```bash
-wget -O qbit_manage.py 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/qbit_manage.py'
-chmod +x qbit_manage.py
-wget -O requirements.txt 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/requirements.txt'
-pip install -r requirements.txt
-wget -O config.yml.sample 'https://raw.githubusercontent.com/StuffAnThings/qbit_manage/master/config.yml.sample'
-diff -ui config.yml config.yml.sample
-```
-
-#### Other Local Installation
-
-* Requires `python 3`. Dependencies must be installed by running:
-
-```bash
-pip install -r requirements.txt
-```
-
-If there are issues installing dependencies try:
-
-```bash
-pip install -r requirements.txt --ignore-installed
-```
+Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for installation help
 
 ## Usage
 
