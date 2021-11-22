@@ -76,3 +76,12 @@ recyclebin:
   #                                   If this variable is not defined it, the RecycleBin will never be emptied. 
   #                                   Setting this variable to 0 will delete files immediately.
   empty_after_x_days: 60
+
+# Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
+orphaned:
+    # File patterns that will not be considered orphaned files. Handy for generated files that aren't part of the torrent but belong with the torrent's files
+    exclude_patterns:
+        - "**/.DS_Store"
+        - "**/Thumbs.db"
+        - "**/@eaDir"
+        - "/data/torrents/temp/**"
