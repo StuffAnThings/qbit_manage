@@ -19,9 +19,11 @@ try:
     from qbittorrentapi import Client
     import yaml
     import schedule
+    from modules.docker import GracefulKiller    
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
+
 
 if sys.version_info[0] != 3 or sys.version_info[1] < 6:
     print("Version Error: Version: %s.%s.%s incompatible please use Python 3.6+" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))
@@ -187,7 +189,6 @@ client = Client(host=host,
 
 
 ############FUNCTIONS##############
-
 #truncate the value of the torrent url to remove sensitive information
 def trunc_val(s, d, n=3):
     return d.join(s.split(d, n)[:n])
@@ -839,7 +840,12 @@ def start():
     set_tag_nohardlinks()
     set_empty_recycle()
 
+def end():
+    logger.info("Exiting Qbit_manage")
+    sys.exit(0)
+    
 if __name__ == '__main__':
+    killer = GracefulKiller()
     logger.info("        _     _ _                                            ")
     logger.info("       | |   (_) |                                           ")
     logger.info("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ ")
@@ -857,8 +863,9 @@ if __name__ == '__main__':
             schedule.every(sch).minutes.do(start)
             logger.info(f"    Scheduled Mode: Running every {sch} minutes.")
             start()
-            while True:
+            while not killer.kill_now:
                 schedule.run_pending()
-                time.sleep(60)
+                time.sleep(1)
+            end()
     except KeyboardInterrupt:
-        logger.info("Exiting Qbit_manage")
+        end()
