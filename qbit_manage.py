@@ -1,24 +1,14 @@
 #!/usr/bin/python3
 
-import os
-import shutil
-import argparse
-import logging
-import logging.handlers
-import urllib3
+import argparse, logging, os, sys, time, shutil, urllib3, stat, fnmatch
+from logging.handlers import RotatingFileHandler
+from datetime import timedelta,datetime
 from collections import Counter
-import glob
 from pathlib import Path
-import datetime
-import time
-import stat
-import sys
-import fnmatch
 
 try:
+    import yaml, schedule
     from qbittorrentapi import Client
-    import yaml
-    import schedule
     from modules.docker import GracefulKiller    
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
@@ -146,7 +136,7 @@ setattr(logger, 'dryrun', lambda dryrun, *args: logger._log(logging.DRYRUN, dryr
 log_lev = getattr(logging, log_level.upper())
 logger.setLevel(log_lev)
 
-file_handler = logging.handlers.RotatingFileHandler(filename=file_name_format,
+file_handler = RotatingFileHandler(filename=file_name_format,
                                                     delay=True, mode="w",
                                                     maxBytes=max_bytes,
                                                     backupCount=backup_count,
@@ -303,7 +293,7 @@ def set_recheck():
                     logger.debug(f'Rechecking Torrent to see if torrent meets AutoTorrentManagement Criteria\n'
                                 f' - Torrent Name: {torrent.name}\n'
                                 f'      --Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}\n'
-                                f'      --Seeding Time vs Max Seed Time: {datetime.timedelta(seconds=torrent.seeding_time)} < {datetime.timedelta(minutes=torrent.max_seeding_time)}')
+                                f'      --Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}')
                     if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
                         if dry_run:
                             logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
