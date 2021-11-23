@@ -9,7 +9,8 @@ from pathlib import Path
 try:
     import yaml, schedule
     from qbittorrentapi import Client
-    from modules.docker import GracefulKiller    
+    from modules.docker import GracefulKiller
+    from modules import util 
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
@@ -34,7 +35,8 @@ parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action
 parser.add_argument('-sr', '--skip-recycle', dest='skip_recycle', action="store_true", default=False, help='Use this to skip emptying the Reycle Bin folder.')
 parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False, help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
 parser.add_argument('-ll', '--log-level', dest='log_level', action="store", default='INFO', type=str, help='Change your log level.')
-
+parser.add_argument("-d", "--divider", dest="divider", help="Character that divides the sections (Default: '=')", default="=", type=str)
+parser.add_argument("-w", "--width", dest="width", help="Screen Width (Default: 100)", default=100, type=int)
 args = parser.parse_args()
 
 def get_arg(env_str, default, arg_bool=False, arg_int=False):
@@ -65,14 +67,23 @@ tag_update = get_arg("QBT_TAG_UPDATE", args.tag_update, arg_bool=True)
 rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
-skip_recycle = get_arg("QBT_TAG_SKIP_RECYCLE", args.skip_recycle, arg_bool=True)
+skip_recycle = get_arg("QBT_SKIP_RECYCLE", args.skip_recycle, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
-
+divider = get_arg("QBT_DIVIDER", args.divider)
+screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 
 default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 root_path = '' #Global variable
 remote_path = '' #Global variable
+
+util.separating_character = divider[0]
+
+if screen_width < 90 or screen_width > 300:
+    print(f"Argument Error: width argument invalid: {screen_width} must be an integer between 90 and 300 using the default 100")
+    screen_width = 100
+util.screen_width = screen_width
+
 
 #Check if Schedule parameter is a number
 if sch.isnumeric():
@@ -123,11 +134,6 @@ else:
 os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
 urllib3.disable_warnings()
 
-file_name_format = os.path.join(default_dir, "logs", log_file)
-msg_format = f"[%(asctime)s] %(levelname)-10s %(message)s"
-
-max_bytes = 1024 * 1024 * 2
-backup_count = 10
 
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
@@ -136,21 +142,16 @@ setattr(logger, 'dryrun', lambda dryrun, *args: logger._log(logging.DRYRUN, dryr
 log_lev = getattr(logging, log_level.upper())
 logger.setLevel(log_lev)
 
-file_handler = RotatingFileHandler(filename=file_name_format,
-                                                    delay=True, mode="w",
-                                                    maxBytes=max_bytes,
-                                                    backupCount=backup_count,
-                                                    encoding="utf-8")
-file_handler.setLevel(log_lev)
-file_formatter = logging.Formatter(msg_format)
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
+def fmt_filter(record):
+    record.levelname = f"[{record.levelname}]"
+    #record.filename = f"[{record.filename}:{record.lineno}]"
+    return True
 
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(log_lev)
-stream_formatter = logging.Formatter(msg_format)
-stream_handler.setFormatter(stream_formatter)
-logger.addHandler(stream_handler)
+cmd_handler = logging.StreamHandler()
+cmd_handler.setLevel(log_level)
+logger.addHandler(cmd_handler)
+
+sys.excepthook = util.my_except_hook
 
 version = "Unknown"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
@@ -159,6 +160,14 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
         if len(line) > 0:
             version = line
             break
+
+
+file_logger = os.path.join(default_dir, "logs", log_file)
+max_bytes = 1024 * 1024 * 2
+file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
+util.apply_formatter(file_handler)
+file_handler.addFilter(fmt_filter)
+logger.addHandler(file_handler)
 
 # Actual API call to connect to qbt.
 host = cfg['qbt']['host']
@@ -174,8 +183,6 @@ else:
 client = Client(host=host,
                 username=username,
                 password=password)
-
-
 
 
 ############FUNCTIONS##############
@@ -387,6 +394,7 @@ def set_cross_seed():
 
 def set_category():
     if cat_update:
+        util.separator(f"Updating Categories", space=False, border=False)
         num_cat = 0
         for torrent in torrent_list:
             if torrent.category == '':
@@ -419,6 +427,7 @@ def set_category():
 
 def set_tags():
     if tag_update:
+        util.separator(f"Updating Tags", space=False, border=False)
         num_tags = 0
         for torrent in torrent_list:
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
@@ -448,6 +457,7 @@ def set_tags():
 
 def set_rem_unregistered():
     if rem_unregistered:
+        util.separator(f"Removing Unregistered Torrents", space=False, border=False)
         rem_unr = 0
         del_tor = 0
         pot_unr = ''
@@ -531,6 +541,7 @@ def set_rem_unregistered():
 
 def set_rem_orphaned():
     if rem_orphaned:
+        util.separator(f"Checking for Orphaned Files", space=False, border=False)
         torrent_files = []
         root_files = []
         orphaned_files = []
@@ -592,6 +603,7 @@ def set_rem_orphaned():
 
 def set_tag_nohardlinks():
     if tag_nohardlinks:
+        util.separator(f"Tagging Torrents with No Hardlinks", space=False, border=False)
         nohardlinks = cfg['nohardlinks']
         n_info = ''
         t_count = 0 #counter for the number of torrents that has no hard links
@@ -761,6 +773,7 @@ def set_empty_recycle():
         num_del = 0
         n_info = ''
         if 'recyclebin' in cfg and cfg["recyclebin"] != None:
+            util.separator(f"Emptying RecycleBin", space=False, border=False)
             if 'enabled' in cfg["recyclebin"] and cfg["recyclebin"]['enabled'] and 'empty_after_x_days' in cfg["recyclebin"]:
                 if 'root_dir' in cfg['directory']:
                     root_path = os.path.join(cfg['directory']['root_dir'], '')
@@ -812,10 +825,19 @@ def set_empty_recycle():
 #Define global parameters
 torrent_list = None
 torrentdict = None
+
+
 def start():
     #Global parameters to get the torrent dictionary
     global torrent_list
     global torrentdict
+    start_time = datetime.now()
+    if dry_run:
+        start_type = "Dry-"
+    else:
+        start_type = ""
+    util.separator(f"Starting {start_type}Run")
+    util.separator(f"Getting Torrent List", space=False, border=False)
     #Get an updated list of torrents
     torrent_list = client.torrents.info(sort='added_on')
     if recheck or cross_seed or rem_unregistered:
@@ -829,21 +851,27 @@ def start():
     set_rem_orphaned()
     set_tag_nohardlinks()
     set_empty_recycle()
+    end_time = datetime.now()
+    run_time = str(end_time - start_time).split('.')[0]
+    util.separator(f"Finished {start_type}Run\nRun Time: {run_time}")
 
 def end():
     logger.info("Exiting Qbit_manage")
+    logger.removeHandler(file_handler)
     sys.exit(0)
-    
+
 if __name__ == '__main__':
     killer = GracefulKiller()
-    logger.info("        _     _ _                                            ")
-    logger.info("       | |   (_) |                                           ")
-    logger.info("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ ")
-    logger.info("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\")
-    logger.info(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/")
-    logger.info("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")
-    logger.info("     | |         ______                            __/ |     ")
-    logger.info("     |_|        |______|                          |___/      ")
+    util.separator()
+    logger.info("")
+    logger.info(util.centered("        _     _ _                                            "))
+    logger.info(util.centered("       | |   (_) |                                           "))
+    logger.info(util.centered("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ "))
+    logger.info(util.centered("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\"))
+    logger.info(util.centered(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/"))
+    logger.info(util.centered("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|"))
+    logger.info(util.centered("     | |         ______                            __/ |     "))
+    logger.info(util.centered("     |_|        |______|                          |___/      "))
     logger.info(f"    Version: {version}")
     try:
         if run:
