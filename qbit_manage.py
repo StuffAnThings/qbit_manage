@@ -287,7 +287,8 @@ def get_torrent_info(t_list):
 
 # Function used to recheck paused torrents sorted by size and resume torrents that are completed 
 def set_recheck():
-    if cross_seed or recheck:
+    if recheck:
+        util.separator(f"Rechecking Paused Torrents", space=False, border=False)
         #sort by size and paused
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
         if torrent_sorted_list:
@@ -297,27 +298,28 @@ def set_recheck():
                 #Resume torrent if completed
                 if torrent.progress == 1:
                     #Check to see if torrent meets AutoTorrentManagement criteria
-                    logger.debug(f'Rechecking Torrent to see if torrent meets AutoTorrentManagement Criteria\n'
-                                f' - Torrent Name: {torrent.name}\n'
-                                f'      --Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}\n'
-                                f'      --Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}')
+                    logger.debug(f'Rechecking Torrent to see if torrent meets AutoTorrentManagement Criteria')
+                    logger.debug(util.insert_space(f'- Torrent Name: {torrent.name}',2))
+                    logger.debug(util.insert_space(f'-- Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}',4))
+                    logger.debug(util.insert_space(f'-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}',4))
                     if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
                         if dry_run:
-                            logger.dryrun(f'\n - Not Resuming {new_tag} - {torrent.name}')
+                            logger.dryrun(f'Not Resuming {new_tag} - {torrent.name}')
                         else:
-                            logger.info(f'\n - Resuming {new_tag} - {torrent.name}')
+                            logger.info(f'Resuming {new_tag} - {torrent.name}')
                             torrent.resume()
                 #Recheck
                 elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete'] and not torrent.state_enum.is_checking:
                     if dry_run:
-                        logger.dryrun(f'\n - Not Rechecking {new_tag} - {torrent.name}')
+                        logger.dryrun(f'Not Rechecking {new_tag} - {torrent.name}')
                     else:
-                        logger.info(f'\n - Rechecking {new_tag} - {torrent.name}')
+                        logger.info(f'Rechecking {new_tag} - {torrent.name}')
                         torrent.recheck()
 
 # Function used to move any torrents from the cross seed directory to the correct save directory
 def set_cross_seed():
     if cross_seed:
+        util.separator(f"Checking for Cross-Seed Torrents", space=False, border=False)
         # List of categories for all torrents moved
         categories = []
         # Keep track of total torrents moved
@@ -343,10 +345,10 @@ def set_cross_seed():
                 dir_cs_out = os.path.join(dir_cs,'qbit_manage_added',file)
                 categories.append(category)
                 if dry_run:
-                    logger.dryrun(f'Not Adding {t_name} to qBittorrent with: '
-                                  f'\n - Category: {category}'
-                                  f'\n - Save_Path: {dest}'
-                                  f'\n - Paused: True')
+                    logger.dryrun(f'Not Adding to qBittorrent:')
+                    logger.dryrun(util.insert_space(f'Torrent Name: {t_name}',3))
+                    logger.dryrun(util.insert_space(f'Category: {category}',7))
+                    logger.dryrun(util.insert_space(f'Save_Path: {dest}',6))
                 else:
                     if torrentdict[t_name]['is_complete']:
                         client.torrents.add(torrent_files=src,
@@ -355,12 +357,13 @@ def set_cross_seed():
                                             tags='cross-seed',
                                             is_paused=True)
                         shutil.move(src, dir_cs_out)
-                        logger.info(f'Adding {t_name} to qBittorrent with: '
-                                    f'\n - Category: {category}'
-                                    f'\n - Save_Path: {dest}'
-                                    f'\n - Paused: True')
+                        logger.info(f'Adding to qBittorrent:')
+                        logger.info(util.insert_space(f'Torrent Name: {t_name}',3))
+                        logger.info(util.insert_space(f'Category: {category}',7))
+                        logger.info(util.insert_space(f'Save_Path: {dest}',6))
                     else:
-                        logger.info(f'Found {t_name} in {dir_cs} but original torrent is not complete. Not adding to qBittorrent')
+                        logger.info(f'Found {t_name} in {dir_cs} but original torrent is not complete.')
+                        logger.info(f'Not adding to qBittorrent')
             else:
                 if dry_run:
                     logger.dryrun(f'{t_name} not found in torrents.')
@@ -403,14 +406,14 @@ def set_category():
                         t_url = trunc_val(x.url, '/')
                         new_cat = get_category(torrent.save_path)
                         if dry_run:
-                            logger.dryrun(f'\n - Torrent Name: {torrent.name}'
-                                          f'\n - New Category: {new_cat}'
-                                          f'\n - Tracker: {t_url}')
+                            logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                            logger.dryrun(util.insert_space(f'New Category: {new_cat}',3))
+                            logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
                             num_cat += 1
                         else:
-                            logger.info(f'\n - Torrent Name: {torrent.name}'
-                                        f'\n - New Category: {new_cat}'
-                                        f'\n - Tracker: {t_url}')
+                            logger.info(util.insert_space(f'- Torrent Name: {torrent.name}',1))
+                            logger.info(util.insert_space(f'-- New Category: {new_cat}',5))
+                            logger.info(util.insert_space(f'-- Tracker: {t_url}',5))
                             torrent.set_category(category=new_cat)
                             num_cat += 1
         if dry_run:
@@ -433,14 +436,14 @@ def set_tags():
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
                 new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                 if dry_run:
-                    logger.dryrun(f'\n - Torrent Name: {torrent.name}'
-                                    f'\n - New Tag: {new_tag}'
-                                    f'\n - Tracker: {t_url}')
+                    logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                    logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
+                    logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
                     num_tags += 1
                 else:
-                    logger.info(f'\n - Torrent Name: {torrent.name}'
-                                f'\n - New Tag: {new_tag}'
-                                f'\n - Tracker: {t_url}')
+                    logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                    logger.info(util.insert_space(f'New Tag: {new_tag}',8))
+                    logger.info(util.insert_space(f'Tracker: {t_url}',8))
                     torrent.add_tags(tags=new_tag)
                     num_tags += 1
         if dry_run:
@@ -470,17 +473,22 @@ def set_rem_unregistered():
                 if x.url.startswith('http'):
                     t_url = trunc_val(x.url, '/')
                     msg_up = x.msg.upper()
-                    n_info = (f'\n - Torrent Name: {t_name} '
-                              f'\n - Status: {msg_up} '
-                              f'\n - Tracker: {t_url} '
-                              f'\n - Deleted .torrent but not content files.')
-                    n_d_info = (f'\n - Torrent Name: {t_name} '
-                                f'\n - Status: {msg_up} '
-                                f'\n - Tracker: {t_url} '
-                                f'\n - Deleted .torrent AND content files.')
+                    n_info = ''
+                    n_d_info = ''
+
+                    n_info += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
+                    n_info += (util.insert_space(f'Status: {msg_up}',9)+'\n')
+                    n_info += (util.insert_space(f'Tracker: {t_url}',8)+'\n')
+                    n_info += (util.insert_space(f'Deleted .torrent but NOT content files.',8)+'\n')
+
+                    n_d_info += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
+                    n_d_info += (util.insert_space(f'Status: {msg_up}',9)+'\n')
+                    n_d_info += (util.insert_space(f'Tracker: {t_url}',8)+'\n')
+                    n_d_info += (util.insert_space(f'Deleted .torrent AND content files.',8)+'\n')
+
                     if (x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up):
-                        pot_unr += (f'\n - Torrent: {torrent.name}')
-                        pot_unr += (f'\n     - Message: {x.msg}')
+                        pot_unr += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
+                        pot_unr += (util.insert_space(f'Status: {msg_up}',9)+'\n')
                     if ('UNREGISTERED' in msg_up or \
                         'TORRENT NOT FOUND' in msg_up or \
                         'TORRENT IS NOT FOUND' in msg_up or \
@@ -494,33 +502,30 @@ def set_rem_unregistered():
                         'PACK' in msg_up or \
                         'TRUMP' in msg_up
                         ) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
-                        logger.debug(f'Torrent counts: {t_count}')
-                        logger.debug(f'msg: {t_msg}')
-                        logger.debug(f'status: {t_status}')
                         if t_count > 1:
                             if dry_run:
-                                if '' in t_msg: 
-                                    logger.dryrun(n_info)
+                                if '' in t_msg:
+                                    util.print_multiline(n_info,"DRYRUN")
                                     rem_unr += 1
                                 else:
-                                    logger.dryrun(n_d_info)
+                                    util.print_multiline(n_d_info,"DRYRUN")
                                     del_tor += 1
                             else:
                                 # Checks if any of the original torrents are working
-                                if '' in t_msg or 2 in t_status: 
-                                    logger.info(n_info)
+                                if '' in t_msg or 2 in t_status:
+                                    util.print_multiline(n_info)
                                     torrent.delete(hash=torrent.hash, delete_files=False)
                                     rem_unr += 1
                                 else:
-                                    logger.info(n_d_info)
+                                    util.print_multiline(n_d_info)
                                     tor_delete_recycle(torrent)
                                     del_tor += 1                                  
                         else:
                             if dry_run:
-                                logger.dryrun(n_d_info)
+                                util.print_multiline(n_d_info,"DRYRUN")
                                 del_tor += 1
                             else:
-                                logger.info(n_d_info)
+                                util.print_multiline(n_d_info)
                                 tor_delete_recycle(torrent)
                                 del_tor += 1
         if dry_run:
@@ -536,7 +541,8 @@ def set_rem_unregistered():
             else:
                 logger.info('No unregistered torrents found.')
         if (len(pot_unr) > 0):
-            logger.debug(f'Potential Unregistered torrents: {pot_unr}')
+            util.separator(f"Potential Unregistered torrents", space=False, border=False, loglevel='DEBUG')
+            util.print_multiline(pot_unr,"DEBUG")
 
 
 def set_rem_orphaned():
@@ -546,6 +552,7 @@ def set_rem_orphaned():
         root_files = []
         orphaned_files = []
         excluded_orphan_files = []
+        orphaned_parent_path = set()
 
         if (remote_path != root_path):
             root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path and os.path.join(remote_path,'.RecycleBin') not in path]
@@ -564,22 +571,22 @@ def set_rem_orphaned():
             excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch.fnmatch(file, exclude_pattern.replace(remote_path,root_path))]
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
+        util.separator(f"Torrent Files", space=False, border=False, loglevel='DEBUG')
+        util.print_multiline("\n".join(torrent_files),'DEBUG')
+        util.separator(f"Root Files", space=False, border=False,loglevel='DEBUG')
+        util.print_multiline("\n".join(root_files),'DEBUG')
+        util.separator(f"Excluded Orphan Files", space=False, border=False,loglevel='DEBUG')
+        util.print_multiline("\n".join(excluded_orphan_files),'DEBUG')
+        util.separator(f"Orphaned Files", space=False, border=False,loglevel='DEBUG')
+        util.print_multiline("\n".join(orphaned_files),'DEBUG')
+        util.separator(f"Deleting Orphaned Files", space=False, border=False,loglevel='DEBUG')
 
-        logger.debug('----------torrent files-----------')
-        logger.debug("\n".join(torrent_files))
-        logger.debug('----------root_files-----------')
-        logger.debug("\n".join(root_files))
-        logger.debug('----------excluded_orphan_files-----------')
-        logger.debug("\n".join(excluded_orphan_files))
-        logger.debug('----------orphaned_files-----------')
-        logger.debug("\n".join(orphaned_files))
-        logger.debug('----------Deleting orphan files-----------')
         if (orphaned_files):
             if dry_run:
                 dir_out = os.path.join(remote_path,'orphaned_data')
-                logger.dryrun(f'\n----------{len(orphaned_files)} Orphan files found-----------'
-                                f'\n - '+'\n - '.join(orphaned_files)+
-                                f'\n - Did not move {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
+                util.separator(f"{len(orphaned_files)} Orphaned files found", space=False, border=False,loglevel='DRYRUN')
+                util.print_multiline("\n".join(orphaned_files),'DRYRUN')
+                logger.dryrun(f'Did not move {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
             else:
                 dir_out = os.path.join(remote_path,'orphaned_data')
                 os.makedirs(dir_out,exist_ok=True)
@@ -588,12 +595,14 @@ def set_rem_orphaned():
                     src = file.replace(root_path,remote_path)
                     dest = os.path.join(dir_out,file.replace(root_path,''))
                     move_files(src,dest)
-                logger.info(f'\n----------{len(orphaned_files)} Orphan files found-----------'
-                                f'\n - '+'\n - '.join(orphaned_files)+
-                                f'\n - Moved {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
+                    orphaned_parent_path.add(os.path.dirname(file).replace(root_path,remote_path))
+                util.separator(f"{len(orphaned_files)} Orphaned files found", space=False, border=False)
+                util.print_multiline("\n".join(orphaned_files))
+                logger.info(f'Moved {len(orphaned_files)} Orphaned files to {dir_out.replace(remote_path,root_path)}')
                 #Delete empty directories after moving orphan files
                 logger.info(f'Cleaning up any empty directories...')
-                remove_empty_directories(Path(remote_path),"**/*/*")
+                for parent_path in orphaned_parent_path:
+                    remove_empty_directories(Path(parent_path),"**/*")
         else:
             if dry_run:
                 logger.dryrun('No Orphaned Files found.')
@@ -637,19 +646,20 @@ def set_tag_nohardlinks():
                         #Will only tag new torrents that don't have noHL tag
                         if('noHL' not in torrent.tags):
                             t_count += 1
-                            n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found.')
-                            n_info += (' Adding tags noHL.')
+                            n_info += (f"No hard links found! Adding tags noHL\n")
+                            n_info += (util.insert_space(f'Torrent Name: {torrent.name}',3)+'\n')
+
                             if(nohardlinks[category] != None):
                                 #set the max seeding time for the torrent
                                 if ('max_seeding_time' in nohardlinks[category]):
                                     seeding_time_limit = nohardlinks[category]['max_seeding_time']
-                                    n_info += (' \n    Setting max seed time to ' + str(seeding_time_limit) + '.')
+                                    n_info += (util.insert_space(f'New Max Seed Time: {str(seeding_time_limit)}',3)+'\n')
                                 else:
                                     seeding_time_limit = -2
                                 #set the max ratio for the torrent
                                 if ('max_ratio' in nohardlinks[category]):
                                     ratio_limit = nohardlinks[category]['max_ratio']
-                                    n_info += (' \n    Setting max ratio to ' + str(ratio_limit)+ '.')
+                                    n_info += (util.insert_space(f'New Max Ratio: {str(ratio_limit)}',3)+'\n')
                                 else:
                                     ratio_limit = -2
                             else:
@@ -666,18 +676,18 @@ def set_tag_nohardlinks():
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                                 if ('cleanup' in nohardlinks[category] and nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category])>0):
                                     t_del += 1
-                                    n_info += (f'\n - Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.')
+                                    n_info += (f'Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.\n')
                                     tdel_dict[torrent.name] = torrent['content_path'].replace(root_path,remote_path)
                                     if dry_run:
-                                        n_info += (' \n    Cleanup flag set to true. NOT Deleting torrent + contents.')
+                                        n_info += (util.insert_space(f'Cleanup flag set to true. NOT Deleting torrent + contents.',6)+'\n')
                                     else:
-                                        n_info += (' \n    Cleanup flag set to true. Deleting torrent + contents.')
+                                        n_info += (util.insert_space(f'Cleanup flag set to true. Deleting torrent + contents.',6)+'\n')
                 
                 #Checks to see if previous noHL tagged torrents now have hard links.
                 if (not (nohardlink(torrent['content_path'].replace(root_path,remote_path))) and ('noHL' in torrent.tags)):
-                    n_info += (f'\n - Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.')
-                    n_info += (' Removing tags noHL.')
-                    n_info += (' Removing ratio and seeding time limits.')
+                    n_info += (f'Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.\n')
+                    n_info += ('Removing tags noHL.\n')
+                    n_info += ('Removing ratio and seeding time limits.\n')
                     tdel_tags += 1
                     if not dry_run:
                         #Remove tags and share limits
@@ -700,7 +710,7 @@ def set_tag_nohardlinks():
 
         if dry_run:
             if t_count >= 1 or len(n_info) > 1:
-                logger.dryrun(n_info)
+                util.print_multiline(n_info,"DRYRUN")
                 logger.dryrun(f'Did not tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
                 if t_del >= 1:
                     logger.dryrun(f'Did not delete {t_del} .torrents(s) or content files.')
@@ -711,7 +721,7 @@ def set_tag_nohardlinks():
                 logger.dryrun('No torrents to tag with no hard links.')
         else:
             if t_count >= 1 or len(n_info) > 1:
-                logger.info(n_info)
+                util.print_multiline(n_info)
                 logger.info(f'tag/set ratio limit/seeding time for  {t_count} .torrents(s)')
                 if t_del >= 1:
                     logger.info(f'Deleted {t_del} .torrents(s) AND content files.')
@@ -753,9 +763,9 @@ def tor_delete_recycle(torrent):
                 dest = os.path.join(recycle_path,file.replace(root_path,''))
                 #move files and change date modified
                 move_files(src,dest,True)
-                logger.debug(f'\n----------Moving {len(tor_files)} files to RecycleBin -----------'
-                                f'\n - '+'\n - '.join(tor_files)+
-                                f'\n - Moved {len(tor_files)} files to {recycle_path.replace(remote_path,root_path)}')
+                util.separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False,loglevel='DEBUG')
+                util.print_multiline("\n".join(tor_files),'DEBUG')
+                logger.debug(f'Moved {len(tor_files)} files to {recycle_path.replace(remote_path,root_path)}')
             #Delete torrent and files
             torrent.delete(hash=torrent.hash, delete_files=False)
             #Remove any empty directories
@@ -773,7 +783,6 @@ def set_empty_recycle():
         num_del = 0
         n_info = ''
         if 'recyclebin' in cfg and cfg["recyclebin"] != None:
-            util.separator(f"Emptying RecycleBin", space=False, border=False)
             if 'enabled' in cfg["recyclebin"] and cfg["recyclebin"]['enabled'] and 'empty_after_x_days' in cfg["recyclebin"]:
                 if 'root_dir' in cfg['directory']:
                     root_path = os.path.join(cfg['directory']['root_dir'], '')
@@ -791,6 +800,7 @@ def set_empty_recycle():
                 recycle_files = sorted(recycle_files)
                 empty_after_x_days = cfg["recyclebin"]['empty_after_x_days']
                 if recycle_files:
+                    util.separator(f"Emptying Recycle Bin (Files > {empty_after_x_days} days)", space=False, border=False)
                     for file in recycle_files:
                         fileStats = os.stat(file)
                         filename = file.replace(recycle_path,'')
@@ -806,11 +816,11 @@ def set_empty_recycle():
                                 os.remove(file)
                     if num_del > 0:
                         if dry_run:
-                            logger.dryrun(n_info)
+                            util.print_multiline(n_info,'DRYRUN')
                             logger.dryrun(f'Did not delete {num_del} files from the Recycle Bin.')
                         else:
                             remove_empty_directories(Path(recycle_path),"**/*")
-                            logger.info(n_info)
+                            util.print_multiline(n_info)
                             logger.info(f'Deleted {num_del} files from the Recycle Bin.') 
                 else:
                     logger.debug('No files found in "' + recycle_path + '"')
@@ -863,7 +873,6 @@ def end():
 if __name__ == '__main__':
     killer = GracefulKiller()
     util.separator()
-    logger.info("")
     logger.info(util.centered("        _     _ _                                            "))
     logger.info(util.centered("       | |   (_) |                                           "))
     logger.info(util.centered("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ "))

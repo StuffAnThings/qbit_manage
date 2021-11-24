@@ -17,17 +17,12 @@ screen_width = 100
 spacing = 0
 
 
-def print_multiline(lines, dryrun=False, info=False, warning=False, error=False, critical=False):
+def print_multiline(lines, loglevel='INFO'):
     for i, line in enumerate(str(lines).split("\n")):
-        if critical:        logger.critical(line)
-        elif error:         logger.error(line)
-        elif warning:       logger.warning(line)
-        elif info:          logger.info(line)
-        elif dryrun:        logger.dryrun(line)
-        else:               logger.debug(line)
+        logger.log(getattr(logging, loglevel),line)
         if i == 0:
-            logger.handlers[1].setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
-    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
+            logger.handlers[1].setFormatter(logging.Formatter(" " * 37 + "| %(message)s"))
+    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(levelname)-10s | %(message)s"))
 
 def print_stacktrace():
     print_multiline(traceback.format_exc())
@@ -49,23 +44,19 @@ def centered(text, sep=" "):
     final_text = f"{sep * side}{text}{sep * side}"
     return final_text
 
-def separator(text=None, space=True, border=True, debug=False):
+def separator(text=None, space=True, border=True, loglevel='INFO'):
     sep = " " if space else separating_character
     for handler in logger.handlers:
         apply_formatter(handler, border=False)
     border_text = f"|{separating_character * screen_width}|"
-    if border and debug:
-        logger.debug(border_text)
-    elif border:
-        logger.info(border_text)
+    if border:
+        logger.log(getattr(logging, loglevel),border_text)
     if text:
         text_list = text.split("\n")
         for t in text_list:
-            logger.info(f"|{sep}{centered(t, sep=sep)}{sep}|")
-        if border and debug:
-            logger.debug(border_text)
-        elif border:
-            logger.info(border_text)
+            logger.log(getattr(logging, loglevel),f"|{sep}{centered(t, sep=sep)}{sep}|")
+        if border:
+            logger.log(getattr(logging, loglevel),border_text)
     for handler in logger.handlers:
         apply_formatter(handler)
 
@@ -81,6 +72,14 @@ def adjust_space(display_title):
     space_length = spacing - len(display_title)
     if space_length > 0:
         display_title += " " * space_length
+    return display_title
+
+def insert_space(display_title,space_length=0):
+    display_title = str(display_title)
+    if space_length == 0: 
+        space_length = spacing - len(display_title)
+    if space_length > 0:
+        display_title = " " * space_length + display_title
     return display_title
 
 def print_return(text):
