@@ -18,8 +18,10 @@ spacing = 0
 
 
 def print_multiline(lines, loglevel='INFO'):
-    for i, line in enumerate(str(lines).split("\n")):
-        logger.log(getattr(logging, loglevel),line)
+    line_list = str(lines).split("\n") 
+    for i, line in enumerate(line_list):
+        if len(line) > 0 and i != len(line_list)-1:
+            logger.log(getattr(logging, loglevel),line)
         if i == 0:
             logger.handlers[1].setFormatter(logging.Formatter(" " * 37 + "| %(message)s"))
     logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(levelname)-10s | %(message)s"))
