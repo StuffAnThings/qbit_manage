@@ -535,20 +535,19 @@ def set_rem_unregistered():
                                 del_tor += 1
         if dry_run:
             if rem_unr >= 1 or del_tor >= 1:
-                logger.dryrun(f'Did not delete {rem_unr} .torrents(s) but not content files.')
-                logger.dryrun(f'Did not delete {del_tor} .torrents(s) AND content files.')
+                if rem_unr >= 1: logger.dryrun(f'Did not delete {rem_unr} .torrents(s) but not content files.')
+                if del_tor >= 1: logger.dryrun(f'Did not delete {del_tor} .torrents(s) AND content files.')
             else:
                 logger.dryrun('No unregistered torrents found.')
         else:
             if rem_unr >= 1 or del_tor >= 1:
-                logger.info(f'Deleted {rem_unr} .torrents(s) but not content files.')
-                logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')
+                if rem_unr >= 1: logger.info(f'Deleted {rem_unr} .torrents(s) but not content files.')
+                if del_tor >= 1: logger.info(f'Deleted {del_tor} .torrents(s) AND content files.')   
             else:
                 logger.info('No unregistered torrents found.')
         if (len(pot_unr) > 0):
             util.separator(f"Potential Unregistered torrents", space=False, border=False, loglevel='DEBUG')
             util.print_multiline(pot_unr,"DEBUG")
-
 
 def set_rem_orphaned():
     if rem_orphaned:
