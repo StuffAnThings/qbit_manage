@@ -31,7 +31,7 @@ def print_stacktrace():
 
 def my_except_hook(exctype, value, tb):
     for line in traceback.format_exception(etype=exctype, value=value, tb=tb):
-        print_multiline(line, critical=True)
+        print_multiline(line, 'CRITICAL')
 
 
 def centered(text, sep=" "):

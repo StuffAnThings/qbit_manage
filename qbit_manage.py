@@ -326,6 +326,11 @@ def set_cross_seed():
         total = 0
         #Track # of torrents tagged that are not cross-seeded
         t_tagged = 0
+
+        if not os.path.exists(os.path.join(cfg['directory']['cross_seed'], '')):
+            logger.error(f"Path Error: cross_seed directory not found at {os.path.abspath(os.path.join(cfg['directory']['cross_seed'], ''))}")
+            return
+
         # Only get torrent files
         cs_files = [f for f in os.listdir(os.path.join(cfg['directory']['cross_seed'], '')) if f.endswith('torrent')]
         dir_cs = os.path.join(cfg['directory']['cross_seed'], '')
