@@ -203,12 +203,12 @@ def get_category(path):
         category = ''
         return category
     category = ''
-    logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
+    logger.warning(f'No categories matched for the save path {path}. Check your config.yml file. - Setting category to NULL')
     return category
 
 #Get tags from config file based on keyword
 def get_tags(urls):
-    if 'tags' in cfg and cfg["tags"] != None:
+    if 'tags' in cfg and cfg["tags"] != None and urls:
         tag_path = cfg['tags']
         for i, f in tag_path.items():
             for url in urls:
@@ -219,7 +219,7 @@ def get_tags(urls):
         tag = ('','')
         return tag
     tag = ('','')
-    logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
+    logger.warning(f'No tags matched for {urls}. Check your config.yml file. Setting tag to NULL')
     return tag
 
 
@@ -266,6 +266,8 @@ def get_torrent_info(t_list):
         save_path = torrent.save_path
         category = get_category(save_path)
         is_complete = False
+        msg = None
+        status = None
         if torrent.name in torrentdict:
             t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
@@ -278,9 +280,12 @@ def get_torrent_info(t_list):
             status_list = []
             is_complete = torrent.state_enum.is_complete
             first_hash = torrent.hash
-        msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
-        msg_list.append(msg)
-        status_list.append(status)
+        try:
+            msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
+        except IndexError:
+            pass
+        if msg != None: msg_list.append(msg)
+        if status != None: status_list.append(status)
         torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete, 'first_hash':first_hash}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
@@ -406,21 +411,22 @@ def set_category():
         num_cat = 0
         for torrent in torrent_list:
             if torrent.category == '':
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        t_url = trunc_val(x.url, '/')
-                        new_cat = get_category(torrent.save_path)
-                        if dry_run:
-                            logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                            logger.dryrun(util.insert_space(f'New Category: {new_cat}',3))
-                            logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
-                            num_cat += 1
-                        else:
-                            logger.info(util.insert_space(f'- Torrent Name: {torrent.name}',1))
-                            logger.info(util.insert_space(f'-- New Category: {new_cat}',5))
-                            logger.info(util.insert_space(f'-- Tracker: {t_url}',5))
-                            torrent.set_category(category=new_cat)
-                            num_cat += 1
+                new_cat = get_category(torrent.save_path)
+                try:
+                    t_url = [trunc_val(x.url, '/') for x in torrent.trackers if x.url.startswith('http')][0]
+                except IndexError:
+                    t_url = None
+                if dry_run:
+                    logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                    logger.dryrun(util.insert_space(f'New Category: {new_cat}',3))
+                    logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
+                    num_cat += 1
+                else:
+                    logger.info(util.insert_space(f'- Torrent Name: {torrent.name}',1))
+                    logger.info(util.insert_space(f'-- New Category: {new_cat}',5))
+                    logger.info(util.insert_space(f'-- Tracker: {t_url}',5))
+                    torrent.set_category(category=new_cat)
+                    num_cat += 1
         if dry_run:
             if num_cat >= 1:
                 logger.dryrun(f'Did not update {num_cat} new categories.')
@@ -440,17 +446,18 @@ def set_tags():
         for torrent in torrent_list:
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
                 new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                if dry_run:
-                    logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                    logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
-                    logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
-                    num_tags += 1
-                else:
-                    logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                    logger.info(util.insert_space(f'New Tag: {new_tag}',8))
-                    logger.info(util.insert_space(f'Tracker: {t_url}',8))
-                    torrent.add_tags(tags=new_tag)
-                    num_tags += 1
+                if new_tag:
+                    if dry_run:
+                        logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                        logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
+                        logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
+                        num_tags += 1
+                    else:
+                        logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                        logger.info(util.insert_space(f'New Tag: {new_tag}',8))
+                        logger.info(util.insert_space(f'Tracker: {t_url}',8))
+                        torrent.add_tags(tags=new_tag)
+                        num_tags += 1
         if dry_run:
             if num_tags >= 1:
                 logger.dryrun(f'Did not update {num_tags} new tags.')
