@@ -8,7 +8,7 @@ from pathlib import Path
 
 try:
     import yaml, schedule
-    from qbittorrentapi import Client
+    from qbittorrentapi import Client, LoginFailed, APIConnectionError
     from modules.docker import GracefulKiller
     from modules import util 
 except ModuleNotFoundError:
@@ -180,10 +180,12 @@ if 'pass' in cfg['qbt']:
 else:
     password = ''
 
-client = Client(host=host,
-                username=username,
-                password=password)
-
+client = Client(host=host, username=username, password=password)
+try:
+    client.auth_log_in()
+except (LoginFailed,APIConnectionError)as e:
+    logger.error(e)
+    sys.exit(0)
 
 ############FUNCTIONS##############
 #truncate the value of the torrent url to remove sensitive information
@@ -559,6 +561,7 @@ def set_rem_unregistered():
 def set_rem_orphaned():
     if rem_orphaned:
         util.separator(f"Checking for Orphaned Files", space=False, border=False)
+        global torrent_list
         torrent_files = []
         root_files = []
         orphaned_files = []
@@ -569,6 +572,9 @@ def set_rem_orphaned():
             root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path and os.path.join(remote_path,'.RecycleBin') not in path]
         else:
             root_files = [os.path.join(path, name) for path, subdirs, files in os.walk(root_path) for name in files if os.path.join(root_path,'orphaned_data') not in path and os.path.join(root_path,'.RecycleBin') not in path]
+        
+        #Get an updated list of torrents
+        torrent_list = client.torrents.info(sort='added_on')
 
         for torrent in torrent_list:
             for file in torrent.files:
