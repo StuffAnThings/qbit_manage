@@ -210,19 +210,33 @@ def get_category(path):
 
 #Get tags from config file based on keyword
 def get_tags(urls):
+    new_tag = ''
+    max_ratio = ''
+    max_seeding_time = ''
+    limit_upload_speed = ''
+    url = trunc_val(urls[0], '/')
     if 'tags' in cfg and cfg["tags"] != None and urls:
-        tag_path = cfg['tags']
-        for i, f in tag_path.items():
+        tag_values = cfg['tags']
+        for tag_url, tag_details in tag_values.items():
+            # If using Format 1
+            if(type(tag_details) == str):
+                new_tag = tag_details
+            # Using Format 2
+            else:
+                if 'tag' in tag_details:
+                    new_tag = tag_details['tag']
+                else:
+                    logger.warning(f'No tags defined for {tag_url}. Please check your config.yml file.')
+                if 'max_ratio' in tag_details: max_ratio = tag_details['max_ratio']
+                if 'max_seeding_time' in tag_details: max_seeding_time = tag_details['max_seeding_time']
+                if 'limit_upload_speed' in tag_details: limit_upload_speed = tag_details['limit_upload_speed']
             for url in urls:
-                if i in url:
-                    tag = f
-                    if tag: return tag,trunc_val(url, '/')
+                if tag_url in url:
+                    return (new_tag,trunc_val(url, '/'),max_ratio,max_seeding_time,limit_upload_speed)
     else:
-        tag = ('','')
-        return tag
-    tag = ('','')
-    logger.warning(f'No tags matched for {urls}. Check your config.yml file. Setting tag to NULL')
-    return tag
+        return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
+    logger.warning(f'No tags matched for {url}. Please check your config.yml file. Setting tag to NULL')
+    return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
 
 
 #Move files from source to destination, mod variable is to change the date modified of the file being moved
@@ -300,8 +314,7 @@ def set_recheck():
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
         if torrent_sorted_list:
             for torrent in torrent_sorted_list:
-                new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1): torrent.add_tags(tags=new_tag)
+                new_tag = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])[0]
                 #Resume torrent if completed
                 if torrent.progress == 1:
                     #Check to see if torrent meets AutoTorrentManagement criteria
@@ -309,18 +322,18 @@ def set_recheck():
                     logger.debug(util.insert_space(f'- Torrent Name: {torrent.name}',2))
                     logger.debug(util.insert_space(f'-- Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}',4))
                     logger.debug(util.insert_space(f'-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}',4))
-                    if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
+                    if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)) or (torrent.max_ratio < 0 or torrent.seeding_time < 0):
                         if dry_run:
-                            logger.dryrun(f'Not Resuming {new_tag} - {torrent.name}')
+                            logger.dryrun(f'Not Resuming [{new_tag}] - {torrent.name}')
                         else:
-                            logger.info(f'Resuming {new_tag} - {torrent.name}')
+                            logger.info(f'Resuming [{new_tag}] - {torrent.name}')
                             torrent.resume()
                 #Recheck
                 elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete'] and not torrent.state_enum.is_checking:
                     if dry_run:
-                        logger.dryrun(f'Not Rechecking {new_tag} - {torrent.name}')
+                        logger.dryrun(f'Not Rechecking [{new_tag}] - {torrent.name}')
                     else:
-                        logger.info(f'Rechecking {new_tag} - {torrent.name}')
+                        logger.info(f'Rechecking [{new_tag}] - {torrent.name}')
                         torrent.recheck()
 
 # Function used to move any torrents from the cross seed directory to the correct save directory
@@ -447,19 +460,84 @@ def set_tags():
         num_tags = 0
         for torrent in torrent_list:
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
-                new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                new_tag,url,max_ratio,max_seeding_time,limit_upload_speed = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                 if new_tag:
                     if dry_run:
+                        num_tags += 1
                         logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
                         logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
-                        logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
-                        num_tags += 1
+                        logger.dryrun(util.insert_space(f'Tracker: {url}',8))
+                        if limit_upload_speed:
+                            if limit_upload_speed == -1:
+                                logger.dryrun(util.insert_space(f'Limit UL Speed: Infinity',1))
+                            else:
+                                logger.dryrun(util.insert_space(f'Limit UL Speed: {limit_upload_speed} kB/s',1))
+                        if max_ratio:
+                            if max_ratio == -2:
+                                logger.dryrun(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                continue
+                            elif max_ratio == -1:
+                                logger.dryrun(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                continue
+                        else:
+                            max_ratio = torrent.max_ratio
+                        if max_seeding_time:
+                            if max_seeding_time == -2:
+                                logger.dryrun(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                continue
+                            elif max_seeding_time == -1:
+                                logger.dryrun(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                continue
+                        else:
+                            max_seeding_time = torrent.max_seeding_time
+                        if max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min',4))
+                        elif max_ratio != torrent.max_ratio:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}',4))
+                        elif max_seeding_time != torrent.max_seeding_time:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Seed Time = {max_seeding_time} min',4))
                     else:
-                        logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                        logger.info(util.insert_space(f'New Tag: {new_tag}',8))
-                        logger.info(util.insert_space(f'Tracker: {t_url}',8))
                         torrent.add_tags(tags=new_tag)
                         num_tags += 1
+                        logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                        logger.info(util.insert_space(f'New Tag: {new_tag}',8))
+                        logger.info(util.insert_space(f'Tracker: {url}',8))
+                        if limit_upload_speed:
+                            if limit_upload_speed == -1:
+                                logger.info(util.insert_space(f'Limit UL Speed: Infinity',1))
+                            else:
+                                logger.info(util.insert_space(f'Limit UL Speed: {limit_upload_speed} kB/s',1))
+                            torrent.set_upload_limit(limit_upload_speed*1024)
+                        if max_ratio:
+                            if max_ratio == -2:
+                                logger.info(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                torrent.set_share_limits(-2,-2)
+                                continue
+                            elif max_ratio == -1:
+                                logger.info(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                torrent.set_share_limits(-1,-1)
+                                continue
+                        else:
+                            max_ratio = torrent.max_ratio
+                        if max_seeding_time:
+                            if max_seeding_time == -2:
+                                logger.info(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                torrent.set_share_limits(-2,-2)
+                                continue
+                            elif max_seeding_time == -1:
+                                logger.info(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                torrent.set_share_limits(-1,-1)
+                                continue
+                        else:
+                            max_seeding_time = torrent.max_seeding_time
+                        if max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time:
+                            logger.info(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min',4))
+                        elif max_ratio != torrent.max_ratio:
+                            logger.info(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}',4))
+                        elif max_seeding_time != torrent.max_seeding_time:
+                            logger.info(util.insert_space(f'Share Limit: Max Seed Time = {max_seeding_time} min',4))
+                        torrent.set_share_limits(max_ratio,max_seeding_time)
+                        
         if dry_run:
             if num_tags >= 1:
                 logger.dryrun(f'Did not update {num_tags} new tags.')
