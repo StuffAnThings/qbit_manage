@@ -326,7 +326,7 @@ def set_recheck():
                     logger.debug(util.insert_space(f'- Torrent Name: {torrent.name}',2))
                     logger.debug(util.insert_space(f'-- Ratio vs Max Ratio: {torrent.ratio} < {torrent.max_ratio}',4))
                     logger.debug(util.insert_space(f'-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}',4))
-                    if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)) or (torrent.max_ratio < 0 or torrent.seeding_time < 0):
+                    if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
                         if dry_run:
                             logger.dryrun(f'Not Resuming [{new_tag}] - {torrent.name}')
                         else:
