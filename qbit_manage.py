@@ -218,6 +218,10 @@ def get_tags(urls):
     if 'tags' in cfg and cfg["tags"] != None and urls:
         tag_values = cfg['tags']
         for tag_url, tag_details in tag_values.items():
+            new_tag = ''
+            max_ratio = ''
+            max_seeding_time = ''
+            limit_upload_speed = ''
             # If using Format 1
             if(type(tag_details) == str):
                 new_tag = tag_details
