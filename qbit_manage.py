@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import argparse, logging, os, sys, time, shutil, urllib3, stat, fnmatch
+import argparse, logging, os, sys, time, shutil, stat, fnmatch
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta,datetime
 from collections import Counter
@@ -132,8 +132,6 @@ else:
 
 
 os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
-urllib3.disable_warnings()
-
 
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
