@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import argparse, logging, os, sys, time, shutil, urllib3, stat, fnmatch
+import argparse, logging, os, sys, time, shutil, stat, fnmatch
 from logging.handlers import RotatingFileHandler
 from datetime import timedelta,datetime
 from collections import Counter
@@ -8,7 +8,7 @@ from pathlib import Path
 
 try:
     import yaml, schedule
-    from qbittorrentapi import Client
+    from qbittorrentapi import Client, LoginFailed, APIConnectionError
     from modules.docker import GracefulKiller
     from modules import util 
 except ModuleNotFoundError:
@@ -28,7 +28,7 @@ parser.add_argument('-lf', '--log-file', dest='logfile', action='store',default=
 parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False, help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
 parser.add_argument('-re', '--recheck', dest='recheck', action="store_true", default=False, help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
 parser.add_argument('-cu', '--cat-update', dest='cat_update', action="store_true", default=False, help='Use this if you would like to update your categories.')
-parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False, help='Use this if you would like to update your tags. (Only adds tags to untagged torrents)')
+parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False, help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
 parser.add_argument('-ru', '--rem-unregistered', dest='rem_unregistered', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
 parser.add_argument('-ro', '--rem-orphaned', dest='rem_orphaned', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
 parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False, help='Use this to tag any torrents that do not have any hard links associated with any of the files. This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')
@@ -132,8 +132,6 @@ else:
 
 
 os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
-urllib3.disable_warnings()
-
 
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
@@ -180,10 +178,12 @@ if 'pass' in cfg['qbt']:
 else:
     password = ''
 
-client = Client(host=host,
-                username=username,
-                password=password)
-
+client = Client(host=host, username=username, password=password)
+try:
+    client.auth_log_in()
+except (LoginFailed,APIConnectionError)as e:
+    logger.error(e)
+    sys.exit(0)
 
 ############FUNCTIONS##############
 #truncate the value of the torrent url to remove sensitive information
@@ -203,24 +203,42 @@ def get_category(path):
         category = ''
         return category
     category = ''
-    logger.warning('No categories matched. Check your config.yml file. - Setting category to NULL')
+    logger.warning(f'No categories matched for the save path {path}. Check your config.yml file. - Setting category to NULL')
     return category
 
 #Get tags from config file based on keyword
 def get_tags(urls):
-    if 'tags' in cfg and cfg["tags"] != None:
-        tag_path = cfg['tags']
-        for i, f in tag_path.items():
+    new_tag = ''
+    max_ratio = ''
+    max_seeding_time = ''
+    limit_upload_speed = ''
+    url = trunc_val(urls[0], '/')
+    if 'tags' in cfg and cfg["tags"] != None and urls:
+        tag_values = cfg['tags']
+        for tag_url, tag_details in tag_values.items():
+            new_tag = ''
+            max_ratio = ''
+            max_seeding_time = ''
+            limit_upload_speed = ''
+            # If using Format 1
+            if(type(tag_details) == str):
+                new_tag = tag_details
+            # Using Format 2
+            else:
+                if 'tag' in tag_details:
+                    new_tag = tag_details['tag']
+                else:
+                    logger.warning(f'No tags defined for {tag_url}. Please check your config.yml file.')
+                if 'max_ratio' in tag_details: max_ratio = tag_details['max_ratio']
+                if 'max_seeding_time' in tag_details: max_seeding_time = tag_details['max_seeding_time']
+                if 'limit_upload_speed' in tag_details: limit_upload_speed = tag_details['limit_upload_speed']
             for url in urls:
-                if i in url:
-                    tag = f
-                    if tag: return tag,trunc_val(url, '/')
+                if tag_url in url:
+                    return (new_tag,trunc_val(url, '/'),max_ratio,max_seeding_time,limit_upload_speed)
     else:
-        tag = ('','')
-        return tag
-    tag = ('','')
-    logger.warning('No tags matched. Check your config.yml file. Setting tag to NULL')
-    return tag
+        return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
+    logger.warning(f'No tags matched for {url}. Please check your config.yml file. Setting tag to NULL')
+    return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
 
 
 #Move files from source to destination, mod variable is to change the date modified of the file being moved
@@ -266,6 +284,8 @@ def get_torrent_info(t_list):
         save_path = torrent.save_path
         category = get_category(save_path)
         is_complete = False
+        msg = None
+        status = None
         if torrent.name in torrentdict:
             t_count = torrentdict[torrent.name]['count'] + 1
             msg_list = torrentdict[torrent.name]['msg']
@@ -278,9 +298,12 @@ def get_torrent_info(t_list):
             status_list = []
             is_complete = torrent.state_enum.is_complete
             first_hash = torrent.hash
-        msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
-        msg_list.append(msg)
-        status_list.append(status)
+        try:
+            msg,status = [(x.msg,x.status) for x in torrent.trackers if x.url.startswith('http')][0]
+        except IndexError:
+            pass
+        if msg != None: msg_list.append(msg)
+        if status != None: status_list.append(status)
         torrentattr = {'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete, 'first_hash':first_hash}
         torrentdict[torrent.name] = torrentattr
     return torrentdict
@@ -293,8 +316,7 @@ def set_recheck():
         torrent_sorted_list = client.torrents.info(status_filter='paused',sort='size')
         if torrent_sorted_list:
             for torrent in torrent_sorted_list:
-                new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1): torrent.add_tags(tags=new_tag)
+                new_tag = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])[0]
                 #Resume torrent if completed
                 if torrent.progress == 1:
                     #Check to see if torrent meets AutoTorrentManagement criteria
@@ -304,16 +326,16 @@ def set_recheck():
                     logger.debug(util.insert_space(f'-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < {timedelta(minutes=torrent.max_seeding_time)}',4))
                     if torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60)):
                         if dry_run:
-                            logger.dryrun(f'Not Resuming {new_tag} - {torrent.name}')
+                            logger.dryrun(f'Not Resuming [{new_tag}] - {torrent.name}')
                         else:
-                            logger.info(f'Resuming {new_tag} - {torrent.name}')
+                            logger.info(f'Resuming [{new_tag}] - {torrent.name}')
                             torrent.resume()
                 #Recheck
                 elif torrent.progress == 0 and torrentdict[torrent.name]['is_complete'] and not torrent.state_enum.is_checking:
                     if dry_run:
-                        logger.dryrun(f'Not Rechecking {new_tag} - {torrent.name}')
+                        logger.dryrun(f'Not Rechecking [{new_tag}] - {torrent.name}')
                     else:
-                        logger.info(f'Rechecking {new_tag} - {torrent.name}')
+                        logger.info(f'Rechecking [{new_tag}] - {torrent.name}')
                         torrent.recheck()
 
 # Function used to move any torrents from the cross seed directory to the correct save directory
@@ -406,21 +428,22 @@ def set_category():
         num_cat = 0
         for torrent in torrent_list:
             if torrent.category == '':
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        t_url = trunc_val(x.url, '/')
-                        new_cat = get_category(torrent.save_path)
-                        if dry_run:
-                            logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                            logger.dryrun(util.insert_space(f'New Category: {new_cat}',3))
-                            logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
-                            num_cat += 1
-                        else:
-                            logger.info(util.insert_space(f'- Torrent Name: {torrent.name}',1))
-                            logger.info(util.insert_space(f'-- New Category: {new_cat}',5))
-                            logger.info(util.insert_space(f'-- Tracker: {t_url}',5))
-                            torrent.set_category(category=new_cat)
-                            num_cat += 1
+                new_cat = get_category(torrent.save_path)
+                try:
+                    t_url = [trunc_val(x.url, '/') for x in torrent.trackers if x.url.startswith('http')][0]
+                except IndexError:
+                    t_url = None
+                if dry_run:
+                    logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                    logger.dryrun(util.insert_space(f'New Category: {new_cat}',3))
+                    logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
+                    num_cat += 1
+                else:
+                    logger.info(util.insert_space(f'- Torrent Name: {torrent.name}',1))
+                    logger.info(util.insert_space(f'-- New Category: {new_cat}',5))
+                    logger.info(util.insert_space(f'-- Tracker: {t_url}',5))
+                    torrent.set_category(category=new_cat)
+                    num_cat += 1
         if dry_run:
             if num_cat >= 1:
                 logger.dryrun(f'Did not update {num_cat} new categories.')
@@ -439,18 +462,84 @@ def set_tags():
         num_tags = 0
         for torrent in torrent_list:
             if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
-                new_tag,t_url = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                if dry_run:
-                    logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                    logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
-                    logger.dryrun(util.insert_space(f'Tracker: {t_url}',8))
-                    num_tags += 1
-                else:
-                    logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
-                    logger.info(util.insert_space(f'New Tag: {new_tag}',8))
-                    logger.info(util.insert_space(f'Tracker: {t_url}',8))
-                    torrent.add_tags(tags=new_tag)
-                    num_tags += 1
+                new_tag,url,max_ratio,max_seeding_time,limit_upload_speed = get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                if new_tag:
+                    if dry_run:
+                        num_tags += 1
+                        logger.dryrun(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                        logger.dryrun(util.insert_space(f'New Tag: {new_tag}',8))
+                        logger.dryrun(util.insert_space(f'Tracker: {url}',8))
+                        if limit_upload_speed:
+                            if limit_upload_speed == -1:
+                                logger.dryrun(util.insert_space(f'Limit UL Speed: Infinity',1))
+                            else:
+                                logger.dryrun(util.insert_space(f'Limit UL Speed: {limit_upload_speed} kB/s',1))
+                        if max_ratio:
+                            if max_ratio == -2:
+                                logger.dryrun(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                continue
+                            elif max_ratio == -1:
+                                logger.dryrun(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                continue
+                        else:
+                            max_ratio = torrent.max_ratio
+                        if max_seeding_time:
+                            if max_seeding_time == -2:
+                                logger.dryrun(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                continue
+                            elif max_seeding_time == -1:
+                                logger.dryrun(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                continue
+                        else:
+                            max_seeding_time = torrent.max_seeding_time
+                        if max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min',4))
+                        elif max_ratio != torrent.max_ratio:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}',4))
+                        elif max_seeding_time != torrent.max_seeding_time:
+                            logger.dryrun(util.insert_space(f'Share Limit: Max Seed Time = {max_seeding_time} min',4))
+                    else:
+                        torrent.add_tags(tags=new_tag)
+                        num_tags += 1
+                        logger.info(util.insert_space(f'Torrent Name: {torrent.name}',3))
+                        logger.info(util.insert_space(f'New Tag: {new_tag}',8))
+                        logger.info(util.insert_space(f'Tracker: {url}',8))
+                        if limit_upload_speed:
+                            if limit_upload_speed == -1:
+                                logger.info(util.insert_space(f'Limit UL Speed: Infinity',1))
+                            else:
+                                logger.info(util.insert_space(f'Limit UL Speed: {limit_upload_speed} kB/s',1))
+                            torrent.set_upload_limit(limit_upload_speed*1024)
+                        if max_ratio:
+                            if max_ratio == -2:
+                                logger.info(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                torrent.set_share_limits(-2,-2)
+                                continue
+                            elif max_ratio == -1:
+                                logger.info(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                torrent.set_share_limits(-1,-1)
+                                continue
+                        else:
+                            max_ratio = torrent.max_ratio
+                        if max_seeding_time:
+                            if max_seeding_time == -2:
+                                logger.info(util.insert_space(f'Share Limit: Use Global Share Limit',4))
+                                torrent.set_share_limits(-2,-2)
+                                continue
+                            elif max_seeding_time == -1:
+                                logger.info(util.insert_space(f'Share Limit: Set No Share Limit',4))
+                                torrent.set_share_limits(-1,-1)
+                                continue
+                        else:
+                            max_seeding_time = torrent.max_seeding_time
+                        if max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time:
+                            logger.info(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min',4))
+                        elif max_ratio != torrent.max_ratio:
+                            logger.info(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}',4))
+                        elif max_seeding_time != torrent.max_seeding_time:
+                            logger.info(util.insert_space(f'Share Limit: Max Seed Time = {max_seeding_time} min',4))
+                        torrent.set_share_limits(max_ratio,max_seeding_time)
+                        
         if dry_run:
             if num_tags >= 1:
                 logger.dryrun(f'Did not update {num_tags} new tags.')
@@ -552,6 +641,7 @@ def set_rem_unregistered():
 def set_rem_orphaned():
     if rem_orphaned:
         util.separator(f"Checking for Orphaned Files", space=False, border=False)
+        global torrent_list
         torrent_files = []
         root_files = []
         orphaned_files = []
@@ -562,6 +652,9 @@ def set_rem_orphaned():
             root_files = [os.path.join(path.replace(remote_path,root_path), name) for path, subdirs, files in os.walk(remote_path) for name in files if os.path.join(remote_path,'orphaned_data') not in path and os.path.join(remote_path,'.RecycleBin') not in path]
         else:
             root_files = [os.path.join(path, name) for path, subdirs, files in os.walk(root_path) for name in files if os.path.join(root_path,'orphaned_data') not in path and os.path.join(root_path,'.RecycleBin') not in path]
+        
+        #Get an updated list of torrents
+        torrent_list = client.torrents.info(sort='added_on')
 
         for torrent in torrent_list:
             for file in torrent.files:

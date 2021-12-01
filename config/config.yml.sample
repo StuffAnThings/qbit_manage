@@ -20,17 +20,25 @@ cat:
   movies: "/data/torrents/Movies"
   tv: "TV"
 
-# Tag Parameters
+# Tag Parameters (Use either Format 1 or Format 2)
 tags:
+  # Format 1
   # <Tracker URL Keyword>: <Tag Name>
+  # Format 2
+  # <Tracker URL Keyword>:
+  #   tag: <Tag Name>
+  # <MANDATORY> Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading. -2 means the global limit should be used, -1 means no limit.
+  #   max_ratio: 5.0
+  # <OPTIONAL> Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding. -2 means the global limit should be used, -1 means no limit.
+  #   max_seeding_time: 129600
+  # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
+  #   limit_upload_speed: 150
+  
+  #Format 1 Examples
   animebytes.tv: AnimeBytes
-  avistaz: Avistaz
   beyond-hd: Beyond-HD
   blutopia: Blutopia
   cartoonchaos: CartoonChaos
-  digitalcore: DigitalCore
-  gazellegames: GGn
-  hdts: HDTorrents
   landof.tv: BroadcasTheNet
   myanonamouse: MaM
   passthepopcorn: PassThePopcorn
@@ -39,6 +47,22 @@ tags:
   torrentdb: TorrentDB
   torrentleech: TorrentLeech
   tv-vault: TV-Vault
+  
+  #Format 2 Examples
+  avistaz:
+    tag: Avistaz
+    max_ratio: 5.0
+    max_seeding_time: 129600
+    limit_upload_speed: 150
+  digitalcore
+    tag: DigitalCore
+    max_ratio: 5.0
+  gazellegames:
+    tag: GGn
+    limit_upload_speed: 150
+  hdts:
+    tag: HDTorrents
+    max_seeding_time: 129600
 
 #Tag Movies/Series that are not hard linked
 nohardlinks:
