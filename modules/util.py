@@ -23,8 +23,8 @@ def print_multiline(lines, loglevel='INFO'):
         if len(line) > 0 and i != len(line_list)-1:
             logger.log(getattr(logging, loglevel),line)
         if i == 0:
-            logger.handlers[1].setFormatter(logging.Formatter(" " * 37 + "| %(message)s"))
-    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(levelname)-10s | %(message)s"))
+            logger.handlers[1].setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
+    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
 
 def print_stacktrace():
     print_multiline(traceback.format_exc())
@@ -65,8 +65,8 @@ def separator(text=None, space=True, border=True, loglevel='INFO'):
 def apply_formatter(handler, border=True):
     text = f"| %(message)-{screen_width - 2}s |" if border else f"%(message)-{screen_width - 2}s"
     if isinstance(handler, RotatingFileHandler):
-        #text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
-        text = f"[%(asctime)s] %(levelname)-10s {text}"
+        text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
+        #text = f"[%(asctime)s] %(levelname)-10s {text}"
     handler.setFormatter(logging.Formatter(text))
 
 def adjust_space(display_title):

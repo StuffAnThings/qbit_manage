@@ -17,6 +17,6 @@ config
 Dockerfile
 venv
 .idea
-.env
+.venv
 test.py
 !config/config.yml.sample
