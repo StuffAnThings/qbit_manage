@@ -212,7 +212,11 @@ def get_tags(urls):
     max_ratio = ''
     max_seeding_time = ''
     limit_upload_speed = ''
-    url = trunc_val(urls[0], '/')
+    try:
+        url = trunc_val(urls[0], '/')
+    except IndexError as e:
+        logger.debug(f"Tracker Urls:{urls}")
+        logger.debug(e)
     if 'tags' in cfg and cfg["tags"] != None and urls:
         tag_values = cfg['tags']
         for tag_url, tag_details in tag_values.items():
