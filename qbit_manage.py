@@ -610,7 +610,8 @@ def set_rem_unregistered():
                         'PACKS' in msg_up or \
                         'REPACKED' in msg_up or \
                         'PACK' in msg_up or \
-                        'TRUMP' in msg_up
+                        'TRUMP' in msg_up or \
+                        'RETITLED' in msg_up
                         ) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
                         if t_count > 1:
                             if dry_run:
