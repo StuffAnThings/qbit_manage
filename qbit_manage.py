@@ -212,6 +212,7 @@ def get_tags(urls):
     max_ratio = ''
     max_seeding_time = ''
     limit_upload_speed = ''
+    url = ''
     try:
         url = trunc_val(urls[0], '/')
     except IndexError as e:
@@ -224,6 +225,7 @@ def get_tags(urls):
             max_ratio = ''
             max_seeding_time = ''
             limit_upload_speed = ''
+            url = ''
             # If using Format 1
             if(type(tag_details) == str):
                 new_tag = tag_details
@@ -245,6 +247,7 @@ def get_tags(urls):
     max_ratio = ''
     max_seeding_time = ''
     limit_upload_speed = ''
+    url = ''
     try:
         url = trunc_val(urls[0], '/')
     except IndexError as e:
