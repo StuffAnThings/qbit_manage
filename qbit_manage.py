@@ -242,6 +242,15 @@ def get_tags(urls):
     else:
         return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
     logger.warning(f'No tags matched for {url}. Please check your config.yml file. Setting tag to NULL')
+    new_tag = ''
+    max_ratio = ''
+    max_seeding_time = ''
+    limit_upload_speed = ''
+    try:
+        url = trunc_val(urls[0], '/')
+    except IndexError as e:
+        logger.debug(f"Tracker Urls:{urls}")
+        logger.debug(e)
     return (new_tag,url,max_ratio,max_seeding_time,limit_upload_speed)
 
 
