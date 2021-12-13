@@ -41,11 +41,12 @@ class Config:
             util.print_stacktrace()
             raise Failed(f"YAML Error: {e}")
 
+        if self.data["cat"] is None: self.data["cat"] = {}
+        if self.data["tags"] is None: self.data["tags"] = {}
         self.session = requests.Session()
-
         #nohardlinks
         self.nohardlinks = None
-        if "nohardlinks" in self.data:
+        if "nohardlinks" in self.data and self.args['tag_nohardlinks']:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if cat in list(self.data["cat"].keys()):
@@ -58,7 +59,7 @@ class Config:
                     raise Failed(f"Config Error: Category {cat} is defined under nohardlinks attribute but is not defined in the cat attriute.")
         else:
             if self.args["tag_nohardlinks"]:
-                raise Failed("C onfig Error: nohardlinks attribute not found")
+                raise Failed("Config Error: nohardlinks attribute not found")
 
         #Add RecycleBin
         self.recyclebin = {}
@@ -125,11 +126,13 @@ class Config:
                         # If using Format 1
                         if isinstance(tag_details,str):
                             tags['new_tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tags",default=default_tag)
+                            if tags['new_tag'] == default_tag: self.data['tags'][tag_url] = default_tag
                         # Using Format 2
                         else:
                             if 'tag' not in tag_details:
                                 logger.warning(f'No tags defined for {tag_url}. Please check your config.yml file. Setting tag to {tag_url}')
-                            tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags", subparent=tag_url, default=tag_url)  
+                            tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags", subparent=tag_url, default=tag_url)
+                            if tags['new_tag'] == tag_url: self.data['tags'][tag_url]['tag'] = tag_url
                             tags['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tags", subparent=tag_url, var_type="float", default_int=-2, default_is_none=True,do_print=False)
                             tags['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tags", subparent=tag_url, var_type="int", default_int=-2, default_is_none=True,do_print=False)
                             tags['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="tags", subparent=tag_url, var_type="int", default_int=-1, default_is_none=True,do_print=False)
@@ -137,6 +140,7 @@ class Config:
         if tags['url']:
             default_tag = tags['url'].split('/')[2].split(':')[0]
             tags['new_tag'] = self.util.check_for_attribute(self.data, default_tag, parent="tags",default=default_tag)
+            self.data['tags'][str(default_tag)] = default_tag
             logger.warning(f'No tags matched for {tags["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
         return (tags)
 
@@ -152,8 +156,8 @@ class Config:
                     break
         if not category:
             default_cat = path.split('/')[-2]
-            self.util.check_for_attribute(self.data, default_cat, parent="cat",default=path)
-            category = default_cat
+            category = self.util.check_for_attribute(self.data, default_cat, parent="cat",default=path)
+            self.data['cat'][str(default_cat)] = path
             logger.warning(f'No categories matched for the save path {path}. Check your config.yml file. - Setting category to {default_cat}')
         return category
 

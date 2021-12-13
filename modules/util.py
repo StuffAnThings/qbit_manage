@@ -26,6 +26,9 @@ class check:
             if subparent is not None:
                 if data and parent in data and subparent in data[parent]:
                     data = data[parent][subparent]
+                else:
+                    data = None
+                    do_print = False
             else:
                 if data and parent in data:
                     data = data[parent]
@@ -62,6 +65,7 @@ class check:
                     else:
                         endline = ""
                 yaml.round_trip_dump(loaded_config, open(self.config.config_path, "w"), indent=None, block_seq_indent=2)
+            if default_is_none and var_type in ["list", "int_list"]:            return []
         elif data[attribute] is None:
             if default_is_none and var_type == "list":
                 return []
