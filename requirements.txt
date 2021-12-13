@@ -1,3 +1,5 @@
-PyYAML
+ruamel.yaml
 qbittorrent-api
 schedule
+retrying
+alive_progress
