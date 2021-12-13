@@ -1,15 +1,14 @@
 #!/usr/bin/python3
 
-import argparse, logging, os, sys, fnmatch, time
+import argparse, logging, os, sys, time
 from logging.handlers import RotatingFileHandler
-from datetime import timedelta,datetime
-from collections import Counter
+from datetime import datetime
 
 try:
     import schedule
     from modules import util
     from modules.config import Config
-    from modules.util import Failed, GracefulKiller
+    from modules.util import GracefulKiller
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)

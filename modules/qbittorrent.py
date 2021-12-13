@@ -5,13 +5,14 @@ from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
 from collections import Counter
 from fnmatch import fnmatch
-from alive_progress import alive_it
+from alive_progress import alive_it, config_handler
 
 logger = logging.getLogger("qBit Manage")
 
 class Qbt:
     def __init__(self, config, params):
         self.config = config
+        config_handler.set_global(length=self.config.args['screen_width'],force_tty=True)
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
@@ -184,26 +185,26 @@ class Qbt:
                     continue
                 for torrent in alive_it(torrent_list):
                     tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                    if any(tag in torrent.tags for tag in nohardlinks[category]['exclude_tags']):
-                        #Skip to the next torrent if we find any torrents that are in the exclude tag
-                        continue
-                    else:
-                        #Checks for any hard links and not already tagged
-                        if util.nohardlink(torrent['content_path'].replace(root_dir,remote_dir)):
-                            #Will only tag new torrents that don't have noHL tag
-                            if 'noHL' not in torrent.tags :
-                                num_tags += 1
-                                print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
-                                print_line(util.insert_space(f'Added Tag: noHL',6),loglevel)
-                                print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
-                                self.set_tags_and_limits(torrent, nohardlinks[category]["max_ratio"], nohardlinks[category]["max_seeding_time"],tags='noHL')
-                            #Cleans up previously tagged noHL torrents
-                            else:
-                                # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
-                                if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category])>0):
-                                    print_line(f'Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.',loglevel)
-                                    print_line(util.insert_space(f"Cleanup flag set to true. {'Not Deleting' if dry_run else 'Deleting'} torrent + contents.",6),loglevel)
-                                    tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir,root_dir)
+                    if not nohardlinks[category]['exclude_tags']: 
+                        if any(tag in torrent.tags for tag in nohardlinks[category]['exclude_tags']):
+                            #Skip to the next torrent if we find any torrents that are in the exclude tag
+                            continue
+                    #Checks for any hard links and not already tagged
+                    if util.nohardlink(torrent['content_path'].replace(root_dir,remote_dir)):
+                        #Will only tag new torrents that don't have noHL tag
+                        if 'noHL' not in torrent.tags :
+                            num_tags += 1
+                            print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
+                            print_line(util.insert_space(f'Added Tag: noHL',6),loglevel)
+                            print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                            self.set_tags_and_limits(torrent, nohardlinks[category]["max_ratio"], nohardlinks[category]["max_seeding_time"],tags='noHL')
+                        #Cleans up previously tagged noHL torrents
+                        else:
+                            # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
+                            if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category])>0):
+                                print_line(f'Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.',loglevel)
+                                print_line(util.insert_space(f"Cleanup flag set to true. {'Not Deleting' if dry_run else 'Deleting'} torrent + contents.",6),loglevel)
+                                tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir,root_dir)
                     #Checks to see if previous noHL tagged torrents now have hard links.
                     if (not (util.nohardlink(torrent['content_path'].replace(root_dir,root_dir))) and ('noHL' in torrent.tags)):
                         num_untag += 1
