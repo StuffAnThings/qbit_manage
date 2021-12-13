@@ -12,7 +12,7 @@ logger = logging.getLogger("qBit Manage")
 class Qbt:
     def __init__(self, config, params):
         self.config = config
-        config_handler.set_global(length=self.config.args['screen_width'],force_tty=True)
+        config_handler.set_global(length=self.config.args['screen_width'])
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
