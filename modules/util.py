@@ -247,7 +247,11 @@ def print_end():
 
 # truncate the value of the torrent url to remove sensitive information
 def trunc_val(s, d, n=3):
-    return d.join(s.split(d, n)[:n])
+    try:
+        x = d.join(s.split(d, n)[:n])
+    except IndexError as e:
+        x = None
+    return x
 
 # Move files from source to destination, mod variable is to change the date modified of the file being moved
 def move_files(src, dest, mod=False):

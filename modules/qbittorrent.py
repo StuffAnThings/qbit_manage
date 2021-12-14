@@ -217,7 +217,7 @@ class Qbt:
                             self.set_tags_and_limits(torrent, tags["max_ratio"], tags["max_seeding_time"],tags["limit_upload_speed"])     
                 #loop through torrent list again for cleanup purposes
                 if (nohardlinks[category]['cleanup']):
-                    for torrent in alive_it(torrent_list):
+                    for torrent in torrent_list:
                         if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
                             #Double check that the content path is the same before we delete anything
                             if torrent['content_path'].replace(root_dir,root_dir) == tdel_dict[torrent.name]:

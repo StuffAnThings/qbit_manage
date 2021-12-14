@@ -110,7 +110,7 @@ class Config:
             tags['url'] = util.trunc_val(urls[0], '/')
         except IndexError as e:
             tags['url'] = None
-            logger.debug(f"Tracker Url:{urls[0]}")
+            logger.debug(f"Tracker Url:{urls}")
             logger.debug(e)
         if 'tags' in self.data and self.data["tags"] is not None and urls:
             tag_values = self.data['tags']
