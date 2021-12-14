@@ -197,7 +197,7 @@ class Qbt:
                                 print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
                                 print_line(util.insert_space(f'Added Tag: noHL',6),loglevel)
                                 print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
-                                self.set_tags_and_limits(torrent, nohardlinks[category]["max_ratio"], nohardlinks[category]["max_seeding_time"],tags='noHL')
+                                self.set_tags_and_limits(torrent, nohardlinks[category]["max_ratio"], nohardlinks[category]["max_seeding_time"],nohardlinks[category]["limit_upload_speed"],tags='noHL')
                             #Cleans up previously tagged noHL torrents
                             else:
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
