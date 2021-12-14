@@ -91,7 +91,7 @@ class Qbt:
         num_cat = 0
         if self.config.args['cat_update']:
             separator(f"Updating Categories", space=False, border=False)
-            for torrent in alive_it(self.torrent_list):
+            for torrent in self.torrent_list:
                 if torrent.category == '':
                     new_cat = self.config.get_category(torrent.save_path)
                     try:
@@ -115,7 +115,7 @@ class Qbt:
         num_tags = 0
         if self.config.args['tag_update']:
             separator(f"Updating Tags", space=False, border=False)
-            for torrent in alive_it(self.torrent_list):
+            for torrent in self.torrent_list:
                 if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
                     tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if tags["new_tag"]:
@@ -261,7 +261,7 @@ class Qbt:
             'TRUMP',
             'RETITLED',
             ]
-            for torrent in alive_it(self.torrentissue):
+            for torrent in self.torrentissue:
                 t_name = torrent.name
                 t_count = self.torrentinfo[t_name]['count']
                 t_msg = self.torrentinfo[t_name]['msg']
@@ -320,7 +320,7 @@ class Qbt:
             dir_cs = self.config.cross_seed_dir
             dir_cs_out = os.path.join(dir_cs,'qbit_manage_added')
             os.makedirs(dir_cs_out,exist_ok=True)
-            for file in alive_it(cs_files):
+            for file in cs_files:
                 t_name = file.split(']', 2)[2].split('.torrent')[0]
                 # Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
                 # Returned the dictionary of filtered item
@@ -350,7 +350,7 @@ class Qbt:
                     if dry_run: print_line(f'{t_name} not found in torrents.',loglevel)
                     else: print_line(f'{t_name} not found in torrents.','WARNING')
             #Tag missing cross-seed torrents tags
-            for torrent in alive_it(self.torrent_list):
+            for torrent in self.torrent_list:
                 t_name = torrent.name
                 if 'cross-seed' not in torrent.tags and self.torrentinfo[t_name]['count'] > 1 and self.torrentinfo[t_name]['first_hash'] != torrent.hash:
                     tagged += 1
@@ -375,7 +375,7 @@ class Qbt:
             #sort by size and paused
             torrent_list = self.get_torrents({'status_filter':'paused','sort':'size'})
             if torrent_list:
-                for torrent in alive_it(torrent_list):
+                for torrent in torrent_list:
                     new_tag = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     #Resume torrent if completed
                     if torrent.progress == 1:

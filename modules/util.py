@@ -53,6 +53,8 @@ class check:
                     if subparent not in loaded_config[parent] or not loaded_config[parent][subparent]:
                         loaded_config[parent][subparent] = {attribute: default}
                     elif attribute not in loaded_config[parent]:
+                        if isinstance(loaded_config[parent][subparent],str): 
+                            loaded_config[parent][subparent] = {attribute: default}
                         loaded_config[parent][subparent][attribute] = default
                     else:
                         endline = ""
