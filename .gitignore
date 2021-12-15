@@ -8,4 +8,4 @@ __pycache__/
 .vscode/*
 !.github/**
 *.svg
-.env
+.venv

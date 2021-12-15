@@ -20,40 +20,30 @@ cat:
   movies: "/data/torrents/Movies"
   tv: "TV"
 
-# Tag Parameters (Use either Format 1 or Format 2)
+# Tag Parameters
 tags:
-  # Format 1
-  # <Tracker URL Keyword>: <Tag Name>
-  # Format 2
-  # <Tracker URL Keyword>:
+  # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
+  # <MANDATORY> Set tag name
   #   tag: <Tag Name>
-  # <MANDATORY> Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading. -2 means the global limit should be used, -1 means no limit.
+  # <OPTIONAL> Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading. -2 means the global limit should be used, -1 means no limit.
   #   max_ratio: 5.0
   # <OPTIONAL> Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding. -2 means the global limit should be used, -1 means no limit.
   #   max_seeding_time: 129600
   # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
   #   limit_upload_speed: 150
-  
-  #Format 1 Examples
-  animebytes.tv: AnimeBytes
-  beyond-hd: Beyond-HD
-  blutopia: Blutopia
-  cartoonchaos: CartoonChaos
-  landof.tv: BroadcasTheNet
-  myanonamouse: MaM
-  passthepopcorn: PassThePopcorn
-  privatehd: PrivateHD
-  tleechreload: TorrentLeech
-  torrentdb: TorrentDB
-  torrentleech: TorrentLeech
-  tv-vault: TV-Vault
-  
-  #Format 2 Examples
+  animebytes.tv:
+    tag: AnimeBytes
   avistaz:
     tag: Avistaz
     max_ratio: 5.0
     max_seeding_time: 129600
     limit_upload_speed: 150
+  beyond-hd:
+    tag: Beyond-HD
+  blutopia:
+    tag: Blutopia
+  cartoonchaos:
+    tag: CartoonChaos
   digitalcore
     tag: DigitalCore
     max_ratio: 5.0
@@ -63,6 +53,23 @@ tags:
   hdts:
     tag: HDTorrents
     max_seeding_time: 129600
+  landof.tv:
+    tag: BroadcasTheNet
+  myanonamouse:
+    tag: MaM
+  passthepopcorn:
+    tag: PassThePopcorn
+  privatehd:
+    tag: PrivateHD
+  tleechreload:
+    tag: TorrentLeech
+  torrentdb:
+    tag: TorrentDB
+  torrentleech:
+    tag: TorrentLeech
+  tv-vault:
+    tag: TV-Vault
+  
 
 #Tag Movies/Series that are not hard linked
 nohardlinks:
