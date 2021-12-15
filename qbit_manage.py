@@ -72,7 +72,12 @@ divider = get_arg("QBT_DIVIDER", args.divider)
 screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 stats = {}
 args = {}
-default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+if os.path.isdir('/config'):
+    default_dir = '/config'
+else:
+    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
 for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width']:
     args[v] = eval(v)
 
@@ -118,14 +123,14 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = line
             break
 
-
-file_logger = os.path.join(default_dir, "logs", log_file)
+log_path = os.path.join(default_dir, "logs")
+file_logger = os.path.join(log_path, log_file)
 max_bytes = 1024 * 1024 * 2
 file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
 util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
-
+os.chmod(log_path, 0o777)
 
 def start():
     start_time = datetime.now()
@@ -219,6 +224,7 @@ def start():
 
 def end():
     logger.info("Exiting Qbit_manage")
+    os.chmod(file_logger, 0o777)
     logger.removeHandler(file_handler)
     sys.exit(0)
 
@@ -254,6 +260,7 @@ if __name__ == '__main__':
     logger.debug(f"    --width (QBT_WIDTH): {screen_width}")
     logger.debug("")
 
+    os.chmod(file_logger, 0o777)
     try:
         if run:
             logger.info(f"    Run Mode: Script will exit after completion.")

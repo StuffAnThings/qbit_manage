@@ -57,7 +57,7 @@ class Config:
                     self.nohardlinks[cat]['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="nohardlinks", subparent=cat, var_type="int", default_int=-2, default_is_none=True,do_print=False)
                     self.nohardlinks[cat]['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="nohardlinks", subparent=cat, var_type="int", default_int=-1, default_is_none=True,do_print=False)
                 else:
-                    raise Failed(f"Config Error: Category {cat} is defined under nohardlinks attribute but is not defined in the cat attriute.")
+                    raise Failed(f"Config Error: Category {cat} is defined under nohardlinks attribute but is not defined in the cat attribute.")
         else:
             if self.args["tag_nohardlinks"]:
                 raise Failed("Config Error: nohardlinks attribute not found")
