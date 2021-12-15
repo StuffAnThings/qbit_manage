@@ -107,13 +107,14 @@ class Config:
         tags['max_ratio'] = None
         tags['max_seeding_time'] = None
         tags['limit_upload_speed'] = None
+        if not urls: return tags
         try:
             tags['url'] = util.trunc_val(urls[0], '/')
         except IndexError as e:
             tags['url'] = None
             logger.debug(f"Tracker Url:{urls}")
             logger.debug(e)
-        if 'tags' in self.data and self.data["tags"] is not None and urls:
+        if 'tags' in self.data and self.data["tags"] is not None:
             tag_values = self.data['tags']
             for tag_url, tag_details in tag_values.items():
                 for url in urls:
