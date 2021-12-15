@@ -101,7 +101,7 @@ logger.setLevel(log_lev)
 
 def fmt_filter(record):
     record.levelname = f"[{record.levelname}]"
-    #record.filename = f"[{record.filename}:{record.lineno}]"
+    record.filename = f"[{record.filename}:{record.lineno}]"
     return True
 
 cmd_handler = logging.StreamHandler()
@@ -215,7 +215,6 @@ def start():
 
     end_time = datetime.now()
     run_time = str(end_time - start_time).split('.')[0]
-    #util.separator(f"Finished {start_type}Run\n {', '.join(stats_summary) if len(stats_summary)>0 else ''} \nRun Time: {run_time}")
     util.separator(f"Finished {start_type}Run\n {os.linesep.join(stats_summary) if len(stats_summary)>0 else ''} \nRun Time: {run_time}")
 
 def end():

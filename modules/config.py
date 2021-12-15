@@ -129,7 +129,9 @@ class Config:
                         if isinstance(tag_details,str):
                             tags['new_tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tags",default=default_tag)
                             self.util.check_for_attribute(self.data, "tag", parent="tags",subparent=tag_url, default=tags['new_tag'],do_print=False)
-                            if tags['new_tag'] == default_tag: self.data['tags'][tag_url]['tag'] = default_tag
+                            if tags['new_tag'] == default_tag:
+                                if self.data["tags"][tag_url] is None: self.data["tags"][tag_url] = {}
+                                self.data['tags'][tag_url]['tag'] = default_tag
                         # Using Format 2
                         else:
                             tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags", subparent=tag_url, default=tag_url)
@@ -141,6 +143,7 @@ class Config:
         if tags['url']:
             default_tag = tags['url'].split('/')[2].split(':')[0]
             tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags",subparent=default_tag, default=default_tag)
+            if self.data["tags"][default_tag] is None: self.data["tags"][default_tag] = {}
             self.data['tags'][default_tag]['tag'] = default_tag
             logger.warning(f'No tags matched for {tags["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
         return (tags)
