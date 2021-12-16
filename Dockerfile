@@ -1,15 +1,11 @@
-FROM python:3.9-slim
-RUN echo "**** install system packages ****" \
- && apt-get update \
- && apt-get upgrade -y --no-install-recommends \
- && apt-get install -y tzdata --no-install-recommends \
- && apt-get install -y gcc g++ libxml2-dev libxslt-dev libz-dev
-COPY requirements.txt /
+FROM hotio/base:alpine
+
+RUN apk add --no-cache py3-pip
+COPY --chown=hotio:users requirements.txt /
 RUN echo "**** install python packages ****" \
- && pip3 install --no-cache-dir --upgrade --requirement /requirements.txt \
- && apt-get autoremove -y \
- && apt-get clean \
- && rm -rf /requirements.txt /tmp/* /var/tmp/* /var/lib/apt/lists/*
-COPY . /
-VOLUME /config
-ENTRYPOINT ["python3","qbit_manage.py"]
+ && pip3 install --user --no-cache-dir --upgrade --requirement /requirements.txt \
+ && rm -rf /requirements.txt /tmp/* /var/tmp/*
+
+COPY --chown=hotio:users . "${APP_DIR}"
+WORKDIR ${APP_DIR}
+ENTRYPOINT ["python3", "qbit_manage.py"]
