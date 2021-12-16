@@ -73,7 +73,10 @@ screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 stats = {}
 args = {}
 
-default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+if os.path.isdir('/config') and os.path.exists(os.path.join('/config',config_file)):
+    default_dir = '/config'
+else:
+    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
 for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width']:
     args[v] = eval(v)
