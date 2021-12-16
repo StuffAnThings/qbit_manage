@@ -99,9 +99,9 @@ class Qbt:
                     except IndexError:
                         t_url = None
                     if not dry_run: torrent.set_category(category=new_cat)
-                    print_line(util.insert_space(f'- Torrent Name: {torrent.name}',1),loglevel)
-                    print_line(util.insert_space(f'-- New Category: {new_cat}',5),loglevel)
-                    print_line(util.insert_space(f'-- Tracker: {t_url}',5),loglevel)
+                    print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
+                    print_line(util.insert_space(f'New Category: {new_cat}',3),loglevel)
+                    print_line(util.insert_space(f'Tracker: {t_url}',8),loglevel)
                     num_cat += 1
             if num_cat >= 1:
                 print_line(f"{'Did not update' if dry_run else 'Updated'} {num_cat} new categories.",loglevel)
@@ -219,16 +219,16 @@ class Qbt:
                         if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
                             #Double check that the content path is the same before we delete anything
                             if torrent['content_path'].replace(root_dir,root_dir) == tdel_dict[torrent.name]:
-                                print_line(f'Torrent Name: {torrent.name}',loglevel)
-                                print_line(util.insert_space(f"Cleanup: True [No hard links found and meets Share Limits.]",5),loglevel)
+                                print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
+                                print_line(util.insert_space(f"Cleanup: True [No hard links found and meets Share Limits.]",8),loglevel)
                                 if (os.path.exists(torrent['content_path'].replace(root_dir,root_dir))):
                                     if not dry_run: self.tor_delete_recycle(torrent)
                                     del_tor_cont += 1
-                                    print_line(util.insert_space(f'Deleted .torrent AND content files.',13),loglevel)
+                                    print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
                                 else:
                                     if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
                                     del_tor += 1
-                                    print_line(util.insert_space(f'Deleted .torrent but NOT content files.',13),loglevel)
+                                    print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
             if num_tags >= 1: 
                 print_line(f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} .torrent{'s.' if num_tags > 1 else '.'}",loglevel)
             else:
