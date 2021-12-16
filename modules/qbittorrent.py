@@ -202,8 +202,6 @@ class Qbt:
                             else:
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                                 if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category])>0):
-                                    print_line(f'Torrent Name: {torrent.name} has no hard links found and meets ratio/seeding requirements.',loglevel)
-                                    print_line(util.insert_space(f"Cleanup flag set to true. {'Not Deleting' if dry_run else 'Deleting'} torrent + contents.",6),loglevel)
                                     tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir,root_dir)
                     #Checks to see if previous noHL tagged torrents now have hard links.
                     if (not (util.nohardlink(torrent['content_path'].replace(root_dir,root_dir))) and ('noHL' in torrent.tags)):
@@ -221,14 +219,16 @@ class Qbt:
                         if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
                             #Double check that the content path is the same before we delete anything
                             if torrent['content_path'].replace(root_dir,root_dir) == tdel_dict[torrent.name]:
+                                print_line(f'Torrent Name: {torrent.name}',loglevel)
+                                print_line(util.insert_space(f"Cleanup: True [No hard links found and meets Share Limits.]",5),loglevel)
                                 if (os.path.exists(torrent['content_path'].replace(root_dir,root_dir))):
                                     if not dry_run: self.tor_delete_recycle(torrent)
                                     del_tor_cont += 1
-                                    print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                                    print_line(util.insert_space(f'Deleted .torrent AND content files.',13),loglevel)
                                 else:
                                     if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
                                     del_tor += 1
-                                    print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
+                                    print_line(util.insert_space(f'Deleted .torrent but NOT content files.',13),loglevel)
             if num_tags >= 1: 
                 print_line(f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} .torrent{'s.' if num_tags > 1 else '.'}",loglevel)
             else:
@@ -341,8 +341,8 @@ class Qbt:
                         print_line(util.insert_space(f'Save_Path: {dest}',6),loglevel)
                         added += 1
                         if not dry_run:
-                            client.torrents.add(torrent_files=src, save_path=dest, category=category, tags='cross-seed', is_paused=True)
-                            shutil.move(src, dir_cs_out)
+                            self.client.torrents.add(torrent_files=src, save_path=dest, category=category, tags='cross-seed', is_paused=True)
+                            util.move_files(src,dir_cs_out)
                     else:
                         print_line(f'Found {t_name} in {dir_cs} but original torrent is not complete.',loglevel)
                         print_line(f'Not adding to qBittorrent',loglevel)
