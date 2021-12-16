@@ -73,7 +73,7 @@ screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 stats = {}
 args = {}
 
-if os.path.isdir('/config'):
+if os.path.isdir('/config') and os.path.exists(os.path.join('/config',config_file)):
     default_dir = '/config'
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
@@ -130,7 +130,10 @@ file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=m
 util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
-os.chmod(log_path, 0o777)
+try:
+    os.chmod(log_path, 0o777)
+except OSError:
+    pass
 
 def start():
     start_time = datetime.now()
@@ -224,7 +227,6 @@ def start():
 
 def end():
     logger.info("Exiting Qbit_manage")
-    os.chmod(file_logger, 0o777)
     logger.removeHandler(file_handler)
     sys.exit(0)
 
@@ -259,8 +261,10 @@ if __name__ == '__main__':
     logger.debug(f"    --divider (QBT_DIVIDER): {divider}")
     logger.debug(f"    --width (QBT_WIDTH): {screen_width}")
     logger.debug("")
-
-    os.chmod(file_logger, 0o777)
+    try:
+        os.chmod(file_logger, 0o777)
+    except OSError:
+        pass
     try:
         if run:
             logger.info(f"    Run Mode: Script will exit after completion.")
