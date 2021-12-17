@@ -45,26 +45,33 @@ class Qbt:
             torrentdict = {}
             t_obj_unreg = []
             for torrent in alive_it(torrent_list):
-                save_path = torrent.save_path
-                category = torrent.category
                 is_complete = False
                 msg = None
                 status = None
-                if torrent.name in torrentdict:
+                try:
+                    torrent_name = torrent.name
+                    torrent_hash = torrent.hash
+                    torrent_is_complete = torrent.state_enum.is_complete
+                    save_path = torrent.save_path
+                    category = torrent.category
+                    torrent_trackers = torrent.trackers
+                except Exception as e:
+                    logger.warning(e)
+                if torrent_name in torrentdict:
                     t_obj_list.append(torrent)
-                    t_count = torrentdict[torrent.name]['count'] + 1
-                    msg_list = torrentdict[torrent.name]['msg']
-                    status_list = torrentdict[torrent.name]['status']
-                    is_complete = True if torrentdict[torrent.name]['is_complete'] == True else torrent.state_enum.is_complete
-                    first_hash = torrentdict[torrent.name]['first_hash']
+                    t_count = torrentdict[torrent_name]['count'] + 1
+                    msg_list = torrentdict[torrent_name]['msg']
+                    status_list = torrentdict[torrent_name]['status']
+                    is_complete = True if torrentdict[torrent_name]['is_complete'] == True else torrent_is_complete
+                    first_hash = torrentdict[torrent_name]['first_hash']
                 else:
                     t_obj_list = [torrent]
                     t_count = 1
                     msg_list = []
                     status_list = []
-                    is_complete = torrent.state_enum.is_complete
-                    first_hash = torrent.hash
-                for x in torrent.trackers:
+                    is_complete = torrent_is_complete
+                    first_hash = torrent_hash
+                for x in torrent_trackers:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
@@ -74,7 +81,7 @@ class Qbt:
                 if msg is not None: msg_list.append(msg)
                 if status is not None: status_list.append(status)
                 torrentattr = {'torrents': t_obj_list, 'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete, 'first_hash':first_hash}
-                torrentdict[torrent.name] = torrentattr
+                torrentdict[torrent_name] = torrentattr
             return torrentdict,t_obj_unreg
         self.torrentinfo = None
         self.torrentissue = None
