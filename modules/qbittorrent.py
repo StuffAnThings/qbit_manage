@@ -325,6 +325,8 @@ class Qbt:
             'PACK',
             'TRUMP',
             'RETITLED',
+            'PRE-RETAIL',
+            'FULL SEASON',
             ]
             for torrent in self.torrentissue:
                 t_name = torrent.name
@@ -333,7 +335,7 @@ class Qbt:
                 t_status = self.torrentinfo[t_name]['status']
                 for x in torrent.trackers:
                     if x.url.startswith('http'):
-                        tags = self.config.get_tags(x.url)
+                        tags = self.config.get_tags([x.url])
                         msg_up = x.msg.upper()
                         #Add any potential unregistered torrents to a list
                         if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
