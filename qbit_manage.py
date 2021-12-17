@@ -139,7 +139,7 @@ util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
 try:
-    os.chmod(log_path, 0o777)
+    os.chmod(log_path, 0o666)
 except OSError:
     pass
 
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     logger.debug(f"    --trace (QBT_TRACE): {trace}")
     logger.debug("")
     try:
-        os.chmod(file_logger, 0o777)
+        os.chmod(file_logger, 0o666)
     except OSError:
         pass
     try:
