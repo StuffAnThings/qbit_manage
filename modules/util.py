@@ -155,6 +155,12 @@ separating_character = "="
 screen_width = 100
 spacing = 0
 
+def tab_new_lines(data):
+    return str(data).replace("\n", "\n|\t      ") if "\n" in str(data) else str(data)
+
+def print_stacktrace():
+    print_multiline(traceback.format_exc())
+
 def add_dict_list(keys, value, dict_map):
     for key in keys:
         if key in dict_map:
@@ -302,3 +308,10 @@ class GracefulKiller:
     signal.signal(signal.SIGTERM, self.exit_gracefully)
   def exit_gracefully(self, *args):
     self.kill_now = True
+
+def human_readable_size(size, decimal_places=3):
+    for unit in ['B','KiB','MiB','GiB','TiB']:
+        if size < 1024.0:
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f}{unit}"

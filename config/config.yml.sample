@@ -31,17 +31,23 @@ tags:
   #   max_seeding_time: 129600
   # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
   #   limit_upload_speed: 150
+  # <OPTIONAL> Set this to the notifiarr react. If using custom indexer you must specify the entire reaction id, otherwise just specify the reaction name
+  #   notifiarr: <notifiarr indexer>
   animebytes.tv:
     tag: AnimeBytes
+    notifiarr: animebytes:#############
   avistaz:
     tag: Avistaz
     max_ratio: 5.0
     max_seeding_time: 129600
     limit_upload_speed: 150
+    notifiarr: avistaz:#############
   beyond-hd:
     tag: Beyond-HD
+    notifiarr: beyondhd
   blutopia:
     tag: Blutopia
+    notifiarr: blutopia:#############
   cartoonchaos:
     tag: CartoonChaos
   digitalcore
@@ -55,12 +61,15 @@ tags:
     max_seeding_time: 129600
   landof.tv:
     tag: BroadcasTheNet
+    notifiarr: broadcasthenet
   myanonamouse:
     tag: MaM
   passthepopcorn:
     tag: PassThePopcorn
+    notifiarr: passthepopcorn
   privatehd:
     tag: PrivateHD
+    notifiarr:
   tleechreload:
     tag: TorrentLeech
   torrentdb:
@@ -118,3 +127,24 @@ orphaned:
         - "**/Thumbs.db"
         - "**/@eaDir"
         - "/data/torrents/temp/**"
+
+#Notifiarr integration with webhooks
+notifiarr:
+  apikey: ####################################
+  test: true
+  develop: true
+
+# Webhook notifications: Set value to notifiarr if using notifiarr integration, otherwise set to webhook URL
+webhooks:
+  error: notifiarr
+  run_start: notifiarr
+  run_end: notifiarr
+  function:
+    cross_seed: notifiarr
+    recheck: notifiarr
+    cat_update: notifiarr
+    tag_update: notifiarr
+    rem_unregistered: notifiarr
+    rem_orphaned: notifiarr
+    tag_nohardlinks: notifiarr
+    empty_recyclebin: notifiarr

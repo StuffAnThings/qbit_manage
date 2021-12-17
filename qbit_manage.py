@@ -9,6 +9,7 @@ try:
     from modules import util
     from modules.config import Config
     from modules.util import GracefulKiller
+    from modules.util import Failed
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
@@ -19,6 +20,8 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 6:
     sys.exit(0)
 
 parser = argparse.ArgumentParser('qBittorrent Manager.', description='A mix of scripts combined for managing qBittorrent.')
+parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
+parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='30', type=str, help='Schedule to run every x minutes. (Default set to 30)')
 parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,  help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
@@ -70,6 +73,11 @@ dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
 divider = get_arg("QBT_DIVIDER", args.divider)
 screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
+debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
+trace = get_arg("QBT_TRACE", args.trace, arg_bool=True)
+
+if debug or trace: log_level = 'DEBUG'
+
 stats = {}
 args = {}
 
@@ -78,7 +86,7 @@ if os.path.isdir('/config') and os.path.exists(os.path.join('/config',config_fil
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
-for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width']:
+for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width','debug','trace']:
     args[v] = eval(v)
 
 util.separating_character = divider[0]
@@ -223,8 +231,13 @@ def start():
 
     end_time = datetime.now()
     run_time = str(end_time - start_time).split('.')[0]
-    util.separator(f"Finished {start_type}Run\n {os.linesep.join(stats_summary) if len(stats_summary)>0 else ''} \nRun Time: {run_time}")
-
+    if cfg:
+        try:
+            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, stats)
+        except Failed as e:
+            util.print_stacktrace()
+            logger.error(f"Webhooks Error: {e}")
+    util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}".replace('\n\n', '\n'))
 def end():
     logger.info("Exiting Qbit_manage")
     logger.removeHandler(file_handler)
@@ -260,6 +273,8 @@ if __name__ == '__main__':
     logger.debug(f"    --log-level (QBT_LOG_LEVEL): {log_level}")
     logger.debug(f"    --divider (QBT_DIVIDER): {divider}")
     logger.debug(f"    --width (QBT_WIDTH): {screen_width}")
+    logger.debug(f"    --debug (QBT_DEBUG): {debug}")
+    logger.debug(f"    --trace (QBT_TRACE): {trace}")
     logger.debug("")
     try:
         os.chmod(file_logger, 0o777)
