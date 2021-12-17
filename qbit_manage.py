@@ -103,8 +103,6 @@ except ValueError:
     print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
     sys.exit(0)
 
-os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
-
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
 logging.addLevelName(logging.DRYRUN, 'DRYRUN')
@@ -131,17 +129,15 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = line
             break
 
-log_path = os.path.join(default_dir, "logs")
-file_logger = os.path.join(log_path, log_file)
+if os.path.exists(log_file):
+    file_logger = log_file
+else:
+    file_logger = os.path.join(default_dir, os.path.basename(log_file))
 max_bytes = 1024 * 1024 * 2
 file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
 util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
-try:
-    os.chmod(log_path, 0o666)
-except OSError:
-    pass
 
 def start():
     start_time = datetime.now()
@@ -276,10 +272,6 @@ if __name__ == '__main__':
     logger.debug(f"    --debug (QBT_DEBUG): {debug}")
     logger.debug(f"    --trace (QBT_TRACE): {trace}")
     logger.debug("")
-    try:
-        os.chmod(file_logger, 0o666)
-    except OSError:
-        pass
     try:
         if run:
             logger.info(f"    Run Mode: Script will exit after completion.")
