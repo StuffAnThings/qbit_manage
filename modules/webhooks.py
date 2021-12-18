@@ -6,7 +6,7 @@ from modules.util import Failed
 logger = logging.getLogger("qBit Manage")
 
 class Webhooks:
-    def __init__(self, config, system_webhooks, notifiarr=None):
+    def __init__(self, config, system_webhooks, notifiarr=None, apprise=None):
         self.config = config
         self.error_webhooks = system_webhooks["error"] if "error" in system_webhooks else []
         self.run_start_webhooks = system_webhooks["run_start"] if "run_start" in system_webhooks else []
@@ -19,6 +19,7 @@ class Webhooks:
         else:
             self.function_webhooks = []
         self.notifiarr = notifiarr
+        self.apprise = apprise
 
     def _request(self, webhooks, json):
         if self.config.trace_mode:
@@ -28,11 +29,16 @@ class Webhooks:
             if self.config.trace_mode:
                 logger.debug(f"Webhook: {webhook}")
             if webhook == "notifiarr":
-                url, params = self.notifiarr.get_url("notification/qbtManage/")
+                url, params = self.notifiarr.get_url("notification/qbitManage/")
                 for x in range(6):
                     response = self.config.get(url, json=json, params=params)
                     if response.status_code < 500:
                         break
+            elif webhook == "apprise":
+                if self.apprise is None:
+                    raise Failed(f"Webhook attribute set to apprise but apprise attribute is not configured.")
+                json['urls'] = self.apprise.notify_url
+                response = self.config.post(f"{self.apprise.api_url}/notify", json=json)
             else:
                 response = self.config.post(webhook, json=json)
             try:
@@ -56,12 +62,13 @@ class Webhooks:
                 start_type = ""
             self._request(self.run_start_webhooks, {
                 "function":"run_start",
-                "title":f"Starting {start_type}Run",
+                "title": None,
+                "body":f"Starting {start_type}Run",
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "dry_run": self.config.args['dry_run']
             })
 
-    def end_time_hooks(self, start_time, end_time, run_time, stats):
+    def end_time_hooks(self, start_time, end_time, run_time, stats, body):
         dry_run = self.config.args['dry_run']
         if dry_run:
             start_type = "Dry-"
@@ -70,7 +77,8 @@ class Webhooks:
         if self.run_end_webhooks:
             self._request(self.run_end_webhooks, {
                 "function":"run_end",
-                "title":f"Finished {start_type}Run",
+                "title": None,
+                "body": body,
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "run_time": run_time,
@@ -90,7 +98,8 @@ class Webhooks:
 
     def error_hooks(self, text, function_error=None, critical=True):
         if self.error_webhooks:
-            json = {"function":"run_error","title":f"{function_error} Error","error": str(text), "critical": critical}
+            type = "failure" if critical == True else "warning"
+            json = {"function":"run_error","title":f"{function_error} Error","body": str(text), "critical": critical, "type": type}
             if function_error:
                 json["function_error"] = function_error
             self._request(self.error_webhooks, json)

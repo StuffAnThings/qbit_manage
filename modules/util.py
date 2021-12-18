@@ -177,6 +177,7 @@ def get_int_list(data, id_type):
 
 def print_line(lines, loglevel='INFO'):
     logger.log(getattr(logging, loglevel.upper()), str(lines))
+    return [str(lines)]
 
 def print_multiline(lines, loglevel='INFO'):
     for i, line in enumerate(str(lines).split("\n")):
@@ -184,6 +185,7 @@ def print_multiline(lines, loglevel='INFO'):
         if i == 0:
             logger.handlers[1].setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
     logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
+    return [(str(lines))]
 
 def print_stacktrace():
     print_multiline(traceback.format_exc(), 'CRITICAL')
@@ -220,6 +222,7 @@ def separator(text=None, space=True, border=True, loglevel='INFO'):
             logger.log(getattr(logging, loglevel.upper()), border_text)
     for handler in logger.handlers:
         apply_formatter(handler)
+    return [text]
 
 def apply_formatter(handler, border=True):
     text = f"| %(message)-{screen_width - 2}s |" if border else f"%(message)-{screen_width - 2}s"

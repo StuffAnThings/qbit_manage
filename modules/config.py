@@ -4,6 +4,7 @@ from modules.util import Failed, check
 from modules.qbittorrent import Qbt
 from modules.webhooks import Webhooks
 from modules.notifiarr import Notifiarr
+from modules.apprise import Apprise
 from ruamel import yaml
 from retrying import retry
 
@@ -38,6 +39,7 @@ class Config:
             if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
             if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
             if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
+            if "apprise" in new_config:                     new_config["apprise"] = new_config.pop("apprise")
             if "notifiarr" in new_config:                   new_config["notifiarr"] = new_config.pop("notifiarr")
             if "webhooks" in new_config:
                 temp = new_config.pop("webhooks")
@@ -75,6 +77,22 @@ class Config:
             "function": self.util.check_for_attribute(self.data, "function", parent="webhooks", var_type="list", default_is_none=True)
         }
 
+        self.AppriseFactory = None
+        if "apprise" in self.data:
+            if self.data["apprise"] is not None:
+                logger.info("Connecting to Apprise...")
+                try:
+                    self.AppriseFactory = Apprise(self, {
+                        "api_url": self.util.check_for_attribute(self.data, "api_url", parent="apprise", var_type="url", throw=True),
+                        "notify_url": self.util.check_for_attribute(self.data, "notify_url", parent="apprise", var_type="list", throw=True),
+                    })
+                except Failed as e:
+                    logger.error(e)
+                logger.info(f"Apprise Connection {'Failed' if self.AppriseFactory is None else 'Successful'}")
+        else:
+            logger.warning("Config Warning: apprise attribute not found")
+
+
         self.NotifiarrFactory = None
         if "notifiarr" in self.data:
             if self.data["notifiarr"] is not None:
@@ -92,7 +110,7 @@ class Config:
         else:
             logger.warning("Config Warning: notifiarr attribute not found")
 
-        self.Webhooks = Webhooks(self, self.webhooks, notifiarr=self.NotifiarrFactory)
+        self.Webhooks = Webhooks(self, self.webhooks, notifiarr=self.NotifiarrFactory,apprise=self.AppriseFactory)
         try:
             self.Webhooks.start_time_hooks(self.start_time)
         except Failed as e:
@@ -267,16 +285,18 @@ class Config:
                             if not dry_run: os.remove(file)
                     if num_del > 0:
                         if not dry_run: util.remove_empty_directories(self.recycle_dir,"**/*")
+                        body = []
+                        body += util.print_multiline(n_info,loglevel)
+                        body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.",loglevel)
                         attr = {
                         "function":"empty_recyclebin",
                         "title":f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)",
+                        "body": "\n".join(body),
                         "files":files,
                         "empty_after_x_days": self.recyclebin['empty_after_x_days'],
                         "size_in_bytes":size_bytes
                         }
                         self.send_notifications(attr)
-                        util.print_multiline(n_info,loglevel)
-                        util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.",loglevel)
                 else:
                     logger.debug('No files found in "' + self.recycle_dir + '"')
         return num_del

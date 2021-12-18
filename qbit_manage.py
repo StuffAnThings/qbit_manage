@@ -227,13 +227,13 @@ def start():
 
     end_time = datetime.now()
     run_time = str(end_time - start_time).split('.')[0]
+    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}".replace('\n\n', '\n'))[0]
     if cfg:
         try:
-            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, stats)
+            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, stats, body)
         except Failed as e:
             util.print_stacktrace()
             logger.error(f"Webhooks Error: {e}")
-    util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}".replace('\n\n', '\n'))
 def end():
     logger.info("Exiting Qbit_manage")
     logger.removeHandler(file_handler)

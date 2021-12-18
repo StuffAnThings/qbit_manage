@@ -128,16 +128,25 @@ orphaned:
         - "**/@eaDir"
         - "/data/torrents/temp/**"
 
+#Apprise integration with webhooks
+apprise:
+  #Mandatory to fill out the url of your apprise API endpoint
+  api_url: http://apprise-api:8000
+  #Mandatory to fill out the notification url/urls based on the notification services provided by apprise. https://github.com/caronc/apprise/wiki
+  notify_url:
+
 #Notifiarr integration with webhooks
 notifiarr:
   #Mandatory to fill out API Key
   apikey: ####################################
-  #Your qBittorrent instance, can be set to any unique value
+  #<OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
   instance:
-  test: true
-  develop: true
 
-# Webhook notifications: Set value to notifiarr if using notifiarr integration, otherwise set to webhook URL
+# Webhook notifications: 
+# Possible values: 
+# Set value to notifiarr if using notifiarr integration
+# Set value to apprise if using apprise integration
+# Set value to a valid webhook URL
 webhooks:
   error: notifiarr
   run_start: notifiarr
