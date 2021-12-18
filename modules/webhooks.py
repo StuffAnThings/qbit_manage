@@ -55,7 +55,7 @@ class Webhooks:
             else:
                 start_type = ""
             self._request(self.run_start_webhooks, {
-                "function":"Run_Start",
+                "function":"run_start",
                 "title":f"Starting {start_type}Run",
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "dry_run": self.config.args['dry_run']
@@ -69,7 +69,7 @@ class Webhooks:
             start_type = ""
         if self.run_end_webhooks:
             self._request(self.run_end_webhooks, {
-                "function":"Run_End",
+                "function":"run_end",
                 "title":f"Finished {start_type}Run",
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -90,7 +90,7 @@ class Webhooks:
 
     def error_hooks(self, text, function_error=None, critical=True):
         if self.error_webhooks:
-            json = {"function":"Run_Error","title":f"{function_error} Error","error": str(text), "critical": critical}
+            json = {"function":"run_error","title":f"{function_error} Error","error": str(text), "critical": critical}
             if function_error:
                 json["function_error"] = function_error
             self._request(self.error_webhooks, json)
