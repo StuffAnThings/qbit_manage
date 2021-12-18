@@ -583,7 +583,7 @@ class Qbt:
                 attr = {
                 "function":"rem_orphaned",
                 "title":f"Removing {len(orphaned_files)} Orphaned Files",
-                "orphaned_files":orphaned_files,
+                "orphaned_files": list(orphaned_files),
                 "orphaned_directory": dir_out.replace(remote_path,root_path),
                 "total_orphaned_files": orphaned,
                 }
