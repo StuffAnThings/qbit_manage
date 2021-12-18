@@ -599,7 +599,7 @@ class Qbt:
                         for parent_path in orphaned_parent_path:
                             util.remove_empty_directories(parent_path,"**/*")
             else:
-                print_line(f"No Orphaned Filed found.",loglevel)
+                print_line(f"No Orphaned Files found.",loglevel)
         return orphaned
 
 
