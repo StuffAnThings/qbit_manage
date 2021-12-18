@@ -27,5 +27,6 @@ class Notifiarr:
         url = f"{dev_url if self.develop else base_url}{'notification/test' if self.test else f'{path}{self.apikey}'}"
         if self.config.trace_mode:
             logger.debug(url.replace(self.apikey, "APIKEY"))
-        params = {"event": "qbtManage" if self.test else "notify"}
+        test_payload = (f"qbitManage-{self.apikey[:5]}")
+        params = {"event": test_payload, "qbit_client":self.config.data["qbt"]["host"] if self.test else "notify"}
         return url, params
