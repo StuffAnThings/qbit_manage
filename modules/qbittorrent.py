@@ -146,6 +146,7 @@ class Qbt:
                         "title":"Updating Tags",
                         "body": "\n".join(body),
                         "torrent_name":torrent.name,
+                        "torrent_category":torrent.category,
                         "torrent_new_tag": tags["new_tag"],
                         "torrent_tracker": tags["url"],
                         "notifiarr_indexer": tags["notifiarr"],
@@ -238,6 +239,7 @@ class Qbt:
                                 "title":"Tagging Torrents with No Hardlinks",
                                 "body": "\n".join(body),
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "torrent_add_tag": 'noHL',
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
@@ -267,6 +269,7 @@ class Qbt:
                                 "title":"Untagging Previous Torrents that now have Hard Links",
                                 "body": "\n".join(body),
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "torrent_remove_tag": 'noHL',
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
@@ -301,6 +304,7 @@ class Qbt:
                                 "title":"Removing NoHL Torrents and meets Share Limits",
                                 "body": "\n".join(body),
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "cleanup": 'True',
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
@@ -342,6 +346,7 @@ class Qbt:
             ]
             for torrent in self.torrentissue:
                 t_name = torrent.name
+                t_cat = self.torrentinfo[t_name]['Category']
                 t_count = self.torrentinfo[t_name]['count']
                 t_msg = self.torrentinfo[t_name]['msg']
                 t_status = self.torrentinfo[t_name]['status']
@@ -359,6 +364,7 @@ class Qbt:
                                 "title":"Potential Unregistered Torrents",
                                 "body": pot_unr,
                                 "torrent_name":t_name,
+                                "torrent_category":t_cat,
                                 "torrent_status": msg_up,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
@@ -391,6 +397,7 @@ class Qbt:
                                 "title":"Removing Unregistered Torrents",
                                 "body": "\n".join(body),
                                 "torrent_name":t_name,
+                                "torrent_category":t_cat,
                                 "torrent_status": msg_up,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
@@ -466,6 +473,7 @@ class Qbt:
             #Tag missing cross-seed torrents tags
             for torrent in self.torrent_list:
                 t_name = torrent.name
+                t_cat = torrent.category
                 if 'cross-seed' not in torrent.tags and self.torrentinfo[t_name]['count'] > 1 and self.torrentinfo[t_name]['first_hash'] != torrent.hash:
                     tagged += 1
                     body = print_line(f"{'Not Adding' if dry_run else 'Adding'} 'cross-seed' tag to {t_name}",loglevel)
@@ -474,6 +482,7 @@ class Qbt:
                         "title":"Tagging Cross-Seed Torrent",
                         "body":body,
                         "torrent_name":t_name,
+                        "torrent_category": t_cat,
                         "torrent_add_tag": "cross-seed"
                         }
                     self.config.send_notifications(attr)
@@ -509,6 +518,7 @@ class Qbt:
                                 "title":"Resuming Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }
@@ -530,6 +540,7 @@ class Qbt:
                                 "title":"Resuming Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }
@@ -544,6 +555,7 @@ class Qbt:
                                 "title":"Rechecking Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
+                                "torrent_category":torrent.category,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }

@@ -148,15 +148,15 @@ notifiarr:
 # Set value to apprise if using apprise integration
 # Set value to a valid webhook URL
 webhooks:
-  error: notifiarr
+  error: https://mywebhookurl.com/qbt_manage
   run_start: notifiarr
-  run_end: notifiarr
+  run_end: apprise
   function:
-    cross_seed: notifiarr
-    recheck: notifiarr
-    cat_update: notifiarr
-    tag_update: notifiarr
-    rem_unregistered: notifiarr
-    rem_orphaned: notifiarr
-    tag_nohardlinks: notifiarr
-    empty_recyclebin: notifiarr
+    cross_seed:
+    recheck:
+    cat_update:
+    tag_update:
+    rem_unregistered:
+    rem_orphaned:
+    tag_nohardlinks:
+    empty_recyclebin:
