@@ -130,7 +130,10 @@ orphaned:
 
 #Notifiarr integration with webhooks
 notifiarr:
+  #Mandatory to fill out API Key
   apikey: ####################################
+  #Your qBittorrent instance, can be set to any unique value
+  instance:
   test: true
   develop: true
 

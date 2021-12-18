@@ -14,6 +14,7 @@ class Notifiarr:
         self.apikey = params["apikey"]
         self.develop = params["develop"]
         self.test = params["test"]
+        self.instance = params["instance"]
         url, _ = self.get_url("user/validate/")
         response = self.config.get(url)
         response_json = response.json()
@@ -28,5 +29,5 @@ class Notifiarr:
         if self.config.trace_mode:
             logger.debug(url.replace(self.apikey, "APIKEY"))
         test_payload = (f"qbitManage-{self.apikey[:5]}")
-        params = {"event": test_payload, "qbit_client":self.config.data["qbt"]["host"] if self.test else "notify"}
+        params = {"event": test_payload, "qbit_client":self.config.data["qbt"]["host"], "instance":self.instance if self.test else "notify"}
         return url, params
