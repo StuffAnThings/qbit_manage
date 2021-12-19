@@ -77,8 +77,9 @@ class Qbt:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
+                        exception = ["DOWN","UNREACHABLE","BAD GATEWAY"]
                         #Add any potential unregistered torrents to a list
-                        if x.status == 4 and 'DOWN' not in msg and 'UNREACHABLE' not in msg:
+                        if x.status == 4 and all(x not in msg for x in exception):
                             t_obj_unreg.append(torrent)
                         if x.status == 2:
                             t_obj_valid.append(torrent)
