@@ -130,6 +130,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             break
 
 if os.path.exists(log_file):
+    print(f"Log Warning: Log Path {log_file} does not exist. Logs will be saved in the default path: {os.path.join(default_dir, os.path.basename(log_file))}")
     file_logger = log_file
 else:
     file_logger = os.path.join(default_dir, os.path.basename(log_file))

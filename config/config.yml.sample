@@ -31,23 +31,23 @@ tags:
   #   max_seeding_time: 129600
   # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
   #   limit_upload_speed: 150
-  # <OPTIONAL> Set this to the notifiarr react. If using custom indexer you must specify the entire reaction id, otherwise just specify the reaction name
+  # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
   #   notifiarr: <notifiarr indexer>
   animebytes.tv:
     tag: AnimeBytes
-    notifiarr: animebytes:#############
+    notifiarr: animebytes
   avistaz:
     tag: Avistaz
     max_ratio: 5.0
     max_seeding_time: 129600
     limit_upload_speed: 150
-    notifiarr: avistaz:#############
+    notifiarr: avistaz
   beyond-hd:
     tag: Beyond-HD
     notifiarr: beyondhd
   blutopia:
     tag: Blutopia
-    notifiarr: blutopia:#############
+    notifiarr: blutopia
   cartoonchaos:
     tag: CartoonChaos
   digitalcore:
@@ -152,11 +152,11 @@ webhooks:
   run_start: notifiarr
   run_end: apprise
   function:
-    cross_seed:
-    recheck:
-    cat_update:
-    tag_update:
-    rem_unregistered:
-    rem_orphaned:
-    tag_nohardlinks:
-    empty_recyclebin:
+    cross_seed: https://mywebhookurl.com/qbt_manage
+    recheck: notifiarr
+    cat_update: apprise
+    tag_update: notifiarr
+    rem_unregistered: notifiarr
+    rem_orphaned: notifiarr
+    tag_nohardlinks: notifiarr
+    empty_recyclebin: notifiarr

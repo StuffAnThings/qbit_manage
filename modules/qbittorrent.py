@@ -44,6 +44,7 @@ class Qbt:
         def get_torrent_info(torrent_list):
             torrentdict = {}
             t_obj_unreg = []
+            t_obj_valid = []
             for torrent in alive_it(torrent_list):
                 is_complete = False
                 msg = None
@@ -79,16 +80,19 @@ class Qbt:
                         #Add any potential unregistered torrents to a list
                         if x.status == 4 and 'DOWN' not in msg and 'UNREACHABLE' not in msg:
                             t_obj_unreg.append(torrent)
+                        if x.status == 2:
+                            t_obj_valid.append(torrent)
                 if msg is not None: msg_list.append(msg)
                 if status is not None: status_list.append(status)
                 torrentattr = {'torrents': t_obj_list, 'Category': category, 'save_path': save_path, 'count': t_count, 'msg': msg_list, 'status': status_list, 'is_complete': is_complete, 'first_hash':first_hash}
                 torrentdict[torrent_name] = torrentattr
-            return torrentdict,t_obj_unreg
+            return torrentdict,t_obj_unreg,t_obj_valid
         self.torrentinfo = None
         self.torrentissue = None
+        self.torrentvalid = None
         if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered']:
             #Get an updated torrent dictionary information of the torrents
-            self.torrentinfo,self.torrentissue = get_torrent_info(self.torrent_list)
+            self.torrentinfo,self.torrentissue,self.torrentvalid = get_torrent_info(self.torrent_list)
 
     def get_torrents(self,params):
         return self.client.torrents.info(**params)
@@ -129,10 +133,12 @@ class Qbt:
         dry_run = self.config.args['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_tags = 0
+        ignore_tags = ['noHL','issue','cross-seed']
         if self.config.args['tag_update']:
             separator(f"Updating Tags", space=False, border=False)
             for torrent in self.torrent_list:
-                if torrent.tags == '' or ('cross-seed' in torrent.tags and len([e for e in torrent.tags.split(",") if not 'noHL' in e]) == 1):
+                check_tags = util.get_list(torrent.tags)
+                if torrent.tags == '' or (len([x for x in check_tags if x not in ignore_tags]) == 0):
                     tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if tags["new_tag"]:
                         num_tags += 1
@@ -324,9 +330,9 @@ class Qbt:
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         del_tor = 0
         del_tor_cont = 0
+        pot_unr_summary = ''
         if self.config.args['rem_unregistered']:
             separator(f"Removing Unregistered Torrents", space=False, border=False)
-            pot_unr = ''
             unreg_msgs = [
             'UNREGISTERED',
             'TORRENT NOT FOUND',
@@ -344,33 +350,44 @@ class Qbt:
             'PRE-RETAIL',
             'FULL SEASON',
             ]
+            for torrent in self.torrentvalid:
+                check_tags = util.get_list(torrent.tags)
+                #Remove any potential unregistered torrents Tags that are no longer unreachable.
+                if 'issue' in check_tags:
+                    if not dry_run: torrent.remove_tags(tags='issue')
             for torrent in self.torrentissue:
                 t_name = torrent.name
                 t_cat = self.torrentinfo[t_name]['Category']
                 t_count = self.torrentinfo[t_name]['count']
                 t_msg = self.torrentinfo[t_name]['msg']
                 t_status = self.torrentinfo[t_name]['status']
+                check_tags = util.get_list(torrent.tags)
                 for x in torrent.trackers:
                     if x.url.startswith('http'):
                         tags = self.config.get_tags([x.url])
                         msg_up = x.msg.upper()
-                        #Add any potential unregistered torrents to a list
-                        if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
+                        #Tag any potential unregistered torrents
+                        if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
+                            pot_unr = ''
                             pot_unr += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
                             pot_unr += (util.insert_space(f'Status: {msg_up}',9)+'\n')
                             pot_unr += (util.insert_space(f'Tracker: {tags["url"]}',8)+'\n')
+                            pot_unr += (util.insert_space(f"Added Tag: 'issue'",6)+'\n')
+                            pot_unr_summary += pot_unr
                             attr = {
                                 "function":"potential_rem_unregistered",
                                 "title":"Potential Unregistered Torrents",
                                 "body": pot_unr,
                                 "torrent_name":t_name,
                                 "torrent_category":t_cat,
+                                "torrent_add_tag": "issue",
                                 "torrent_status": msg_up,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }
                             self.config.send_notifications(attr)
-                        if any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'DOWN' not in msg_up and 'UNREACHABLE' not in msg_up:
+                            if not dry_run: torrent.add_tags(tags='issue')
+                        if any(m in msg_up for m in unreg_msgs) and x.status == 4:
                             body = []
                             body += print_line(util.insert_space(f'Torrent Name: {t_name}',3),loglevel)
                             body += print_line(util.insert_space(f'Status: {msg_up}',9),loglevel)
@@ -409,9 +426,9 @@ class Qbt:
             else:
                 print_line('No unregistered torrents found.',loglevel)
 
-            if (len(pot_unr) > 0):
+            if (len(pot_unr_summary) > 0):
                 separator(f"Potential Unregistered torrents", space=False, border=False,loglevel=loglevel)
-                print_multiline(pot_unr.rstrip(),loglevel)
+                print_multiline(pot_unr_summary.rstrip(),loglevel)
         return del_tor,del_tor_cont
 
     # Function used to move any torrents from the cross seed directory to the correct save directory
