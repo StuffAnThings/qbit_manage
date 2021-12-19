@@ -289,26 +289,26 @@ class Qbt:
                                 body += print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
                                 body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
                                 body += print_line(util.insert_space(f"Cleanup: True [No hard links found and meets Share Limits.]",8),loglevel)
-                                if (os.path.exists(torrent['content_path'].replace(root_dir,root_dir))):
-                                    if not dry_run: self.tor_delete_recycle(torrent)
-                                    del_tor_cont += 1
-                                    attr["torrents_deleted_and_contents"]: True
-                                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
-                                else:
-                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
-                                    del_tor += 1
-                                    attr["torrents_deleted_and_contents"]: False
-                                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
                                 attr = {
                                 "function":"cleanup_tag_nohardlinks",
                                 "title":"Removing NoHL Torrents and meets Share Limits",
-                                "body": "\n".join(body),
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
                                 "cleanup": 'True',
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }
+                                if (os.path.exists(torrent['content_path'].replace(root_dir,root_dir))):
+                                    if not dry_run: self.tor_delete_recycle(torrent)
+                                    del_tor_cont += 1
+                                    attr["torrents_deleted_and_contents"] = True
+                                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                                else:
+                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
+                                    del_tor += 1
+                                    attr["torrents_deleted_and_contents"] = False
+                                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
+                                attr["body"] = "\n".join(body)
                                 self.config.send_notifications(attr)
             if num_tags >= 1: 
                 print_line(f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} .torrent{'s.' if num_tags > 1 else '.'}",loglevel)
@@ -375,33 +375,33 @@ class Qbt:
                             body += print_line(util.insert_space(f'Torrent Name: {t_name}',3),loglevel)
                             body += print_line(util.insert_space(f'Status: {msg_up}',9),loglevel)
                             body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
-                            if t_count > 1:
-                                # Checks if any of the original torrents are working
-                                if '' in t_msg or 2 in t_status:
-                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
-                                    attr["torrents_deleted_and_contents"]: False
-                                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
-                                    del_tor += 1
-                                else:
-                                    if not dry_run: self.tor_delete_recycle(torrent)
-                                    attr["torrents_deleted_and_contents"]: True
-                                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
-                                    del_tor_cont += 1
-                            else:
-                                if not dry_run: self.tor_delete_recycle(torrent)
-                                attr["torrents_deleted_and_contents"]: True
-                                body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
-                                del_tor_cont += 1
                             attr = {
                                 "function":"rem_unregistered",
                                 "title":"Removing Unregistered Torrents",
-                                "body": "\n".join(body),
                                 "torrent_name":t_name,
                                 "torrent_category":t_cat,
                                 "torrent_status": msg_up,
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
                                 }
+                            if t_count > 1:
+                                # Checks if any of the original torrents are working
+                                if '' in t_msg or 2 in t_status:
+                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
+                                    attr["torrents_deleted_and_contents"] = False
+                                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
+                                    del_tor += 1
+                                else:
+                                    if not dry_run: self.tor_delete_recycle(torrent)
+                                    attr["torrents_deleted_and_contents"] = True
+                                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                                    del_tor_cont += 1
+                            else:
+                                if not dry_run: self.tor_delete_recycle(torrent)
+                                attr["torrents_deleted_and_contents"] = True
+                                body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                                del_tor_cont += 1
+                            attr["body"] = "\n".join(body)
                             self.config.send_notifications(attr)
             if del_tor >=1 or del_tor_cont >=1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.",loglevel)
