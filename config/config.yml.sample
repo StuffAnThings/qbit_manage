@@ -127,7 +127,7 @@ orphaned:
         - "**/Thumbs.db"
         - "**/@eaDir"
         - "/data/torrents/temp/**"
-        - '**/*.!qB'
+        - "**/*.!qB"
 
 #Apprise integration with webhooks
 apprise:
