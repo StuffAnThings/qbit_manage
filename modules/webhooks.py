@@ -26,42 +26,47 @@ class Webhooks:
             logger.debug("")
             logger.debug(f"JSON: {json}")
         for webhook in list(set(webhooks)):
+            response = None
             if self.config.trace_mode:
                 logger.debug(f"Webhook: {webhook}")
             if webhook == "notifiarr":
                 if self.notifiarr is None:
-                    raise Failed(f"Webhook attribute set to notifiarr but notifiarr attribute is not configured.")
-                elif '525' in self.notifiarr:
-                    raise Failed(self.notifiarr)
-                url, params = self.notifiarr.get_url("notification/qbitManage/")
-                for x in range(6):
-                    response = self.config.get(url, json=json, params=params)
-                    if response.status_code < 500:
-                        break
+                    break
+                else:
+                    url, params = self.notifiarr.get_url("notification/qbitManage/")
+                    for x in range(6):
+                        response = self.config.get(url, json=json, params=params)
+                        if response.status_code < 500:
+                            break
             elif webhook == "apprise":
                 if self.apprise is None:
-                    raise Failed(f"Webhook attribute set to apprise but apprise attribute is not configured.")
-                json['urls'] = self.apprise.notify_url
-                response = self.config.post(f"{self.apprise.api_url}/notify", json=json)
+                    logger.warning(f"Webhook attribute set to apprise but apprise attribute is not configured.")
+                    break
+                else:
+                    json['urls'] = self.apprise.notify_url
+                    for x in range(6):
+                        response = self.config.post(f"{self.apprise.api_url}/notify", json=json)
+                        if response.status_code < 500:
+                            break
             else:
                 response = self.config.post(webhook, json=json)
-            
-            skip = False
-            try:
-                response_json = response.json()
-                if self.config.trace_mode:
-                    logger.debug(f"Response: {response_json}")
-                if "result" in response_json and response_json["result"] == "error" and "details" in response_json and "response" in response_json["details"]:
-                    if ('trigger is not enabled' in response_json['details']['response']):
-                        logger.debug(f"Notifiarr Warning: {response_json['details']['response']}")
-                        skip = True
-                    else:
-                        raise Failed(f"Notifiarr Error: {response_json['details']['response']}")
-                if (response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")) and skip == False:
-                    raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
-            except JSONDecodeError:
-                if response.status_code >= 400:
-                    raise Failed(f"({response.status_code} [{response.reason}])")
+            if response:
+                skip = False
+                try:
+                    response_json = response.json()
+                    if self.config.trace_mode:
+                        logger.debug(f"Response: {response_json}")
+                    if "result" in response_json and response_json["result"] == "error" and "details" in response_json and "response" in response_json["details"]:
+                        if ('trigger is not enabled' in response_json['details']['response']):
+                            logger.debug(f"Notifiarr Warning: {response_json['details']['response']}")
+                            skip = True
+                        else:
+                            raise Failed(f"Notifiarr Error: {response_json['details']['response']}")
+                    if (response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")) and skip == False:
+                        raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
+                except JSONDecodeError:
+                    if response.status_code >= 400:
+                        raise Failed(f"({response.status_code} [{response.reason}])")
 
     def start_time_hooks(self, start_time):
         if self.run_start_webhooks:

@@ -110,10 +110,7 @@ class Config:
                     })
                 except Failed as e:
                     logger.error(e)
-                    notifiarr_error = str(e)
-                    if '525' in notifiarr_error:
-                        self.NotifiarrFactory = notifiarr_error
-                logger.info(f"Notifiarr Connection {'Failed' if self.NotifiarrFactory is (None or notifiarr_error) else 'Successful'}")
+                logger.info(f"Notifiarr Connection {'Failed' if self.NotifiarrFactory is None else 'Successful'}")
         else:
             logger.warning("Config Warning: notifiarr attribute not found")
 
