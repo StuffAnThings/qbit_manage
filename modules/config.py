@@ -43,13 +43,13 @@ class Config:
             if "notifiarr" in new_config:                   new_config["notifiarr"] = new_config.pop("notifiarr")
             if "webhooks" in new_config:
                 temp = new_config.pop("webhooks")
-                if 'function' not in temp or not isinstance(temp['function'],list): temp["function"] = {}
+                if 'function' not in temp or ('function' in temp and temp['function'] is None): temp["function"] = {}
                 def hooks(attr):
                     if attr in temp:
                         items = temp.pop(attr)
                         if items:
                             temp["function"][attr]=items
-                    else:
+                    if attr not in temp["function"]:
                         temp["function"][attr] = {}
                         temp["function"][attr]= None
                 hooks("cross_seed")
