@@ -43,12 +43,15 @@ class Config:
             if "notifiarr" in new_config:                   new_config["notifiarr"] = new_config.pop("notifiarr")
             if "webhooks" in new_config:
                 temp = new_config.pop("webhooks")
-                if 'function' not in temp: temp["function"] = {}
+                if 'function' not in temp or not isinstance(temp['function'],list): temp["function"] = {}
                 def hooks(attr):
                     if attr in temp:
                         items = temp.pop(attr)
                         if items:
                             temp["function"][attr]=items
+                    else:
+                        temp["function"][attr] = {}
+                        temp["function"][attr]= None
                 hooks("cross_seed")
                 hooks("recheck")
                 hooks("cat_update")
@@ -70,11 +73,12 @@ class Config:
         if self.data["cat"] is None: self.data["cat"] = {}
         if self.data["tags"] is None: self.data["tags"] = {}
 
+        default_function = {'cross_seed':None,'recheck':None,'cat_update':None,'tag_update':None,'rem_unregistered':None,'rem_orphaned':None,'tag_nohardlinks':None,'empty_recyclebin':None}
         self.webhooks = {
             "error": self.util.check_for_attribute(self.data, "error", parent="webhooks", var_type="list", default_is_none=True),
             "run_start": self.util.check_for_attribute(self.data, "run_start", parent="webhooks", var_type="list", default_is_none=True),
             "run_end": self.util.check_for_attribute(self.data, "run_end", parent="webhooks", var_type="list", default_is_none=True),
-            "function": self.util.check_for_attribute(self.data, "function", parent="webhooks", var_type="list", default_is_none=True)
+            "function": self.util.check_for_attribute(self.data, "function", parent="webhooks", var_type="list", default=default_function)
         }
 
         self.AppriseFactory = None
@@ -305,11 +309,13 @@ class Config:
             try:
                 function = attr['function']
                 config_webhooks = self.Webhooks.function_webhooks
+                config_function = None
                 for key in config_webhooks:
                     if key in function:
                         config_function = key
                         break
-                self.Webhooks.function_hooks([config_webhooks[config_function]],attr)
+                if config_function:
+                    self.Webhooks.function_hooks([config_webhooks[config_function]],attr)
             except Failed as e:
                 util.print_stacktrace()
                 logger.error(f"Webhooks Error: {e}")

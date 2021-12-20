@@ -14,7 +14,7 @@ class Webhooks:
         if "function" in system_webhooks and system_webhooks["function"] is not None:
             try:
                 self.function_webhooks = system_webhooks["function"][0]
-            except IndexError:
+            except (IndexError,KeyError) as e:
                 self.function_webhooks = []
         else:
             self.function_webhooks = []
