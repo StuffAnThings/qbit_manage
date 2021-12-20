@@ -1,6 +1,7 @@
 import logging
 
 from modules.util import Failed
+from json import JSONDecodeError
 
 logger = logging.getLogger("qBit Manage")
 
@@ -17,7 +18,14 @@ class Notifiarr:
         self.instance = params["instance"]
         url, _ = self.get_url("user/validate/")
         response = self.config.get(url)
-        response_json = response.json()
+        try:
+            response_json = response.json()
+        except JSONDecodeError:
+            if response.status_code >= 400:
+                if response.status_code == 525:
+                    raise Failed(f"Notifiarr Error (Response: 525): SSL handshake between Cloudflare and the origin web server failed.")
+                else:
+                    raise Failed(f"({response.status_code} [{response.reason}])")
         if response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error"):
             logger.debug(f"Response: {response_json}")
             raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")

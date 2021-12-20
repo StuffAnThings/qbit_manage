@@ -29,6 +29,10 @@ class Webhooks:
             if self.config.trace_mode:
                 logger.debug(f"Webhook: {webhook}")
             if webhook == "notifiarr":
+                if self.notifiarr is None:
+                    raise Failed(f"Webhook attribute set to notifiarr but notifiarr attribute is not configured.")
+                elif '525' in self.notifiarr:
+                    raise Failed(self.notifiarr)
                 url, params = self.notifiarr.get_url("notification/qbitManage/")
                 for x in range(6):
                     response = self.config.get(url, json=json, params=params)
