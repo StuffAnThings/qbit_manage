@@ -93,8 +93,6 @@ class Config:
                 except Failed as e:
                     logger.error(e)
                 logger.info(f"Apprise Connection {'Failed' if self.AppriseFactory is None else 'Successful'}")
-        else:
-            logger.warning("Config Warning: apprise attribute not found")
 
 
         self.NotifiarrFactory = None
@@ -111,8 +109,6 @@ class Config:
                 except Failed as e:
                     logger.error(e)
                 logger.info(f"Notifiarr Connection {'Failed' if self.NotifiarrFactory is None else 'Successful'}")
-        else:
-            logger.warning("Config Warning: notifiarr attribute not found")
 
         self.Webhooks = Webhooks(self, self.webhooks, notifiarr=self.NotifiarrFactory,apprise=self.AppriseFactory)
         try:
