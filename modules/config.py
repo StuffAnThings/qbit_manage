@@ -190,6 +190,7 @@ class Config:
         tags['max_seeding_time'] = None
         tags['limit_upload_speed'] = None
         tags['notifiarr'] = None
+        tags['url'] = None
         if not urls: return tags
         try:
             tags['url'] = util.trunc_val(urls[0], '/')
