@@ -29,6 +29,8 @@ class Webhooks:
             response = None
             if self.config.trace_mode:
                 logger.debug(f"Webhook: {webhook}")
+            if webhook == None:
+                break
             if webhook == "notifiarr":
                 if self.notifiarr is None:
                     break
