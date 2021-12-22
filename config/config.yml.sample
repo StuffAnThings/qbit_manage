@@ -91,36 +91,36 @@ nohardlinks:
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
   movies-completed:
-    #<OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
+    # <OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
     exclude_tags:
       - Beyond-HD
       - AnimeBytes
       - MaM
-    #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
     cleanup: false
-    #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
-    #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
 
   # Can have additional categories set with separate ratio/seeding times defined.
   series-completed:
-    #<OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
+    # <OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
     exclude_tags:
       - Beyond-HD
       - BroadcasTheNet
-    #<OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
     cleanup: false
-    #<OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
-    #<OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
 
 # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
 # By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
 recyclebin:
   enabled: true
-  #<OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
+  # <OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
   #                                   If this variable is not defined it, the RecycleBin will never be emptied.
   #                                   WARNING: Setting this variable to 0 will delete all files immediately upon script run!
   empty_after_x_days: 60
@@ -148,7 +148,7 @@ apprise:
 notifiarr:
   # Mandatory to fill out API Key
   apikey: ####################################
-  #<OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
+  # <OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
   instance:
 
 # Webhook notifications:
