@@ -2,13 +2,14 @@
 
 import argparse, logging, os, sys, time
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime,timedelta
 
 try:
     import schedule
     from modules import util
     from modules.config import Config
     from modules.util import GracefulKiller
+    from modules.util import Failed
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
@@ -19,8 +20,10 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 6:
     sys.exit(0)
 
 parser = argparse.ArgumentParser('qBittorrent Manager.', description='A mix of scripts combined for managing qBittorrent.')
+parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
+parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
-parser.add_argument('-sch', '--schedule', dest='min',  default='30', type=str, help='Schedule to run every x minutes. (Default set to 30)')
+parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
 parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,  help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-lf', '--log-file', dest='logfile', action='store',default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
 parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False, help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
@@ -70,6 +73,11 @@ dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
 divider = get_arg("QBT_DIVIDER", args.divider)
 screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
+debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
+trace = get_arg("QBT_TRACE", args.trace, arg_bool=True)
+
+if debug or trace: log_level = 'DEBUG'
+
 stats = {}
 args = {}
 
@@ -78,7 +86,7 @@ if os.path.isdir('/config') and os.path.exists(os.path.join('/config',config_fil
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
-for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width']:
+for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width','debug','trace']:
     args[v] = eval(v)
 
 util.separating_character = divider[0]
@@ -94,8 +102,6 @@ try:
 except ValueError:
     print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
     sys.exit(0)
-
-os.makedirs(os.path.join(default_dir, "logs"), exist_ok=True)
 
 logger = logging.getLogger('qBit Manage')
 logging.DRYRUN = 25
@@ -123,17 +129,16 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = line
             break
 
-log_path = os.path.join(default_dir, "logs")
-file_logger = os.path.join(log_path, log_file)
+if os.path.exists(log_file):
+    print(f"Log Warning: Log Path {log_file} does not exist. Logs will be saved in the default path: {os.path.join(default_dir, os.path.basename(log_file))}")
+    file_logger = log_file
+else:
+    file_logger = os.path.join(default_dir, os.path.basename(log_file))
 max_bytes = 1024 * 1024 * 2
 file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
 util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
-try:
-    os.chmod(log_path, 0o777)
-except OSError:
-    pass
 
 def start():
     start_time = datetime.now()
@@ -223,12 +228,35 @@ def start():
 
     end_time = datetime.now()
     run_time = str(end_time - start_time).split('.')[0]
-    util.separator(f"Finished {start_type}Run\n {os.linesep.join(stats_summary) if len(stats_summary)>0 else ''} \nRun Time: {run_time}")
-
+    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}".replace('\n\n', '\n'))[0]
+    if cfg:
+        try:
+            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, stats, body)
+        except Failed as e:
+            util.print_stacktrace()
+            logger.error(f"Webhooks Error: {e}")
 def end():
     logger.info("Exiting Qbit_manage")
     logger.removeHandler(file_handler)
     sys.exit(0)
+
+def calc_next_run(sch,print=False):
+    current = datetime.now().strftime("%H:%M")
+    seconds = sch*60
+    time_to_run = (datetime.now() + timedelta(minutes=sch)).strftime("%H:%M")
+    new_seconds = (datetime.strptime(time_to_run, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
+    time_str = ''
+    if new_seconds < 0:
+        new_seconds += 86400
+    if (seconds is None or new_seconds < seconds) and new_seconds > 0:
+        seconds = new_seconds
+    if seconds is not None:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
+        time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
+        if print: util.print_return(f"Current Time: {current} | {time_str} until the next run at {time_to_run}")
+    return time_str
 
 if __name__ == '__main__':
     killer = GracefulKiller()
@@ -260,22 +288,21 @@ if __name__ == '__main__':
     logger.debug(f"    --log-level (QBT_LOG_LEVEL): {log_level}")
     logger.debug(f"    --divider (QBT_DIVIDER): {divider}")
     logger.debug(f"    --width (QBT_WIDTH): {screen_width}")
+    logger.debug(f"    --debug (QBT_DEBUG): {debug}")
+    logger.debug(f"    --trace (QBT_TRACE): {trace}")
     logger.debug("")
-    try:
-        os.chmod(file_logger, 0o777)
-    except OSError:
-        pass
     try:
         if run:
             logger.info(f"    Run Mode: Script will exit after completion.")
             start()
         else:
             schedule.every(sch).minutes.do(start)
-            logger.info(f"    Scheduled Mode: Running every {sch} minutes.")
+            logger.info(f"    Scheduled Mode: Running every {calc_next_run(sch)}.")
             start()
             while not killer.kill_now:
                 schedule.run_pending()
-                time.sleep(1)
+                calc_next_run(sch,True)
+                time.sleep(60)
             end()
     except KeyboardInterrupt:
         end()

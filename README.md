@@ -1,4 +1,4 @@
-# <img src="qbm_logo.png" width="75"> qBit Management
+# <img src="qbm_logo.png" width="75"> qBit Manage
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/StuffAnThings/qbit_manage?style=plastic)](https://github.com/StuffAnThings/qbit_manage/releases)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/StuffAnThings/qbit_manage/latest/develop?label=Commits%20in%20Develop&style=plastic)](https://github.com/StuffAnThings/qbit_manage/tree/develop)
@@ -18,6 +18,7 @@ This is a program used to manage your qBittorrent instance such as:
 * Tag any torrents that have no hard links and allows optional cleanup to delete these torrents and contents based on maximum ratio and/or time seeded
 * RecycleBin function to move files into a RecycleBin folder instead of deleting the data directly when deleting a torrent
 * Built-in scheduler to run the script every x minutes. (Can use `--run` command to run without the scheduler)
+* Webhook notifications with [Notifiarr](https://notifiarr.com/) and [Apprise API](https://github.com/caronc/apprise-api) integration
 ## Getting Started
 
 Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for installation help
