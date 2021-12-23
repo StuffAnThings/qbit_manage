@@ -31,7 +31,7 @@ class Webhooks:
                 logger.debug(f"Webhook: {webhook}")
             if webhook == None:
                 break
-            if webhook == "notifiarr":
+            elif webhook == "notifiarr":
                 if self.notifiarr is None:
                     break
                 else:
