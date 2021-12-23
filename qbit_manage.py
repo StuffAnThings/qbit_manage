@@ -2,7 +2,7 @@
 
 import argparse, logging, os, sys, time
 from logging.handlers import RotatingFileHandler
-from datetime import datetime
+from datetime import datetime,timedelta
 
 try:
     import schedule
@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser('qBittorrent Manager.', description='A mix of s
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
-parser.add_argument('-sch', '--schedule', dest='min',  default='30', type=str, help='Schedule to run every x minutes. (Default set to 30)')
+parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
 parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,  help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-lf', '--log-file', dest='logfile', action='store',default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
 parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False, help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
@@ -240,6 +240,24 @@ def end():
     logger.removeHandler(file_handler)
     sys.exit(0)
 
+def calc_next_run(sch,print=False):
+    current = datetime.now().strftime("%H:%M")
+    seconds = sch*60
+    time_to_run = (datetime.now() + timedelta(minutes=sch)).strftime("%H:%M")
+    new_seconds = (datetime.strptime(time_to_run, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
+    time_str = ''
+    if new_seconds < 0:
+        new_seconds += 86400
+    if (seconds is None or new_seconds < seconds) and new_seconds > 0:
+        seconds = new_seconds
+    if seconds is not None:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
+        time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
+        if print: util.print_return(f"Current Time: {current} | {time_str} until the next run at {time_to_run}")
+    return time_str
+
 if __name__ == '__main__':
     killer = GracefulKiller()
     util.separator()
@@ -279,11 +297,12 @@ if __name__ == '__main__':
             start()
         else:
             schedule.every(sch).minutes.do(start)
-            logger.info(f"    Scheduled Mode: Running every {sch} minutes.")
+            logger.info(f"    Scheduled Mode: Running every {calc_next_run(sch)}.")
             start()
             while not killer.kill_now:
                 schedule.run_pending()
-                time.sleep(1)
+                calc_next_run(sch,True)
+                time.sleep(60)
             end()
     except KeyboardInterrupt:
         end()
