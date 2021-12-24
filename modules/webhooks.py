@@ -107,6 +107,7 @@ class Webhooks:
                 "torrents_categorized": stats["categorized"],
                 "torrents_tagged": stats["tagged"],
                 "remove_unregistered": stats["rem_unreg"],
+                "potential_unregistered": stats["pot_unreg"],
                 "orphaned_files_found": stats["orphaned"],
                 "torrents_tagged_no_hardlinks": stats["taggednoHL"],
                 "torrents_untagged_no_hardlinks": stats["untagged"],

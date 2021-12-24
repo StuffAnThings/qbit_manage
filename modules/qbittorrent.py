@@ -331,6 +331,7 @@ class Qbt:
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         del_tor = 0
         del_tor_cont = 0
+        pot_unreg = 0
         pot_unr_summary = ''
         if self.config.args['rem_unregistered']:
             separator(f"Removing Unregistered Torrents", space=False, border=False)
@@ -376,6 +377,7 @@ class Qbt:
                             pot_unr += (util.insert_space(f'Tracker: {tags["url"]}',8)+'\n')
                             pot_unr += (util.insert_space(f"Added Tag: 'issue'",6)+'\n')
                             pot_unr_summary += pot_unr
+                            pot_unreg += 1
                             attr = {
                                 "function":"potential_rem_unregistered",
                                 "title":"Potential Unregistered Torrents",
@@ -428,10 +430,10 @@ class Qbt:
             else:
                 print_line('No unregistered torrents found.',loglevel)
 
-            if (len(pot_unr_summary) > 0):
-                separator(f"Potential Unregistered torrents", space=False, border=False,loglevel=loglevel)
+            if (pot_unreg > 0):
+                separator(f"{pot_unreg} Potential Unregistered torrents found", space=False, border=False,loglevel=loglevel)
                 print_multiline(pot_unr_summary.rstrip(),loglevel)
-        return del_tor,del_tor_cont
+        return del_tor,del_tor_cont, pot_unreg
 
     # Function used to move any torrents from the cross seed directory to the correct save directory
     def cross_seed(self):

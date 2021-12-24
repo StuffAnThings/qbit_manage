@@ -164,6 +164,7 @@ def start():
         "untagged":0,
         "categorized": 0,
         "rem_unreg": 0,
+        "pot_unreg": 0,
         "taggednoHL": 0
     }
     try:
@@ -182,10 +183,11 @@ def start():
         stats["tagged"] += num_tagged
         
         #Remove Unregistered Torrents
-        num_deleted,num_deleted_contents = cfg.qbt.rem_unregistered()
+        num_deleted,num_deleted_contents,num_pot_unreg = cfg.qbt.rem_unregistered()
         stats["rem_unreg"] += (num_deleted + num_deleted_contents)
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
+        stats["pot_unreg"] += num_pot_unreg
 
         #Set Cross Seed
         num_added, num_tagged = cfg.qbt.cross_seed()
@@ -216,6 +218,7 @@ def start():
     if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
     if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
     if stats["rem_unreg"] > 0:                  stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
+    if stats["pot_unreg"] > 0:                  stats_summary.append(f"Total Potential Unregistered Torrents Found: {stats['pot_unreg']}")
     if stats["added"] > 0:                      stats_summary.append(f"Total Torrents Added: {stats['added']}")
     if stats["resumed"] > 0:                    stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
     if stats["rechecked"] > 0:                  stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
