@@ -350,6 +350,7 @@ class Qbt:
             'RETITLED',
             'PRE-RETAIL',
             'FULL SEASON',
+            'MASS REMOVAL'
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
