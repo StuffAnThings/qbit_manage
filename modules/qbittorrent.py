@@ -168,7 +168,7 @@ class Qbt:
                 print_line(f'No new torrents to tag.',loglevel)
         return num_tags
 
-    def set_tags_and_limits(self,torrent,max_ratio,max_seeding_time,limit_upload_speed=None,tags=None):
+    def set_tags_and_limits(self,torrent,max_ratio,max_seeding_time,limit_upload_speed=None,tags=None,restore=False):
         dry_run = self.config.args['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         body = []
@@ -177,12 +177,12 @@ class Qbt:
             if limit_upload_speed == -1:                    body += print_line(util.insert_space(f'Limit UL Speed: Infinity',1),loglevel)
             else:                                           body += print_line(util.insert_space(f'Limit UL Speed: {limit_upload_speed} kB/s',1),loglevel)
         if max_ratio or max_seeding_time:
-            if max_ratio == -2 or max_seeding_time == -2:   body += print_line(util.insert_space(f'Share Limit: Use Global Share Limit',4),loglevel)
-            elif max_ratio == -1 or max_seeding_time == -1: body += print_line(util.insert_space(f'Share Limit: Set No Share Limit',4),loglevel)
+            if (max_ratio == -2 or max_seeding_time == -2) and not restore:   body += print_line(util.insert_space(f'Share Limit: Use Global Share Limit',4),loglevel)
+            elif (max_ratio == -1 or max_seeding_time == -1) and not restore: body += print_line(util.insert_space(f'Share Limit: Set No Share Limit',4),loglevel)
             else:
-                if max_ratio != torrent.max_ratio and not max_seeding_time:
+                if max_ratio != torrent.max_ratio and (not max_seeding_time or max_seeding_time < 0):
                     body += print_line(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}',4),loglevel)
-                elif max_seeding_time != torrent.max_seeding_time and not max_ratio:
+                elif max_seeding_time != torrent.max_seeding_time and (not max_ratio or max_ratio < 0):
                     body += print_line(util.insert_space(f'Share Limit: Max Seed Time = {max_seeding_time} min',4),loglevel)
                 elif max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time: 
                     body += print_line(util.insert_space(f'Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min',4),loglevel)
@@ -192,13 +192,13 @@ class Qbt:
             if limit_upload_speed: 
                 if limit_upload_speed == -1: torrent.set_upload_limit(-1)
                 else: torrent.set_upload_limit(limit_upload_speed*1024)
-            if max_ratio or max_seeding_time:
+            if (max_ratio or max_seeding_time) and not restore:
                 if max_ratio == -2 or max_seeding_time == -2:
                     torrent.set_share_limits(-2,-2)
-                    return
+                    return body
                 elif max_ratio == -1 or max_seeding_time == -1:
                     torrent.set_share_limits(-1,-1)
-                    return
+                    return body
             if not max_ratio: max_ratio = torrent.max_ratio
             if not max_seeding_time: max_seeding_time = torrent.max_seeding_time
             torrent.set_share_limits(max_ratio,max_seeding_time)
@@ -270,7 +270,14 @@ class Qbt:
                         body += print_line(f"{'Not Reverting' if dry_run else 'Reverting'} share limits.",loglevel)
                         if not dry_run: 
                             torrent.remove_tags(tags='noHL')
-                            body.extend(self.set_tags_and_limits(torrent, tags["max_ratio"], tags["max_seeding_time"],tags["limit_upload_speed"]))  
+                            restore_max_ratio = tags["max_ratio"]
+                            restore_max_seeding_time = tags["max_seeding_time"]
+                            restore_limit_upload_speed = tags["limit_upload_speed"]
+                            if restore_max_ratio is None: restore_max_ratio = -2
+                            if restore_max_seeding_time is None: restore_max_seeding_time = -2
+                            if restore_limit_upload_speed is None: restore_limit_upload_speed = -1
+                            body.extend(self.set_tags_and_limits(torrent, restore_max_ratio, restore_max_seeding_time,restore_limit_upload_speed,restore=True))  
+                            if torrent.state == 'pausedUP': torrent.resume()
                         attr = {
                                 "function":"untag_nohardlinks",
                                 "title":"Untagging Previous Torrents that now have Hard Links",
@@ -280,9 +287,9 @@ class Qbt:
                                 "torrent_remove_tag": 'noHL',
                                 "torrent_tracker": tags["url"],
                                 "notifiarr_indexer": tags["notifiarr"],
-                                "torrent_max_ratio": tags["max_ratio"],
-                                "torrent_max_seeding_time": tags["max_seeding_time"],
-                                "torrent_limit_upload_speed": tags["limit_upload_speed"]
+                                "torrent_max_ratio": restore_max_ratio,
+                                "torrent_max_seeding_time": restore_max_seeding_time,
+                                "torrent_limit_upload_speed": restore_limit_upload_speed
                                 }
                         self.config.send_notifications(attr)
                 #loop through torrent list again for cleanup purposes
