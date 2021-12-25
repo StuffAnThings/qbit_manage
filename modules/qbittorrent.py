@@ -466,10 +466,10 @@ class Qbt:
                 if torrentdict_file:
                     # Get the exact torrent match name from torrentdict
                     t_name = next(iter(torrentdict_file))
-                    category = self.torrentinfo[t_name]['Category']
                     dest = os.path.join(self.torrentinfo[t_name]['save_path'], '')
                     src = os.path.join(dir_cs,file)
                     dir_cs_out = os.path.join(dir_cs,'qbit_manage_added',file)
+                    category = self.config.get_category(dest)
                     #Only add cross-seed torrent if original torrent is complete
                     if self.torrentinfo[t_name]['is_complete']:
                         categories.append(category)
@@ -496,8 +496,10 @@ class Qbt:
                         print_line(f'Found {t_name} in {dir_cs} but original torrent is not complete.',loglevel)
                         print_line(f'Not adding to qBittorrent',loglevel)
                 else:
-                    if dry_run: print_line(f'{t_name} not found in torrents.',loglevel)
-                    else: print_line(f'{t_name} not found in torrents.','WARNING')
+                    error = f'{t_name} not found in torrents. Cross-seed Torrent not added to qBittorrent.'
+                    if dry_run: print_line(error,loglevel)
+                    else: print_line(error,'WARNING')
+                    self.config.notify(error,'cross-seed',False)
             #Tag missing cross-seed torrents tags
             for torrent in self.torrent_list:
                 t_name = torrent.name
