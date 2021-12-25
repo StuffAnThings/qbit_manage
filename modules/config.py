@@ -251,7 +251,8 @@ class Config:
                     break
         if not category:
             default_cat = path.split('/')[-2]
-            category = self.util.check_for_attribute(self.data, default_cat, parent="cat",default=path)
+            category = str(default_cat)
+            self.util.check_for_attribute(self.data, default_cat, parent="cat",default=path)
             self.data['cat'][str(default_cat)] = path
             e = (f'No categories matched for the save path {path}. Check your config.yml file. - Setting category to {default_cat}')
             self.notify(e,'Category',False)
