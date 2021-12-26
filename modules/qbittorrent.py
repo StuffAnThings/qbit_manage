@@ -107,20 +107,20 @@ class Qbt:
             for torrent in self.torrent_list:
                 if torrent.category == '':
                     new_cat = self.config.get_category(torrent.save_path)
-                    tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if not dry_run: torrent.set_category(category=new_cat)
                     body = []
                     body += print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
                     body += print_line(util.insert_space(f'New Category: {new_cat}',3),loglevel)
-                    body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                    body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                     attr = {
                         "function":"cat_update",
                         "title":"Updating Categories",
                         "body": "\n".join(body),
                         "torrent_name":torrent.name,
                         "torrent_new_cat": new_cat,
-                        "torrent_tracker": tags["url"],
-                        "notifiarr_indexer": tags["notifiarr"]
+                        "torrent_tracker": tracker["url"],
+                        "notifiarr_indexer": tracker["notifiarr"]
                         }
                     self.config.send_notifications(attr)
                     num_cat += 1
@@ -140,26 +140,26 @@ class Qbt:
             for torrent in self.torrent_list:
                 check_tags = util.get_list(torrent.tags)
                 if torrent.tags == '' or (len([x for x in check_tags if x not in ignore_tags]) == 0):
-                    tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                    if tags["new_tag"]:
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                    if tracker["tag"]:
                         num_tags += 1
                         body = []
                         body += print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
-                        body += print_line(util.insert_space(f'New Tag: {tags["new_tag"]}',8),loglevel)
-                        body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
-                        body.extend(self.set_tags_and_limits(torrent, tags["max_ratio"], tags["max_seeding_time"],tags["limit_upload_speed"],tags["new_tag"]))
+                        body += print_line(util.insert_space(f'New Tag: {tracker["tag"]}',8),loglevel)
+                        body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
+                        body.extend(self.set_tags_and_limits(torrent, tracker["max_ratio"], tracker["max_seeding_time"],tracker["limit_upload_speed"],tracker["tag"]))
                         attr = {
                         "function":"tag_update",
                         "title":"Updating Tags",
                         "body": "\n".join(body),
                         "torrent_name":torrent.name,
                         "torrent_category":torrent.category,
-                        "torrent_new_tag": tags["new_tag"],
-                        "torrent_tracker": tags["url"],
-                        "notifiarr_indexer": tags["notifiarr"],
-                        "torrent_max_ratio": tags["max_ratio"],
-                        "torrent_max_seeding_time": tags["max_seeding_time"],
-                        "torrent_limit_upload_speed": tags["limit_upload_speed"]
+                        "torrent_tag": tracker["tag"],
+                        "torrent_tracker": tracker["url"],
+                        "notifiarr_indexer": tracker["notifiarr"],
+                        "torrent_max_ratio": tracker["max_ratio"],
+                        "torrent_max_seeding_time": tracker["max_seeding_time"],
+                        "torrent_limit_upload_speed": tracker["limit_upload_speed"]
                         }
                         self.config.send_notifications(attr)
             if num_tags >= 1:
@@ -226,7 +226,7 @@ class Qbt:
                     logger.error(e)
                     continue
                 for torrent in alive_it(torrent_list):
-                    tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if any(tag in torrent.tags for tag in nohardlinks[category]['exclude_tags']):
                         #Skip to the next torrent if we find any torrents that are in the exclude tag
                         continue
@@ -239,7 +239,7 @@ class Qbt:
                                 body = []
                                 body += print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
                                 body += print_line(util.insert_space(f'Added Tag: noHL',6),loglevel)
-                                body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                                body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                                 body.extend(self.set_tags_and_limits(torrent, nohardlinks[category]["max_ratio"], nohardlinks[category]["max_seeding_time"],nohardlinks[category]["limit_upload_speed"],tags='noHL'))
                                 attr = {
                                 "function":"tag_nohardlinks",
@@ -248,8 +248,8 @@ class Qbt:
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
                                 "torrent_add_tag": 'noHL',
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 "torrent_max_ratio": nohardlinks[category]["max_ratio"],
                                 "torrent_max_seeding_time": nohardlinks[category]["max_seeding_time"],
                                 "torrent_limit_upload_speed": nohardlinks[category]["limit_upload_speed"]
@@ -266,13 +266,13 @@ class Qbt:
                         body = []
                         body += print_line(f'Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.',loglevel)
                         body += print_line(util.insert_space(f'Removed Tag: noHL',6),loglevel)
-                        body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                        body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                         body += print_line(f"{'Not Reverting' if dry_run else 'Reverting'} share limits.",loglevel)
                         if not dry_run: 
                             torrent.remove_tags(tags='noHL')
-                            restore_max_ratio = tags["max_ratio"]
-                            restore_max_seeding_time = tags["max_seeding_time"]
-                            restore_limit_upload_speed = tags["limit_upload_speed"]
+                            restore_max_ratio = tracker["max_ratio"]
+                            restore_max_seeding_time = tracker["max_seeding_time"]
+                            restore_limit_upload_speed = tracker["limit_upload_speed"]
                             if restore_max_ratio is None: restore_max_ratio = -2
                             if restore_max_seeding_time is None: restore_max_seeding_time = -2
                             if restore_limit_upload_speed is None: restore_limit_upload_speed = -1
@@ -285,8 +285,8 @@ class Qbt:
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
                                 "torrent_remove_tag": 'noHL',
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 "torrent_max_ratio": restore_max_ratio,
                                 "torrent_max_seeding_time": restore_max_seeding_time,
                                 "torrent_limit_upload_speed": restore_limit_upload_speed
@@ -298,10 +298,10 @@ class Qbt:
                         if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
                             #Double check that the content path is the same before we delete anything
                             if torrent['content_path'].replace(root_dir,root_dir) == tdel_dict[torrent.name]:
-                                tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                                tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                                 body = []
                                 body += print_line(util.insert_space(f'Torrent Name: {torrent.name}',3),loglevel)
-                                body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                                body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                                 body += print_line(util.insert_space(f"Cleanup: True [No hard links found and meets Share Limits.]",8),loglevel)
                                 attr = {
                                 "function":"cleanup_tag_nohardlinks",
@@ -309,8 +309,8 @@ class Qbt:
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
                                 "cleanup": 'True',
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                                 if (os.path.exists(torrent['content_path'].replace(root_dir,root_dir))):
                                     if not dry_run: self.tor_delete_recycle(torrent)
@@ -374,14 +374,14 @@ class Qbt:
                 check_tags = util.get_list(torrent.tags)
                 for x in torrent.trackers:
                     if x.url.startswith('http'):
-                        tags = self.config.get_tags([x.url])
+                        tracker = self.config.get_tags([x.url])
                         msg_up = x.msg.upper()
                         #Tag any potential unregistered torrents
                         if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
                             pot_unr = ''
                             pot_unr += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
                             pot_unr += (util.insert_space(f'Status: {msg_up}',9)+'\n')
-                            pot_unr += (util.insert_space(f'Tracker: {tags["url"]}',8)+'\n')
+                            pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}',8)+'\n')
                             pot_unr += (util.insert_space(f"Added Tag: 'issue'",6)+'\n')
                             pot_unr_summary += pot_unr
                             pot_unreg += 1
@@ -393,8 +393,8 @@ class Qbt:
                                 "torrent_category":t_cat,
                                 "torrent_add_tag": "issue",
                                 "torrent_status": msg_up,
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                             self.config.send_notifications(attr)
                             if not dry_run: torrent.add_tags(tags='issue')
@@ -402,15 +402,15 @@ class Qbt:
                             body = []
                             body += print_line(util.insert_space(f'Torrent Name: {t_name}',3),loglevel)
                             body += print_line(util.insert_space(f'Status: {msg_up}',9),loglevel)
-                            body += print_line(util.insert_space(f'Tracker: {tags["url"]}',8),loglevel)
+                            body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                             attr = {
                                 "function":"rem_unregistered",
                                 "title":"Removing Unregistered Torrents",
                                 "torrent_name":t_name,
                                 "torrent_category":t_cat,
                                 "torrent_status": msg_up,
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                             if t_count > 1:
                                 # Checks if any of the original torrents are working
@@ -537,20 +537,20 @@ class Qbt:
             torrent_list = self.get_torrents({'status_filter':'paused','sort':'size'})
             if torrent_list:
                 for torrent in torrent_list:
-                    tags = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     #Resume torrent if completed
                     if torrent.progress == 1:
                         if torrent.max_ratio < 0 and torrent.max_seeding_time < 0:
                             resumed += 1
-                            body = print_line(f"{'Not Resuming' if dry_run else 'Resuming'} [{tags['new_tag']}] - {torrent.name}",loglevel)
+                            body = print_line(f"{'Not Resuming' if dry_run else 'Resuming'} [{tracker['tag']}] - {torrent.name}",loglevel)
                             attr = {
                                 "function":"recheck",
                                 "title":"Resuming Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                             self.config.send_notifications(attr)
                             if not dry_run: torrent.resume()
@@ -564,30 +564,30 @@ class Qbt:
                             or (torrent.max_seeding_time >= 0 and (torrent.seeding_time < (torrent.max_seeding_time * 60)) and torrent.max_ratio < 0) \
                             or (torrent.max_ratio >= 0 and torrent.max_seeding_time >= 0 and torrent.ratio < torrent.max_ratio and (torrent.seeding_time < (torrent.max_seeding_time * 60))):
                                 resumed += 1
-                                body = print_line(f"{'Not Resuming' if dry_run else 'Resuming'} [{tags['new_tag']}] - {torrent.name}",loglevel)
+                                body = print_line(f"{'Not Resuming' if dry_run else 'Resuming'} [{tracker['tag']}] - {torrent.name}",loglevel)
                                 attr = {
                                 "function":"recheck",
                                 "title":"Resuming Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                                 self.config.send_notifications(attr)
                                 if not dry_run: torrent.resume()
                     #Recheck
                     elif torrent.progress == 0 and self.torrentinfo[torrent.name]['is_complete'] and not torrent.state_enum.is_checking:
                         rechecked += 1
-                        body = print_line(f"{'Not Rechecking' if dry_run else 'Rechecking'} [{tags['new_tag']}] - {torrent.name}",loglevel)
+                        body = print_line(f"{'Not Rechecking' if dry_run else 'Rechecking'} [{tracker['tag']}] - {torrent.name}",loglevel)
                         attr = {
                                 "function":"recheck",
                                 "title":"Rechecking Torrent",
                                 "body": body,
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
-                                "torrent_tracker": tags["url"],
-                                "notifiarr_indexer": tags["notifiarr"],
+                                "torrent_tracker": tracker["url"],
+                                "notifiarr_indexer": tracker["notifiarr"],
                                 }
                         self.config.send_notifications(attr)
                         if not dry_run: torrent.recheck()

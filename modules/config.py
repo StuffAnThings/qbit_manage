@@ -35,7 +35,8 @@ class Config:
             if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
             if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
             if "cat" in new_config:                         new_config["cat"] = new_config.pop("cat")
-            if "tags" in new_config:                        new_config["tags"] = new_config.pop("tags")
+            if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
+            elif "tags" in new_config:                      new_config["tracker"] = new_config.pop("tags")
             if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
             if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
             if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
@@ -71,7 +72,7 @@ class Config:
 
         self.session = requests.Session()
         if self.data["cat"] is None: self.data["cat"] = {}
-        if self.data["tags"] is None: self.data["tags"] = {}
+        if self.data["tracker"] is None: self.data["tracker"] = {}
 
         default_function = {'cross_seed':None,'recheck':None,'cat_update':None,'tag_update':None,'rem_unregistered':None,'rem_orphaned':None,'tag_nohardlinks':None,'empty_recyclebin':None}
         self.webhooks = {
@@ -184,60 +185,60 @@ class Config:
 
     #Get tags from config file based on keyword
     def get_tags(self,urls):
-        tags = {}
-        tags['new_tag'] = None
-        tags['max_ratio'] = None
-        tags['max_seeding_time'] = None
-        tags['limit_upload_speed'] = None
-        tags['notifiarr'] = None
-        tags['url'] = None
-        if not urls: return tags
+        tracker = {}
+        tracker['tag'] = None
+        tracker['max_ratio'] = None
+        tracker['max_seeding_time'] = None
+        tracker['limit_upload_speed'] = None
+        tracker['notifiarr'] = None
+        tracker['url'] = None
+        if not urls: return tracker
         try:
-            tags['url'] = util.trunc_val(urls[0], '/')
+            tracker['url'] = util.trunc_val(urls[0], '/')
         except IndexError as e:
-            tags['url'] = None
+            tracker['url'] = None
             logger.debug(f"Tracker Url:{urls}")
             logger.debug(e)
-        if 'tags' in self.data and self.data["tags"] is not None:
-            tag_values = self.data['tags']
+        if 'tracker' in self.data and self.data["tracker"] is not None:
+            tag_values = self.data['tracker']
             for tag_url, tag_details in tag_values.items():
                 for url in urls:
                     if tag_url in url:
                         try:
-                            tags['url'] = util.trunc_val(url, '/')
-                            default_tag = tags['url'].split('/')[2].split(':')[0]
+                            tracker['url'] = util.trunc_val(url, '/')
+                            default_tag = tracker['url'].split('/')[2].split(':')[0]
                         except IndexError as e:
                             logger.debug(f"Tracker Url:{url}")
                             logger.debug(e)
                         # If using Format 1 convert to format 2
                         if isinstance(tag_details,str):
-                            tags['new_tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tags",default=default_tag)
-                            self.util.check_for_attribute(self.data, "tag", parent="tags",subparent=tag_url, default=tags['new_tag'],do_print=False)
-                            if tags['new_tag'] == default_tag:
+                            tracker['tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tracker",default=default_tag)
+                            self.util.check_for_attribute(self.data, "tag", parent="tracker",subparent=tag_url, default=tracker['tag'],do_print=False)
+                            if tracker['tag'] == default_tag:
                                 try:
-                                    self.data['tags'][tag_url]['tag'] = default_tag
+                                    self.data['tracker'][tag_url]['tag'] = default_tag
                                 except Exception as e:
-                                    self.data['tags'][tag_url] = {'tag': default_tag}
+                                    self.data['tracker'][tag_url] = {'tag': default_tag}
                         # Using Format 2
                         else:
-                            tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags", subparent=tag_url, default=tag_url)
-                            if tags['new_tag'] == tag_url: self.data['tags'][tag_url]['tag'] = tag_url
-                            tags['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tags", subparent=tag_url, var_type="float", default_int=-2, default_is_none=True,do_print=False,save=False)
-                            tags['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tags", subparent=tag_url, var_type="int", default_int=-2, default_is_none=True,do_print=False,save=False)
-                            tags['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="tags", subparent=tag_url, var_type="int", default_int=-1, default_is_none=True,do_print=False,save=False)
-                            tags['notifiarr'] = self.util.check_for_attribute(self.data, "notifiarr", parent="tags", subparent=tag_url, default_is_none=True, do_print=False,save=False)
-                        return (tags)
-        if tags['url']:
-            default_tag = tags['url'].split('/')[2].split(':')[0]
-            tags['new_tag'] = self.util.check_for_attribute(self.data, "tag", parent="tags",subparent=default_tag, default=default_tag)
+                            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url)
+                            if tracker['tag'] == tag_url: self.data['tracker'][tag_url]['tag'] = tag_url
+                            tracker['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tracker", subparent=tag_url, var_type="float", default_int=-2, default_is_none=True,do_print=False,save=False)
+                            tracker['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tracker", subparent=tag_url, var_type="int", default_int=-2, default_is_none=True,do_print=False,save=False)
+                            tracker['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="tracker", subparent=tag_url, var_type="int", default_int=-1, default_is_none=True,do_print=False,save=False)
+                            tracker['notifiarr'] = self.util.check_for_attribute(self.data, "notifiarr", parent="tracker", subparent=tag_url, default_is_none=True, do_print=False,save=False)
+                        return (tracker)
+        if tracker['url']:
+            default_tag = tracker['url'].split('/')[2].split(':')[0]
+            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker",subparent=default_tag, default=default_tag)
             try:
-                self.data['tags'][default_tag]['tag'] = default_tag
+                self.data['tracker'][default_tag]['tag'] = default_tag
             except Exception as e:
-                self.data['tags'][default_tag] = {'tag': default_tag}
-            e = (f'No tags matched for {tags["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
+                self.data['tracker'][default_tag] = {'tag': default_tag}
+            e = (f'No tags matched for {tracker["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
             self.notify(e,'Tag',False)
             logger.warning(e)
-        return (tags)
+        return (tracker)
 
     #Get category from config file based on path provided
     def get_category(self,path):
