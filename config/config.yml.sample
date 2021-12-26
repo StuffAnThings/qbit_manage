@@ -7,6 +7,9 @@ qbt:
   user: "username"
   pass: "password"
 
+settings:
+  force_auto_tmm: False #Will force qBittorrent to enable Automatic Torrent Managment for each torrent.
+
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/> # Output directory of cross-seed

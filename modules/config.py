@@ -32,7 +32,12 @@ class Config:
         yaml.YAML().allow_duplicate_keys = True
         try:
             new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
+            if "settings" not in new_config:                new_config["settings"] = {}
+            if "cat" not in new_config:                     new_config["cat"] = {}
+            if "tracker" not in new_config:                 new_config["tracker"] = {}
+
             if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
+            if "settings" in new_config:                    new_config["settings"] = new_config.pop("settings")
             if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
             if "cat" in new_config:                         new_config["cat"] = new_config.pop("cat")
             if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
@@ -71,8 +76,10 @@ class Config:
             raise Failed(f"YAML Error: {e}")
 
         self.session = requests.Session()
-        if self.data["cat"] is None: self.data["cat"] = {}
-        if self.data["tracker"] is None: self.data["tracker"] = {}
+
+        self.settings = {
+            "force_auto_tmm": self.util.check_for_attribute(self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False),
+        }
 
         default_function = {'cross_seed':None,'recheck':None,'cat_update':None,'tag_update':None,'rem_unregistered':None,'rem_orphaned':None,'tag_nohardlinks':None,'empty_recyclebin':None}
         self.webhooks = {

@@ -42,13 +42,22 @@ class Qbt:
         # is_complete = Returns the state of torrent (Returns True if at least one of the torrent with the State is categorized as Complete.)
         # first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
         def get_torrent_info(torrent_list):
+            dry_run = self.config.args['dry_run']
+            loglevel = 'DRYRUN' if dry_run else 'INFO'
             torrentdict = {}
             t_obj_unreg = []
             t_obj_valid = []
+            settings = self.config.settings
+            separator(f"Checking Settings", space=False, border=False)
+            if settings['force_auto_tmm']:
+                print_line(f'force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.',loglevel)
+            separator(f"Gathering Torrent Information", space=True, border=True)
             for torrent in alive_it(torrent_list):
                 is_complete = False
                 msg = None
                 status = None
+                if torrent.auto_tmm == False and settings['force_auto_tmm'] and not dry_run:
+                    torrent.set_auto_management(True)
                 try:
                     torrent_name = torrent.name
                     torrent_hash = torrent.hash
@@ -346,7 +355,7 @@ class Qbt:
             'UNREGISTERED',
             'TORRENT NOT FOUND',
             'TORRENT IS NOT FOUND',
-            'NOT REGISTERED',
+            'NOT REGISTERED',            
             'HTTPS://BEYOND-HD.ME/TORRENTS',
             'NOT EXIST',
             'UNKNOWN TORRENT',
