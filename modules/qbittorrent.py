@@ -277,14 +277,14 @@ class Qbt:
                         body += print_line(util.insert_space(f'Removed Tag: noHL',6),loglevel)
                         body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
                         body += print_line(f"{'Not Reverting' if dry_run else 'Reverting'} share limits.",loglevel)
+                        restore_max_ratio = tracker["max_ratio"]
+                        restore_max_seeding_time = tracker["max_seeding_time"]
+                        restore_limit_upload_speed = tracker["limit_upload_speed"]
+                        if restore_max_ratio is None: restore_max_ratio = -2
+                        if restore_max_seeding_time is None: restore_max_seeding_time = -2
+                        if restore_limit_upload_speed is None: restore_limit_upload_speed = -1
                         if not dry_run: 
                             torrent.remove_tags(tags='noHL')
-                            restore_max_ratio = tracker["max_ratio"]
-                            restore_max_seeding_time = tracker["max_seeding_time"]
-                            restore_limit_upload_speed = tracker["limit_upload_speed"]
-                            if restore_max_ratio is None: restore_max_ratio = -2
-                            if restore_max_seeding_time is None: restore_max_seeding_time = -2
-                            if restore_limit_upload_speed is None: restore_limit_upload_speed = -1
                             body.extend(self.set_tags_and_limits(torrent, restore_max_ratio, restore_max_seeding_time,restore_limit_upload_speed,restore=True))  
                             if torrent.state == 'pausedUP': torrent.resume()
                         attr = {
