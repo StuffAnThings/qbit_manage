@@ -4,6 +4,7 @@ from modules.util import Failed, check
 from modules.qbittorrent import Qbt
 from modules.webhooks import Webhooks
 from modules.notifiarr import Notifiarr
+from modules.bhd import BeyondHD
 from modules.apprise import Apprise
 from ruamel import yaml
 from retrying import retry
@@ -67,6 +68,7 @@ class Config:
                 hooks("tag_nohardlinks")
                 hooks("empty_recyclebin")
                 new_config["webhooks"] = temp
+            if "bhd" in new_config:                         new_config["bhd"] = new_config.pop("bhd")
             yaml.round_trip_dump(new_config, open(self.config_path, "w", encoding="utf-8"), indent=None, block_seq_indent=2)
             self.data = new_config
         except yaml.scanner.ScannerError as e:
@@ -124,6 +126,20 @@ class Config:
         except Failed as e:
             util.print_stacktrace()
             logger.error(f"Webhooks Error: {e}")
+
+        self.BeyondHD = None
+        if "bhd" in self.data:
+            if self.data["bhd"] is not None:
+                logger.info("Connecting to BHD API...")
+                try:
+                    self.BeyondHD = BeyondHD(self, {
+                        "apikey": self.util.check_for_attribute(self.data, "apikey", parent="bhd", throw=True)
+                    })
+                except Failed as e:
+                    logger.error(e)
+                    self.notify(e,'BHD')
+                logger.info(f"BHD Connection {'Failed' if self.BeyondHD is None else 'Successful'}")
+
 
         #nohardlinks
         self.nohardlinks = None

@@ -8,7 +8,7 @@ qbt:
   pass: "password"
 
 settings:
-  force_auto_tmm: False #Will force qBittorrent to enable Automatic Torrent Managment for each torrent.
+  force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
 
 directory:
   # Do not remove these
@@ -173,3 +173,7 @@ webhooks:
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
     empty_recyclebin: notifiarr
+
+#BHD Integration used for checking unregistered torrents
+bhd:
+  apikey:

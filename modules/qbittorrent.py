@@ -86,7 +86,7 @@ class Qbt:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
-                        exception = ["DOWN","UNREACHABLE","BAD GATEWAY"]
+                        exception = ["DOWN","UNREACHABLE","BAD GATEWAY","TRACKER UNAVAILABLE"]
                         #Add any potential unregistered torrents to a list
                         if x.status == 4 and all(x not in msg for x in exception):
                             t_obj_unreg.append(torrent)
@@ -349,25 +349,54 @@ class Qbt:
         del_tor_cont = 0
         pot_unreg = 0
         pot_unr_summary = ''
+
+        def del_unregistered():
+            nonlocal dry_run,loglevel,del_tor,del_tor_cont,t_name,msg_up,tracker,t_cat,t_msg,t_status,torrent
+            body = []
+            body += print_line(util.insert_space(f'Torrent Name: {t_name}',3),loglevel)
+            body += print_line(util.insert_space(f'Status: {msg_up}',9),loglevel)
+            body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
+            attr = {
+                "function":"rem_unregistered",
+                "title":"Removing Unregistered Torrents",
+                "torrent_name":t_name,
+                "torrent_category":t_cat,
+                "torrent_status": msg_up,
+                "torrent_tracker": tracker["url"],
+                "notifiarr_indexer": tracker["notifiarr"],
+                }
+            if t_count > 1:
+                # Checks if any of the original torrents are working
+                if '' in t_msg or 2 in t_status:
+                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
+                    attr["torrents_deleted_and_contents"] = False
+                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
+                    del_tor += 1
+                else:
+                    if not dry_run: self.tor_delete_recycle(torrent)
+                    attr["torrents_deleted_and_contents"] = True
+                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                    del_tor_cont += 1
+            else:
+                if not dry_run: self.tor_delete_recycle(torrent)
+                attr["torrents_deleted_and_contents"] = True
+                body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
+                del_tor_cont += 1
+            attr["body"] = "\n".join(body)
+            self.config.send_notifications(attr)
+
         if self.config.args['rem_unregistered']:
             separator(f"Removing Unregistered Torrents", space=False, border=False)
             unreg_msgs = [
             'UNREGISTERED',
             'TORRENT NOT FOUND',
             'TORRENT IS NOT FOUND',
-            'NOT REGISTERED',            
-            'HTTPS://BEYOND-HD.ME/TORRENTS',
+            'NOT REGISTERED',
             'NOT EXIST',
             'UNKNOWN TORRENT',
-            'REDOWNLOAD',
-            'PACKS',
-            'REPACKED',
-            'PACK',
             'TRUMP',
             'RETITLED',
-            'PRE-RETAIL',
-            'FULL SEASON',
-            'MASS REMOVAL'
+            'TRUNCATED'
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
@@ -387,6 +416,13 @@ class Qbt:
                         msg_up = x.msg.upper()
                         #Tag any potential unregistered torrents
                         if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
+                            #Check for unregistered torrents using BHD API if the tracker is BHD
+                            if 'tracker.beyond-hd.me' in torrent.tracker and self.config.BeyondHD is not None:
+                                json = {"info_hash": torrent_hash}
+                                response = self.config.BeyondHD.search(json)
+                                if response['total_results'] <= 1:
+                                    del_unregistered()
+                                    break
                             pot_unr = ''
                             pot_unr += (util.insert_space(f'Torrent Name: {t_name}',3)+'\n')
                             pot_unr += (util.insert_space(f'Status: {msg_up}',9)+'\n')
@@ -408,44 +444,12 @@ class Qbt:
                             self.config.send_notifications(attr)
                             if not dry_run: torrent.add_tags(tags='issue')
                         if any(m in msg_up for m in unreg_msgs) and x.status == 4:
-                            body = []
-                            body += print_line(util.insert_space(f'Torrent Name: {t_name}',3),loglevel)
-                            body += print_line(util.insert_space(f'Status: {msg_up}',9),loglevel)
-                            body += print_line(util.insert_space(f'Tracker: {tracker["url"]}',8),loglevel)
-                            attr = {
-                                "function":"rem_unregistered",
-                                "title":"Removing Unregistered Torrents",
-                                "torrent_name":t_name,
-                                "torrent_category":t_cat,
-                                "torrent_status": msg_up,
-                                "torrent_tracker": tracker["url"],
-                                "notifiarr_indexer": tracker["notifiarr"],
-                                }
-                            if t_count > 1:
-                                # Checks if any of the original torrents are working
-                                if '' in t_msg or 2 in t_status:
-                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
-                                    attr["torrents_deleted_and_contents"] = False
-                                    body += print_line(util.insert_space(f'Deleted .torrent but NOT content files.',8),loglevel)
-                                    del_tor += 1
-                                else:
-                                    if not dry_run: self.tor_delete_recycle(torrent)
-                                    attr["torrents_deleted_and_contents"] = True
-                                    body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
-                                    del_tor_cont += 1
-                            else:
-                                if not dry_run: self.tor_delete_recycle(torrent)
-                                attr["torrents_deleted_and_contents"] = True
-                                body += print_line(util.insert_space(f'Deleted .torrent AND content files.',8),loglevel)
-                                del_tor_cont += 1
-                            attr["body"] = "\n".join(body)
-                            self.config.send_notifications(attr)
+                            del_unregistered()
             if del_tor >=1 or del_tor_cont >=1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.",loglevel)
                 if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.",loglevel)
             else:
                 print_line('No unregistered torrents found.',loglevel)
-
             if (pot_unreg > 0):
                 separator(f"{pot_unreg} Potential Unregistered torrents found", space=False, border=False,loglevel=loglevel)
                 print_multiline(pot_unr_summary.rstrip(),loglevel)
