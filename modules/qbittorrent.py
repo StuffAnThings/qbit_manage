@@ -429,7 +429,7 @@ class Qbt:
                         # Tag any potential unregistered torrents
                         if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
                             # Check for unregistered torrents using BHD API if the tracker is BHD
-                            if 'tracker.beyond-hd.me' in torrent.tracker and self.config.BeyondHD is not None:
+                            if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
                                 json = {"info_hash": torrent.hash}
                                 response = self.config.BeyondHD.search(json)
                                 if response['total_results'] <= 1:
