@@ -35,8 +35,7 @@ class Config:
             new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
             if "settings" not in new_config:                new_config["settings"] = {}
             if "cat" not in new_config:                     new_config["cat"] = {}
-            if "tracker" not in new_config:                 new_config["tracker"] = {}
-
+            if "tracker" not in new_config and "tags" not in new_config: new_config["tracker"] = {}
             if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
             if "settings" in new_config:                    new_config["settings"] = new_config.pop("settings")
             if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
