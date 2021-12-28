@@ -127,7 +127,7 @@ class Qbt:
                         "title":"Updating Categories",
                         "body": "\n".join(body),
                         "torrent_name":torrent.name,
-                        "torrent_new_cat": new_cat,
+                        "torrent_category": new_cat,
                         "torrent_tracker": tracker["url"],
                         "notifiarr_indexer": tracker["notifiarr"]
                         }
@@ -256,7 +256,7 @@ class Qbt:
                                 "body": "\n".join(body),
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
-                                "torrent_add_tag": 'noHL',
+                                "torrent_tag": 'noHL',
                                 "torrent_tracker": tracker["url"],
                                 "notifiarr_indexer": tracker["notifiarr"],
                                 "torrent_max_ratio": nohardlinks[category]["max_ratio"],
@@ -293,7 +293,7 @@ class Qbt:
                                 "body": "\n".join(body),
                                 "torrent_name":torrent.name,
                                 "torrent_category":torrent.category,
-                                "torrent_remove_tag": 'noHL',
+                                "torrent_tag": 'noHL',
                                 "torrent_tracker": tracker["url"],
                                 "notifiarr_indexer": tracker["notifiarr"],
                                 "torrent_max_ratio": restore_max_ratio,
@@ -436,7 +436,7 @@ class Qbt:
                                 "body": pot_unr,
                                 "torrent_name":t_name,
                                 "torrent_category":t_cat,
-                                "torrent_add_tag": "issue",
+                                "torrent_tag": "issue",
                                 "torrent_status": msg_up,
                                 "torrent_tracker": tracker["url"],
                                 "notifiarr_indexer": tracker["notifiarr"],
@@ -498,7 +498,7 @@ class Qbt:
                                 "torrent_name":t_name,
                                 "torrent_category": category,
                                 "torrent_save_path": dest,
-                                "torrent_add_tag": "cross-seed"
+                                "torrent_tag": "cross-seed"
                                 }
                         self.config.send_notifications(attr)
                         added += 1
@@ -526,7 +526,7 @@ class Qbt:
                         "body":body,
                         "torrent_name":t_name,
                         "torrent_category": t_cat,
-                        "torrent_add_tag": "cross-seed"
+                        "torrent_tag": "cross-seed"
                         }
                     self.config.send_notifications(attr)
                     if not dry_run: torrent.add_tags(tags='cross-seed')
