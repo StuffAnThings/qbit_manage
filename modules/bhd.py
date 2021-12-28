@@ -1,18 +1,17 @@
 import logging
-
 from modules.util import Failed
 from json import JSONDecodeError
 
 logger = logging.getLogger("qBit Manage")
-
 base_url = "https://beyond-hd.me/api/"
+
 
 class BeyondHD:
     def __init__(self, config, params):
         self.config = config
         self.apikey = params["apikey"]
-        json = {"search":"test"}
-        results = self.search(json)
+        json = {"search": "test"}
+        self.search(json)
 
     def search(self, json, path="torrents/"):
         url = f"{base_url}{path}{self.apikey}"

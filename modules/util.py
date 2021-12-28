@@ -5,6 +5,7 @@ from pathlib import Path
 
 logger = logging.getLogger('qBit Manage')
 
+
 def get_list(data, lower=False, split=True, int_list=False):
     if data is None:                return None
     elif isinstance(data, list):    return data
@@ -16,11 +17,25 @@ def get_list(data, lower=False, split=True, int_list=False):
         except ValueError:              return []
     else:                           return [d.strip() for d in str(data).split(",")]
 
+
 class check:
     def __init__(self, config):
         self.config = config
 
-    def check_for_attribute(self, data, attribute, parent=None, subparent=None, test_list=None, default=None, do_print=True, default_is_none=False, req_default=False, var_type="str", default_int=0, throw=False, save=True):
+    def check_for_attribute(self,
+                            data,
+                            attribute,
+                            parent=None,
+                            subparent=None,
+                            test_list=None,
+                            default=None,
+                            do_print=True,
+                            default_is_none=False,
+                            req_default=False,
+                            var_type="str",
+                            default_int=0,
+                            throw=False,
+                            save=True):
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -35,7 +50,6 @@ class check:
                 else:
                     data = None
                     do_print = False
-                    #save = False
 
         if subparent is not None:
             text = f"{parent}->{subparent} sub-attribute {attribute}"
@@ -53,7 +67,7 @@ class check:
                     if subparent not in loaded_config[parent] or not loaded_config[parent][subparent]:
                         loaded_config[parent][subparent] = {attribute: default}
                     elif attribute not in loaded_config[parent]:
-                        if isinstance(loaded_config[parent][subparent],str): 
+                        if isinstance(loaded_config[parent][subparent], str):
                             loaded_config[parent][subparent] = {attribute: default}
                         loaded_config[parent][subparent][attribute] = default
                     else:
@@ -101,7 +115,7 @@ class check:
                 message = f"{text} must a float >= {float(default_int)}"
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
-                return os.path.join(data[attribute],'')
+                return os.path.join(data[attribute], '')
             else:
                 message = f"Path {os.path.abspath(data[attribute])} does not exist"
         elif var_type == "list":
@@ -120,7 +134,7 @@ class check:
         else:
             message = f"{text}: {data[attribute]} is an invalid input"
         if var_type == "path" and default and os.path.exists(os.path.abspath(default)):
-            return os.path.join(default,'')
+            return os.path.join(default, '')
         elif var_type == "path" and default:
             if data and attribute in data and data[attribute]:
                 message = f"neither {data[attribute]} or the default path {default} could be found"
@@ -148,18 +162,20 @@ class check:
             if data and attribute in data and data[attribute] and test_list is not None and data[attribute] not in test_list:
                 print_multiline(options)
         return default
+
+
 class Failed(Exception):
     pass
+
 
 separating_character = "="
 screen_width = 100
 spacing = 0
 
+
 def tab_new_lines(data):
     return str(data).replace("\n", "\n|\t      ") if "\n" in str(data) else str(data)
 
-def print_stacktrace():
-    print_multiline(traceback.format_exc())
 
 def add_dict_list(keys, value, dict_map):
     for key in keys:
@@ -168,16 +184,11 @@ def add_dict_list(keys, value, dict_map):
         else:
             dict_map[key] = [value]
 
-def get_int_list(data, id_type):
-    int_values = []
-    for value in get_list(data):
-        try:                        int_values.append(regex_first_int(value, id_type))
-        except Failed as e:         logger.error(e)
-    return int_values
 
 def print_line(lines, loglevel='INFO'):
     logger.log(getattr(logging, loglevel.upper()), str(lines))
     return [str(lines)]
+
 
 def print_multiline(lines, loglevel='INFO'):
     for i, line in enumerate(str(lines).split("\n")):
@@ -187,12 +198,15 @@ def print_multiline(lines, loglevel='INFO'):
     logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
     return [(str(lines))]
 
+
 def print_stacktrace():
     print_multiline(traceback.format_exc(), 'CRITICAL')
+
 
 def my_except_hook(exctype, value, tb):
     for line in traceback.format_exception(etype=exctype, value=value, tb=tb):
         print_multiline(line, 'CRITICAL')
+
 
 def centered(text, sep=" "):
     if len(text) > screen_width - 2:
@@ -205,6 +219,7 @@ def centered(text, sep=" "):
     side = int(space / 2) - 1
     final_text = f"{sep * side}{text}{sep * side}"
     return final_text
+
 
 def separator(text=None, space=True, border=True, loglevel='INFO'):
     sep = " " if space else separating_character
@@ -224,12 +239,14 @@ def separator(text=None, space=True, border=True, loglevel='INFO'):
         apply_formatter(handler)
     return [text]
 
+
 def apply_formatter(handler, border=True):
     text = f"| %(message)-{screen_width - 2}s |" if border else f"%(message)-{screen_width - 2}s"
     if isinstance(handler, RotatingFileHandler):
         text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
-        #text = f"[%(asctime)s] %(levelname)-10s {text}"
+        # text = f"[%(asctime)s] %(levelname)-10s {text}"
     handler.setFormatter(logging.Formatter(text))
+
 
 def adjust_space(display_title):
     display_title = str(display_title)
@@ -237,6 +254,7 @@ def adjust_space(display_title):
     if space_length > 0:
         display_title += " " * space_length
     return display_title
+
 
 def insert_space(display_title, space_length=0):
     display_title = str(display_title)
@@ -246,33 +264,38 @@ def insert_space(display_title, space_length=0):
         display_title = " " * space_length + display_title
     return display_title
 
+
 def print_return(text):
     print(adjust_space(f"| {text}"), end="\r")
     global spacing
     spacing = len(text) + 2
+
 
 def print_end():
     print(adjust_space(" "), end="\r")
     global spacing
     spacing = 0
 
+
 # truncate the value of the torrent url to remove sensitive information
 def trunc_val(s, d, n=3):
     try:
         x = d.join(s.split(d, n)[:n])
-    except IndexError as e:
+    except IndexError:
         x = None
     return x
+
 
 # Move files from source to destination, mod variable is to change the date modified of the file being moved
 def move_files(src, dest, mod=False):
     dest_path = os.path.dirname(dest)
-    if os.path.isdir(dest_path) == False:
+    if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
     shutil.move(src, dest)
-    if mod == True:
+    if mod is True:
         modTime = time.time()
         os.utime(dest, (modTime, modTime))
+
 
 # Remove any empty directories after moving files
 def remove_empty_directories(pathlib_root_dir, pattern):
@@ -290,7 +313,8 @@ def remove_empty_directories(pathlib_root_dir, pattern):
         except OSError:
             continue  # catch and continue if non-empty
 
-#will check if there are any hard links if it passes a file or folder
+
+# will check if there are any hard links if it passes a file or folder
 def nohardlink(file):
     check = True
     if (os.path.isfile(file)):
@@ -299,21 +323,25 @@ def nohardlink(file):
     else:
         for path, subdirs, files in os.walk(file):
             for x in files:
-                if (os.stat(os.path.join(path,x)).st_nlink > 1):
+                if (os.stat(os.path.join(path, x)).st_nlink > 1):
                     check = False
     return check
 
-#Gracefully kill script when docker stops
+
+# Gracefully kill script when docker stops
 class GracefulKiller:
-  kill_now = False
-  def __init__(self):
-    #signal.signal(signal.SIGINT, self.exit_gracefully)
-    signal.signal(signal.SIGTERM, self.exit_gracefully)
-  def exit_gracefully(self, *args):
-    self.kill_now = True
+    kill_now = False
+
+    def __init__(self):
+        # signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    def exit_gracefully(self, *args):
+        self.kill_now = True
+
 
 def human_readable_size(size, decimal_places=3):
-    for unit in ['B','KiB','MiB','GiB','TiB']:
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
         if size < 1024.0:
             break
         size /= 1024.0

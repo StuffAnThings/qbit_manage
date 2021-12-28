@@ -1,8 +1,7 @@
 import logging
-
 from modules.util import Failed
-
 logger = logging.getLogger("qBit Manage")
+
 
 class Apprise:
     def __init__(self, config, params):

@@ -23,7 +23,7 @@ class Notifiarr:
         except JSONDecodeError as e:
             if response.status_code >= 400:
                 if response.status_code == 525:
-                    raise Failed(f"Notifiarr Error (Response: 525): SSL handshake between Cloudflare and the origin web server failed.")
+                    raise Failed("Notifiarr Error (Response: 525): SSL handshake between Cloudflare and the origin web server failed.")
                 else:
                     raise Failed(e)
         if response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error"):
@@ -37,7 +37,7 @@ class Notifiarr:
         if self.config.trace_mode:
             logger.debug(url.replace(self.apikey, "APIKEY"))
         if self.test:
-            params = {"event": f"qbitManage-{self.apikey[:5]}", "qbit_client":self.config.data["qbt"]["host"], "instance":self.instance}  
+            params = {"event": f"qbitManage-{self.apikey[:5]}", "qbit_client": self.config.data["qbt"]["host"], "instance": self.instance}
         else:
-            params = {"qbit_client":self.config.data["qbt"]["host"], "instance":self.instance}  
+            params = {"qbit_client": self.config.data["qbt"]["host"], "instance": self.instance}
         return url, params
