@@ -167,12 +167,13 @@ class Qbt:
                         body += print_line(util.insert_space(f'New Tag: {tracker["tag"]}', 8), loglevel)
                         body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
                         body.extend(self.set_tags_and_limits(torrent, tracker["max_ratio"], tracker["max_seeding_time"], tracker["limit_upload_speed"], tracker["tag"]))
+                        category = self.config.get_category(torrent.save_path) if torrent.category == '' else torrent.category
                         attr = {
                             "function": "tag_update",
                             "title": "Updating Tags",
                             "body": "\n".join(body),
                             "torrent_name": torrent.name,
-                            "torrent_category": torrent.category,
+                            "torrent_category": category,
                             "torrent_tag": tracker["tag"],
                             "torrent_tracker": tracker["url"],
                             "notifiarr_indexer": tracker["notifiarr"],
