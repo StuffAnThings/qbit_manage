@@ -349,9 +349,9 @@ class Qbt:
                 print_line(f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} .torrent{'s.' if num_tags > 1 else '.'}", loglevel)
             else:
                 print_line('No torrents to tag with no hard links.', loglevel)
-            if num_untag >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} noHL tags / share limits for {num_untag} .torrent{'s.' if num_tags > 1 else '.'}", loglevel)
-            if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if num_tags > 1 else ''} but not content files.", loglevel)
-            if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if num_tags > 1 else ''} AND content files.", loglevel)
+            if num_untag >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} noHL tags / share limits for {num_untag} .torrent{'s.' if num_untag > 1 else '.'}", loglevel)
+            if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
+            if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
         return num_tags, num_untag, del_tor, del_tor_cont
 
     def rem_unregistered(self):
