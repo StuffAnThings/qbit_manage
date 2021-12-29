@@ -1,0 +1,11 @@
+[flake8]
+ignore = 
+  E226, # E226	Missing whitespace around arithmetic operator
+  #E302, # E302	Expected 2 blank lines, found 0
+  E401, # E401	Multiple imports on one line
+  E701, # E701	Multiple statements on one line (colon)
+  E241, # E241	Multiple spaces after ','
+  E272, # E272	Multiple spaces before keyword
+  C901  # C901	Function is too complex
+  E722  # E722	Do not use bare except, specify exception instead
+max-line-length = 200

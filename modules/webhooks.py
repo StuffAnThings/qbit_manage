@@ -5,6 +5,7 @@ from modules.util import Failed
 
 logger = logging.getLogger("qBit Manage")
 
+
 class Webhooks:
     def __init__(self, config, system_webhooks, notifiarr=None, apprise=None):
         self.config = config
@@ -14,7 +15,7 @@ class Webhooks:
         if "function" in system_webhooks and system_webhooks["function"] is not None:
             try:
                 self.function_webhooks = system_webhooks["function"][0]
-            except (IndexError,KeyError) as e:
+            except (IndexError, KeyError):
                 self.function_webhooks = []
         else:
             self.function_webhooks = []
@@ -29,7 +30,7 @@ class Webhooks:
             response = None
             if self.config.trace_mode:
                 logger.debug(f"Webhook: {webhook}")
-            if webhook == None:
+            if webhook is None:
                 break
             elif webhook == "notifiarr":
                 if self.notifiarr is None:
@@ -42,7 +43,7 @@ class Webhooks:
                             break
             elif webhook == "apprise":
                 if self.apprise is None:
-                    logger.warning(f"Webhook attribute set to apprise but apprise attribute is not configured.")
+                    logger.warning("Webhook attribute set to apprise but apprise attribute is not configured.")
                     break
                 else:
                     json['urls'] = self.apprise.notify_url
@@ -64,7 +65,7 @@ class Webhooks:
                             skip = True
                         else:
                             raise Failed(f"Notifiarr Error: {response_json['details']['response']}")
-                    if (response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")) and skip == False:
+                    if (response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")) and skip is False:
                         raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
                 except JSONDecodeError:
                     if response.status_code >= 400:
@@ -78,22 +79,17 @@ class Webhooks:
             else:
                 start_type = ""
             self._request(self.run_start_webhooks, {
-                "function":"run_start",
+                "function": "run_start",
                 "title": None,
-                "body":f"Starting {start_type}Run",
+                "body": f"Starting {start_type}Run",
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "dry_run": self.config.args['dry_run']
             })
 
     def end_time_hooks(self, start_time, end_time, run_time, stats, body):
-        dry_run = self.config.args['dry_run']
-        if dry_run:
-            start_type = "Dry-"
-        else:
-            start_type = ""
         if self.run_end_webhooks:
             self._request(self.run_end_webhooks, {
-                "function":"run_end",
+                "function": "run_end",
                 "title": None,
                 "body": body,
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -107,6 +103,7 @@ class Webhooks:
                 "torrents_categorized": stats["categorized"],
                 "torrents_tagged": stats["tagged"],
                 "remove_unregistered": stats["rem_unreg"],
+                "potential_unregistered": stats["pot_unreg"],
                 "orphaned_files_found": stats["orphaned"],
                 "torrents_tagged_no_hardlinks": stats["taggednoHL"],
                 "torrents_untagged_no_hardlinks": stats["untagged"],
@@ -115,8 +112,14 @@ class Webhooks:
 
     def error_hooks(self, text, function_error=None, critical=True):
         if self.error_webhooks:
-            type = "failure" if critical == True else "warning"
-            json = {"function":"run_error","title":f"{function_error} Error","body": str(text), "critical": critical, "type": type}
+            type = "failure" if critical is True else "warning"
+            json = {
+                "function": "run_error",
+                "title": f"{function_error} Error",
+                "body": str(text),
+                "critical": critical,
+                "type": type
+            }
             if function_error:
                 json["function_error"] = function_error
             self._request(self.error_webhooks, json)

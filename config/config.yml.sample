@@ -7,6 +7,9 @@ qbt:
   user: "username"
   pass: "password"
 
+settings:
+  force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
+
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/> # Output directory of cross-seed
@@ -19,12 +22,12 @@ directory:
 
 # Category & Path Parameters
 cat:
-  # <Category Name> : <save_path> # Path of your save directory. Can be a keyword or full path
+  # <Category Name> : <save_path> # Path of your save directory.
   movies: "/data/torrents/Movies"
-  tv: "TV"
+  tv: "/data/torrents/TV"
 
 # Tag Parameters
-tags:
+tracker:
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
   # <MANDATORY> Set tag name
   #   tag: <Tag Name>
@@ -170,3 +173,7 @@ webhooks:
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
     empty_recyclebin: notifiarr
+
+# BHD Integration used for checking unregistered torrents
+bhd:
+  apikey:

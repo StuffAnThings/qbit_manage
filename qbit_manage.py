@@ -2,7 +2,7 @@
 
 import argparse, logging, os, sys, time
 from logging.handlers import RotatingFileHandler
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
 try:
     import schedule
@@ -24,21 +24,30 @@ parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, acti
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
-parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,  help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
-parser.add_argument('-lf', '--log-file', dest='logfile', action='store',default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
-parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False, help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
+parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,
+                    help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
+parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
+parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False,
+                    help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
 parser.add_argument('-re', '--recheck', dest='recheck', action="store_true", default=False, help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
 parser.add_argument('-cu', '--cat-update', dest='cat_update', action="store_true", default=False, help='Use this if you would like to update your categories.')
-parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False, help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
+parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False,
+                    help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
 parser.add_argument('-ru', '--rem-unregistered', dest='rem_unregistered', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
 parser.add_argument('-ro', '--rem-orphaned', dest='rem_orphaned', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
-parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False, help='Use this to tag any torrents that do not have any hard links associated with any of the files. This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')
+parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False,
+                    help='Use this to tag any torrents that do not have any hard links associated with any of the files. \
+                          This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. \
+                          When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. \
+                          You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')
 parser.add_argument('-sr', '--skip-recycle', dest='skip_recycle', action="store_true", default=False, help='Use this to skip emptying the Reycle Bin folder.')
-parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False, help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
+parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False,
+                    help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
 parser.add_argument('-ll', '--log-level', dest='log_level', action="store", default='INFO', type=str, help='Change your log level.')
 parser.add_argument("-d", "--divider", dest="divider", help="Character that divides the sections (Default: '=')", default="=", type=str)
 parser.add_argument("-w", "--width", dest="width", help="Screen Width (Default: 100)", default=100, type=int)
 args = parser.parse_args()
+
 
 def get_arg(env_str, default, arg_bool=False, arg_int=False):
     env_var = os.environ.get(env_str)
@@ -56,6 +65,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
             return str(env_var)
     else:
         return default
+
 
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
@@ -81,12 +91,31 @@ if debug or trace: log_level = 'DEBUG'
 stats = {}
 args = {}
 
-if os.path.isdir('/config') and os.path.exists(os.path.join('/config',config_file)):
+if os.path.isdir('/config') and os.path.exists(os.path.join('/config', config_file)):
     default_dir = '/config'
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
-for v in ['run','sch','config_file','log_file','cross_seed','recheck','cat_update','tag_update','rem_unregistered','rem_orphaned','tag_nohardlinks','skip_recycle','dry_run','log_level','divider','screen_width','debug','trace']:
+for v in [
+    'run',
+    'sch',
+    'config_file',
+    'log_file',
+    'cross_seed',
+    'recheck',
+    'cat_update',
+    'tag_update',
+    'rem_unregistered',
+    'rem_orphaned',
+    'tag_nohardlinks',
+    'skip_recycle',
+    'dry_run',
+    'log_level',
+    'divider',
+    'screen_width',
+    'debug',
+    'trace'
+]:
     args[v] = eval(v)
 
 util.separating_character = divider[0]
@@ -96,7 +125,7 @@ if screen_width < 90 or screen_width > 300:
     screen_width = 100
 util.screen_width = screen_width
 
-#Check if Schedule parameter is a number
+# Check if Schedule parameter is a number
 try:
     sch = int(sch)
 except ValueError:
@@ -110,10 +139,12 @@ setattr(logger, 'dryrun', lambda dryrun, *args: logger._log(logging.DRYRUN, dryr
 log_lev = getattr(logging, log_level.upper())
 logger.setLevel(log_lev)
 
+
 def fmt_filter(record):
     record.levelname = f"[{record.levelname}]"
     record.filename = f"[{record.filename}:{record.lineno}]"
     return True
+
 
 cmd_handler = logging.StreamHandler()
 cmd_handler.setLevel(log_level)
@@ -140,6 +171,7 @@ util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
 
+
 def start():
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
@@ -152,70 +184,73 @@ def start():
     util.separator(f"Starting {start_type}Run")
     cfg = None
     global stats
-    stats = { 
+    stats = {
         "added": 0,
         "deleted": 0,
         "deleted_contents": 0,
         "resumed": 0,
         "rechecked": 0,
-        "orphaned":0,
+        "orphaned": 0,
         "recycle_emptied": 0,
         "tagged": 0,
-        "untagged":0,
+        "untagged": 0,
         "categorized": 0,
         "rem_unreg": 0,
+        "pot_unreg": 0,
         "taggednoHL": 0
     }
     try:
-        cfg = Config(default_dir,args)
+        cfg = Config(default_dir, args)
     except Exception as e:
         util.print_stacktrace()
-        util.print_multiline(e,'CRITICAL')
-    
+        util.print_multiline(e, 'CRITICAL')
+
     if cfg:
-        #Set Category
+        # Set Category
         num_categorized = cfg.qbt.category()
         stats["categorized"] += num_categorized
 
-        #Set Tags
+        # Set Tags
         num_tagged = cfg.qbt.tags()
         stats["tagged"] += num_tagged
-        
-        #Remove Unregistered Torrents
-        num_deleted,num_deleted_contents = cfg.qbt.rem_unregistered()
+
+        # Remove Unregistered Torrents
+        num_deleted, num_deleted_contents, num_pot_unreg = cfg.qbt.rem_unregistered()
         stats["rem_unreg"] += (num_deleted + num_deleted_contents)
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
+        stats["pot_unreg"] += num_pot_unreg
 
-        #Set Cross Seed
+        # Set Cross Seed
         num_added, num_tagged = cfg.qbt.cross_seed()
         stats["added"] += num_added
         stats["tagged"] += num_tagged
 
-        #Recheck Torrents
+        # Recheck Torrents
         num_resumed, num_rechecked = cfg.qbt.recheck()
         stats["resumed"] += num_resumed
         stats["rechecked"] += num_rechecked
 
-        #Tag NoHardLinks
-        num_tagged,num_untagged,num_deleted,num_deleted_contents = cfg.qbt.tag_nohardlinks()
+        # Tag NoHardLinks
+        num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
         stats["tagged"] += num_tagged
         stats["taggednoHL"] += num_tagged
         stats["untagged"] += num_untagged
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
 
-        #Remove Orphaned Files
+        # Remove Orphaned Files
         num_orphaned = cfg.qbt.rem_orphaned()
         stats["orphaned"] += num_orphaned
 
-        #Empty RecycleBin
+        # mpty RecycleBin
         recycle_emptied = cfg.empty_recycle()
         stats["recycle_emptied"] += recycle_emptied
 
     if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
     if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
     if stats["rem_unreg"] > 0:                  stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
+    if stats["pot_unreg"] > 0:                  stats_summary.append(f"Total Potential Unregistered Torrents Found: {stats['pot_unreg']}")
     if stats["added"] > 0:                      stats_summary.append(f"Total Torrents Added: {stats['added']}")
     if stats["resumed"] > 0:                    stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
     if stats["rechecked"] > 0:                  stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
@@ -235,12 +270,15 @@ def start():
         except Failed as e:
             util.print_stacktrace()
             logger.error(f"Webhooks Error: {e}")
+
+
 def end():
     logger.info("Exiting Qbit_manage")
     logger.removeHandler(file_handler)
     sys.exit(0)
 
-def calc_next_run(sch,print=False):
+
+def calc_next_run(sch, print=False):
     current = datetime.now().strftime("%H:%M")
     seconds = sch*60
     time_to_run = (datetime.now() + timedelta(minutes=sch)).strftime("%H:%M")
@@ -258,17 +296,18 @@ def calc_next_run(sch,print=False):
         if print: util.print_return(f"Current Time: {current} | {time_str} until the next run at {time_to_run}")
     return time_str
 
+
 if __name__ == '__main__':
     killer = GracefulKiller()
     util.separator()
-    logger.info(util.centered("        _     _ _                                            "))
-    logger.info(util.centered("       | |   (_) |                                           "))
-    logger.info(util.centered("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ "))
-    logger.info(util.centered("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\"))
-    logger.info(util.centered(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/"))
-    logger.info(util.centered("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|"))
-    logger.info(util.centered("     | |         ______                            __/ |     "))
-    logger.info(util.centered("     |_|        |______|                          |___/      "))
+    logger.info(util.centered("        _     _ _                                            "))  # noqa: W605
+    logger.info(util.centered("       | |   (_) |                                           "))  # noqa: W605
+    logger.info(util.centered("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ "))  # noqa: W605
+    logger.info(util.centered("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\"))  # noqa: W605
+    logger.info(util.centered(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/"))  # noqa: W605
+    logger.info(util.centered("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|"))  # noqa: W605
+    logger.info(util.centered("     | |         ______                            __/ |     "))  # noqa: W605
+    logger.info(util.centered("     |_|        |______|                          |___/      "))  # noqa: W605
     logger.info(f"    Version: {version}")
 
     util.separator(loglevel='DEBUG')
@@ -293,7 +332,7 @@ if __name__ == '__main__':
     logger.debug("")
     try:
         if run:
-            logger.info(f"    Run Mode: Script will exit after completion.")
+            logger.info("    Run Mode: Script will exit after completion.")
             start()
         else:
             schedule.every(sch).minutes.do(start)
@@ -301,7 +340,7 @@ if __name__ == '__main__':
             start()
             while not killer.kill_now:
                 schedule.run_pending()
-                calc_next_run(sch,True)
+                calc_next_run(sch, True)
                 time.sleep(60)
             end()
     except KeyboardInterrupt:
