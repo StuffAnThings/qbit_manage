@@ -160,16 +160,21 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = line
             break
 
-if os.path.exists(log_file):
-    print(f"Log Warning: Log Path {log_file} does not exist. Logs will be saved in the default path: {os.path.join(default_dir, os.path.basename(log_file))}")
+if os.path.exists(os.path.dirname(log_file)):
     file_logger = log_file
+elif not os.path.exists(os.path.dirname(log_file)) and os.path.dirname(log_file) != '':
+    os.makedirs(os.path.join(default_dir, 'logs'), exist_ok=True)
+    print(f"Log Warning: Log Path {os.path.dirname(log_file)} does not exist. Logs will be saved in the default path: {os.path.join(default_dir, 'logs', os.path.basename(log_file))}")
+    file_logger = os.path.join(default_dir, 'logs', os.path.basename(log_file))
 else:
-    file_logger = os.path.join(default_dir, os.path.basename(log_file))
+    os.makedirs(os.path.join(default_dir, 'logs'), exist_ok=True)
+    file_logger = os.path.join(default_dir, 'logs', os.path.basename(log_file))
 max_bytes = 1024 * 1024 * 2
 file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
 util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
+logger.debug(f"Logs are saved in {file_logger}")
 
 
 def start():
