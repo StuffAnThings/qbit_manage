@@ -1,5 +1,5 @@
 import logging, os
-from qbittorrentapi import Client, LoginFailed, APIConnectionError
+from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
@@ -700,10 +700,12 @@ class Qbt:
     def tor_delete_recycle(self, torrent):
         if self.config.recyclebin['enabled']:
             tor_files = []
-            # Define torrent files/folders
-            for file in torrent.files:
-                tor_files.append(os.path.join(torrent.save_path, file.name))
-
+            try:
+                # Define torrent files/folders
+                for file in torrent.files:
+                    tor_files.append(os.path.join(torrent.save_path, file.name))
+            except NotFound404Error:
+                return
             # Create recycle bin if not exists
             recycle_path = os.path.join(self.config.remote_dir, '.RecycleBin')
             os.makedirs(recycle_path, exist_ok=True)
