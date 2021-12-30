@@ -458,6 +458,7 @@ class Qbt:
                             if not dry_run: torrent.add_tags(tags='issue')
                         if any(m in msg_up for m in unreg_msgs) and x.status == 4:
                             del_unregistered()
+                            break
             if del_tor >= 1 or del_tor_cont >= 1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
                 if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
