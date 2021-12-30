@@ -33,15 +33,13 @@ class Config:
         yaml.YAML().allow_duplicate_keys = True
         try:
             new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
-            if "settings" not in new_config:                new_config["settings"] = {}
-            if "cat" not in new_config:                     new_config["cat"] = {}
-            if "tracker" not in new_config and "tags" not in new_config: new_config["tracker"] = {}
             if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
-            if "settings" in new_config:                    new_config["settings"] = new_config.pop("settings")
+            new_config["settings"] = new_config.pop("settings") if "settings" in new_config else {}
             if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
-            if "cat" in new_config:                         new_config["cat"] = new_config.pop("cat")
+            new_config["cat"] = new_config.pop("cat") if "cat" in new_config else {}
             if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
             elif "tags" in new_config:                      new_config["tracker"] = new_config.pop("tags")
+            else:                                           new_config["tracker"] = {}
             if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
             if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
             if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
