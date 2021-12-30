@@ -423,42 +423,48 @@ class Qbt:
                 t_msg = self.torrentinfo[t_name]['msg']
                 t_status = self.torrentinfo[t_name]['status']
                 check_tags = util.get_list(torrent.tags)
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        tracker = self.config.get_tags([x.url])
-                        msg_up = x.msg.upper()
-                        # Tag any potential unregistered torrents
-                        if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
-                            # Check for unregistered torrents using BHD API if the tracker is BHD
-                            if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
-                                json = {"info_hash": torrent.hash}
-                                response = self.config.BeyondHD.search(json)
-                                if response['total_results'] <= 1:
-                                    del_unregistered()
-                                    break
-                            pot_unr = ''
-                            pot_unr += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
-                            pot_unr += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
-                            pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
-                            pot_unr += (util.insert_space("Added Tag: 'issue'", 6)+'\n')
-                            pot_unr_summary += pot_unr
-                            pot_unreg += 1
-                            attr = {
-                                "function": "potential_rem_unregistered",
-                                "title": "Potential Unregistered Torrents",
-                                "body": pot_unr,
-                                "torrent_name": t_name,
-                                "torrent_category": t_cat,
-                                "torrent_tag": "issue",
-                                "torrent_status": msg_up,
-                                "torrent_tracker": tracker["url"],
-                                "notifiarr_indexer": tracker["notifiarr"],
-                            }
-                            self.config.send_notifications(attr)
-                            if not dry_run: torrent.add_tags(tags='issue')
-                        if any(m in msg_up for m in unreg_msgs) and x.status == 4:
-                            del_unregistered()
-                            break
+                try:
+                    for x in torrent.trackers:
+                        if x.url.startswith('http'):
+                            tracker = self.config.get_tags([x.url])
+                            msg_up = x.msg.upper()
+                            # Tag any potential unregistered torrents
+                            if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
+                                # Check for unregistered torrents using BHD API if the tracker is BHD
+                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
+                                    json = {"info_hash": torrent.hash}
+                                    response = self.config.BeyondHD.search(json)
+                                    if response['total_results'] <= 1:
+                                        del_unregistered()
+                                        break
+                                pot_unr = ''
+                                pot_unr += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
+                                pot_unr += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
+                                pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
+                                pot_unr += (util.insert_space("Added Tag: 'issue'", 6)+'\n')
+                                pot_unr_summary += pot_unr
+                                pot_unreg += 1
+                                attr = {
+                                    "function": "potential_rem_unregistered",
+                                    "title": "Potential Unregistered Torrents",
+                                    "body": pot_unr,
+                                    "torrent_name": t_name,
+                                    "torrent_category": t_cat,
+                                    "torrent_tag": "issue",
+                                    "torrent_status": msg_up,
+                                    "torrent_tracker": tracker["url"],
+                                    "notifiarr_indexer": tracker["notifiarr"],
+                                }
+                                self.config.send_notifications(attr)
+                                if not dry_run: torrent.add_tags(tags='issue')
+                            if any(m in msg_up for m in unreg_msgs) and x.status == 4:
+                                del_unregistered()
+                                break
+                except NotFound404Error:
+                    continue
+                except Exception as e:
+                    util.print_stacktrace()
+                    logger.error(f"Unknown Error: {e}")
             if del_tor >= 1 or del_tor_cont >= 1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
                 if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
