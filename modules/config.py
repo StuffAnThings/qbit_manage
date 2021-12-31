@@ -194,7 +194,7 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
-            self.recycle_dir = os.path.join(self.remote_dir, '.RecycleBin')
+            self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'))
         else:
             e = "Config Error: directory attribute not found"
             self.notify(e, 'Config')

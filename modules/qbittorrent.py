@@ -464,6 +464,7 @@ class Qbt:
                     continue
                 except Exception as e:
                     util.print_stacktrace()
+                    self.config.notify(e, 'Remove Unregistered Torrents', False)
                     logger.error(f"Unknown Error: {e}")
             if del_tor >= 1 or del_tor_cont >= 1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
@@ -639,13 +640,14 @@ class Qbt:
             orphaned_parent_path = set()
             remote_path = self.config.remote_dir
             root_path = self.config.root_dir
+            recycle_path = self.config.recycle_dir
             if (remote_path != root_path):
                 root_files = [os.path.join(path.replace(remote_path, root_path), name)
                               for path, subdirs, files in alive_it(os.walk(remote_path))
-                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path and os.path.join(remote_path, '.RecycleBin') not in path]
+                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path and recycle_path not in path]
             else:
                 root_files = [os.path.join(path, name) for path, subdirs, files in alive_it(os.walk(root_path))
-                              for name in files if os.path.join(root_path, 'orphaned_data') not in path and os.path.join(root_path, '.RecycleBin') not in path]
+                              for name in files if os.path.join(root_path, 'orphaned_data') not in path and recycle_path not in path]
 
             # Get an updated list of torrents
             torrent_list = self.get_torrents({'sort': 'added_on'})
@@ -714,7 +716,7 @@ class Qbt:
             except NotFound404Error:
                 return
             # Create recycle bin if not exists
-            recycle_path = os.path.join(self.config.remote_dir, '.RecycleBin')
+            recycle_path = self.config.recycle_dir
             os.makedirs(recycle_path, exist_ok=True)
 
             separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False, loglevel='DEBUG')
