@@ -183,8 +183,8 @@ class Config:
 
         # Assign directories
         if "directory" in self.data:
-            self.root_dir = self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True)
-            self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir)
+            self.root_dir = os.path.join(self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), '')
+            self.remote_dir = os.path.join(self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), '')
             if (self.args["cross_seed"] or self.args["tag_nohardlinks"] or self.args["rem_orphaned"]):
                 self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
             else:
