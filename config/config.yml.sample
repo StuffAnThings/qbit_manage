@@ -16,6 +16,7 @@ directory:
   # root_dir var: </your/path/here/> # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
   # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir.
   # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
+  # <OPTIONAL> recycle_bin var: </your/path/here/> # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
