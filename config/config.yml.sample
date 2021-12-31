@@ -19,6 +19,7 @@ directory:
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
+  recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
 
 # Category & Path Parameters
 cat:
