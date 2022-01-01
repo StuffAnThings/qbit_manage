@@ -728,8 +728,11 @@ class Qbt:
                 torrent_json_file = os.path.join(torrents_json_path, f"{info['torrent_name']}.json")
                 torrent_json = util.load_json(torrent_json_file)
                 if not torrent_json:
+                    logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
                     torrent_json["torrent_name"] = info["torrent_name"]
                     torrent_json["category"] = info["torrent_category"]
+                else:
+                    logger.info(f"Adding {info['torrent_tracker']} to existing {os.path.basename(torrent_json_file)}")
                 dot_torrent_files = []
                 for File in os.listdir(self.config.torrents_dir):
                     if File.startswith(info_hash):
@@ -745,11 +748,20 @@ class Qbt:
                 else:
                     tracker_torrent_files = {}
                 tracker_torrent_files[info["torrent_tracker"]] = dot_torrent_files
+                if dot_torrent_files:
+                    backup_str = "Backing up "
+                    for idx, val in enumerate(dot_torrent_files):
+                        if idx == 0: backup_str += val
+                        else: backup_str += f" and {val.replace(info_hash,'')}"
+                    backup_str += f" to {torrent_path}"
+                    logger.info(backup_str)
                 torrent_json["tracker_torrent_files"] = tracker_torrent_files
                 if "files" not in torrent_json:
                     files_cleaned = [f.replace(self.config.root_dir, '') for f in tor_files]
                     torrent_json["files"] = files_cleaned
                 torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
+                logger.debug("")
+                logger.debug(f"JSON: {torrent_json}")
                 util.save_json(torrent_json, torrent_json_file)
             if info['torrents_deleted_and_contents'] is True:
                 separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False, loglevel='DEBUG')
