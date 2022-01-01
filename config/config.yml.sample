@@ -1,5 +1,7 @@
 # This is an example configuration file that documents all the options.
 # It will need to be modified for your specific use case.
+# Please refer to the link below for more details on how to set up the configuration file
+# https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup
 
 # qBittorrent parameters
 qbt:
@@ -17,10 +19,13 @@ directory:
   # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir.
   # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
   # <OPTIONAL> recycle_bin var: </your/path/here/> # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
+  # <OPTIONAL> torrents_dir var: </your/path/here/> # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
+
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
   recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
+  torrents_dir: "/qbittorrent/data/BT_backup"
 
 # Category & Path Parameters
 cat:
@@ -125,10 +130,15 @@ nohardlinks:
 # By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
 recyclebin:
   enabled: true
-  # <OPTIONAL> empty_after_x_days var: Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
-  #                                   If this variable is not defined it, the RecycleBin will never be emptied.
-  #                                   WARNING: Setting this variable to 0 will delete all files immediately upon script run!
+  # <OPTIONAL> empty_after_x_days var: 
+  # Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
+  # If this variable is not defined it, the RecycleBin will never be emptied.
+  # WARNING: Setting this variable to 0 will delete all files immediately upon script run!
   empty_after_x_days: 60
+  # <OPTIONAL> save_torrents var:
+  # If this option is set to true you MUST fill out the torrents_dir in the directory attribute.
+  # This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent
+  save_torrents: true
 
 # Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
 orphaned:

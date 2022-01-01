@@ -1,4 +1,4 @@
-import logging, os, shutil, traceback, time, signal
+import logging, os, shutil, traceback, time, signal, json
 from logging.handlers import RotatingFileHandler
 from ruamel import yaml
 from pathlib import Path
@@ -297,6 +297,14 @@ def move_files(src, dest, mod=False):
         os.utime(dest, (modTime, modTime))
 
 
+# Copy Files from source to destination
+def copy_files(src, dest):
+    dest_path = os.path.dirname(dest)
+    if os.path.isdir(dest_path) is False:
+        os.makedirs(dest_path)
+    shutil.copyfile(src, dest)
+
+
 # Remove any empty directories after moving files
 def remove_empty_directories(pathlib_root_dir, pattern):
     pathlib_root_dir = Path(pathlib_root_dir)
@@ -326,6 +334,23 @@ def nohardlink(file):
                 if (os.stat(os.path.join(path, x)).st_nlink > 1):
                     check = False
     return check
+
+
+# Load json file if exists
+def load_json(file):
+    if (os.path.isfile(file)):
+        f = open(file, "r")
+        data = json.load(f)
+        f.close()
+    else:
+        data = {}
+    return data
+
+
+# Save json file overwrite if exists
+def save_json(torrent_json, dest):
+    with open(dest, 'w', encoding='utf-8') as f:
+        json.dump(torrent_json, f, ensure_ascii=False, indent=4)
 
 
 # Gracefully kill script when docker stops

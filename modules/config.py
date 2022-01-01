@@ -176,6 +176,7 @@ class Config:
         self.recyclebin = {}
         self.recyclebin['enabled'] = self.util.check_for_attribute(self.data, "enabled", parent="recyclebin", var_type="bool", default=True)
         self.recyclebin['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="recyclebin", var_type="int", default_is_none=True)
+        self.recyclebin['save_torrents'] = self.util.check_for_attribute(self.data, "save_torrents", parent="recyclebin", var_type="bool", default=False)
 
         # Add Orphaned
         self.orphaned = {}
@@ -195,6 +196,14 @@ class Config:
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
             self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'))
+            if self.recyclebin['enabled'] and self.recyclebin['save_torrents']:
+                self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
+                if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
+                    e = f"Config Error: The location {self.torrents_dir} does not contain any .torrents"
+                    self.notify(e, 'Config')
+                    raise Failed(e)
+            else:
+                self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", default_is_none=True)
         else:
             e = "Config Error: directory attribute not found"
             self.notify(e, 'Config')
