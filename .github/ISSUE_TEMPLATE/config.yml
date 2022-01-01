@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Qbit Manage Wiki
+    url: https://github.com/StuffAnThings/qbit_manage/wiki
+    about: Please check the wiki to see if your question has already been answered.
+  - name: Notifiarr Discord
+    url: https://discord.com/invite/AURf8Yz
+    about: Please post your question under the `qbit-manage` channel for support issues.

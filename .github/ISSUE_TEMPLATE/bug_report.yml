@@ -1,0 +1,76 @@
+name: Bug Report
+description: Please do not use bug reports for support issues.
+title: '[Bug]: '
+labels: ['status:not-yet-viewed', 'bug']
+assignees: 'bobokun'
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **THIS IS NOT THE PLACE TO ASK FOR SUPPORT!**
+        Please use [Notifiarr Discord](https://discord.com/invite/AURf8Yz) and post your question under the `qbit-manage` channel for support issues.
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Config
+      description: >
+        Please paste your config.yml here (Remember to remove any sensitive information)
+        This will be automatically formatted into code, so no need for backticks.
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        Please share the relevant log file with the error on [Gist](https://gist.github.com).
+      placeholder: "https://gist.github.com"
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: "[optional] You may add screenshots to further explain your problem."
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation
+      description: Which installation method did you use?
+      options:
+        - Unraid
+        - Docker
+        - Local
+        - Nix
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version Info
+      description: Can be found at the beginning of your log file
+      placeholder: eg. 3.1.3
+    validations:
+      required: true
+  - type: dropdown
+    id: branch
+    attributes:
+      label: branch
+      description: What branch are you on?
+      options:
+        - master
+        - develop
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Make sure to close your issue when it's solved! If you found the solution yourself please comment so that others benefit from it.
