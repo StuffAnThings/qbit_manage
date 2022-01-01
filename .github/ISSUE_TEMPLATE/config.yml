@@ -6,3 +6,6 @@ contact_links:
   - name: Notifiarr Discord
     url: https://discord.com/invite/AURf8Yz
     about: Please post your question under the `qbit-manage` channel for support issues.
+  - name: Ask a question
+    url: https://github.com/StuffAnThings/qbit_manage/discussions
+    about: Ask questions and discuss with other community members

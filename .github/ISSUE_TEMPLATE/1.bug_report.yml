@@ -25,7 +25,7 @@ body:
         Please paste your config.yml here (Remember to remove any sensitive information)
         This will be automatically formatted into code, so no need for backticks.
       render: yaml
-  - type: textarea
+  - type: input
     id: logs
     attributes:
       label: Logs
@@ -55,7 +55,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version Info
+      label: Version Number
       description: Can be found at the beginning of your log file
       placeholder: eg. 3.1.3
     validations:
@@ -63,8 +63,7 @@ body:
   - type: dropdown
     id: branch
     attributes:
-      label: branch
-      description: What branch are you on?
+      label: What branch are you on?
       options:
         - master
         - develop

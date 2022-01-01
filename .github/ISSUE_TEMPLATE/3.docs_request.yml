@@ -1,8 +1,9 @@
 name: 'Docs Request for an Update or Improvement'
 description: A request to update or improve Qbit Manage documentation
 title: '[Docs]: '
-labels:
-  - 'documentation'
+labels: ['status:not-yet-viewed', 'documentation']
+assignees: 'bobokun'
+
 body:
   - type: textarea
     attributes:
