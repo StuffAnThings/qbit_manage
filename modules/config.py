@@ -332,7 +332,7 @@ class Config:
                     if num_del > 0:
                         if not dry_run: util.remove_empty_directories(self.recycle_dir, "**/*")
                         body = []
-                        body += util.print_multiline(n_info, loglevel)
+                        body += util.print_multiline(n_info.rstrip(), loglevel)
                         body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
                         attr = {
                             "function": "empty_recyclebin",
