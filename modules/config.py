@@ -1,4 +1,4 @@
-import logging, os, requests, stat, time
+import logging, os, requests, stat, time, re
 from modules import util
 from modules.util import Failed, check
 from modules.qbittorrent import Qbt
@@ -177,6 +177,7 @@ class Config:
         self.recyclebin['enabled'] = self.util.check_for_attribute(self.data, "enabled", parent="recyclebin", var_type="bool", default=True)
         self.recyclebin['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="recyclebin", var_type="int", default_is_none=True)
         self.recyclebin['save_torrents'] = self.util.check_for_attribute(self.data, "save_torrents", parent="recyclebin", var_type="bool", default=False)
+        self.recyclebin['split_by_category'] = self.util.check_for_attribute(self.data, "split_by_category", parent="recyclebin", var_type="bool", default=False)
 
         # Assign directories
         if "directory" in self.data:
@@ -313,28 +314,46 @@ class Config:
         files = []
         size_bytes = 0
         if not self.args["skip_recycle"]:
-            n_info = ''
             if self.recyclebin['enabled'] and self.recyclebin['empty_after_x_days']:
-                recycle_files = [os.path.join(path, name) for path, subdirs, files in os.walk(self.recycle_dir) for name in files]
+                if self.recyclebin['split_by_category']:
+                    if "cat" in self.data and self.data["cat"] is not None:
+                        save_path = list(self.data["cat"].values())
+                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(self.recycle_dir.rstrip('/'))) for s in save_path]
+                        recycle_path = [self.recycle_dir]
+                        for dir in cleaned_save_path:
+                            if os.path.exists(dir): recycle_path.append(dir)
+                    else:
+                        e = (f'No categories defined. Checking Recycle Bin directory {self.recycle_dir}.')
+                        self.notify(e, 'Empty Recycle Bin', False)
+                        logger.warning(e)
+                        recycle_path = [self.recycle_dir]
+                else:
+                    recycle_path = [self.recycle_dir]
+                recycle_files = [os.path.join(path, name) for r_path in recycle_path for path, subdirs, files in os.walk(r_path) for name in files]
                 recycle_files = sorted(recycle_files)
                 if recycle_files:
-                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=False, border=False)
+                    body = []
+                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
+                    prevfolder = ''
                     for file in recycle_files:
+                        folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
+                        if folder != prevfolder: body += util.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
-                        filename = file.replace(self.recycle_dir, '')
+                        filename = os.path.basename(file)
                         last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
                         if (self.recyclebin['empty_after_x_days'] <= days):
                             num_del += 1
-                            n_info += (f"{'Did not delete' if dry_run else 'Deleted'} {filename} from the recycle bin. (Last modified {round(days)} days ago).\n")
+                            body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
+                        prevfolder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
                     if num_del > 0:
-                        if not dry_run: util.remove_empty_directories(self.recycle_dir, "**/*")
-                        body = []
-                        body += util.print_multiline(n_info.rstrip(), loglevel)
+                        if not dry_run:
+                            for path in recycle_path:
+                                util.remove_empty_directories(path, "**/*")
                         body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
                         attr = {
                             "function": "empty_recyclebin",
@@ -346,7 +365,7 @@ class Config:
                         }
                         self.send_notifications(attr)
                 else:
-                    logger.debug('No files found in "' + self.recycle_dir + '"')
+                    logger.debug('No files found in "' + recycle_path + '"')
         return num_del
 
     def send_notifications(self, attr):

@@ -710,13 +710,18 @@ class Qbt:
             tor_files = []
             try:
                 info_hash = torrent.hash
+                save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
                 # Define torrent files/folders
                 for file in torrent.files:
-                    tor_files.append(os.path.join(torrent.save_path, file.name))
+                    tor_files.append(os.path.join(save_path, file.name))
             except NotFound404Error:
                 return
+
+            if self.config.recyclebin['split_by_category']:
+                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip('/')))
+            else:
+                recycle_path = self.config.recycle_dir
             # Create recycle bin if not exists
-            recycle_path = self.config.recycle_dir
             torrent_path = os.path.join(recycle_path, 'torrents')
             torrents_json_path = os.path.join(recycle_path, 'torrents_json')
 
@@ -756,7 +761,7 @@ class Qbt:
                     logger.info(backup_str)
                 torrent_json["tracker_torrent_files"] = tracker_torrent_files
                 if "files" not in torrent_json:
-                    files_cleaned = [f.replace(self.config.root_dir, '') for f in tor_files]
+                    files_cleaned = [f.replace(self.config.remote_dir, '') for f in tor_files]
                     torrent_json["files"] = files_cleaned
                 torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
                 logger.debug("")
@@ -770,8 +775,8 @@ class Qbt:
 
                 # Move files from torrent contents to Recycle bin
                 for file in tor_files:
-                    src = file.replace(self.config.root_dir, self.config.remote_dir)
-                    dest = os.path.join(recycle_path, file.replace(self.config.root_dir, ''))
+                    src = file
+                    dest = os.path.join(recycle_path, file.replace(self.config.remote_dir, ''))
                     # Move files and change date modified
                     try:
                         util.move_files(src, dest, True)
@@ -781,7 +786,7 @@ class Qbt:
                 # Delete torrent and files
                 torrent.delete(delete_files=False)
                 # Remove any empty directories
-                util.remove_empty_directories(torrent.save_path.replace(self.config.root_dir, self.config.remote_dir), "**/*")
+                util.remove_empty_directories(save_path, "**/*")
             else:
                 torrent.delete(delete_files=False)
         else:
