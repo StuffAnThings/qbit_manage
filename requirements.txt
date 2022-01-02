@@ -1,5 +1,6 @@
-ruamel.yaml
-qbittorrent-api
-schedule
-retrying
-alive_progress
+ruamel.yaml==0.17.17
+qbittorrent-api==2021.8.23
+schedule==1.1.0
+retrying==1.3.3
+alive_progress==2.1.0
+requests==2.26.0
