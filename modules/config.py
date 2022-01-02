@@ -178,10 +178,6 @@ class Config:
         self.recyclebin['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="recyclebin", var_type="int", default_is_none=True)
         self.recyclebin['save_torrents'] = self.util.check_for_attribute(self.data, "save_torrents", parent="recyclebin", var_type="bool", default=False)
 
-        # Add Orphaned
-        self.orphaned = {}
-        self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
-
         # Assign directories
         if "directory" in self.data:
             self.root_dir = os.path.join(self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), '')
@@ -208,6 +204,12 @@ class Config:
             e = "Config Error: directory attribute not found"
             self.notify(e, 'Config')
             raise Failed(e)
+
+        # Add Orphaned
+        exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
+        self.orphaned = {}
+        self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
+        self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
 
         # Connect to Qbittorrent
         self.qbt = None

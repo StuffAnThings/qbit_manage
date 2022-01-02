@@ -640,14 +640,13 @@ class Qbt:
             orphaned_parent_path = set()
             remote_path = self.config.remote_dir
             root_path = self.config.root_dir
-            recycle_path = self.config.recycle_dir
             if (remote_path != root_path):
                 root_files = [os.path.join(path.replace(remote_path, root_path), name)
                               for path, subdirs, files in alive_it(os.walk(remote_path))
-                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path and recycle_path not in path]
+                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path]
             else:
                 root_files = [os.path.join(path, name) for path, subdirs, files in alive_it(os.walk(root_path))
-                              for name in files if os.path.join(root_path, 'orphaned_data') not in path and recycle_path not in path]
+                              for name in files if os.path.join(root_path, 'orphaned_data') not in path]
 
             # Get an updated list of torrents
             torrent_list = self.get_torrents({'sort': 'added_on'})
