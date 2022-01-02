@@ -139,6 +139,10 @@ recyclebin:
   # If this option is set to true you MUST fill out the torrents_dir in the directory attribute.
   # This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent
   save_torrents: true
+  # <OPTIONAL> split_by_category var:
+  # This will split the recycle bin folder by the save path defined in the `cat` attribute 
+  # and add the base folder name of the recycle bin that was defined in the `recycle_bin` sub-attribute under directory.
+  split_by_category: false
 
 # Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
 orphaned:
