@@ -89,16 +89,21 @@ class Qbt:
                     status_list = []
                     is_complete = torrent_is_complete
                     first_hash = torrent_hash
-                for x in torrent_trackers:
-                    if x.url.startswith('http'):
-                        status = x.status
-                        msg = x.msg.upper()
-                        exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
-                        # Add any potential unregistered torrents to a list
-                        if x.status == 4 and all(x not in msg for x in exception):
-                            t_obj_unreg.append(torrent)
-                        if x.status == 2:
-                            t_obj_valid.append(torrent)
+                working_tracker = torrent.tracker
+                if working_tracker:
+                    status = 2
+                    msg = ''
+                    t_obj_valid.append(torrent)
+                else:
+                    for x in torrent_trackers:
+                        if x.url.startswith('http'):
+                            status = x.status
+                            msg = x.msg.upper()
+                            exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
+                            # Add any potential unregistered torrents to a list
+                            if x.status == 4 and all(x not in msg for x in exception):
+                                t_obj_unreg.append(torrent)
+                                break
                 if msg is not None: msg_list.append(msg)
                 if status is not None: status_list.append(status)
                 torrentattr = {
