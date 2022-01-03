@@ -35,7 +35,8 @@ class check:
                             var_type="str",
                             default_int=0,
                             throw=False,
-                            save=True):
+                            save=True,
+                            make_dirs=False):
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -134,6 +135,9 @@ class check:
         else:
             message = f"{text}: {data[attribute]} is an invalid input"
         if var_type == "path" and default and os.path.exists(os.path.abspath(default)):
+            return os.path.join(default, '')
+        elif var_type == "path" and default and make_dirs:
+            os.makedirs(default, exist_ok=True)
             return os.path.join(default, '')
         elif var_type == "path" and default:
             if data and attribute in data and data[attribute]:
