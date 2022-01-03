@@ -768,7 +768,11 @@ class Qbt:
                 if "files" not in torrent_json:
                     files_cleaned = [f.replace(self.config.remote_dir, '') for f in tor_files]
                     torrent_json["files"] = files_cleaned
-                torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
+                if "deleted_contents" not in torrent_json:
+                    torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
+                else:
+                    if torrent_json["deleted_contents"] is False and info['torrents_deleted_and_contents'] is True:
+                        torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
                 logger.debug("")
                 logger.debug(f"JSON: {torrent_json}")
                 util.save_json(torrent_json, torrent_json_file)
