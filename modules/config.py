@@ -1,4 +1,4 @@
-import logging, os, requests, stat, time
+import logging, os, requests, stat, time, re
 from modules import util
 from modules.util import Failed, check
 from modules.qbittorrent import Qbt
@@ -33,15 +33,13 @@ class Config:
         yaml.YAML().allow_duplicate_keys = True
         try:
             new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
-            if "settings" not in new_config:                new_config["settings"] = {}
-            if "cat" not in new_config:                     new_config["cat"] = {}
-            if "tracker" not in new_config and "tags" not in new_config: new_config["tracker"] = {}
             if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
-            if "settings" in new_config:                    new_config["settings"] = new_config.pop("settings")
+            new_config["settings"] = new_config.pop("settings") if "settings" in new_config else {}
             if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
-            if "cat" in new_config:                         new_config["cat"] = new_config.pop("cat")
+            new_config["cat"] = new_config.pop("cat") if "cat" in new_config else {}
             if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
             elif "tags" in new_config:                      new_config["tracker"] = new_config.pop("tags")
+            else:                                           new_config["tracker"] = {}
             if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
             if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
             if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
@@ -178,15 +176,13 @@ class Config:
         self.recyclebin = {}
         self.recyclebin['enabled'] = self.util.check_for_attribute(self.data, "enabled", parent="recyclebin", var_type="bool", default=True)
         self.recyclebin['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="recyclebin", var_type="int", default_is_none=True)
-
-        # Add Orphaned
-        self.orphaned = {}
-        self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
+        self.recyclebin['save_torrents'] = self.util.check_for_attribute(self.data, "save_torrents", parent="recyclebin", var_type="bool", default=False)
+        self.recyclebin['split_by_category'] = self.util.check_for_attribute(self.data, "split_by_category", parent="recyclebin", var_type="bool", default=False)
 
         # Assign directories
         if "directory" in self.data:
-            self.root_dir = self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True)
-            self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir)
+            self.root_dir = os.path.join(self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), '')
+            self.remote_dir = os.path.join(self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), '')
             if (self.args["cross_seed"] or self.args["tag_nohardlinks"] or self.args["rem_orphaned"]):
                 self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
             else:
@@ -196,11 +192,25 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
-            self.recycle_dir = os.path.join(self.remote_dir, '.RecycleBin')
+            self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'), make_dirs=True)
+            if self.recyclebin['enabled'] and self.recyclebin['save_torrents']:
+                self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
+                if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
+                    e = f"Config Error: The location {self.torrents_dir} does not contain any .torrents"
+                    self.notify(e, 'Config')
+                    raise Failed(e)
+            else:
+                self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", default_is_none=True)
         else:
             e = "Config Error: directory attribute not found"
             self.notify(e, 'Config')
             raise Failed(e)
+
+        # Add Orphaned
+        exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
+        self.orphaned = {}
+        self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
+        self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
 
         # Connect to Qbittorrent
         self.qbt = None
@@ -304,28 +314,46 @@ class Config:
         files = []
         size_bytes = 0
         if not self.args["skip_recycle"]:
-            n_info = ''
             if self.recyclebin['enabled'] and self.recyclebin['empty_after_x_days']:
-                recycle_files = [os.path.join(path, name) for path, subdirs, files in os.walk(self.recycle_dir) for name in files]
+                if self.recyclebin['split_by_category']:
+                    if "cat" in self.data and self.data["cat"] is not None:
+                        save_path = list(self.data["cat"].values())
+                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(self.recycle_dir.rstrip('/'))) for s in save_path]
+                        recycle_path = [self.recycle_dir]
+                        for dir in cleaned_save_path:
+                            if os.path.exists(dir): recycle_path.append(dir)
+                    else:
+                        e = (f'No categories defined. Checking Recycle Bin directory {self.recycle_dir}.')
+                        self.notify(e, 'Empty Recycle Bin', False)
+                        logger.warning(e)
+                        recycle_path = [self.recycle_dir]
+                else:
+                    recycle_path = [self.recycle_dir]
+                recycle_files = [os.path.join(path, name) for r_path in recycle_path for path, subdirs, files in os.walk(r_path) for name in files]
                 recycle_files = sorted(recycle_files)
                 if recycle_files:
-                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=False, border=False)
+                    body = []
+                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
+                    prevfolder = ''
                     for file in recycle_files:
+                        folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
+                        if folder != prevfolder: body += util.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
-                        filename = file.replace(self.recycle_dir, '')
+                        filename = os.path.basename(file)
                         last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
                         if (self.recyclebin['empty_after_x_days'] <= days):
                             num_del += 1
-                            n_info += (f"{'Did not delete' if dry_run else 'Deleted'} {filename} from the recycle bin. (Last modified {round(days)} days ago).\n")
+                            body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
+                        prevfolder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
                     if num_del > 0:
-                        if not dry_run: util.remove_empty_directories(self.recycle_dir, "**/*")
-                        body = []
-                        body += util.print_multiline(n_info, loglevel)
+                        if not dry_run:
+                            for path in recycle_path:
+                                util.remove_empty_directories(path, "**/*")
                         body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
                         attr = {
                             "function": "empty_recyclebin",
@@ -337,7 +365,7 @@ class Config:
                         }
                         self.send_notifications(attr)
                 else:
-                    logger.debug('No files found in "' + self.recycle_dir + '"')
+                    logger.debug(f'No files found in "{(",".join(recycle_path))}"')
         return num_del
 
     def send_notifications(self, attr):

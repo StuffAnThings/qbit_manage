@@ -86,7 +86,7 @@ class Webhooks:
                 "dry_run": self.config.args['dry_run']
             })
 
-    def end_time_hooks(self, start_time, end_time, run_time, stats, body):
+    def end_time_hooks(self, start_time, end_time, run_time, next_run, stats, body):
         if self.run_end_webhooks:
             self._request(self.run_end_webhooks, {
                 "function": "run_end",
@@ -94,6 +94,7 @@ class Webhooks:
                 "body": body,
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "next_run": next_run.strftime("%Y-%m-%d %H:%M:%S") if next_run is not None else next_run,
                 "run_time": run_time,
                 "torrents_added": stats["added"],
                 "torrents_deleted": stats["deleted"],

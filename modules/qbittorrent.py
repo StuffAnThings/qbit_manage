@@ -1,5 +1,5 @@
 import logging, os
-from qbittorrentapi import Client, LoginFailed, APIConnectionError
+from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
@@ -89,16 +89,21 @@ class Qbt:
                     status_list = []
                     is_complete = torrent_is_complete
                     first_hash = torrent_hash
-                for x in torrent_trackers:
-                    if x.url.startswith('http'):
-                        status = x.status
-                        msg = x.msg.upper()
-                        exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
-                        # Add any potential unregistered torrents to a list
-                        if x.status == 4 and all(x not in msg for x in exception):
-                            t_obj_unreg.append(torrent)
-                        if x.status == 2:
-                            t_obj_valid.append(torrent)
+                working_tracker = torrent.tracker
+                if working_tracker:
+                    status = 2
+                    msg = ''
+                    t_obj_valid.append(torrent)
+                else:
+                    for x in torrent_trackers:
+                        if x.url.startswith('http'):
+                            status = x.status
+                            msg = x.msg.upper()
+                            exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
+                            # Add any potential unregistered torrents to a list
+                            if x.status == 4 and all(x not in msg for x in exception):
+                                t_obj_unreg.append(torrent)
+                                break
                 if msg is not None: msg_list.append(msg)
                 if status is not None: status_list.append(status)
                 torrentattr = {
@@ -335,14 +340,14 @@ class Qbt:
                                     "notifiarr_indexer": tracker["notifiarr"],
                                 }
                                 if (os.path.exists(torrent['content_path'].replace(root_dir, root_dir))):
-                                    if not dry_run: self.tor_delete_recycle(torrent)
                                     del_tor_cont += 1
                                     attr["torrents_deleted_and_contents"] = True
+                                    if not dry_run: self.tor_delete_recycle(torrent, attr)
                                     body += print_line(util.insert_space('Deleted .torrent AND content files.', 8), loglevel)
                                 else:
-                                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
                                     del_tor += 1
                                     attr["torrents_deleted_and_contents"] = False
+                                    if not dry_run: self.tor_delete_recycle(torrent, attr)
                                     body += print_line(util.insert_space('Deleted .torrent but NOT content files.', 8), loglevel)
                                 attr["body"] = "\n".join(body)
                                 self.config.send_notifications(attr)
@@ -381,18 +386,18 @@ class Qbt:
             if t_count > 1:
                 # Checks if any of the original torrents are working
                 if '' in t_msg or 2 in t_status:
-                    if not dry_run: torrent.delete(hash=torrent.hash, delete_files=False)
                     attr["torrents_deleted_and_contents"] = False
+                    if not dry_run: self.tor_delete_recycle(torrent, attr)
                     body += print_line(util.insert_space('Deleted .torrent but NOT content files.', 8), loglevel)
                     del_tor += 1
                 else:
-                    if not dry_run: self.tor_delete_recycle(torrent)
                     attr["torrents_deleted_and_contents"] = True
+                    if not dry_run: self.tor_delete_recycle(torrent, attr)
                     body += print_line(util.insert_space('Deleted .torrent AND content files.', 8), loglevel)
                     del_tor_cont += 1
             else:
-                if not dry_run: self.tor_delete_recycle(torrent)
                 attr["torrents_deleted_and_contents"] = True
+                if not dry_run: self.tor_delete_recycle(torrent, attr)
                 body += print_line(util.insert_space('Deleted .torrent AND content files.', 8), loglevel)
                 del_tor_cont += 1
             attr["body"] = "\n".join(body)
@@ -423,41 +428,49 @@ class Qbt:
                 t_msg = self.torrentinfo[t_name]['msg']
                 t_status = self.torrentinfo[t_name]['status']
                 check_tags = util.get_list(torrent.tags)
-                for x in torrent.trackers:
-                    if x.url.startswith('http'):
-                        tracker = self.config.get_tags([x.url])
-                        msg_up = x.msg.upper()
-                        # Tag any potential unregistered torrents
-                        if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
-                            # Check for unregistered torrents using BHD API if the tracker is BHD
-                            if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
-                                json = {"info_hash": torrent.hash}
-                                response = self.config.BeyondHD.search(json)
-                                if response['total_results'] <= 1:
-                                    del_unregistered()
-                                    break
-                            pot_unr = ''
-                            pot_unr += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
-                            pot_unr += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
-                            pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
-                            pot_unr += (util.insert_space("Added Tag: 'issue'", 6)+'\n')
-                            pot_unr_summary += pot_unr
-                            pot_unreg += 1
-                            attr = {
-                                "function": "potential_rem_unregistered",
-                                "title": "Potential Unregistered Torrents",
-                                "body": pot_unr,
-                                "torrent_name": t_name,
-                                "torrent_category": t_cat,
-                                "torrent_tag": "issue",
-                                "torrent_status": msg_up,
-                                "torrent_tracker": tracker["url"],
-                                "notifiarr_indexer": tracker["notifiarr"],
-                            }
-                            self.config.send_notifications(attr)
-                            if not dry_run: torrent.add_tags(tags='issue')
-                        if any(m in msg_up for m in unreg_msgs) and x.status == 4:
-                            del_unregistered()
+                try:
+                    for x in torrent.trackers:
+                        if x.url.startswith('http'):
+                            tracker = self.config.get_tags([x.url])
+                            msg_up = x.msg.upper()
+                            # Tag any potential unregistered torrents
+                            if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
+                                # Check for unregistered torrents using BHD API if the tracker is BHD
+                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
+                                    json = {"info_hash": torrent.hash}
+                                    response = self.config.BeyondHD.search(json)
+                                    if response['total_results'] <= 1:
+                                        del_unregistered()
+                                        break
+                                pot_unr = ''
+                                pot_unr += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
+                                pot_unr += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
+                                pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
+                                pot_unr += (util.insert_space("Added Tag: 'issue'", 6)+'\n')
+                                pot_unr_summary += pot_unr
+                                pot_unreg += 1
+                                attr = {
+                                    "function": "potential_rem_unregistered",
+                                    "title": "Potential Unregistered Torrents",
+                                    "body": pot_unr,
+                                    "torrent_name": t_name,
+                                    "torrent_category": t_cat,
+                                    "torrent_tag": "issue",
+                                    "torrent_status": msg_up,
+                                    "torrent_tracker": tracker["url"],
+                                    "notifiarr_indexer": tracker["notifiarr"],
+                                }
+                                self.config.send_notifications(attr)
+                                if not dry_run: torrent.add_tags(tags='issue')
+                            if any(m in msg_up for m in unreg_msgs) and x.status == 4:
+                                del_unregistered()
+                                break
+                except NotFound404Error:
+                    continue
+                except Exception as e:
+                    util.print_stacktrace()
+                    self.config.notify(e, 'Remove Unregistered Torrents', False)
+                    logger.error(f"Unknown Error: {e}")
             if del_tor >= 1 or del_tor_cont >= 1:
                 if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
                 if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
@@ -635,10 +648,10 @@ class Qbt:
             if (remote_path != root_path):
                 root_files = [os.path.join(path.replace(remote_path, root_path), name)
                               for path, subdirs, files in alive_it(os.walk(remote_path))
-                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path and os.path.join(remote_path, '.RecycleBin') not in path]
+                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path]
             else:
                 root_files = [os.path.join(path, name) for path, subdirs, files in alive_it(os.walk(root_path))
-                              for name in files if os.path.join(root_path, 'orphaned_data') not in path and os.path.join(root_path, '.RecycleBin') not in path]
+                              for name in files if os.path.join(root_path, 'orphaned_data') not in path]
 
             # Get an updated list of torrents
             torrent_list = self.get_torrents({'sort': 'added_on'})
@@ -697,34 +710,96 @@ class Qbt:
                 print_line("No Orphaned Files found.", loglevel)
         return orphaned
 
-    def tor_delete_recycle(self, torrent):
+    def tor_delete_recycle(self, torrent, info):
         if self.config.recyclebin['enabled']:
             tor_files = []
-            # Define torrent files/folders
-            for file in torrent.files:
-                tor_files.append(os.path.join(torrent.save_path, file.name))
+            try:
+                info_hash = torrent.hash
+                save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
+                # Define torrent files/folders
+                for file in torrent.files:
+                    tor_files.append(os.path.join(save_path, file.name))
+            except NotFound404Error:
+                return
 
+            if self.config.recyclebin['split_by_category']:
+                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip('/')))
+            else:
+                recycle_path = self.config.recycle_dir
             # Create recycle bin if not exists
-            recycle_path = os.path.join(self.config.remote_dir, '.RecycleBin')
+            torrent_path = os.path.join(recycle_path, 'torrents')
+            torrents_json_path = os.path.join(recycle_path, 'torrents_json')
+
             os.makedirs(recycle_path, exist_ok=True)
+            if self.config.recyclebin['save_torrents']:
+                if os.path.isdir(torrent_path) is False: os.makedirs(torrent_path)
+                if os.path.isdir(torrents_json_path) is False: os.makedirs(torrents_json_path)
+                torrent_json_file = os.path.join(torrents_json_path, f"{info['torrent_name']}.json")
+                torrent_json = util.load_json(torrent_json_file)
+                if not torrent_json:
+                    logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
+                    torrent_json["torrent_name"] = info["torrent_name"]
+                    torrent_json["category"] = info["torrent_category"]
+                else:
+                    logger.info(f"Adding {info['torrent_tracker']} to existing {os.path.basename(torrent_json_file)}")
+                dot_torrent_files = []
+                for File in os.listdir(self.config.torrents_dir):
+                    if File.startswith(info_hash):
+                        dot_torrent_files.append(File)
+                        try:
+                            util.copy_files(os.path.join(self.config.torrents_dir, File), os.path.join(torrent_path, File))
+                        except Exception as e:
+                            util.print_stacktrace()
+                            self.config.notify(e, 'Deleting Torrent', False)
+                            logger.warning(f"RecycleBin Warning: {e}")
+                if "tracker_torrent_files" in torrent_json:
+                    tracker_torrent_files = torrent_json["tracker_torrent_files"]
+                else:
+                    tracker_torrent_files = {}
+                tracker_torrent_files[info["torrent_tracker"]] = dot_torrent_files
+                if dot_torrent_files:
+                    backup_str = "Backing up "
+                    for idx, val in enumerate(dot_torrent_files):
+                        if idx == 0: backup_str += val
+                        else: backup_str += f" and {val.replace(info_hash,'')}"
+                    backup_str += f" to {torrent_path}"
+                    logger.info(backup_str)
+                torrent_json["tracker_torrent_files"] = tracker_torrent_files
+                if "files" not in torrent_json:
+                    files_cleaned = [f.replace(self.config.remote_dir, '') for f in tor_files]
+                    torrent_json["files"] = files_cleaned
+                if "deleted_contents" not in torrent_json:
+                    torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
+                else:
+                    if torrent_json["deleted_contents"] is False and info['torrents_deleted_and_contents'] is True:
+                        torrent_json["deleted_contents"] = info['torrents_deleted_and_contents']
+                logger.debug("")
+                logger.debug(f"JSON: {torrent_json}")
+                util.save_json(torrent_json, torrent_json_file)
+            if info['torrents_deleted_and_contents'] is True:
+                separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False, loglevel='DEBUG')
+                if len(tor_files) == 1: print_line(tor_files[0], 'DEBUG')
+                else: print_multiline("\n".join(tor_files), 'DEBUG')
+                logger.debug(f'Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir,self.config.root_dir)}')
 
-            separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False, loglevel='DEBUG')
-            if len(tor_files) == 1: print_line(tor_files[0], 'DEBUG')
-            else: print_multiline("\n".join(tor_files), 'DEBUG')
-            logger.debug(f'Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir,self.config.root_dir)}')
-
-            # Move files from torrent contents to Recycle bin
-            for file in tor_files:
-                src = file.replace(self.config.root_dir, self.config.remote_dir)
-                dest = os.path.join(recycle_path, file.replace(self.config.root_dir, ''))
-                # Move files and change date modified
-                try:
-                    util.move_files(src, dest, True)
-                except FileNotFoundError:
-                    print_line(f'RecycleBin Warning - FileNotFound: No such file or directory: {src} ', 'WARNING')
-            # Delete torrent and files
-            torrent.delete(hash=torrent.hash, delete_files=False)
-            # Remove any empty directories
-            util.remove_empty_directories(torrent.save_path.replace(self.config.root_dir, self.config.remote_dir), "**/*")
+                # Move files from torrent contents to Recycle bin
+                for file in tor_files:
+                    src = file
+                    dest = os.path.join(recycle_path, file.replace(self.config.remote_dir, ''))
+                    # Move files and change date modified
+                    try:
+                        util.move_files(src, dest, True)
+                    except FileNotFoundError:
+                        e = print_line(f'RecycleBin Warning - FileNotFound: No such file or directory: {src} ', 'WARNING')
+                        self.config.notify(e, 'Deleting Torrent', False)
+                # Delete torrent and files
+                torrent.delete(delete_files=False)
+                # Remove any empty directories
+                util.remove_empty_directories(save_path, "**/*")
+            else:
+                torrent.delete(delete_files=False)
         else:
-            torrent.delete(hash=torrent.hash, delete_files=True)
+            if info['torrents_deleted_and_contents'] is True:
+                torrent.delete(delete_files=True)
+            else:
+                torrent.delete(delete_files=False)

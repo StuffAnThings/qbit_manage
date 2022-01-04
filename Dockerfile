@@ -1,11 +1,15 @@
-FROM hotio/base:alpine
+FROM python:3.9-alpine
 
-RUN apk add --no-cache py3-pip
-COPY --chown=hotio:users requirements.txt /
+# install packages
+RUN apk add --no-cache gcc g++ libxml2-dev libxslt-dev shadow bash curl wget jq grep sed coreutils findutils unzip p7zip ca-certificates
+
+COPY requirements.txt /
+
 RUN echo "**** install python packages ****" \
- && pip3 install --user --no-cache-dir --upgrade --requirement /requirements.txt \
+ && pip3 install --no-cache-dir --upgrade --requirement /requirements.txt \
  && rm -rf /requirements.txt /tmp/* /var/tmp/*
 
-COPY --chown=hotio:users . "${APP_DIR}"
-WORKDIR ${APP_DIR}
+COPY . /app
+WORKDIR /app
+VOLUME /config
 ENTRYPOINT ["python3", "qbit_manage.py"]

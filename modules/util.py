@@ -1,4 +1,4 @@
-import logging, os, shutil, traceback, time, signal
+import logging, os, shutil, traceback, time, signal, json
 from logging.handlers import RotatingFileHandler
 from ruamel import yaml
 from pathlib import Path
@@ -35,7 +35,8 @@ class check:
                             var_type="str",
                             default_int=0,
                             throw=False,
-                            save=True):
+                            save=True,
+                            make_dirs=False):
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -134,6 +135,9 @@ class check:
         else:
             message = f"{text}: {data[attribute]} is an invalid input"
         if var_type == "path" and default and os.path.exists(os.path.abspath(default)):
+            return os.path.join(default, '')
+        elif var_type == "path" and default and make_dirs:
+            os.makedirs(default, exist_ok=True)
             return os.path.join(default, '')
         elif var_type == "path" and default:
             if data and attribute in data and data[attribute]:
@@ -297,6 +301,14 @@ def move_files(src, dest, mod=False):
         os.utime(dest, (modTime, modTime))
 
 
+# Copy Files from source to destination
+def copy_files(src, dest):
+    dest_path = os.path.dirname(dest)
+    if os.path.isdir(dest_path) is False:
+        os.makedirs(dest_path)
+    shutil.copyfile(src, dest)
+
+
 # Remove any empty directories after moving files
 def remove_empty_directories(pathlib_root_dir, pattern):
     pathlib_root_dir = Path(pathlib_root_dir)
@@ -326,6 +338,23 @@ def nohardlink(file):
                 if (os.stat(os.path.join(path, x)).st_nlink > 1):
                     check = False
     return check
+
+
+# Load json file if exists
+def load_json(file):
+    if (os.path.isfile(file)):
+        f = open(file, "r")
+        data = json.load(f)
+        f.close()
+    else:
+        data = {}
+    return data
+
+
+# Save json file overwrite if exists
+def save_json(torrent_json, dest):
+    with open(dest, 'w', encoding='utf-8') as f:
+        json.dump(torrent_json, f, ensure_ascii=False, indent=4)
 
 
 # Gracefully kill script when docker stops

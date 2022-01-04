@@ -268,10 +268,14 @@ def start():
 
     end_time = datetime.now()
     run_time = str(end_time - start_time).split('.')[0]
-    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}".replace('\n\n', '\n'))[0]
+    _, nr = calc_next_run(sch, True)
+    next_run_str = nr['next_run_str']
+    next_run = nr['next_run']
+    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
+                          .replace('\n\n', '\n').rstrip())[0]
     if cfg:
         try:
-            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, stats, body)
+            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
         except Failed as e:
             util.print_stacktrace()
             logger.error(f"Webhooks Error: {e}")
@@ -286,20 +290,27 @@ def end():
 def calc_next_run(sch, print=False):
     current = datetime.now().strftime("%H:%M")
     seconds = sch*60
-    time_to_run = (datetime.now() + timedelta(minutes=sch)).strftime("%H:%M")
-    new_seconds = (datetime.strptime(time_to_run, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
+    time_to_run = datetime.now() + timedelta(minutes=sch)
+    time_to_run_str = time_to_run.strftime("%H:%M")
+    new_seconds = (datetime.strptime(time_to_run_str, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
     time_str = ''
-    if new_seconds < 0:
-        new_seconds += 86400
-    if (seconds is None or new_seconds < seconds) and new_seconds > 0:
-        seconds = new_seconds
-    if seconds is not None:
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
-        time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
-        if print: util.print_return(f"Current Time: {current} | {time_str} until the next run at {time_to_run}")
-    return time_str
+    next_run = {}
+    if run is False:
+        next_run['next_run'] = time_to_run
+        if new_seconds < 0:
+            new_seconds += 86400
+        if (seconds is None or new_seconds < seconds) and new_seconds > 0:
+            seconds = new_seconds
+        if seconds is not None:
+            hours = int(seconds // 3600)
+            minutes = int((seconds % 3600) // 60)
+            time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
+            time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
+            if print: next_run['next_run_str'] = (f"Current Time: {current} | {time_str} until the next run at {time_to_run_str}")
+    else:
+        next_run['next_run'] = None
+        next_run['next_run_str'] = ''
+    return time_str, next_run
 
 
 if __name__ == '__main__':
@@ -341,11 +352,11 @@ if __name__ == '__main__':
             start()
         else:
             schedule.every(sch).minutes.do(start)
-            logger.info(f"    Scheduled Mode: Running every {calc_next_run(sch)}.")
+            time_str, _ = calc_next_run(sch)
+            logger.info(f"    Scheduled Mode: Running every {time_str}.")
             start()
             while not killer.kill_now:
                 schedule.run_pending()
-                calc_next_run(sch, True)
                 time.sleep(60)
             end()
     except KeyboardInterrupt:
