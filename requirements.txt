@@ -3,4 +3,4 @@ qbittorrent-api==2021.12.26
 schedule==1.1.0
 retrying==1.3.3
 alive_progress==2.1.0
-requests==2.26.0
+requests==2.27.0
