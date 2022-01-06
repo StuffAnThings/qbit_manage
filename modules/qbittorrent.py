@@ -1,5 +1,5 @@
 import logging, os
-from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error
+from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
@@ -132,7 +132,14 @@ class Qbt:
                 if torrent.category == '':
                     new_cat = self.config.get_category(torrent.save_path)
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                    if not dry_run: torrent.set_category(category=new_cat)
+                    if not dry_run:
+                        try:
+                            torrent.set_category(category=new_cat)
+                        except Conflict409Error:
+                            e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
+                            self.config.notify(e, 'Update Category', False)
+                            self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                            torrent.set_category(category=new_cat)
                     body = []
                     body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
                     body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
