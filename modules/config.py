@@ -293,9 +293,10 @@ class Config:
         if "cat" in self.data and self.data["cat"] is not None:
             cat_path = self.data["cat"]
             for cat, save_path in cat_path.items():
-                if save_path in path:
+                if os.path.join(save_path, '') == path:
                     category = cat
                     break
+
         if not category:
             default_cat = path.split('/')[-2]
             category = str(default_cat)

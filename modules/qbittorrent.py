@@ -1,5 +1,5 @@
-import logging, os
-from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error
+import logging, os, sys
+from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
@@ -11,6 +11,8 @@ logger = logging.getLogger("qBit Manage")
 
 
 class Qbt:
+    SUPPORTED_VERSION = 'v4.3'
+
     def __init__(self, config, params):
         self.config = config
         config_handler.set_global(bar=None, receipt_text=False)
@@ -21,13 +23,28 @@ class Qbt:
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password)
             self.client.auth_log_in()
+            logger.debug(f'qBittorrent: {self.client.app.version}')
+            logger.debug(f'qBittorrent Web API: {self.client.app.web_api_version}')
+            logger.debug(f'qbit_manage support version: {self.SUPPORTED_VERSION}')
+            current_version = ".".join(self.client.app.version.split(".")[:2])
+            if current_version > self.SUPPORTED_VERSION:
+                e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION}.* or lower. You are currently on {self.client.app.version}"
+                self.config.notify(e, "Qbittorrent")
+                print_line(e, 'CRITICAL')
+                sys.exit(0)
             logger.info("Qbt Connection Successful")
         except LoginFailed:
-            raise Failed("Qbittorrent Error: Failed to login. Invalid username/password.")
+            e = "Qbittorrent Error: Failed to login. Invalid username/password."
+            self.config.notify(e, "Qbittorrent")
+            raise Failed(e)
         except APIConnectionError:
-            raise Failed("Qbittorrent Error: Unable to connect to the client.")
+            e = "Qbittorrent Error: Unable to connect to the client."
+            self.config.notify(e, "Qbittorrent")
+            raise Failed(e)
         except Exception:
-            raise Failed("Qbittorrent Error: Unable to connect to the client.")
+            e = "Qbittorrent Error: Unable to connect to the client."
+            self.config.notify(e, "Qbittorrent")
+            raise Failed(e)
         separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({'sort': 'added_on'})
 
@@ -132,7 +149,14 @@ class Qbt:
                 if torrent.category == '':
                     new_cat = self.config.get_category(torrent.save_path)
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                    if not dry_run: torrent.set_category(category=new_cat)
+                    if not dry_run:
+                        try:
+                            torrent.set_category(category=new_cat)
+                        except Conflict409Error:
+                            e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
+                            self.config.notify(e, 'Update Category', False)
+                            self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                            torrent.set_category(category=new_cat)
                     body = []
                     body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
                     body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
@@ -416,6 +440,9 @@ class Qbt:
                 'RETITLED',
                 'TRUNCATED'
             ]
+            ignore_msgs = [
+                'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT'
+            ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any potential unregistered torrents Tags that are no longer unreachable.
@@ -436,7 +463,7 @@ class Qbt:
                             # Tag any potential unregistered torrents
                             if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
                                 # Check for unregistered torrents using BHD API if the tracker is BHD
-                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
+                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and all(x not in msg_up for x in ignore_msgs):
                                     json = {"info_hash": torrent.hash}
                                     response = self.config.BeyondHD.search(json)
                                     if response['total_results'] <= 1:
