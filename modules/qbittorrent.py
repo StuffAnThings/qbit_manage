@@ -11,7 +11,7 @@ logger = logging.getLogger("qBit Manage")
 
 
 class Qbt:
-    SUPPORTED_VERSION = 'v4.3.9'
+    SUPPORTED_VERSION = 'v4.3'
 
     def __init__(self, config, params):
         self.config = config
@@ -26,8 +26,9 @@ class Qbt:
             logger.debug(f'qBittorrent: {self.client.app.version}')
             logger.debug(f'qBittorrent Web API: {self.client.app.web_api_version}')
             logger.debug(f'qbit_manage support version: {self.SUPPORTED_VERSION}')
-            if self.client.app.version > self.SUPPORTED_VERSION:
-                e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION} or lower. You are currently on {self.client.app.version}"
+            current_version = ".".join(self.client.app.version.split(".")[:2])
+            if current_version > self.SUPPORTED_VERSION:
+                e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION}.* or lower. You are currently on {self.client.app.version}"
                 self.config.notify(e, "Qbittorrent")
                 print_line(e, 'CRITICAL')
                 sys.exit(0)
