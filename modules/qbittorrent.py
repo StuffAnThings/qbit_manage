@@ -1,4 +1,4 @@
-import logging, os
+import logging, os, sys
 from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
@@ -11,6 +11,8 @@ logger = logging.getLogger("qBit Manage")
 
 
 class Qbt:
+    SUPPORTED_VERSION = 'v4.3.9'
+
     def __init__(self, config, params):
         self.config = config
         config_handler.set_global(bar=None, receipt_text=False)
@@ -21,13 +23,27 @@ class Qbt:
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password)
             self.client.auth_log_in()
+            logger.debug(f'qBittorrent: {self.client.app.version}')
+            logger.debug(f'qBittorrent Web API: {self.client.app.web_api_version}')
+            logger.debug(f'qbit_manage support version: {self.SUPPORTED_VERSION}')
+            if self.client.app.version > self.SUPPORTED_VERSION:
+                e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION} or lower. You are currently on {self.client.app.version}"
+                self.config.notify(e, "Qbittorrent Error")
+                print_line(e, 'CRITICAL')
+                sys.exit(0)
             logger.info("Qbt Connection Successful")
         except LoginFailed:
-            raise Failed("Qbittorrent Error: Failed to login. Invalid username/password.")
+            e = "Qbittorrent Error: Failed to login. Invalid username/password."
+            self.config.notify(e, "Qbittorrent Error")
+            raise Failed(e)
         except APIConnectionError:
-            raise Failed("Qbittorrent Error: Unable to connect to the client.")
+            e = "Qbittorrent Error: Unable to connect to the client."
+            self.config.notify(e, "Qbittorrent Error")
+            raise Failed(e)
         except Exception:
-            raise Failed("Qbittorrent Error: Unable to connect to the client.")
+            e = "Qbittorrent Error: Unable to connect to the client."
+            self.config.notify(e, "Qbittorrent Error")
+            raise Failed(e)
         separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({'sort': 'added_on'})
 
