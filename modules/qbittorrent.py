@@ -28,21 +28,21 @@ class Qbt:
             logger.debug(f'qbit_manage support version: {self.SUPPORTED_VERSION}')
             if self.client.app.version > self.SUPPORTED_VERSION:
                 e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION} or lower. You are currently on {self.client.app.version}"
-                self.config.notify(e, "Qbittorrent Error")
+                self.config.notify(e, "Qbittorrent")
                 print_line(e, 'CRITICAL')
                 sys.exit(0)
             logger.info("Qbt Connection Successful")
         except LoginFailed:
             e = "Qbittorrent Error: Failed to login. Invalid username/password."
-            self.config.notify(e, "Qbittorrent Error")
+            self.config.notify(e, "Qbittorrent")
             raise Failed(e)
         except APIConnectionError:
             e = "Qbittorrent Error: Unable to connect to the client."
-            self.config.notify(e, "Qbittorrent Error")
+            self.config.notify(e, "Qbittorrent")
             raise Failed(e)
         except Exception:
             e = "Qbittorrent Error: Unable to connect to the client."
-            self.config.notify(e, "Qbittorrent Error")
+            self.config.notify(e, "Qbittorrent")
             raise Failed(e)
         separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({'sort': 'added_on'})
