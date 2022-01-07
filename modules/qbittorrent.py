@@ -423,6 +423,9 @@ class Qbt:
                 'RETITLED',
                 'TRUNCATED'
             ]
+            ignore_msgs = [
+                'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT'
+            ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any potential unregistered torrents Tags that are no longer unreachable.
@@ -443,7 +446,7 @@ class Qbt:
                             # Tag any potential unregistered torrents
                             if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
                                 # Check for unregistered torrents using BHD API if the tracker is BHD
-                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None:
+                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and all(x not in msg_up for x in ignore_msgs):
                                     json = {"info_hash": torrent.hash}
                                     response = self.config.BeyondHD.search(json)
                                     if response['total_results'] <= 1:
