@@ -80,7 +80,7 @@ class Qbt:
                 is_complete = False
                 msg = None
                 status = None
-                if torrent.auto_tmm is False and settings['force_auto_tmm'] and not dry_run:
+                if torrent.auto_tmm is False and settings['force_auto_tmm'] and torrent.category != '' and not dry_run:
                     torrent.set_auto_management(True)
                 try:
                     torrent_name = torrent.name
@@ -152,6 +152,8 @@ class Qbt:
                     if not dry_run:
                         try:
                             torrent.set_category(category=new_cat)
+                            if torrent.auto_tmm is False and self.config.settings['force_auto_tmm']:
+                                torrent.set_auto_management(True)
                         except Conflict409Error:
                             e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
                             self.config.notify(e, 'Update Category', False)
