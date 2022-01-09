@@ -272,10 +272,10 @@ class Qbt:
             for category in nohardlinks:
                 torrent_list = self.get_torrents({'category': category, 'filter': 'completed'})
                 if len(torrent_list) == 0:
-                    e = 'No torrents found in the category ('+category+') defined under nohardlinks attribute in the config. \
-                         Please check if this matches with any category in qbittorrent and has 1 or more torrents.'
-                    self.config.notify(e, 'Tag No Hard Links', False)
-                    logger.error(e)
+                    e = 'No torrents found in the category ('+category+') defined under nohardlinks attribute in the config. ' + \
+                        'Please check if this matches with any category in qbittorrent and has 1 or more torrents.'
+                    # self.config.notify(e, 'Tag No Hard Links', False)
+                    logger.warning(e)
                     continue
                 for torrent in alive_it(torrent_list):
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
