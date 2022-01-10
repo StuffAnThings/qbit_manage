@@ -354,6 +354,7 @@ if __name__ == '__main__':
             schedule.every(sch).minutes.do(start)
             time_str, _ = calc_next_run(sch)
             logger.info(f"    Scheduled Mode: Running every {time_str}.")
+            time.sleep(30)
             start()
             while not killer.kill_now:
                 schedule.run_pending()
