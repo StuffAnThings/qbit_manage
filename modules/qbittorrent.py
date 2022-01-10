@@ -448,7 +448,8 @@ class Qbt:
                 'UNKNOWN TORRENT',
                 'TRUMP',
                 'RETITLED',
-                'TRUNCATED'
+                'TRUNCATED',
+                'TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER'
             ]
             ignore_msgs = [
                 'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT'
