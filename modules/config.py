@@ -193,7 +193,11 @@ class Config:
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
             if self.recyclebin['enabled']:
-                self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'), make_dirs=True)
+                if "recycle_bin" in self.data["directory"]:
+                    default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip('/')))
+                else:
+                    default_recycle = os.path.join(self.remote_dir, '.RecycleBin')
+                self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=default_recycle, make_dirs=True)
             else:
                 self.recycle_dir = None
             if self.recyclebin['enabled'] and self.recyclebin['save_torrents']:
