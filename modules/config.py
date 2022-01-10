@@ -195,7 +195,7 @@ class Config:
             if self.recyclebin['enabled']:
                 self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'), make_dirs=True)
             else:
-                self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'))
+                self.recycle_dir = None
             if self.recyclebin['enabled'] and self.recyclebin['save_torrents']:
                 self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
                 if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
@@ -210,10 +210,11 @@ class Config:
             raise Failed(e)
 
         # Add Orphaned
-        exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
         self.orphaned = {}
         self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
-        self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
+        if self.recyclebin['enabled']:
+            exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
+            self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
 
         # Connect to Qbittorrent
         self.qbt = None
