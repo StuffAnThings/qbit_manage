@@ -198,6 +198,10 @@ def start():
         start_type = ""
     util.separator(f"Starting {start_type}Run")
     cfg = None
+    body = ''
+    run_time = ''
+    end_time = None
+    next_run = None
     global stats
     stats = {
         "added": 0,
@@ -214,11 +218,27 @@ def start():
         "pot_unreg": 0,
         "taggednoHL": 0
     }
+
+    def FinishedRun():
+        nonlocal end_time, start_time, start_type, stats_summary, run_time, next_run, body
+        end_time = datetime.now()
+        run_time = str(end_time - start_time).split('.')[0]
+        _, nr = calc_next_run(sch, True)
+        next_run_str = nr['next_run_str']
+        next_run = nr['next_run']
+        body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
+                              .replace('\n\n', '\n').rstrip())[0]
+        return next_run, body
     try:
         cfg = Config(default_dir, args)
     except Exception as e:
-        util.print_stacktrace()
-        util.print_multiline(e, 'CRITICAL')
+        if 'Qbittorrent Error' in e.args[0]:
+            util.print_multiline(e, 'CRITICAL')
+            FinishedRun()
+            return None
+        else:
+            util.print_stacktrace()
+            util.print_multiline(e, 'CRITICAL')
 
     if cfg:
         # Set Category
@@ -258,7 +278,7 @@ def start():
         num_orphaned = cfg.qbt.rem_orphaned()
         stats["orphaned"] += num_orphaned
 
-        # mpty RecycleBin
+        # Empty RecycleBin
         recycle_emptied = cfg.empty_recycle()
         stats["recycle_emptied"] += recycle_emptied
 
@@ -276,13 +296,8 @@ def start():
     if stats["untagged"] > 0:                   stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged']}")
     if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
 
-    end_time = datetime.now()
-    run_time = str(end_time - start_time).split('.')[0]
-    _, nr = calc_next_run(sch, True)
-    next_run_str = nr['next_run_str']
-    next_run = nr['next_run']
-    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
-                          .replace('\n\n', '\n').rstrip())[0]
+    FinishedRun()
+
     if cfg:
         try:
             cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
