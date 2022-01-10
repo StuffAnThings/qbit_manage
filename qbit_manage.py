@@ -234,6 +234,7 @@ def start():
     except Exception as e:
         if 'Qbittorrent Error' in e.args[0]:
             util.print_multiline(e, 'CRITICAL')
+            util.print_line('Exiting scheduled Run.', 'CRITICAL')
             FinishedRun()
             return None
         else:
