@@ -24,6 +24,7 @@ parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, acti
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
+parser.add_argument('-sd', '--startup-delay', dest='startupDelay',  default='0', type=str, help='Set delay in seconds on the first run of a schedule (Default set to 0)')
 parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,
                     help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
@@ -69,6 +70,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
 
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
+startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
 config_file = get_arg("QBT_CONFIG", args.configfile)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 cross_seed = get_arg("QBT_CROSS_SEED", args.cross_seed, arg_bool=True)
@@ -99,6 +101,7 @@ else:
 for v in [
     'run',
     'sch',
+    'startupDelay',
     'config_file',
     'log_file',
     'cross_seed',
@@ -130,6 +133,13 @@ try:
     sch = int(sch)
 except ValueError:
     print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
+    sys.exit(0)
+
+# Check if StartupDelay parameter is a number
+try:
+    startupDelay = int(startupDelay)
+except ValueError:
+    print(f"startupDelay Error: startupDelay is not a number. Current value is set to '{startupDelay}'")
     sys.exit(0)
 
 logger = logging.getLogger('qBit Manage')
@@ -329,6 +339,7 @@ if __name__ == '__main__':
     util.separator(loglevel='DEBUG')
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
+    logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")
     logger.debug(f"    --config-file (QBT_CONFIG): {config_file}")
     logger.debug(f"    --log-file (QBT_LOGFILE): {log_file}")
     logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {cross_seed}")
@@ -354,7 +365,9 @@ if __name__ == '__main__':
             schedule.every(sch).minutes.do(start)
             time_str, _ = calc_next_run(sch)
             logger.info(f"    Scheduled Mode: Running every {time_str}.")
-            time.sleep(30)
+            if startupDelay:
+                logger.info(f"     Startup Delay: Initial Run will start after {startupDelay} seconds")
+                time.sleep(startupDelay)
             start()
             while not killer.kill_now:
                 schedule.run_pending()
