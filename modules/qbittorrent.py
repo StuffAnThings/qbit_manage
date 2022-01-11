@@ -1,5 +1,5 @@
 import logging, os, sys
-from qbittorrentapi import Client, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
+from qbittorrentapi import Client, Version, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator
 from datetime import timedelta
@@ -11,7 +11,6 @@ logger = logging.getLogger("qBit Manage")
 
 
 class Qbt:
-    SUPPORTED_VERSION = 'v4.3'
 
     def __init__(self, config, params):
         self.config = config
@@ -23,12 +22,14 @@ class Qbt:
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password)
             self.client.auth_log_in()
+
+            SUPPORTED_VERSION = Version.latest_supported_app_version()
+            CURRENT_VERSION = self.client.app.version
             logger.debug(f'qBittorrent: {self.client.app.version}')
             logger.debug(f'qBittorrent Web API: {self.client.app.web_api_version}')
-            logger.debug(f'qbit_manage support version: {self.SUPPORTED_VERSION}')
-            current_version = ".".join(self.client.app.version.split(".")[:2])
-            if current_version > self.SUPPORTED_VERSION:
-                e = f"Qbittorrent Error: qbit_manage is only comaptible with {self.SUPPORTED_VERSION}.* or lower. You are currently on {self.client.app.version}"
+            logger.debug(f'qbit_manage support version: {SUPPORTED_VERSION}')
+            if not Version.is_app_version_supported(CURRENT_VERSION):
+                e = f"Qbittorrent Error: qbit_manage is only comaptible with {SUPPORTED_VERSION} or lower. You are currently on {CURRENT_VERSION}"
                 self.config.notify(e, "Qbittorrent")
                 print_line(e, 'CRITICAL')
                 sys.exit(0)
