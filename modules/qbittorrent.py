@@ -20,7 +20,7 @@ class Qbt:
         self.password = params["password"]
         logger.debug(f'Host: {self.host}, Username: {self.username}, Password: {self.password if self.password is None else "[REDACTED]"}')
         try:
-            self.client = Client(host=self.host, username=self.username, password=self.password)
+            self.client = Client(host=self.host, username=self.username, password=self.password, VERIFY_WEBUI_CERTIFICATE=False)
             self.client.auth_log_in()
 
             SUPPORTED_VERSION = Version.latest_supported_app_version()
@@ -141,7 +141,7 @@ class Qbt:
         self.torrentinfo = None
         self.torrentissue = None
         self.torrentvalid = None
-        if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered']:
+        if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered'] or config.args['tag_tracker_error']:
             # Get an updated torrent dictionary information of the torrents
             self.torrentinfo, self.torrentissue, self.torrentvalid = get_torrent_info(self.torrent_list)
 
@@ -154,35 +154,35 @@ class Qbt:
         num_cat = 0
         if self.config.args['cat_update']:
             separator("Updating Categories", space=False, border=False)
-            for torrent in self.torrent_list:
-                if torrent.category == '':
-                    new_cat = self.config.get_category(torrent.save_path)
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                    if not dry_run:
-                        try:
-                            torrent.set_category(category=new_cat)
-                            if torrent.auto_tmm is False and self.config.settings['force_auto_tmm']:
-                                torrent.set_auto_management(True)
-                        except Conflict409Error:
-                            e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
-                            self.config.notify(e, 'Update Category', False)
-                            self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
-                            torrent.set_category(category=new_cat)
-                    body = []
-                    body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
-                    body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
-                    body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
-                    attr = {
-                        "function": "cat_update",
-                        "title": "Updating Categories",
-                        "body": "\n".join(body),
-                        "torrent_name": torrent.name,
-                        "torrent_category": new_cat,
-                        "torrent_tracker": tracker["url"],
-                        "notifiarr_indexer": tracker["notifiarr"]
-                    }
-                    self.config.send_notifications(attr)
-                    num_cat += 1
+            torrent_list = self.get_torrents({'category': '', 'filter': 'completed'})
+            for torrent in torrent_list:
+                new_cat = self.config.get_category(torrent.save_path)
+                tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                if not dry_run:
+                    try:
+                        torrent.set_category(category=new_cat)
+                        if torrent.auto_tmm is False and self.config.settings['force_auto_tmm']:
+                            torrent.set_auto_management(True)
+                    except Conflict409Error:
+                        e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
+                        self.config.notify(e, 'Update Category', False)
+                        self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                        torrent.set_category(category=new_cat)
+                body = []
+                body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
+                body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
+                body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+                attr = {
+                    "function": "cat_update",
+                    "title": "Updating Categories",
+                    "body": "\n".join(body),
+                    "torrent_name": torrent.name,
+                    "torrent_category": new_cat,
+                    "torrent_tracker": tracker["url"],
+                    "notifiarr_indexer": tracker["notifiarr"]
+                }
+                self.config.send_notifications(attr)
+                num_cat += 1
             if num_cat >= 1:
                 print_line(f"{'Did not update' if dry_run else 'Updated'} {num_cat} new categories.", loglevel)
             else:
@@ -193,7 +193,8 @@ class Qbt:
         dry_run = self.config.args['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_tags = 0
-        ignore_tags = ['noHL', 'issue', 'cross-seed']
+        tag_error = self.config.settings['tracker_error_tag']
+        ignore_tags = ['noHL', tag_error, 'cross-seed']
         if self.config.args['tag_update']:
             separator("Updating Tags", space=False, border=False)
             for torrent in self.torrent_list:
@@ -400,8 +401,35 @@ class Qbt:
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         del_tor = 0
         del_tor_cont = 0
-        pot_unreg = 0
-        pot_unr_summary = ''
+        num_tor_error = 0
+        num_untag = 0
+        tor_error_summary = ''
+        tag_error = self.config.settings['tracker_error_tag']
+        cfg_rem_unregistered = self.config.args['rem_unregistered']
+        cfg_tag_error = self.config.args['tag_tracker_error']
+
+        def tag_tracker_error():
+            nonlocal dry_run, t_name, msg_up, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
+            tor_error = ''
+            tor_error += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
+            tor_error += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
+            tor_error += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
+            tor_error += (util.insert_space(f"Added Tag: {tag_error}", 6)+'\n')
+            tor_error_summary += tor_error
+            num_tor_error += 1
+            attr = {
+                "function": "tag_tracker_error",
+                "title": "Tag Tracker Error Torrents",
+                "body": tor_error,
+                "torrent_name": t_name,
+                "torrent_category": t_cat,
+                "torrent_tag": tag_error,
+                "torrent_status": msg_up,
+                "torrent_tracker": tracker["url"],
+                "notifiarr_indexer": tracker["notifiarr"],
+            }
+            self.config.send_notifications(attr)
+            if not dry_run: torrent.add_tags(tags=tag_error)
 
         def del_unregistered():
             nonlocal dry_run, loglevel, del_tor, del_tor_cont, t_name, msg_up, tracker, t_cat, t_msg, t_status, torrent
@@ -438,8 +466,9 @@ class Qbt:
             attr["body"] = "\n".join(body)
             self.config.send_notifications(attr)
 
-        if self.config.args['rem_unregistered']:
-            separator("Removing Unregistered Torrents", space=False, border=False)
+        if cfg_rem_unregistered or cfg_tag_error:
+            if cfg_tag_error: separator("Tagging Torrents with Tracker Errors", space=False, border=False)
+            elif cfg_rem_unregistered: separator("Removing Unregistered Torrents", space=False, border=False)
             unreg_msgs = [
                 'UNREGISTERED',
                 'TORRENT NOT FOUND',
@@ -457,9 +486,27 @@ class Qbt:
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
-                # Remove any potential unregistered torrents Tags that are no longer unreachable.
-                if 'issue' in check_tags:
-                    if not dry_run: torrent.remove_tags(tags='issue')
+                # Remove any error torrents Tags that are no longer unreachable.
+                if tag_error in check_tags:
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                    num_untag += 1
+                    body = []
+                    body += print_line(f'Previous Tagged {tag_error} torrent currently has a working tracker.', loglevel)
+                    body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
+                    body += print_line(util.insert_space(f'Removed Tag: {tag_error}', 4), loglevel)
+                    body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+                    if not dry_run: torrent.remove_tags(tags=tag_error)
+                    attr = {
+                        "function": "untag_tracker_error",
+                        "title": "Untagging Tracker Error Torrent",
+                        "body": "\n".join(body),
+                        "torrent_name": torrent.name,
+                        "torrent_category": torrent.category,
+                        "torrent_tag": tag_error,
+                        "torrent_tracker": tracker["url"],
+                        "notifiarr_indexer": tracker["notifiarr"]
+                    }
+                    self.config.send_notifications(attr)
             for torrent in self.torrentissue:
                 t_name = torrent.name
                 t_cat = self.torrentinfo[t_name]['Category']
@@ -472,53 +519,41 @@ class Qbt:
                         if x.url.startswith('http'):
                             tracker = self.config.get_tags([x.url])
                             msg_up = x.msg.upper()
-                            # Tag any potential unregistered torrents
-                            if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and 'issue' not in check_tags:
-                                # Check for unregistered torrents using BHD API if the tracker is BHD
-                                if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and all(x not in msg_up for x in ignore_msgs):
-                                    json = {"info_hash": torrent.hash}
-                                    response = self.config.BeyondHD.search(json)
-                                    if response['total_results'] <= 1:
-                                        del_unregistered()
-                                        break
-                                pot_unr = ''
-                                pot_unr += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
-                                pot_unr += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
-                                pot_unr += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
-                                pot_unr += (util.insert_space("Added Tag: 'issue'", 6)+'\n')
-                                pot_unr_summary += pot_unr
-                                pot_unreg += 1
-                                attr = {
-                                    "function": "potential_rem_unregistered",
-                                    "title": "Potential Unregistered Torrents",
-                                    "body": pot_unr,
-                                    "torrent_name": t_name,
-                                    "torrent_category": t_cat,
-                                    "torrent_tag": "issue",
-                                    "torrent_status": msg_up,
-                                    "torrent_tracker": tracker["url"],
-                                    "notifiarr_indexer": tracker["notifiarr"],
-                                }
-                                self.config.send_notifications(attr)
-                                if not dry_run: torrent.add_tags(tags='issue')
-                            if any(m in msg_up for m in unreg_msgs) and x.status == 4:
-                                del_unregistered()
-                                break
+                            # Tag any error torrents
+                            if cfg_tag_error:
+                                if x.status == 4 and tag_error not in check_tags:
+                                    tag_tracker_error()
+                            if cfg_rem_unregistered:
+                                # Tag any error torrents that are not unregistered
+                                if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and tag_error not in check_tags:
+                                    # Check for unregistered torrents using BHD API if the tracker is BHD
+                                    if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and all(x not in msg_up for x in ignore_msgs):
+                                        json = {"info_hash": torrent.hash}
+                                        response = self.config.BeyondHD.search(json)
+                                        if response['total_results'] <= 1:
+                                            del_unregistered()
+                                            break
+                                    tag_tracker_error()
+                                if any(m in msg_up for m in unreg_msgs) and x.status == 4:
+                                    del_unregistered()
+                                    break
                 except NotFound404Error:
                     continue
                 except Exception as e:
                     util.print_stacktrace()
                     self.config.notify(e, 'Remove Unregistered Torrents', False)
                     logger.error(f"Unknown Error: {e}")
-            if del_tor >= 1 or del_tor_cont >= 1:
-                if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
-                if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
-            else:
-                print_line('No unregistered torrents found.', loglevel)
-            if (pot_unreg > 0):
-                separator(f"{pot_unreg} Potential Unregistered torrents found", space=False, border=False, loglevel=loglevel)
-                print_multiline(pot_unr_summary.rstrip(), loglevel)
-        return del_tor, del_tor_cont, pot_unreg
+            if cfg_rem_unregistered:
+                if del_tor >= 1 or del_tor_cont >= 1:
+                    if del_tor >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} .torrent{'s' if del_tor > 1 else ''} but not content files.", loglevel)
+                    if del_tor_cont >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} .torrent{'s' if del_tor_cont > 1 else ''} AND content files.", loglevel)
+                else:
+                    print_line('No unregistered torrents found.', loglevel)
+            if num_untag >= 1: print_line(f"{'Did not delete' if dry_run else 'Deleted'} {tag_error} tags for {num_untag} .torrent{'s.' if num_untag > 1 else '.'}", loglevel)
+            if num_tor_error >= 1:
+                separator(f"{num_tor_error} Torrents with tracker errors found", space=False, border=False, loglevel=loglevel)
+                print_multiline(tor_error_summary.rstrip(), loglevel)
+        return del_tor, del_tor_cont, num_tor_error, num_untag
 
     # Function used to move any torrents from the cross seed directory to the correct save directory
     def cross_seed(self):

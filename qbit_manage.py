@@ -35,6 +35,7 @@ parser.add_argument('-cu', '--cat-update', dest='cat_update', action="store_true
 parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False,
                     help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
 parser.add_argument('-ru', '--rem-unregistered', dest='rem_unregistered', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
+parser.add_argument('-tte', '--tag-tracker-error', dest='tag_tracker_error', action="store_true", default=False, help='Use this if you would like to tag torrents that do not have a working tracker.')
 parser.add_argument('-ro', '--rem-orphaned', dest='rem_orphaned', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
 parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False,
                     help='Use this to tag any torrents that do not have any hard links associated with any of the files. \
@@ -78,6 +79,7 @@ recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
 cat_update = get_arg("QBT_CAT_UPDATE", args.cat_update, arg_bool=True)
 tag_update = get_arg("QBT_TAG_UPDATE", args.tag_update, arg_bool=True)
 rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bool=True)
+tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
 skip_recycle = get_arg("QBT_SKIP_RECYCLE", args.skip_recycle, arg_bool=True)
@@ -109,6 +111,7 @@ for v in [
     'cat_update',
     'tag_update',
     'rem_unregistered',
+    'tag_tracker_error',
     'rem_orphaned',
     'tag_nohardlinks',
     'skip_recycle',
@@ -212,11 +215,12 @@ def start():
         "orphaned": 0,
         "recycle_emptied": 0,
         "tagged": 0,
-        "untagged": 0,
         "categorized": 0,
         "rem_unreg": 0,
-        "pot_unreg": 0,
-        "taggednoHL": 0
+        "tagged_tracker_error": 0,
+        "untagged_tracker_error": 0,
+        "tagged_noHL": 0,
+        "untagged_noHL": 0
     }
 
     def FinishedRun():
@@ -251,11 +255,13 @@ def start():
         stats["tagged"] += num_tagged
 
         # Remove Unregistered Torrents
-        num_deleted, num_deleted_contents, num_pot_unreg = cfg.qbt.rem_unregistered()
+        num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
         stats["rem_unreg"] += (num_deleted + num_deleted_contents)
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
-        stats["pot_unreg"] += num_pot_unreg
+        stats["tagged_tracker_error"] += num_tagged
+        stats["untagged_tracker_error"] += num_untagged
+        stats["tagged"] += num_tagged
 
         # Set Cross Seed
         num_added, num_tagged = cfg.qbt.cross_seed()
@@ -270,8 +276,8 @@ def start():
         # Tag NoHardLinks
         num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
         stats["tagged"] += num_tagged
-        stats["taggednoHL"] += num_tagged
-        stats["untagged"] += num_untagged
+        stats["tagged_noHL"] += num_tagged
+        stats["untagged_noHL"] += num_untagged
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
 
@@ -286,15 +292,16 @@ def start():
     if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
     if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
     if stats["rem_unreg"] > 0:                  stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
-    if stats["pot_unreg"] > 0:                  stats_summary.append(f"Total Potential Unregistered Torrents Found: {stats['pot_unreg']}")
+    if stats["tagged_tracker_error"] > 0:       stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents Tagged: {stats['tagged_tracker_error']}")
+    if stats["untagged_tracker_error"] > 0:     stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents untagged: {stats['untagged_tracker_error']}")
     if stats["added"] > 0:                      stats_summary.append(f"Total Torrents Added: {stats['added']}")
     if stats["resumed"] > 0:                    stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
     if stats["rechecked"] > 0:                  stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
     if stats["deleted"] > 0:                    stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
     if stats["deleted_contents"] > 0:           stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
     if stats["orphaned"] > 0:                   stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
-    if stats["taggednoHL"] > 0:                 stats_summary.append(f"Total noHL Torrents Tagged: {stats['taggednoHL']}")
-    if stats["untagged"] > 0:                   stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged']}")
+    if stats["tagged_noHL"] > 0:                stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
+    if stats["untagged_noHL"] > 0:              stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
     if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
 
     FinishedRun()
@@ -363,6 +370,7 @@ if __name__ == '__main__':
     logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {cat_update}")
     logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {tag_update}")
     logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {rem_unregistered}")
+    logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
     logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {skip_recycle}")

@@ -79,6 +79,7 @@ class Config:
 
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False),
+            "tracker_error_tag": self.util.check_for_attribute(self.data, "tracker_error_tag", parent="settings", default='issue')
         }
 
         default_function = {
@@ -87,9 +88,11 @@ class Config:
             'cat_update': None,
             'tag_update': None,
             'rem_unregistered': None,
+            'tag_tracker_error': None,
             'rem_orphaned': None,
             'tag_nohardlinks': None,
-            'empty_recyclebin': None}
+            'empty_recyclebin': None
+        }
 
         self.webhooks = {
             "error": self.util.check_for_attribute(self.data, "error", parent="webhooks", var_type="list", default_is_none=True),
@@ -97,6 +100,8 @@ class Config:
             "run_end": self.util.check_for_attribute(self.data, "run_end", parent="webhooks", var_type="list", default_is_none=True),
             "function": self.util.check_for_attribute(self.data, "function", parent="webhooks", var_type="list", default=default_function)
         }
+        for func in default_function:
+            self.util.check_for_attribute(self.data, func, parent="webhooks", subparent="function", default_is_none=True)
 
         self.AppriseFactory = None
         if "apprise" in self.data:

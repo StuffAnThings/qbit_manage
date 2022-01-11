@@ -104,10 +104,11 @@ class Webhooks:
                 "torrents_categorized": stats["categorized"],
                 "torrents_tagged": stats["tagged"],
                 "remove_unregistered": stats["rem_unreg"],
-                "potential_unregistered": stats["pot_unreg"],
+                "torrents_tagged_tracker_error": stats["tagged_tracker_error"],
+                "torrents_untagged_tracker_error": stats["untagged_tracker_error"],
                 "orphaned_files_found": stats["orphaned"],
-                "torrents_tagged_no_hardlinks": stats["taggednoHL"],
-                "torrents_untagged_no_hardlinks": stats["untagged"],
+                "torrents_tagged_no_hardlinks": stats["tagged_noHL"],
+                "torrents_untagged_no_hardlinks": stats["untagged_noHL"],
                 "files_deleted_from_recyclebin": stats["recycle_emptied"]
             })
 
