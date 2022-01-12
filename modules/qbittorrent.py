@@ -482,7 +482,10 @@ class Qbt:
                 'TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER'
             ]
             ignore_msgs = [
-                'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT'
+                'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT',
+                'MISSING PASSKEY',
+                'MISSING INFO_HASH',
+                'PASSKEY IS INVALID'
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
