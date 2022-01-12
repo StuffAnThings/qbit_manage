@@ -1,7 +1,7 @@
 import logging, os, sys
 from qbittorrentapi import Client, Version, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
-from modules.util import Failed, print_line, print_multiline, separator
+from modules.util import Failed, print_line, print_multiline, separator, list_in_text
 from datetime import timedelta
 from collections import Counter
 from fnmatch import fnmatch
@@ -113,12 +113,12 @@ class Qbt:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
-                        exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
+                        exception = set(["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"])
                         if x.status == 2:
                             working_tracker = True
                             break
                         # Add any potential unregistered torrents to a list
-                        if x.status == 4 and all(x not in msg for x in exception):
+                        if x.status == 4 and not list_in_text(msg, exception):
                             issue['potential'] = True
                             issue['msg'] = msg
                             issue['status'] = status
@@ -469,7 +469,7 @@ class Qbt:
         if cfg_rem_unregistered or cfg_tag_error:
             if cfg_tag_error: separator("Tagging Torrents with Tracker Errors", space=False, border=False)
             elif cfg_rem_unregistered: separator("Removing Unregistered Torrents", space=False, border=False)
-            unreg_msgs = [
+            unreg_msgs = set([
                 'UNREGISTERED',
                 'TORRENT NOT FOUND',
                 'TORRENT IS NOT FOUND',
@@ -480,13 +480,14 @@ class Qbt:
                 'RETITLED',
                 'TRUNCATED',
                 'TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER'
-            ]
-            ignore_msgs = [
+            ])
+            ignore_msgs = set([
                 'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT',
                 'MISSING PASSKEY',
                 'MISSING INFO_HASH',
-                'PASSKEY IS INVALID'
-            ]
+                'PASSKEY IS INVALID',
+                'INVALID PASSKEY'
+            ])
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any error torrents Tags that are no longer unreachable.
@@ -528,16 +529,16 @@ class Qbt:
                                     tag_tracker_error()
                             if cfg_rem_unregistered:
                                 # Tag any error torrents that are not unregistered
-                                if not any(m in msg_up for m in unreg_msgs) and x.status == 4 and tag_error not in check_tags:
+                                if not list_in_text(msg_up, unreg_msgs) and x.status == 4 and tag_error not in check_tags:
                                     # Check for unregistered torrents using BHD API if the tracker is BHD
-                                    if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and all(x not in msg_up for x in ignore_msgs):
+                                    if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and not list_in_text(msg_up, ignore_msgs):
                                         json = {"info_hash": torrent.hash}
                                         response = self.config.BeyondHD.search(json)
                                         if response['total_results'] <= 1:
                                             del_unregistered()
                                             break
                                     tag_tracker_error()
-                                if any(m in msg_up for m in unreg_msgs) and x.status == 4:
+                                if list_in_text(msg_up, unreg_msgs) and x.status == 4:
                                     del_unregistered()
                                     break
                 except NotFound404Error:

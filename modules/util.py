@@ -1,4 +1,4 @@
-import logging, os, shutil, traceback, time, signal, json
+import logging, os, shutil, traceback, time, signal, json, re
 from logging.handlers import RotatingFileHandler
 from ruamel import yaml
 from pathlib import Path
@@ -187,6 +187,19 @@ def add_dict_list(keys, value, dict_map):
             dict_map[key].append(value)
         else:
             dict_map[key] = [value]
+
+
+def list_in_text(text, search_list, all=False):
+    length = len(search_list)
+    num = 0
+    pattern = re.compile(r'\b'
+                         + r'\b|\b'.join(re.escape(x) for x in search_list)
+                         + r'\b')
+    for t in set(pattern.findall(text)):
+        num += 1
+        if not all: return True
+    if(num == length and all): return True
+    return False
 
 
 def print_line(lines, loglevel='INFO'):
