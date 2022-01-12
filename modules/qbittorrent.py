@@ -113,7 +113,7 @@ class Qbt:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
-                        exception = set(["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"])
+                        exception = ["DOWN", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
                         if x.status == 2:
                             working_tracker = True
                             break
@@ -469,7 +469,7 @@ class Qbt:
         if cfg_rem_unregistered or cfg_tag_error:
             if cfg_tag_error: separator("Tagging Torrents with Tracker Errors", space=False, border=False)
             elif cfg_rem_unregistered: separator("Removing Unregistered Torrents", space=False, border=False)
-            unreg_msgs = set([
+            unreg_msgs = [
                 'UNREGISTERED',
                 'TORRENT NOT FOUND',
                 'TORRENT IS NOT FOUND',
@@ -480,14 +480,14 @@ class Qbt:
                 'RETITLED',
                 'TRUNCATED',
                 'TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER'
-            ])
-            ignore_msgs = set([
+            ]
+            ignore_msgs = [
                 'YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT',
                 'MISSING PASSKEY',
                 'MISSING INFO_HASH',
                 'PASSKEY IS INVALID',
                 'INVALID PASSKEY'
-            ])
+            ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any error torrents Tags that are no longer unreachable.
