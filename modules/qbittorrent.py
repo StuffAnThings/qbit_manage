@@ -193,8 +193,7 @@ class Qbt:
         dry_run = self.config.args['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_tags = 0
-        tag_error = self.config.settings['tracker_error_tag']
-        ignore_tags = ['noHL', tag_error, 'cross-seed']
+        ignore_tags = self.config.settings['ignoreTags_OnUpdate']
         if self.config.args['tag_update']:
             separator("Updating Tags", space=False, border=False)
             for torrent in self.torrent_list:

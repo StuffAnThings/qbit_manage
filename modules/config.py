@@ -81,6 +81,8 @@ class Config:
             "force_auto_tmm": self.util.check_for_attribute(self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False),
             "tracker_error_tag": self.util.check_for_attribute(self.data, "tracker_error_tag", parent="settings", default='issue')
         }
+        default_ignore_tags = ['noHL', self.settings["tracker_error_tag"], 'cross-seed']
+        self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list")
 
         default_function = {
             'cross_seed': None,
