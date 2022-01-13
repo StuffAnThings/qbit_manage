@@ -271,17 +271,18 @@ class Config:
                             logger.debug(e)
                         # If using Format 1 convert to format 2
                         if isinstance(tag_details, str):
-                            tracker['tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tracker", default=default_tag)
-                            self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tracker['tag'], do_print=False)
+                            tracker['tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tracker", default=default_tag, var_type="list")
+                            self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tracker['tag'], do_print=False, var_type="list")
                             if tracker['tag'] == default_tag:
                                 try:
-                                    self.data['tracker'][tag_url]['tag'] = default_tag
+                                    self.data['tracker'][tag_url]['tag'] = [default_tag]
                                 except Exception:
-                                    self.data['tracker'][tag_url] = {'tag': default_tag}
+                                    self.data['tracker'][tag_url] = {'tag': [default_tag]}
                         # Using Format 2
                         else:
-                            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url)
-                            if tracker['tag'] == tag_url: self.data['tracker'][tag_url]['tag'] = tag_url
+                            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list")
+                            if tracker['tag'] == [tag_url]: self.data['tracker'][tag_url]['tag'] = [tag_url]
+                            if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
                             tracker['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tracker", subparent=tag_url,
                                                                                  var_type="float", default_int=-2, default_is_none=True, do_print=False, save=False)
                             tracker['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tracker", subparent=tag_url,
@@ -292,11 +293,12 @@ class Config:
                         return (tracker)
         if tracker['url']:
             default_tag = tracker['url'].split('/')[2].split(':')[0]
-            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag)
+            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list")
+            if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
             try:
-                self.data['tracker'][default_tag]['tag'] = default_tag
+                self.data['tracker'][default_tag]['tag'] = [default_tag]
             except Exception:
-                self.data['tracker'][default_tag] = {'tag': default_tag}
+                self.data['tracker'][default_tag] = {'tag': [default_tag]}
             e = (f'No tags matched for {tracker["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
             self.notify(e, 'Tag', False)
             logger.warning(e)

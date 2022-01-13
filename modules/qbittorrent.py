@@ -202,10 +202,10 @@ class Qbt:
                 if torrent.tags == '' or (len([x for x in check_tags if x not in ignore_tags]) == 0):
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if tracker["tag"]:
-                        num_tags += 1
+                        num_tags += len(tracker["tag"])
                         body = []
                         body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
-                        body += print_line(util.insert_space(f'New Tag: {tracker["tag"]}', 8), loglevel)
+                        body += print_line(util.insert_space(f'New Tag{"s" if len(tracker["tag"]) > 1 else ""}: {", ".join(tracker["tag"])}', 8), loglevel)
                         body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
                         body.extend(self.set_tags_and_limits(torrent, tracker["max_ratio"], tracker["max_seeding_time"], tracker["limit_upload_speed"], tracker["tag"]))
                         category = self.config.get_category(torrent.save_path) if torrent.category == '' else torrent.category
@@ -215,7 +215,7 @@ class Qbt:
                             "body": "\n".join(body),
                             "torrent_name": torrent.name,
                             "torrent_category": category,
-                            "torrent_tag": tracker["tag"],
+                            "torrent_tag": ", ".join(tracker["tag"]),
                             "torrent_tracker": tracker["url"],
                             "notifiarr_indexer": tracker["notifiarr"],
                             "torrent_max_ratio": tracker["max_ratio"],
