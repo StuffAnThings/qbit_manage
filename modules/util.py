@@ -308,7 +308,11 @@ def move_files(src, dest, mod=False):
     dest_path = os.path.dirname(dest)
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
-    shutil.move(src, dest)
+    try:
+        shutil.move(src, dest)
+    except Exception as e:
+        print_stacktrace()
+        logger.error(e)
     if mod is True:
         modTime = time.time()
         os.utime(dest, (modTime, modTime))
@@ -319,7 +323,11 @@ def copy_files(src, dest):
     dest_path = os.path.dirname(dest)
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
-    shutil.copyfile(src, dest)
+    try:
+        shutil.copyfile(src, dest)
+    except Exception as e:
+        print_stacktrace()
+        logger.error(e)
 
 
 # Remove any empty directories after moving files
