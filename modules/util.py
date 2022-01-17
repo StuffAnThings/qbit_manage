@@ -314,7 +314,8 @@ def move_files(src, dest, mod=False):
             modTime = time.time()
             os.utime(src, (modTime, modTime))
         shutil.move(src, dest)
-    except PermissionError:
+    except PermissionError as p:
+        logger.warning(f"{p} : Copying files instead.")
         shutil.copyfile(src, dest)
         toDelete = True
     except Exception as e:
