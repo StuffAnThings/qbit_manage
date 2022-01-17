@@ -24,6 +24,7 @@ parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, acti
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
+parser.add_argument('-sd', '--startup-delay', dest='startupDelay',  default='0', type=str, help='Set delay in seconds on the first run of a schedule (Default set to 0)')
 parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,
                     help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
 parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
@@ -34,6 +35,7 @@ parser.add_argument('-cu', '--cat-update', dest='cat_update', action="store_true
 parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False,
                     help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
 parser.add_argument('-ru', '--rem-unregistered', dest='rem_unregistered', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
+parser.add_argument('-tte', '--tag-tracker-error', dest='tag_tracker_error', action="store_true", default=False, help='Use this if you would like to tag torrents that do not have a working tracker.')
 parser.add_argument('-ro', '--rem-orphaned', dest='rem_orphaned', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
 parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False,
                     help='Use this to tag any torrents that do not have any hard links associated with any of the files. \
@@ -69,6 +71,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
 
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
+startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
 config_file = get_arg("QBT_CONFIG", args.configfile)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 cross_seed = get_arg("QBT_CROSS_SEED", args.cross_seed, arg_bool=True)
@@ -76,6 +79,7 @@ recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
 cat_update = get_arg("QBT_CAT_UPDATE", args.cat_update, arg_bool=True)
 tag_update = get_arg("QBT_TAG_UPDATE", args.tag_update, arg_bool=True)
 rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bool=True)
+tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
 skip_recycle = get_arg("QBT_SKIP_RECYCLE", args.skip_recycle, arg_bool=True)
@@ -99,6 +103,7 @@ else:
 for v in [
     'run',
     'sch',
+    'startupDelay',
     'config_file',
     'log_file',
     'cross_seed',
@@ -106,6 +111,7 @@ for v in [
     'cat_update',
     'tag_update',
     'rem_unregistered',
+    'tag_tracker_error',
     'rem_orphaned',
     'tag_nohardlinks',
     'skip_recycle',
@@ -130,6 +136,13 @@ try:
     sch = int(sch)
 except ValueError:
     print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
+    sys.exit(0)
+
+# Check if StartupDelay parameter is a number
+try:
+    startupDelay = int(startupDelay)
+except ValueError:
+    print(f"startupDelay Error: startupDelay is not a number. Current value is set to '{startupDelay}'")
     sys.exit(0)
 
 logger = logging.getLogger('qBit Manage')
@@ -188,6 +201,10 @@ def start():
         start_type = ""
     util.separator(f"Starting {start_type}Run")
     cfg = None
+    body = ''
+    run_time = ''
+    end_time = None
+    next_run = None
     global stats
     stats = {
         "added": 0,
@@ -198,17 +215,35 @@ def start():
         "orphaned": 0,
         "recycle_emptied": 0,
         "tagged": 0,
-        "untagged": 0,
         "categorized": 0,
         "rem_unreg": 0,
-        "pot_unreg": 0,
-        "taggednoHL": 0
+        "tagged_tracker_error": 0,
+        "untagged_tracker_error": 0,
+        "tagged_noHL": 0,
+        "untagged_noHL": 0
     }
+
+    def FinishedRun():
+        nonlocal end_time, start_time, start_type, stats_summary, run_time, next_run, body
+        end_time = datetime.now()
+        run_time = str(end_time - start_time).split('.')[0]
+        _, nr = calc_next_run(sch, True)
+        next_run_str = nr['next_run_str']
+        next_run = nr['next_run']
+        body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
+                              .replace('\n\n', '\n').rstrip())[0]
+        return next_run, body
     try:
         cfg = Config(default_dir, args)
     except Exception as e:
-        util.print_stacktrace()
-        util.print_multiline(e, 'CRITICAL')
+        if 'Qbittorrent Error' in e.args[0]:
+            util.print_multiline(e, 'CRITICAL')
+            util.print_line('Exiting scheduled Run.', 'CRITICAL')
+            FinishedRun()
+            return None
+        else:
+            util.print_stacktrace()
+            util.print_multiline(e, 'CRITICAL')
 
     if cfg:
         # Set Category
@@ -220,11 +255,13 @@ def start():
         stats["tagged"] += num_tagged
 
         # Remove Unregistered Torrents
-        num_deleted, num_deleted_contents, num_pot_unreg = cfg.qbt.rem_unregistered()
+        num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
         stats["rem_unreg"] += (num_deleted + num_deleted_contents)
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
-        stats["pot_unreg"] += num_pot_unreg
+        stats["tagged_tracker_error"] += num_tagged
+        stats["untagged_tracker_error"] += num_untagged
+        stats["tagged"] += num_tagged
 
         # Set Cross Seed
         num_added, num_tagged = cfg.qbt.cross_seed()
@@ -239,8 +276,8 @@ def start():
         # Tag NoHardLinks
         num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
         stats["tagged"] += num_tagged
-        stats["taggednoHL"] += num_tagged
-        stats["untagged"] += num_untagged
+        stats["tagged_noHL"] += num_tagged
+        stats["untagged_noHL"] += num_untagged
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
 
@@ -248,31 +285,27 @@ def start():
         num_orphaned = cfg.qbt.rem_orphaned()
         stats["orphaned"] += num_orphaned
 
-        # mpty RecycleBin
+        # Empty RecycleBin
         recycle_emptied = cfg.empty_recycle()
         stats["recycle_emptied"] += recycle_emptied
 
     if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
     if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
     if stats["rem_unreg"] > 0:                  stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
-    if stats["pot_unreg"] > 0:                  stats_summary.append(f"Total Potential Unregistered Torrents Found: {stats['pot_unreg']}")
+    if stats["tagged_tracker_error"] > 0:       stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents Tagged: {stats['tagged_tracker_error']}")
+    if stats["untagged_tracker_error"] > 0:     stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents untagged: {stats['untagged_tracker_error']}")
     if stats["added"] > 0:                      stats_summary.append(f"Total Torrents Added: {stats['added']}")
     if stats["resumed"] > 0:                    stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
     if stats["rechecked"] > 0:                  stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
     if stats["deleted"] > 0:                    stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
     if stats["deleted_contents"] > 0:           stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
     if stats["orphaned"] > 0:                   stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
-    if stats["taggednoHL"] > 0:                 stats_summary.append(f"Total noHL Torrents Tagged: {stats['taggednoHL']}")
-    if stats["untagged"] > 0:                   stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged']}")
+    if stats["tagged_noHL"] > 0:                stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
+    if stats["untagged_noHL"] > 0:              stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
     if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
 
-    end_time = datetime.now()
-    run_time = str(end_time - start_time).split('.')[0]
-    _, nr = calc_next_run(sch, True)
-    next_run_str = nr['next_run_str']
-    next_run = nr['next_run']
-    body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
-                          .replace('\n\n', '\n').rstrip())[0]
+    FinishedRun()
+
     if cfg:
         try:
             cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
@@ -329,6 +362,7 @@ if __name__ == '__main__':
     util.separator(loglevel='DEBUG')
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
+    logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")
     logger.debug(f"    --config-file (QBT_CONFIG): {config_file}")
     logger.debug(f"    --log-file (QBT_LOGFILE): {log_file}")
     logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {cross_seed}")
@@ -336,6 +370,7 @@ if __name__ == '__main__':
     logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {cat_update}")
     logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {tag_update}")
     logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {rem_unregistered}")
+    logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
     logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {skip_recycle}")
@@ -354,6 +389,9 @@ if __name__ == '__main__':
             schedule.every(sch).minutes.do(start)
             time_str, _ = calc_next_run(sch)
             logger.info(f"    Scheduled Mode: Running every {time_str}.")
+            if startupDelay:
+                logger.info(f"     Startup Delay: Initial Run will start after {startupDelay} seconds")
+                time.sleep(startupDelay)
             start()
             while not killer.kill_now:
                 schedule.run_pending()

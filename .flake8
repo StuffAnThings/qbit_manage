@@ -8,4 +8,5 @@ ignore =
   E272, # E272	Multiple spaces before keyword
   C901  # C901	Function is too complex
   E722  # E722	Do not use bare except, specify exception instead
+  W503  # W503  Line break occurred before a binary operator
 max-line-length = 200

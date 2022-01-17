@@ -10,16 +10,20 @@ qbt:
   pass: "password"
 
 settings:
-  force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
-
+  force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
+  tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
+  ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has one or more of the tags defined here.
+    - noHL
+    - issue
+    - cross-seed
 directory:
   # Do not remove these
-  # Cross-seed var: </your/path/here/> # Output directory of cross-seed
-  # root_dir var: </your/path/here/> # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
-  # <OPTIONAL> remote_dir var: </your/path/here/> # Path of docker host mapping of root_dir.
+  # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
+  # root_dir var: </your/path/here/>  # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
+  # <OPTIONAL> remote_dir var: </your/path/here/>  # Path of docker host mapping of root_dir.
   # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
-  # <OPTIONAL> recycle_bin var: </your/path/here/> # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
-  # <OPTIONAL> torrents_dir var: </your/path/here/> # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
+  # <OPTIONAL> recycle_bin var: </your/path/here/>   # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
+  # <OPTIONAL> torrents_dir var: </your/path/here/>  # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
 
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
@@ -29,14 +33,14 @@ directory:
 
 # Category & Path Parameters
 cat:
-  # <Category Name> : <save_path> # Path of your save directory.
+  # <Category Name> : <save_path>  # Path of your save directory.
   movies: "/data/torrents/Movies"
   tv: "/data/torrents/TV"
 
 # Tag Parameters
 tracker:
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
-  # <MANDATORY> Set tag name
+  # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
   # <OPTIONAL> Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading. -2 means the global limit should be used, -1 means no limit.
   #   max_ratio: 5.0
@@ -50,13 +54,16 @@ tracker:
     tag: AnimeBytes
     notifiarr: animebytes
   avistaz:
-    tag: Avistaz
+    tag:
+      - Avistaz
+      - tag2
+      - tag3
     max_ratio: 5.0
     max_seeding_time: 129600
     limit_upload_speed: 150
     notifiarr: avistaz
   beyond-hd:
-    tag: Beyond-HD
+    tag: [Beyond-HD, tag2, tag3]
     notifiarr: beyondhd
   blutopia:
     tag: Blutopia
@@ -186,6 +193,7 @@ webhooks:
     cat_update: apprise
     tag_update: notifiarr
     rem_unregistered: notifiarr
+    tag_tracker_error: notifiarr
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
     empty_recyclebin: notifiarr

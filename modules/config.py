@@ -79,7 +79,10 @@ class Config:
 
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False),
+            "tracker_error_tag": self.util.check_for_attribute(self.data, "tracker_error_tag", parent="settings", default='issue')
         }
+        default_ignore_tags = ['noHL', self.settings["tracker_error_tag"], 'cross-seed']
+        self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list")
 
         default_function = {
             'cross_seed': None,
@@ -87,9 +90,11 @@ class Config:
             'cat_update': None,
             'tag_update': None,
             'rem_unregistered': None,
+            'tag_tracker_error': None,
             'rem_orphaned': None,
             'tag_nohardlinks': None,
-            'empty_recyclebin': None}
+            'empty_recyclebin': None
+        }
 
         self.webhooks = {
             "error": self.util.check_for_attribute(self.data, "error", parent="webhooks", var_type="list", default_is_none=True),
@@ -97,6 +102,8 @@ class Config:
             "run_end": self.util.check_for_attribute(self.data, "run_end", parent="webhooks", var_type="list", default_is_none=True),
             "function": self.util.check_for_attribute(self.data, "function", parent="webhooks", var_type="list", default=default_function)
         }
+        for func in default_function:
+            self.util.check_for_attribute(self.data, func, parent="webhooks", subparent="function", default_is_none=True)
 
         self.AppriseFactory = None
         if "apprise" in self.data:
@@ -192,7 +199,17 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
-            self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=os.path.join(self.remote_dir, '.RecycleBin'), make_dirs=True)
+            if self.recyclebin['enabled']:
+                if "recycle_bin" in self.data["directory"]:
+                    default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip('/')))
+                else:
+                    default_recycle = os.path.join(self.remote_dir, '.RecycleBin')
+                if self.recyclebin['split_by_category']:
+                    self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", default=default_recycle)
+                else:
+                    self.recycle_dir = self.util.check_for_attribute(self.data, "recycle_bin", parent="directory", var_type="path", default=default_recycle, make_dirs=True)
+            else:
+                self.recycle_dir = None
             if self.recyclebin['enabled'] and self.recyclebin['save_torrents']:
                 self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
                 if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
@@ -207,10 +224,11 @@ class Config:
             raise Failed(e)
 
         # Add Orphaned
-        exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
         self.orphaned = {}
         self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
-        self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
+        if self.recyclebin['enabled']:
+            exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
+            self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
 
         # Connect to Qbittorrent
         self.qbt = None
@@ -255,17 +273,18 @@ class Config:
                             logger.debug(e)
                         # If using Format 1 convert to format 2
                         if isinstance(tag_details, str):
-                            tracker['tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tracker", default=default_tag)
-                            self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tracker['tag'], do_print=False)
+                            tracker['tag'] = self.util.check_for_attribute(self.data, tag_url, parent="tracker", default=default_tag, var_type="list")
+                            self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tracker['tag'], do_print=False, var_type="list")
                             if tracker['tag'] == default_tag:
                                 try:
-                                    self.data['tracker'][tag_url]['tag'] = default_tag
+                                    self.data['tracker'][tag_url]['tag'] = [default_tag]
                                 except Exception:
-                                    self.data['tracker'][tag_url] = {'tag': default_tag}
+                                    self.data['tracker'][tag_url] = {'tag': [default_tag]}
                         # Using Format 2
                         else:
-                            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url)
-                            if tracker['tag'] == tag_url: self.data['tracker'][tag_url]['tag'] = tag_url
+                            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list")
+                            if tracker['tag'] == [tag_url]: self.data['tracker'][tag_url]['tag'] = [tag_url]
+                            if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
                             tracker['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tracker", subparent=tag_url,
                                                                                  var_type="float", default_int=-2, default_is_none=True, do_print=False, save=False)
                             tracker['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tracker", subparent=tag_url,
@@ -276,11 +295,12 @@ class Config:
                         return (tracker)
         if tracker['url']:
             default_tag = tracker['url'].split('/')[2].split(':')[0]
-            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag)
+            tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list")
+            if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
             try:
-                self.data['tracker'][default_tag]['tag'] = default_tag
+                self.data['tracker'][default_tag]['tag'] = [default_tag]
             except Exception:
-                self.data['tracker'][default_tag] = {'tag': default_tag}
+                self.data['tracker'][default_tag] = {'tag': [default_tag]}
             e = (f'No tags matched for {tracker["url"]}. Please check your config.yml file. Setting tag to {default_tag}')
             self.notify(e, 'Tag', False)
             logger.warning(e)

@@ -189,6 +189,19 @@ def add_dict_list(keys, value, dict_map):
             dict_map[key] = [value]
 
 
+def list_in_text(text, search_list, match_all=False):
+    if isinstance(search_list, list): search_list = set(search_list)
+    contains = set([x for x in search_list if ' ' in x])
+    exception = search_list - contains
+    if match_all:
+        if all(x == m for m in text.split(" ") for x in exception) or all(x in text for x in contains):
+            return True
+    else:
+        if any(x == m for m in text.split(" ") for x in exception) or any(x in text for x in contains):
+            return True
+    return False
+
+
 def print_line(lines, loglevel='INFO'):
     logger.log(getattr(logging, loglevel.upper()), str(lines))
     return [str(lines)]
@@ -295,7 +308,11 @@ def move_files(src, dest, mod=False):
     dest_path = os.path.dirname(dest)
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
-    shutil.move(src, dest)
+    try:
+        shutil.move(src, dest)
+    except Exception as e:
+        print_stacktrace()
+        logger.error(e)
     if mod is True:
         modTime = time.time()
         os.utime(dest, (modTime, modTime))
@@ -306,7 +323,11 @@ def copy_files(src, dest):
     dest_path = os.path.dirname(dest)
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
-    shutil.copyfile(src, dest)
+    try:
+        shutil.copyfile(src, dest)
+    except Exception as e:
+        print_stacktrace()
+        logger.error(e)
 
 
 # Remove any empty directories after moving files
