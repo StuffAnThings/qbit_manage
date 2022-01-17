@@ -866,12 +866,12 @@ class Qbt:
                     dest = os.path.join(recycle_path, file.replace(self.config.remote_dir, ''))
                     # Move files and change date modified
                     try:
-                        util.move_files(src, dest, True)
+                        toDelete = util.move_files(src, dest, True)
                     except FileNotFoundError:
                         e = print_line(f'RecycleBin Warning - FileNotFound: No such file or directory: {src} ', 'WARNING')
                         self.config.notify(e, 'Deleting Torrent', False)
                 # Delete torrent and files
-                torrent.delete(delete_files=False)
+                torrent.delete(delete_files=toDelete)
                 # Remove any empty directories
                 util.remove_empty_directories(save_path, "**/*")
             else:

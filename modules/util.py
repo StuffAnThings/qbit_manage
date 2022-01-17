@@ -306,16 +306,21 @@ def trunc_val(s, d, n=3):
 # Move files from source to destination, mod variable is to change the date modified of the file being moved
 def move_files(src, dest, mod=False):
     dest_path = os.path.dirname(dest)
+    toDelete = False
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
     try:
+        if mod is True:
+            modTime = time.time()
+            os.utime(src, (modTime, modTime))
         shutil.move(src, dest)
+    except PermissionError:
+        shutil.copyfile(src, dest)
+        toDelete = True
     except Exception as e:
         print_stacktrace()
         logger.error(e)
-    if mod is True:
-        modTime = time.time()
-        os.utime(dest, (modTime, modTime))
+    return toDelete
 
 
 # Copy Files from source to destination
