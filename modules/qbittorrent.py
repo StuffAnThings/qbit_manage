@@ -534,7 +534,7 @@ class Qbt:
                                     if 'tracker.beyond-hd.me' in tracker['url'] and self.config.BeyondHD is not None and not list_in_text(msg_up, ignore_msgs):
                                         json = {"info_hash": torrent.hash}
                                         response = self.config.BeyondHD.search(json)
-                                        if response['total_results'] <= 1:
+                                        if response['total_results'] == 0:
                                             del_unregistered()
                                             break
                                     tag_tracker_error()
