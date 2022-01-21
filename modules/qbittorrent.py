@@ -114,7 +114,14 @@ class Qbt:
                     if x.url.startswith('http'):
                         status = x.status
                         msg = x.msg.upper()
-                        exception = ["DOWN", "DOWN.", "UNREACHABLE", "BAD GATEWAY", "TRACKER UNAVAILABLE"]
+                        exception = [
+                            "DOWN",
+                            "DOWN.",
+                            "UNREACHABLE",
+                            "(UNREACHABLE)",
+                            "BAD GATEWAY",
+                            "TRACKER UNAVAILABLE"
+                        ]
                         if x.status == 2:
                             working_tracker = True
                             break
