@@ -98,7 +98,7 @@ class Webhooks:
                 "run_time": run_time,
                 "torrents_added": stats["added"],
                 "torrents_deleted": stats["deleted"],
-                "torrents_deleted_and_contents": stats["deleted_contents"],
+                "torrents_deleted_and_contents_count": stats["deleted_contents"],
                 "torrents_resumed": stats["resumed"],
                 "torrents_rechecked": stats["rechecked"],
                 "torrents_categorized": stats["categorized"],
