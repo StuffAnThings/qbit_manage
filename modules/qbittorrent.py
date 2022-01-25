@@ -149,7 +149,7 @@ class Qbt:
         self.torrentinfo = None
         self.torrentissue = None
         self.torrentvalid = None
-        if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered'] or config.args['tag_tracker_error']:
+        if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered'] or config.args['tag_tracker_error'] or config.args['tag_nohardlinks']:
             # Get an updated torrent dictionary information of the torrents
             self.torrentinfo, self.torrentissue, self.torrentvalid = get_torrent_info(self.torrent_list)
 
