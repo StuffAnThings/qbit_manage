@@ -365,28 +365,39 @@ class Qbt:
                 # loop through torrent list again for cleanup purposes
                 if (nohardlinks[category]['cleanup']):
                     for torrent in torrent_list:
-                        if torrent.name in tdel_dict.keys() and 'noHL' in torrent.tags:
+                        t_name = torrent.name
+                        if t_name in tdel_dict.keys() and 'noHL' in torrent.tags:
+                            t_count = self.torrentinfo[t_name]['count']
+                            t_msg = self.torrentinfo[t_name]['msg']
+                            t_status = self.torrentinfo[t_name]['status']
                             # Double check that the content path is the same before we delete anything
-                            if torrent['content_path'].replace(root_dir, root_dir) == tdel_dict[torrent.name]:
+                            if torrent['content_path'].replace(root_dir, root_dir) == tdel_dict[t_name]:
                                 tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                                 body = []
-                                body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
+                                body += print_line(util.insert_space(f'Torrent Name: {t_name}', 3), loglevel)
                                 body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
                                 body += print_line(util.insert_space("Cleanup: True [No hard links found and meets Share Limits.]", 8), loglevel)
                                 attr = {
                                     "function": "cleanup_tag_nohardlinks",
                                     "title": "Removing NoHL Torrents and meets Share Limits",
-                                    "torrent_name": torrent.name,
+                                    "torrent_name": t_name,
                                     "torrent_category": torrent.category,
                                     "cleanup": 'True',
                                     "torrent_tracker": tracker["url"],
                                     "notifiarr_indexer": tracker["notifiarr"],
                                 }
                                 if (os.path.exists(torrent['content_path'].replace(root_dir, root_dir))):
-                                    del_tor_cont += 1
-                                    attr["torrents_deleted_and_contents"] = True
-                                    if not dry_run: self.tor_delete_recycle(torrent, attr)
-                                    body += print_line(util.insert_space('Deleted .torrent AND content files.', 8), loglevel)
+                                    # Checks if any of the original torrents are working
+                                    if t_count > 1 and ('' in t_msg or 2 in t_status):
+                                        del_tor += 1
+                                        attr["torrents_deleted_and_contents"] = False
+                                        if not dry_run: self.tor_delete_recycle(torrent, attr)
+                                        body += print_line(util.insert_space('Deleted .torrent but NOT content files.', 8), loglevel)
+                                    else:
+                                        del_tor_cont += 1
+                                        attr["torrents_deleted_and_contents"] = True
+                                        if not dry_run: self.tor_delete_recycle(torrent, attr)
+                                        body += print_line(util.insert_space('Deleted .torrent AND content files.', 8), loglevel)
                                 else:
                                     del_tor += 1
                                     attr["torrents_deleted_and_contents"] = False
