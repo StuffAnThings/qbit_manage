@@ -59,7 +59,7 @@ class check:
         else:
             text = f"{parent} sub-attribute {attribute}"
 
-        if data is None or attribute not in data:
+        if data is None or attribute not in data or (attribute in data and data[attribute] is None and not default_is_none):
             message = f"{text} not found"
             if parent and save is True:
                 loaded_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config.config_path))
@@ -77,7 +77,7 @@ class check:
                     endline = f"\n{parent} sub-attribute {attribute} added to config"
                     if parent not in loaded_config or not loaded_config[parent]:
                         loaded_config[parent] = {attribute: default}
-                    elif attribute not in loaded_config[parent]:
+                    elif attribute not in loaded_config[parent] or (attribute in loaded_config[parent] and loaded_config[parent][attribute] is None):
                         loaded_config[parent][attribute] = default
                     else:
                         endline = ""
