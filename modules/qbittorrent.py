@@ -405,6 +405,7 @@ class Qbt:
                                     body += print_line(util.insert_space('Deleted .torrent but NOT content files.', 8), loglevel)
                                 attr["body"] = "\n".join(body)
                                 self.config.send_notifications(attr)
+                                self.torrentinfo[t_name]['count'] -= 1
             if num_tags >= 1:
                 print_line(f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} .torrent{'s.' if num_tags > 1 else '.'}", loglevel)
             else:
@@ -483,6 +484,7 @@ class Qbt:
                 del_tor_cont += 1
             attr["body"] = "\n".join(body)
             self.config.send_notifications(attr)
+            self.torrentinfo[t_name]['count'] -= 1
 
         if cfg_rem_unregistered or cfg_tag_error:
             if cfg_tag_error: separator("Tagging Torrents with Tracker Errors", space=False, border=False)
