@@ -14,7 +14,7 @@ class Qbt:
 
     def __init__(self, config, params):
         self.config = config
-        config_handler.set_global(bar=None, receipt_text=False)
+        config_handler.set_global(bar=None, receipt=False)
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
