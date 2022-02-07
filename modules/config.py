@@ -200,7 +200,7 @@ class Config:
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
             if self.recyclebin['enabled']:
-                if "recycle_bin" in self.data["directory"]:
+                if "recycle_bin" in self.data["directory"] and self.data["directory"]["recycle_bin"] is not None:
                     default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip('/')))
                 else:
                     default_recycle = os.path.join(self.remote_dir, '.RecycleBin')
