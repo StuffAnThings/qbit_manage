@@ -117,6 +117,7 @@ class Qbt:
                         exception = [
                             "DOWN",
                             "DOWN.",
+                            "IT MAY BE DOWN,",
                             "UNREACHABLE",
                             "(UNREACHABLE)",
                             "BAD GATEWAY",
