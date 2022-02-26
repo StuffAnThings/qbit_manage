@@ -117,8 +117,12 @@ nohardlinks:
     cleanup: false
     # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
-    # <OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
+    # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
+    limit_upload_speed:
+    # <OPTIONAL> min seeding time var: Will ensure that torrent is not deleted by cleanup variable if torrent does not meet minimum seeding time (min).
+    min_seeding_time: 43200
 
   # Can have additional categories set with separate ratio/seeding times defined.
   series-completed:
@@ -130,8 +134,12 @@ nohardlinks:
     cleanup: false
     # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
-    # <OPTIONAL> seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
     max_seeding_time: 86400
+    # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
+    limit_upload_speed:
+    # <OPTIONAL> min seeding time var: Will ensure that torrent is not deleted by cleanup variable if torrent does not meet minimum seeding time (min).
+    min_seeding_time: 43200
 
 # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
 # By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
