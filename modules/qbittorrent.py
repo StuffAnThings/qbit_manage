@@ -510,7 +510,8 @@ class Qbt:
                 'PASSKEY IS INVALID',
                 'INVALID PASSKEY',
                 'EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING',
-                'COULD NOT PARSE BENCODED DATA'
+                'COULD NOT PARSE BENCODED DATA',
+                'STREAM TRUNCATED'
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
