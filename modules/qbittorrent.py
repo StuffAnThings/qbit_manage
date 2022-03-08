@@ -117,6 +117,7 @@ class Qbt:
                         exception = [
                             "DOWN",
                             "DOWN.",
+                            "IT MAY BE DOWN,",
                             "UNREACHABLE",
                             "(UNREACHABLE)",
                             "BAD GATEWAY",
@@ -328,7 +329,8 @@ class Qbt:
                             # Cleans up previously tagged noHL torrents
                             else:
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
-                                if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category]) > 0):
+                                if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category]) > 0
+                                   and torrent.seeding_time > (nohardlinks[category]["min_seeding_time"]*60)):
                                     tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir, root_dir)
                     # Checks to see if previous noHL tagged torrents now have hard links.
                     if (not (util.nohardlink(torrent['content_path'].replace(root_dir, root_dir))) and ('noHL' in torrent.tags)):
@@ -508,7 +510,8 @@ class Qbt:
                 'PASSKEY IS INVALID',
                 'INVALID PASSKEY',
                 'EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING',
-                'COULD NOT PARSE BENCODED DATA'
+                'COULD NOT PARSE BENCODED DATA',
+                'STREAM TRUNCATED'
             ]
             for torrent in self.torrentvalid:
                 check_tags = util.get_list(torrent.tags)
@@ -599,6 +602,7 @@ class Qbt:
             os.makedirs(dir_cs_out, exist_ok=True)
             for file in cs_files:
                 t_name = file.split(']', 2)[2].split('.torrent')[0]
+                t_tracker = file.split(']', 2)[1][1:]
                 # Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
                 # Returned the dictionary of filtered item
                 torrentdict_file = dict(filter(lambda item: t_name in item[0], self.torrentinfo.items()))
@@ -617,6 +621,7 @@ class Qbt:
                         body += print_line(util.insert_space(f'Torrent Name: {t_name}', 3), loglevel)
                         body += print_line(util.insert_space(f'Category: {category}', 7), loglevel)
                         body += print_line(util.insert_space(f'Save_Path: {dest}', 6), loglevel)
+                        body += print_line(util.insert_space(f'Tracker: {t_tracker}', 8), loglevel)
                         attr = {
                             "function": "cross_seed",
                             "title": "Adding New Cross-Seed Torrent",
@@ -624,7 +629,8 @@ class Qbt:
                             "torrent_name": t_name,
                             "torrent_category": category,
                             "torrent_save_path": dest,
-                            "torrent_tag": "cross-seed"
+                            "torrent_tag": "cross-seed",
+                            "torrent_tracker": t_tracker
                         }
                         self.config.send_notifications(attr)
                         added += 1
@@ -644,6 +650,7 @@ class Qbt:
                 t_name = torrent.name
                 t_cat = torrent.category
                 if 'cross-seed' not in torrent.tags and self.torrentinfo[t_name]['count'] > 1 and self.torrentinfo[t_name]['first_hash'] != torrent.hash:
+                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     tagged += 1
                     body = print_line(f"{'Not Adding' if dry_run else 'Adding'} 'cross-seed' tag to {t_name}", loglevel)
                     attr = {
@@ -652,7 +659,8 @@ class Qbt:
                         "body": body,
                         "torrent_name": t_name,
                         "torrent_category": t_cat,
-                        "torrent_tag": "cross-seed"
+                        "torrent_tag": "cross-seed",
+                        "torrent_tracker": tracker
                     }
                     self.config.send_notifications(attr)
                     if not dry_run: torrent.add_tags(tags='cross-seed')

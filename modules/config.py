@@ -167,6 +167,8 @@ class Config:
                                                                                        var_type="float", default_int=-2, default_is_none=True, do_print=False)
                     self.nohardlinks[cat]['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="nohardlinks", subparent=cat,
                                                                                               var_type="int", default_int=-2, default_is_none=True, do_print=False)
+                    self.nohardlinks[cat]['min_seeding_time'] = self.util.check_for_attribute(self.data, "min_seeding_time", parent="nohardlinks", subparent=cat,
+                                                                                              var_type="int", default_int=0, default=0, do_print=False)
                     self.nohardlinks[cat]['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="nohardlinks", subparent=cat,
                                                                                                 var_type="int", default_int=-1, default_is_none=True, do_print=False)
                 else:
