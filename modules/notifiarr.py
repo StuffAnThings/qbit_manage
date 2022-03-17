@@ -18,6 +18,7 @@ class Notifiarr:
         self.instance = params["instance"]
         url, _ = self.get_url("user/validate/")
         response = self.config.get(url)
+        response_json = None
         try:
             response_json = response.json()
         except JSONDecodeError as e:
@@ -26,6 +27,8 @@ class Notifiarr:
                     raise Failed("Notifiarr Error (Response: 525): SSL handshake between Cloudflare and the origin web server failed.")
                 else:
                     raise Failed(e)
+        if response_json is None:
+            raise Failed("Notifiarr Error: Unable to connect to Notifiarr. It may be down?")
         if response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error"):
             logger.debug(f"Response: {response_json}")
             raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
