@@ -295,7 +295,7 @@ class Qbt:
                     # self.config.notify(e, 'Tag No Hard Links', False)
                     logger.warning(e)
                     continue
-                for torrent in alive_it(torrent_list):
+                for torrent in torrent_list:
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
                     if any(tag in torrent.tags for tag in nohardlinks[category]['exclude_tags']):
                         # Skip to the next torrent if we find any torrents that are in the exclude tag
