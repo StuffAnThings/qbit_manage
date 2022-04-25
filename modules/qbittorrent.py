@@ -430,10 +430,10 @@ class Qbt:
         cfg_tag_error = self.config.args['tag_tracker_error']
 
         def tag_tracker_error():
-            nonlocal dry_run, t_name, msg_up, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
+            nonlocal dry_run, t_name, msg_up, msg, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
             tor_error = ''
             tor_error += (util.insert_space(f'Torrent Name: {t_name}', 3)+'\n')
-            tor_error += (util.insert_space(f'Status: {msg_up}', 9)+'\n')
+            tor_error += (util.insert_space(f'Status: {msg}', 9)+'\n')
             tor_error += (util.insert_space(f'Tracker: {tracker["url"]}', 8)+'\n')
             tor_error += (util.insert_space(f"Added Tag: {tag_error}", 6)+'\n')
             tor_error_summary += tor_error
@@ -445,7 +445,7 @@ class Qbt:
                 "torrent_name": t_name,
                 "torrent_category": t_cat,
                 "torrent_tag": tag_error,
-                "torrent_status": msg_up,
+                "torrent_status": msg,
                 "torrent_tracker": tracker["url"],
                 "notifiarr_indexer": tracker["notifiarr"],
             }
@@ -453,17 +453,17 @@ class Qbt:
             if not dry_run: torrent.add_tags(tags=tag_error)
 
         def del_unregistered():
-            nonlocal dry_run, loglevel, del_tor, del_tor_cont, t_name, msg_up, tracker, t_cat, t_msg, t_status, torrent
+            nonlocal dry_run, loglevel, del_tor, del_tor_cont, t_name, msg_up, msg, tracker, t_cat, t_msg, t_status, torrent
             body = []
             body += print_line(util.insert_space(f'Torrent Name: {t_name}', 3), loglevel)
-            body += print_line(util.insert_space(f'Status: {msg_up}', 9), loglevel)
+            body += print_line(util.insert_space(f'Status: {msg}', 9), loglevel)
             body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
             attr = {
                 "function": "rem_unregistered",
                 "title": "Removing Unregistered Torrents",
                 "torrent_name": t_name,
                 "torrent_category": t_cat,
-                "torrent_status": msg_up,
+                "torrent_status": msg,
                 "torrent_tracker": tracker["url"],
                 "notifiarr_indexer": tracker["notifiarr"],
             }
@@ -548,6 +548,7 @@ class Qbt:
                         if x.url.startswith('http'):
                             tracker = self.config.get_tags([x.url])
                             msg_up = x.msg.upper()
+                            msg = x.msg
                             # Tag any error torrents
                             if cfg_tag_error:
                                 if x.status == 4 and tag_error not in check_tags:
