@@ -769,7 +769,7 @@ class Qbt:
                     fullpath = os.path.join(torrent.save_path, file.name)
                     # Replace fullpath with \\ if qbm is runnig in docker (linux) but qbt is on windows
                     fullpath = fullpath.replace(r'/', '\\') if ':\\' in fullpath else fullpath
-                    torrent_files.append(os.path.join(torrent.save_path, file.name))
+                    torrent_files.append(fullpath)
 
             orphaned_files = set(root_files) - set(torrent_files)
             orphaned_files = sorted(orphaned_files)
