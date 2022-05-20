@@ -766,6 +766,9 @@ class Qbt:
             torrent_list = self.get_torrents({'sort': 'added_on'})
             for torrent in alive_it(torrent_list):
                 for file in torrent.files:
+                    fullpath = os.path.join(torrent.save_path, file.name)
+                    # Replace fullpath with \\ if qbm is runnig in docker (linux) but qbt is on windows
+                    fullpath = fullpath.replace(r'/', '\\') if ':\\' in fullpath else fullpath
                     torrent_files.append(os.path.join(torrent.save_path, file.name))
 
             orphaned_files = set(root_files) - set(torrent_files)
