@@ -203,7 +203,7 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
             if self.recyclebin['enabled']:
                 if "recycle_bin" in self.data["directory"] and self.data["directory"]["recycle_bin"] is not None:
-                    default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip('/')))
+                    default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip(os.sep)))
                 else:
                     default_recycle = os.path.join(self.remote_dir, '.RecycleBin')
                 if self.recyclebin['split_by_category']:
@@ -229,7 +229,7 @@ class Config:
         self.orphaned = {}
         self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
         if self.recyclebin['enabled']:
-            exclude_recycle = f"**/{os.path.basename(self.recycle_dir.rstrip('/'))}/*"
+            exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
             self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
 
         # Connect to Qbittorrent
@@ -257,7 +257,7 @@ class Config:
         tracker['url'] = None
         if not urls: return tracker
         try:
-            tracker['url'] = util.trunc_val(urls[0], '/')
+            tracker['url'] = util.trunc_val(urls[0], os.sep)
         except IndexError as e:
             tracker['url'] = None
             logger.debug(f"Tracker Url:{urls}")
@@ -268,8 +268,8 @@ class Config:
                 for url in urls:
                     if tag_url in url:
                         try:
-                            tracker['url'] = util.trunc_val(url, '/')
-                            default_tag = tracker['url'].split('/')[2].split(':')[0]
+                            tracker['url'] = util.trunc_val(url, os.sep)
+                            default_tag = tracker['url'].split(os.sep)[2].split(':')[0]
                         except IndexError as e:
                             logger.debug(f"Tracker Url:{url}")
                             logger.debug(e)
@@ -296,7 +296,7 @@ class Config:
                             tracker['notifiarr'] = self.util.check_for_attribute(self.data, "notifiarr", parent="tracker", subparent=tag_url, default_is_none=True, do_print=False, save=False)
                         return (tracker)
         if tracker['url']:
-            default_tag = tracker['url'].split('/')[2].split(':')[0]
+            default_tag = tracker['url'].split(os.sep)[2].split(':')[0]
             tracker['tag'] = self.util.check_for_attribute(self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list")
             if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
             try:
@@ -320,7 +320,7 @@ class Config:
                     break
 
         if not category:
-            default_cat = path.split('/')[-2]
+            default_cat = path.split(os.sep)[-2]
             category = str(default_cat)
             self.util.check_for_attribute(self.data, default_cat, parent="cat", default=path)
             self.data['cat'][str(default_cat)] = path
@@ -341,7 +341,7 @@ class Config:
                 if self.recyclebin['split_by_category']:
                     if "cat" in self.data and self.data["cat"] is not None:
                         save_path = list(self.data["cat"].values())
-                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(self.recycle_dir.rstrip('/'))) for s in save_path]
+                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(self.recycle_dir.rstrip(os.sep))) for s in save_path]
                         recycle_path = [self.recycle_dir]
                         for dir in cleaned_save_path:
                             if os.path.exists(dir): recycle_path.append(dir)
@@ -359,7 +359,7 @@ class Config:
                     util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
                     prevfolder = ''
                     for file in recycle_files:
-                        folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
+                        folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
                         if folder != prevfolder: body += util.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
                         filename = os.path.basename(file)
@@ -372,7 +372,7 @@ class Config:
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
-                        prevfolder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip('/'))}", file).group(0)
+                        prevfolder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
                     if num_del > 0:
                         if not dry_run:
                             for path in recycle_path:

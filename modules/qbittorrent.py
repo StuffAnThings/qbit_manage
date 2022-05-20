@@ -835,7 +835,7 @@ class Qbt:
                 return
 
             if self.config.recyclebin['split_by_category']:
-                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip('/')))
+                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip(os.sep)))
             else:
                 recycle_path = self.config.recycle_dir
             # Create recycle bin if not exists
