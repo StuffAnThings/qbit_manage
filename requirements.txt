@@ -1,5 +1,5 @@
 ruamel.yaml==0.17.21
-qbittorrent-api>=2022.5.31
+qbittorrent-api>=2022.5.32
 schedule==1.1.0
 retrying==1.3.3
 alive_progress==2.4.1
