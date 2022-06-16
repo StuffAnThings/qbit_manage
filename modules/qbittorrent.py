@@ -564,7 +564,7 @@ class Qbt:
                                             del_unregistered()
                                             break
                                     tag_tracker_error()
-                                if list_in_text(msg_up, unreg_msgs) and x.status == 4:
+                                if list_in_text(msg_up, unreg_msgs) and not list_in_text(msg_up, ignore_msgs) and x.status == 4:
                                     del_unregistered()
                                     break
                 except NotFound404Error:
