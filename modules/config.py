@@ -1,12 +1,11 @@
 import logging, os, requests, stat, time, re
 from modules import util
-from modules.util import Failed, check
+from modules.util import Failed, check, YAML
 from modules.qbittorrent import Qbt
 from modules.webhooks import Webhooks
 from modules.notifiarr import Notifiarr
 from modules.bhd import BeyondHD
 from modules.apprise import Apprise
-from ruamel import yaml
 from retrying import retry
 
 logger = logging.getLogger("qBit Manage")
@@ -30,50 +29,43 @@ class Config:
         self.trace_mode = args["trace"] if "trace" in args else False
         self.start_time = args["time_obj"]
 
-        yaml.YAML().allow_duplicate_keys = True
-        try:
-            new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
-            if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
-            new_config["settings"] = new_config.pop("settings") if "settings" in new_config else {}
-            if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
-            new_config["cat"] = new_config.pop("cat") if "cat" in new_config else {}
-            if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
-            elif "tags" in new_config:                      new_config["tracker"] = new_config.pop("tags")
-            else:                                           new_config["tracker"] = {}
-            if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
-            if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
-            if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
-            if "apprise" in new_config:                     new_config["apprise"] = new_config.pop("apprise")
-            if "notifiarr" in new_config:                   new_config["notifiarr"] = new_config.pop("notifiarr")
-            if "webhooks" in new_config:
-                temp = new_config.pop("webhooks")
-                if 'function' not in temp or ('function' in temp and temp['function'] is None): temp["function"] = {}
+        loaded_yaml = YAML(self.config_path)
+        self.data = loaded_yaml.data
+        if "qbt" in self.data:                         self.data["qbt"] = self.data.pop("qbt")
+        self.data["settings"] = self.data.pop("settings") if "settings" in self.data else {}
+        if "directory" in self.data:                   self.data["directory"] = self.data.pop("directory")
+        self.data["cat"] = self.data.pop("cat") if "cat" in self.data else {}
+        if "cat_change" in self.data:                  self.data["cat_change"] = self.data.pop("cat_change")
+        if "tracker" in self.data:                     self.data["tracker"] = self.data.pop("tracker")
+        elif "tags" in self.data:                      self.data["tracker"] = self.data.pop("tags")
+        else:                                           self.data["tracker"] = {}
+        if "nohardlinks" in self.data:                 self.data["nohardlinks"] = self.data.pop("nohardlinks")
+        if "recyclebin" in self.data:                  self.data["recyclebin"] = self.data.pop("recyclebin")
+        if "orphaned" in self.data:                    self.data["orphaned"] = self.data.pop("orphaned")
+        if "apprise" in self.data:                     self.data["apprise"] = self.data.pop("apprise")
+        if "notifiarr" in self.data:                   self.data["notifiarr"] = self.data.pop("notifiarr")
+        if "webhooks" in self.data:
+            temp = self.data.pop("webhooks")
+            if 'function' not in temp or ('function' in temp and temp['function'] is None): temp["function"] = {}
 
-                def hooks(attr):
-                    if attr in temp:
-                        items = temp.pop(attr)
-                        if items:
-                            temp["function"][attr] = items
-                    if attr not in temp["function"]:
-                        temp["function"][attr] = {}
-                        temp["function"][attr] = None
-                hooks("cross_seed")
-                hooks("recheck")
-                hooks("cat_update")
-                hooks("tag_update")
-                hooks("rem_unregistered")
-                hooks("rem_orphaned")
-                hooks("tag_nohardlinks")
-                hooks("empty_recyclebin")
-                new_config["webhooks"] = temp
-            if "bhd" in new_config:                         new_config["bhd"] = new_config.pop("bhd")
-            yaml.round_trip_dump(new_config, open(self.config_path, "w", encoding="utf-8"), indent=None, block_seq_indent=2)
-            self.data = new_config
-        except yaml.scanner.ScannerError as e:
-            raise Failed(f"YAML Error: {util.tab_new_lines(e)}")
-        except Exception as e:
-            util.print_stacktrace()
-            raise Failed(f"YAML Error: {e}")
+            def hooks(attr):
+                if attr in temp:
+                    items = temp.pop(attr)
+                    if items:
+                        temp["function"][attr] = items
+                if attr not in temp["function"]:
+                    temp["function"][attr] = {}
+                    temp["function"][attr] = None
+            hooks("cross_seed")
+            hooks("recheck")
+            hooks("cat_update")
+            hooks("tag_update")
+            hooks("rem_unregistered")
+            hooks("rem_orphaned")
+            hooks("tag_nohardlinks")
+            hooks("empty_recyclebin")
+            self.data["webhooks"] = temp
+        if "bhd" in self.data:                         self.data["bhd"] = self.data.pop("bhd")
 
         self.session = requests.Session()
 
@@ -104,6 +96,8 @@ class Config:
         }
         for func in default_function:
             self.util.check_for_attribute(self.data, func, parent="webhooks", subparent="function", default_is_none=True)
+
+        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
 
         self.AppriseFactory = None
         if "apprise" in self.data:

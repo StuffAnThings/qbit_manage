@@ -1,6 +1,5 @@
-import logging, os, shutil, traceback, time, signal, json
+import logging, os, shutil, traceback, time, signal, json, ruamel.yaml
 from logging.handlers import RotatingFileHandler
-from ruamel import yaml
 from pathlib import Path
 
 logger = logging.getLogger('qBit Manage')
@@ -62,26 +61,26 @@ class check:
         if data is None or attribute not in data or (attribute in data and data[attribute] is None and not default_is_none):
             message = f"{text} not found"
             if parent and save is True:
-                loaded_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config.config_path))
+                yaml = YAML(self.config.config_path)
                 if subparent:
                     endline = f"\n{subparent} sub-attribute {attribute} added to config"
-                    if subparent not in loaded_config[parent] or not loaded_config[parent][subparent]:
-                        loaded_config[parent][subparent] = {attribute: default}
-                    elif attribute not in loaded_config[parent]:
-                        if isinstance(loaded_config[parent][subparent], str):
-                            loaded_config[parent][subparent] = {attribute: default}
-                        loaded_config[parent][subparent][attribute] = default
+                    if subparent not in yaml.data[parent] or not yaml.data[parent][subparent]:
+                        yaml.data[parent][subparent] = {attribute: default}
+                    elif attribute not in yaml.data[parent]:
+                        if isinstance(yaml.data[parent][subparent], str):
+                            yaml.data[parent][subparent] = {attribute: default}
+                        yaml.data[parent][subparent][attribute] = default
                     else:
                         endline = ""
                 else:
                     endline = f"\n{parent} sub-attribute {attribute} added to config"
-                    if parent not in loaded_config or not loaded_config[parent]:
-                        loaded_config[parent] = {attribute: default}
-                    elif attribute not in loaded_config[parent] or (attribute in loaded_config[parent] and loaded_config[parent][attribute] is None):
-                        loaded_config[parent][attribute] = default
+                    if parent not in yaml.data or not yaml.data[parent]:
+                        yaml.data[parent] = {attribute: default}
+                    elif attribute not in yaml.data[parent] or (attribute in yaml.data[parent] and yaml.data[parent][attribute] is None):
+                        yaml.data[parent][attribute] = default
                     else:
                         endline = ""
-                yaml.round_trip_dump(loaded_config, open(self.config.config_path, "w"), indent=None, block_seq_indent=2)
+                yaml.save()
             if default_is_none and var_type in ["list", "int_list"]:            return []
         elif data[attribute] is None:
             if default_is_none and var_type == "list":
@@ -402,3 +401,36 @@ def human_readable_size(size, decimal_places=3):
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f}{unit}"
+
+
+class YAML:
+    def __init__(self, path=None, input_data=None, check_empty=False, create=False):
+        self.path = path
+        self.input_data = input_data
+        self.yaml = ruamel.yaml.YAML()
+        self.yaml.indent(mapping=2, sequence=2)
+        try:
+            if input_data:
+                self.data = self.yaml.load(input_data)
+            else:
+                if create and not os.path.exists(self.path):
+                    with open(self.path, 'w'):
+                        pass
+                    self.data = {}
+                else:
+                    with open(self.path, encoding="utf-8") as fp:
+                        self.data = self.yaml.load(fp)
+        except ruamel.yaml.error.YAMLError as e:
+            e = str(e).replace("\n", "\n      ")
+            raise Failed(f"YAML Error: {e}")
+        except Exception as e:
+            raise Failed(f"YAML Error: {e}")
+        if not self.data or not isinstance(self.data, dict):
+            if check_empty:
+                raise Failed("YAML Error: File is empty")
+            self.data = {}
+
+    def save(self):
+        if self.path:
+            with open(self.path, 'w') as fp:
+                self.yaml.dump(self.data, fp)

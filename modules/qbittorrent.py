@@ -161,37 +161,57 @@ class Qbt:
         dry_run = self.config.args['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_cat = 0
+
+        def update_cat(new_cat, cat_change):
+            nonlocal dry_run, torrent, num_cat
+            tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+            old_cat = torrent.category
+            if not dry_run:
+                try:
+                    torrent.set_category(category=new_cat)
+                    if torrent.auto_tmm is False and self.config.settings['force_auto_tmm']:
+                        torrent.set_auto_management(True)
+                except Conflict409Error:
+                    e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
+                    self.config.notify(e, 'Update Category', False)
+                    self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                    torrent.set_category(category=new_cat)
+            body = []
+            body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
+            if cat_change:
+                body += print_line(util.insert_space(f'Old Category: {old_cat}', 3), loglevel)
+                title = "Moving Categories"
+            else:
+                title = "Updating Categories"
+            body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
+            body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+            attr = {
+                "function": "cat_update",
+                "title": title,
+                "body": "\n".join(body),
+                "torrent_name": torrent.name,
+                "torrent_category": new_cat,
+                "torrent_tracker": tracker["url"],
+                "notifiarr_indexer": tracker["notifiarr"]
+            }
+            self.config.send_notifications(attr)
+            num_cat += 1
+
         if self.config.args['cat_update']:
             separator("Updating Categories", space=False, border=False)
             torrent_list = self.get_torrents({'category': '', 'filter': 'completed'})
             for torrent in torrent_list:
                 new_cat = self.config.get_category(torrent.save_path)
-                tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
-                if not dry_run:
-                    try:
-                        torrent.set_category(category=new_cat)
-                        if torrent.auto_tmm is False and self.config.settings['force_auto_tmm']:
-                            torrent.set_auto_management(True)
-                    except Conflict409Error:
-                        e = print_line(f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.', loglevel)
-                        self.config.notify(e, 'Update Category', False)
-                        self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
-                        torrent.set_category(category=new_cat)
-                body = []
-                body += print_line(util.insert_space(f'Torrent Name: {torrent.name}', 3), loglevel)
-                body += print_line(util.insert_space(f'New Category: {new_cat}', 3), loglevel)
-                body += print_line(util.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
-                attr = {
-                    "function": "cat_update",
-                    "title": "Updating Categories",
-                    "body": "\n".join(body),
-                    "torrent_name": torrent.name,
-                    "torrent_category": new_cat,
-                    "torrent_tracker": tracker["url"],
-                    "notifiarr_indexer": tracker["notifiarr"]
-                }
-                self.config.send_notifications(attr)
-                num_cat += 1
+                update_cat(new_cat, False)
+
+            # Change categories
+            if self.config.cat_change:
+                for old_cat in self.config.cat_change:
+                    torrent_list = self.get_torrents({'category': old_cat, 'filter': 'completed'})
+                    for torrent in torrent_list:
+                        new_cat = self.config.cat_change[old_cat]
+                        update_cat(new_cat, True)
+
             if num_cat >= 1:
                 print_line(f"{'Did not update' if dry_run else 'Updated'} {num_cat} new categories.", loglevel)
             else:
