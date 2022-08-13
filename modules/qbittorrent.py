@@ -564,7 +564,7 @@ class Qbt:
                                             del_unregistered()
                                             break
                                     tag_tracker_error()
-                                if list_in_text(msg_up, unreg_msgs) and x.status == 4:
+                                if list_in_text(msg_up, unreg_msgs) and not list_in_text(msg_up, ignore_msgs) and x.status == 4:
                                     del_unregistered()
                                     break
                 except NotFound404Error:
@@ -766,7 +766,10 @@ class Qbt:
             torrent_list = self.get_torrents({'sort': 'added_on'})
             for torrent in alive_it(torrent_list):
                 for file in torrent.files:
-                    torrent_files.append(os.path.join(torrent.save_path, file.name))
+                    fullpath = os.path.join(torrent.save_path, file.name)
+                    # Replace fullpath with \\ if qbm is runnig in docker (linux) but qbt is on windows
+                    fullpath = fullpath.replace(r'/', '\\') if ':\\' in fullpath else fullpath
+                    torrent_files.append(fullpath)
 
             orphaned_files = set(root_files) - set(torrent_files)
             orphaned_files = sorted(orphaned_files)
@@ -832,7 +835,7 @@ class Qbt:
                 return
 
             if self.config.recyclebin['split_by_category']:
-                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip('/')))
+                recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip(os.sep)))
             else:
                 recycle_path = self.config.recycle_dir
             # Create recycle bin if not exists
