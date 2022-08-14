@@ -16,7 +16,7 @@ qbt_pass = None
 try:
     from qbittorrentapi import Client, LoginFailed, APIConnectionError
 except ModuleNotFoundError:
-    print("Requirements Error: qbittorrentapi not installed. Please install with pip")
+    print("Requirements Error: qbittorrent-api not installed. Please install using the command \"pip install qbittorrent-api\"")
     sys.exit(0)
 
 current = datetime.now()
