@@ -1,4 +1,4 @@
-import logging, os, sys
+import os, sys
 from qbittorrentapi import Client, Version, LoginFailed, APIConnectionError, NotFound404Error, Conflict409Error
 from modules import util
 from modules.util import Failed, print_line, print_multiline, separator, list_in_text
@@ -7,7 +7,7 @@ from collections import Counter
 from fnmatch import fnmatch
 from alive_progress import alive_it, config_handler
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 
 class Qbt:

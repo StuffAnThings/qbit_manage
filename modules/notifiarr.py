@@ -1,9 +1,9 @@
-import logging
+from modules import util
 
 from modules.util import Failed
 from json import JSONDecodeError
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 base_url = "https://notifiarr.com/api/v1/"
 dev_url = "https://dev.notifiarr.com/api/v1/"

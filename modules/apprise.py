@@ -1,6 +1,6 @@
-import logging
+from modules import util
 from modules.util import Failed
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 
 class Apprise:

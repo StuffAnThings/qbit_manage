@@ -1,4 +1,4 @@
-import logging, os, requests, stat, time, re
+import os, requests, stat, time, re
 from modules import util
 from modules.util import Failed, check, YAML
 from modules.qbittorrent import Qbt
@@ -8,7 +8,7 @@ from modules.bhd import BeyondHD
 from modules.apprise import Apprise
 from retrying import retry
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 
 class Config:

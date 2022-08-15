@@ -1,8 +1,8 @@
-import logging
+from modules import util
 from modules.util import Failed
 from json import JSONDecodeError
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 base_url = "https://beyond-hd.me/api/"
 
 

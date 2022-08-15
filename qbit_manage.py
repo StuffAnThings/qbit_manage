@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import argparse, logging, os, sys, time
+import argparse, logging, os, sys, time, glob
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, timedelta
 
@@ -25,9 +25,9 @@ parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, acti
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
 parser.add_argument('-sd', '--startup-delay', dest='startupDelay',  default='0', type=str, help='Set delay in seconds on the first run of a schedule (Default set to 0)')
-parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,
-                    help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
-parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
+parser.add_argument('-c', '--config-file', dest='configfiles', action='store', default='config.yml', type=str,
+                    help='This is used if you want to use a different name for your config.yml or if you want to load multiple config files using *. Example: tv.yml or config*.yml')
+parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='config.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
 parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False,
                     help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
 parser.add_argument('-re', '--recheck', dest='recheck', action="store_true", default=False, help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
@@ -72,7 +72,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
-config_file = get_arg("QBT_CONFIG", args.configfile)
+config_files = get_arg("QBT_CONFIG", args.configfiles)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 cross_seed = get_arg("QBT_CROSS_SEED", args.cross_seed, arg_bool=True)
 recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
@@ -95,16 +95,28 @@ if debug or trace: log_level = 'DEBUG'
 stats = {}
 args = {}
 
-if os.path.isdir('/config') and os.path.exists(os.path.join('/config', config_file)):
+if os.path.isdir('/config') and glob.glob(os.path.join('/config', config_files)):
     default_dir = '/config'
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+
+if '*' not in config_files:
+    config_files = [config_files]
+else:
+    glob_configs = glob.glob(os.path.join(default_dir, config_files))
+    if glob_configs:
+        config_files = [os.path.split(x)[-1] for x in glob_configs]
+    else:
+        print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
+        sys.exit(0)
+
 
 for v in [
     'run',
     'sch',
     'startupDelay',
-    'config_file',
+    'config_files',
     'log_file',
     'cross_seed',
     'recheck',
@@ -188,6 +200,12 @@ util.apply_formatter(file_handler)
 file_handler.addFilter(fmt_filter)
 logger.addHandler(file_handler)
 logger.debug(f"Logs are saved in {file_logger}")
+
+
+def start_loop():
+    for config_file in config_files:
+        args["config_file"] = config_file
+        start()
 
 
 def start():
@@ -363,7 +381,7 @@ if __name__ == '__main__':
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
     logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")
-    logger.debug(f"    --config-file (QBT_CONFIG): {config_file}")
+    logger.debug(f"    --config-file (QBT_CONFIG): {config_files}")
     logger.debug(f"    --log-file (QBT_LOGFILE): {log_file}")
     logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {cross_seed}")
     logger.debug(f"    --recheck (QBT_RECHECK): {recheck}")
@@ -384,7 +402,7 @@ if __name__ == '__main__':
     try:
         if run:
             logger.info("    Run Mode: Script will exit after completion.")
-            start()
+            start_loop()
         else:
             schedule.every(sch).minutes.do(start)
             time_str, _ = calc_next_run(sch)
@@ -392,7 +410,7 @@ if __name__ == '__main__':
             if startupDelay:
                 logger.info(f"     Startup Delay: Initial Run will start after {startupDelay} seconds")
                 time.sleep(startupDelay)
-            start()
+            start_loop()
             while not killer.kill_now:
                 schedule.run_pending()
                 time.sleep(60)
