@@ -131,7 +131,7 @@ class Config:
         try:
             self.Webhooks.start_time_hooks(self.start_time)
         except Failed as e:
-            util.print_stacktrace()
+            logger.stacktrace()
             logger.error(f"Webhooks Error: {e}")
 
         self.BeyondHD = None
@@ -350,11 +350,11 @@ class Config:
                 recycle_files = sorted(recycle_files)
                 if recycle_files:
                     body = []
-                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
+                    logger.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
                     prevfolder = ''
                     for file in recycle_files:
                         folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
-                        if folder != prevfolder: body += util.separator(f"Searching: {folder}", space=False, border=False)
+                        if folder != prevfolder: body += logger.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
                         filename = os.path.basename(file)
                         last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
@@ -362,7 +362,7 @@ class Config:
                         days = (now - last_modified) / (60 * 60 * 24)
                         if (self.recyclebin['empty_after_x_days'] <= days):
                             num_del += 1
-                            body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
+                            body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
@@ -371,7 +371,7 @@ class Config:
                         if not dry_run:
                             for path in recycle_path:
                                 util.remove_empty_directories(path, "**/*")
-                        body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
+                        body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
                         attr = {
                             "function": "empty_recyclebin",
                             "title": f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)",
@@ -397,7 +397,7 @@ class Config:
             if config_function:
                 self.Webhooks.function_hooks([config_webhooks[config_function]], attr)
         except Failed as e:
-            util.print_stacktrace()
+            logger.stacktrace()
             logger.error(f"Webhooks Error: {e}")
 
     def notify(self, text, function=None, critical=True):
@@ -405,7 +405,7 @@ class Config:
             try:
                 self.Webhooks.error_hooks(error, function_error=function, critical=critical)
             except Failed as e:
-                util.print_stacktrace()
+                logger.stacktrace()
                 logger.error(f"Webhooks Error: {e}")
 
     def get_json(self, url, json=None, headers=None, params=None):

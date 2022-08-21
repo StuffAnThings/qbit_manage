@@ -1,5 +1,4 @@
-import logging, os, shutil, traceback, time, signal, json, ruamel.yaml
-from logging.handlers import RotatingFileHandler
+import logging, os, shutil, time, signal, json, ruamel.yaml
 from pathlib import Path
 
 logger = logging.getLogger('qBit Manage')
@@ -161,9 +160,9 @@ class check:
                 message = message + "\n" + options
             raise Failed(f"Config Error: {message}")
         if do_print:
-            print_multiline(f"Config Warning: {message}", "warning")
+            logger.print(f"Config Warning: {message}", "warning")
             if data and attribute in data and data[attribute] and test_list is not None and data[attribute] not in test_list:
-                print_multiline(options)
+                logger.print(options)
         return default
 
 
@@ -201,98 +200,6 @@ def list_in_text(text, search_list, match_all=False):
     return False
 
 
-def print_line(lines, loglevel='INFO'):
-    logger.log(getattr(logging, loglevel.upper()), str(lines))
-    return [str(lines)]
-
-
-def print_multiline(lines, loglevel='INFO'):
-    for i, line in enumerate(str(lines).split("\n")):
-        logger.log(getattr(logging, loglevel.upper()), line)
-        if i == 0:
-            logger.handlers[1].setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
-    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
-    return [(str(lines))]
-
-
-def print_stacktrace():
-    print_multiline(traceback.format_exc(), 'CRITICAL')
-
-
-def my_except_hook(exctype, value, tb):
-    for line in traceback.format_exception(etype=exctype, value=value, tb=tb):
-        print_multiline(line, 'CRITICAL')
-
-
-def centered(text, sep=" "):
-    if len(text) > screen_width - 2:
-        return text
-    space = screen_width - len(text) - 2
-    text = f" {text} "
-    if space % 2 == 1:
-        text += sep
-        space -= 1
-    side = int(space / 2) - 1
-    final_text = f"{sep * side}{text}{sep * side}"
-    return final_text
-
-
-def separator(text=None, space=True, border=True, loglevel='INFO'):
-    sep = " " if space else separating_character
-    for handler in logger.handlers:
-        apply_formatter(handler, border=False)
-    border_text = f"|{separating_character * screen_width}|"
-    if border:
-        logger.log(getattr(logging, loglevel.upper()), border_text)
-    if text:
-        text_list = text.split("\n")
-        for t in text_list:
-            logger.log(getattr(logging, loglevel.upper()),
-                       f"|{sep}{centered(t, sep=sep)}{sep}|")
-        if border:
-            logger.log(getattr(logging, loglevel.upper()), border_text)
-    for handler in logger.handlers:
-        apply_formatter(handler)
-    return [text]
-
-
-def apply_formatter(handler, border=True):
-    text = f"| %(message)-{screen_width - 2}s |" if border else f"%(message)-{screen_width - 2}s"
-    if isinstance(handler, RotatingFileHandler):
-        text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
-        # text = f"[%(asctime)s] %(levelname)-10s {text}"
-    handler.setFormatter(logging.Formatter(text))
-
-
-def adjust_space(display_title):
-    display_title = str(display_title)
-    space_length = spacing - len(display_title)
-    if space_length > 0:
-        display_title += " " * space_length
-    return display_title
-
-
-def insert_space(display_title, space_length=0):
-    display_title = str(display_title)
-    if space_length == 0:
-        space_length = spacing - len(display_title)
-    if space_length > 0:
-        display_title = " " * space_length + display_title
-    return display_title
-
-
-def print_return(text):
-    print(adjust_space(f"| {text}"), end="\r")
-    global spacing
-    spacing = len(text) + 2
-
-
-def print_end():
-    print(adjust_space(" "), end="\r")
-    global spacing
-    spacing = 0
-
-
 # truncate the value of the torrent url to remove sensitive information
 def trunc_val(s, d, n=3):
     try:
@@ -318,7 +225,7 @@ def move_files(src, dest, mod=False):
         shutil.copyfile(src, dest)
         toDelete = True
     except Exception as e:
-        print_stacktrace()
+        logger.stacktrace()
         logger.error(e)
     return toDelete
 
@@ -331,7 +238,7 @@ def copy_files(src, dest):
     try:
         shutil.copyfile(src, dest)
     except Exception as e:
-        print_stacktrace()
+        logger.stacktrace()
         logger.error(e)
 
 

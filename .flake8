@@ -6,7 +6,8 @@ ignore =
   E701, # E701	Multiple statements on one line (colon)
   E241, # E241	Multiple spaces after ','
   E272, # E272	Multiple spaces before keyword
-  C901  # C901	Function is too complex
-  E722  # E722	Do not use bare except, specify exception instead
-  W503  # W503  Line break occurred before a binary operator
+  C901, # C901	Function is too complex
+  E722, # E722	Do not use bare except, specify exception instead
+  W503, # W503  Line break occurred before a binary operator
+  E402, # E402  module level import not at top of file
 max-line-length = 200
