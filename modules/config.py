@@ -31,6 +31,42 @@ class Config:
 
         loaded_yaml = YAML(self.config_path)
         self.data = loaded_yaml.data
+
+        # Replace env variables with config commands
+        if "commands" in self.data:
+            if self.data["commands"] is not None:
+                logger.info(f"Commands found in {config_file}, ignoring env variables and using config commands instead.")
+                self.commands = self.data.pop("commands")
+                if 'dry_run' not in self.commands:
+                    self.commands['dry_run'] = args['dry_run'] if 'dry_run' in args else False
+                # Add default any missing commands as False
+                for v in [
+                    'cross_seed',
+                    'recheck',
+                    'cat_update',
+                    'tag_update',
+                    'rem_unregistered',
+                    'tag_tracker_error',
+                    'rem_orphaned',
+                    'tag_nohardlinks',
+                    'skip_recycle',
+                ]:
+                    if v not in self.commands:
+                        self.commands[v] = False
+
+                logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {self.commands['cross_seed']}")
+                logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
+                logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
+                logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {self.commands['tag_update']}")
+                logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {self.commands['rem_unregistered']}")
+                logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
+                logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
+                logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
+                logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {self.commands['skip_recycle']}")
+                logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
+        else:
+            self.commands = args
+
         if "qbt" in self.data:                         self.data["qbt"] = self.data.pop("qbt")
         self.data["settings"] = self.data.pop("settings") if "settings" in self.data else {}
         if "directory" in self.data:                   self.data["directory"] = self.data.pop("directory")
@@ -149,7 +185,7 @@ class Config:
 
         # nohardlinks
         self.nohardlinks = None
-        if "nohardlinks" in self.data and self.args['tag_nohardlinks']:
+        if "nohardlinks" in self.data and self.commands['tag_nohardlinks']:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if cat in list(self.data["cat"].keys()):
@@ -170,7 +206,7 @@ class Config:
                     self.notify(e, 'Config')
                     raise Failed(e)
         else:
-            if self.args["tag_nohardlinks"]:
+            if self.commands["tag_nohardlinks"]:
                 e = "Config Error: nohardlinks attribute not found"
                 self.notify(e, 'Config')
                 raise Failed(e)
@@ -186,12 +222,12 @@ class Config:
         if "directory" in self.data:
             self.root_dir = os.path.join(self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), '')
             self.remote_dir = os.path.join(self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), '')
-            if (self.args["cross_seed"] or self.args["tag_nohardlinks"] or self.args["rem_orphaned"]):
+            if (self.commands["cross_seed"] or self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]):
                 self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
             else:
                 if self.recyclebin['enabled']:
                     self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
-            if self.args["cross_seed"]:
+            if self.commands["cross_seed"]:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
@@ -325,12 +361,12 @@ class Config:
 
     # Empty the recycle bin
     def empty_recycle(self):
-        dry_run = self.args['dry_run']
+        dry_run = self.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_del = 0
         files = []
         size_bytes = 0
-        if not self.args["skip_recycle"]:
+        if not self.commands["skip_recycle"]:
             if self.recyclebin['enabled'] and self.recyclebin['empty_after_x_days']:
                 if self.recyclebin['split_by_category']:
                     if "cat" in self.data and self.data["cat"] is not None:

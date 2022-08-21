@@ -69,7 +69,7 @@ class Qbt:
         # is_complete = Returns the state of torrent (Returns True if at least one of the torrent with the State is categorized as Complete.)
         # first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
         def get_torrent_info(torrent_list):
-            dry_run = self.config.args['dry_run']
+            dry_run = self.config.commands['dry_run']
             loglevel = 'DRYRUN' if dry_run else 'INFO'
             torrentdict = {}
             t_obj_unreg = []
@@ -152,7 +152,7 @@ class Qbt:
         self.torrentinfo = None
         self.torrentissue = None
         self.torrentvalid = None
-        if config.args['recheck'] or config.args['cross_seed'] or config.args['rem_unregistered'] or config.args['tag_tracker_error'] or config.args['tag_nohardlinks']:
+        if config.commands['recheck'] or config.commands['cross_seed'] or config.commands['rem_unregistered'] or config.commands['tag_tracker_error'] or config.commands['tag_nohardlinks']:
             # Get an updated torrent dictionary information of the torrents
             self.torrentinfo, self.torrentissue, self.torrentvalid = get_torrent_info(self.torrent_list)
 
@@ -160,7 +160,7 @@ class Qbt:
         return self.client.torrents.info(**params)
 
     def category(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_cat = 0
 
@@ -199,7 +199,7 @@ class Qbt:
             self.config.send_notifications(attr)
             num_cat += 1
 
-        if self.config.args['cat_update']:
+        if self.config.commands['cat_update']:
             logger.separator("Updating Categories", space=False, border=False)
             torrent_list = self.get_torrents({'category': '', 'filter': 'completed'})
             for torrent in torrent_list:
@@ -221,11 +221,11 @@ class Qbt:
         return num_cat
 
     def tags(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_tags = 0
         ignore_tags = self.config.settings['ignoreTags_OnUpdate']
-        if self.config.args['tag_update']:
+        if self.config.commands['tag_update']:
             logger.separator("Updating Tags", space=False, border=False)
             for torrent in self.torrent_list:
                 check_tags = util.get_list(torrent.tags)
@@ -260,7 +260,7 @@ class Qbt:
         return num_tags
 
     def set_tags_and_limits(self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, restore=False):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         body = []
         # Print Logs
@@ -296,14 +296,14 @@ class Qbt:
         return body
 
     def tag_nohardlinks(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_tags = 0  # counter for the number of torrents that has no hard links
         del_tor = 0  # counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion
         del_tor_cont = 0  # counter for the number of torrents that has no hard links and meets the criteria for ratio limit/seed limit for deletion including contents
         num_untag = 0  # counter for number of torrents that previously had no hard links but now have hard links
 
-        if self.config.args['tag_nohardlinks']:
+        if self.config.commands['tag_nohardlinks']:
             logger.separator("Tagging Torrents with No Hardlinks", space=False, border=False)
             nohardlinks = self.config.nohardlinks
             tdel_dict = {}  # dictionary to track the torrent names and content path that meet the deletion criteria
@@ -440,7 +440,7 @@ class Qbt:
         return num_tags, num_untag, del_tor, del_tor_cont
 
     def rem_unregistered(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         del_tor = 0
         del_tor_cont = 0
@@ -448,8 +448,8 @@ class Qbt:
         num_untag = 0
         tor_error_summary = ''
         tag_error = self.config.settings['tracker_error_tag']
-        cfg_rem_unregistered = self.config.args['rem_unregistered']
-        cfg_tag_error = self.config.args['tag_tracker_error']
+        cfg_rem_unregistered = self.config.commands['rem_unregistered']
+        cfg_tag_error = self.config.commands['tag_tracker_error']
 
         def tag_tracker_error():
             nonlocal dry_run, t_name, msg_up, msg, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
@@ -609,11 +609,11 @@ class Qbt:
 
     # Function used to move any torrents from the cross seed directory to the correct save directory
     def cross_seed(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         added = 0  # Keep track of total torrents tagged
         tagged = 0  # Track # of torrents tagged that are not cross-seeded
-        if self.config.args['cross_seed']:
+        if self.config.commands['cross_seed']:
             logger.separator("Checking for Cross-Seed Torrents", space=False, border=False)
             # List of categories for all torrents moved
             categories = []
@@ -697,11 +697,11 @@ class Qbt:
 
     # Function used to recheck paused torrents sorted by size and resume torrents that are completed
     def recheck(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         resumed = 0
         rechecked = 0
-        if self.config.args['recheck']:
+        if self.config.commands['recheck']:
             logger.separator("Rechecking Paused Torrents", space=False, border=False)
             # sort by size and paused
             torrent_list = self.get_torrents({'status_filter': 'paused', 'sort': 'size'})
@@ -764,10 +764,10 @@ class Qbt:
         return resumed, rechecked
 
     def rem_orphaned(self):
-        dry_run = self.config.args['dry_run']
+        dry_run = self.config.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         orphaned = 0
-        if self.config.args['rem_orphaned']:
+        if self.config.commands['rem_orphaned']:
             logger.separator("Checking for Orphaned Files", space=False, border=False)
             torrent_files = []
             root_files = []
