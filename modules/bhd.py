@@ -10,6 +10,7 @@ class BeyondHD:
     def __init__(self, config, params):
         self.config = config
         self.apikey = params["apikey"]
+        logger.secret(self.apikey)
         json = {"search": "test"}
         self.search(json)
 
@@ -17,7 +18,7 @@ class BeyondHD:
         url = f"{base_url}{path}{self.apikey}"
         json["action"] = "search"
         if self.config.trace_mode:
-            logger.debug(url.replace(self.apikey, "APIKEY"))
+            logger.debug(url)
             logger.debug(f"JSON: {json}")
         try:
             response = self.config.post(url, json=json)

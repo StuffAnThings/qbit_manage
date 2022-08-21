@@ -7,6 +7,7 @@ class Apprise:
     def __init__(self, config, params):
         self.config = config
         self.api_url = params["api_url"]
+        logger.secret(self.api_url)
         self.notify_url = ",".join(params["notify_url"])
         response = self.config.get(self.api_url)
         if response.status_code != 200:

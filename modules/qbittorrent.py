@@ -18,7 +18,9 @@ class Qbt:
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
-        logger.debug(f'Host: {self.host}, Username: {self.username}, Password: {self.password if self.password is None else "[REDACTED]"}')
+        logger.secret(self.username)
+        logger.secret(self.password)
+        logger.debug(f'Host: {self.host}, Username: {self.username}, Password: {self.password}')
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password, VERIFY_WEBUI_CERTIFICATE=False)
             self.client.auth_log_in()
