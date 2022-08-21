@@ -170,23 +170,6 @@ class Failed(Exception):
     pass
 
 
-separating_character = "="
-screen_width = 100
-spacing = 0
-
-
-def tab_new_lines(data):
-    return str(data).replace("\n", "\n|\t      ") if "\n" in str(data) else str(data)
-
-
-def add_dict_list(keys, value, dict_map):
-    for key in keys:
-        if key in dict_map:
-            dict_map[key].append(value)
-        else:
-            dict_map[key] = [value]
-
-
 def list_in_text(text, search_list, match_all=False):
     if isinstance(search_list, list): search_list = set(search_list)
     contains = set([x for x in search_list if ' ' in x])
