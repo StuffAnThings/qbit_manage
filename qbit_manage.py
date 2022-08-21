@@ -202,11 +202,7 @@ def start():
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
     stats_summary = []
-    if dry_run:
-        start_type = "Dry-"
-    else:
-        start_type = ""
-    logger.separator(f"Starting {start_type}Run")
+    logger.separator("Starting Run")
     cfg = None
     body = ''
     run_time = ''
@@ -231,13 +227,13 @@ def start():
     }
 
     def FinishedRun():
-        nonlocal end_time, start_time, start_type, stats_summary, run_time, next_run, body
+        nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split('.')[0]
         _, nr = calc_next_run(sch, True)
         next_run_str = nr['next_run_str']
         next_run = nr['next_run']
-        body = logger.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
+        body = logger.separator(f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
                                 .replace('\n\n', '\n').rstrip())[0]
         return next_run, body
     try:
