@@ -3,8 +3,21 @@
 # Please refer to the link below for more details on how to set up the configuration file
 # https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup
 
-# qBittorrent parameters
+commands:
+  # The commands defined below will IGNORE any commands used in command line and docker env variables.
+  dry_run: True
+  cross_seed: False
+  recheck: False
+  cat_update: False
+  tag_update: False
+  rem_unregistered: False
+  tag_tracker_error: False
+  rem_orphaned: False
+  tag_nohardlinks: False
+  skip_recycle: False
+
 qbt:
+  # qBittorrent parameters
   host: "localhost:8080"
   user: "username"
   pass: "password"
@@ -31,14 +44,24 @@ directory:
   recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
   torrents_dir: "/qbittorrent/data/BT_backup"
 
-# Category & Path Parameters
 cat:
+  # Category & Path Parameters
   # <Category Name> : <save_path>  # Path of your save directory.
   movies: "/data/torrents/Movies"
   tv: "/data/torrents/TV"
 
-# Tag Parameters
+cat_change:
+  # This moves all the torrents from one category to another category. This executes on --cat-update
+  # WARNING: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
+  # <Old Category Name> : <New Category>
+  Radarr-HD.cross-seed: movies-hd
+  Radarr-UHD.cross-seed: movies-uhd
+  movies-hd.cross-seed: movies-hd
+  movies-uhd.cross-seed: movies-uhd
+
+
 tracker:
+  # Tag Parameters
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
@@ -103,8 +126,8 @@ tracker:
   tv-vault:
     tag: TV-Vault
 
-# Tag Movies/Series that are not hard linked
 nohardlinks:
+  # Tag Movies/Series that are not hard linked
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
   movies-completed:
@@ -141,9 +164,9 @@ nohardlinks:
     # <OPTIONAL> min seeding time var: Will ensure that torrent is not deleted by cleanup variable if torrent does not meet minimum seeding time (min).
     min_seeding_time: 43200
 
-# Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
-# By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
 recyclebin:
+  # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
+  # By default the Recycle Bin will be emptied on every run of the qbit_manage script if empty_after_x_days is defined.
   enabled: true
   # <OPTIONAL> empty_after_x_days var: 
   # Will automatically remove all files and folders in recycle bin after x days. (Checks every script run)
@@ -159,8 +182,8 @@ recyclebin:
   # and add the base folder name of the recycle bin that was defined in the `recycle_bin` sub-attribute under directory.
   split_by_category: false
 
-# Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
 orphaned:
+  # Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
   # File patterns that will not be considered orphaned files. Handy for generated files that aren't part of the torrent but belong with the torrent's files
   exclude_patterns:
     - "**/.DS_Store"
@@ -169,29 +192,29 @@ orphaned:
     - "/data/torrents/temp/**"
     - "**/*.!qB"
 
-# Apprise integration with webhooks
-# Leave Empty/Blank to disable
 apprise:
+  # Apprise integration with webhooks
+  # Leave Empty/Blank to disable
   # Mandatory to fill out the url of your apprise API endpoint
   api_url: http://apprise-api:8000
   # Mandatory to fill out the notification url/urls based on the notification services provided by apprise. https://github.com/caronc/apprise/wiki
   notify_url:
 
-# Notifiarr integration with webhooks
-# Leave Empty/Blank to disable
 notifiarr:
+  # Notifiarr integration with webhooks
+  # Leave Empty/Blank to disable
   # Mandatory to fill out API Key
   apikey: ####################################
   # <OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
   instance:
 
-# Webhook notifications:
-# Possible values:
-# Set value to notifiarr if using notifiarr integration
-# Set value to apprise if using apprise integration
-# Set value to a valid webhook URL
-# Leave Empty/Blank to disable
 webhooks:
+  # Webhook notifications:
+  # Possible values:
+  # Set value to notifiarr if using notifiarr integration
+  # Set value to apprise if using apprise integration
+  # Set value to a valid webhook URL
+  # Leave Empty/Blank to disable
   error: https://mywebhookurl.com/qbt_manage
   run_start: notifiarr
   run_end: apprise
@@ -206,6 +229,6 @@ webhooks:
     tag_nohardlinks: notifiarr
     empty_recyclebin: notifiarr
 
-# BHD Integration used for checking unregistered torrents
 bhd:
+  # BHD Integration used for checking unregistered torrents
   apikey:

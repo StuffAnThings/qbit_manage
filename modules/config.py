@@ -1,15 +1,14 @@
-import logging, os, requests, stat, time, re
+import os, requests, stat, time, re
 from modules import util
-from modules.util import Failed, check
+from modules.util import Failed, check, YAML
 from modules.qbittorrent import Qbt
 from modules.webhooks import Webhooks
 from modules.notifiarr import Notifiarr
 from modules.bhd import BeyondHD
 from modules.apprise import Apprise
-from ruamel import yaml
 from retrying import retry
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 
 class Config:
@@ -30,50 +29,79 @@ class Config:
         self.trace_mode = args["trace"] if "trace" in args else False
         self.start_time = args["time_obj"]
 
-        yaml.YAML().allow_duplicate_keys = True
-        try:
-            new_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config_path, encoding="utf-8"))
-            if "qbt" in new_config:                         new_config["qbt"] = new_config.pop("qbt")
-            new_config["settings"] = new_config.pop("settings") if "settings" in new_config else {}
-            if "directory" in new_config:                   new_config["directory"] = new_config.pop("directory")
-            new_config["cat"] = new_config.pop("cat") if "cat" in new_config else {}
-            if "tracker" in new_config:                     new_config["tracker"] = new_config.pop("tracker")
-            elif "tags" in new_config:                      new_config["tracker"] = new_config.pop("tags")
-            else:                                           new_config["tracker"] = {}
-            if "nohardlinks" in new_config:                 new_config["nohardlinks"] = new_config.pop("nohardlinks")
-            if "recyclebin" in new_config:                  new_config["recyclebin"] = new_config.pop("recyclebin")
-            if "orphaned" in new_config:                    new_config["orphaned"] = new_config.pop("orphaned")
-            if "apprise" in new_config:                     new_config["apprise"] = new_config.pop("apprise")
-            if "notifiarr" in new_config:                   new_config["notifiarr"] = new_config.pop("notifiarr")
-            if "webhooks" in new_config:
-                temp = new_config.pop("webhooks")
-                if 'function' not in temp or ('function' in temp and temp['function'] is None): temp["function"] = {}
+        loaded_yaml = YAML(self.config_path)
+        self.data = loaded_yaml.data
 
-                def hooks(attr):
-                    if attr in temp:
-                        items = temp.pop(attr)
-                        if items:
-                            temp["function"][attr] = items
-                    if attr not in temp["function"]:
-                        temp["function"][attr] = {}
-                        temp["function"][attr] = None
-                hooks("cross_seed")
-                hooks("recheck")
-                hooks("cat_update")
-                hooks("tag_update")
-                hooks("rem_unregistered")
-                hooks("rem_orphaned")
-                hooks("tag_nohardlinks")
-                hooks("empty_recyclebin")
-                new_config["webhooks"] = temp
-            if "bhd" in new_config:                         new_config["bhd"] = new_config.pop("bhd")
-            yaml.round_trip_dump(new_config, open(self.config_path, "w", encoding="utf-8"), indent=None, block_seq_indent=2)
-            self.data = new_config
-        except yaml.scanner.ScannerError as e:
-            raise Failed(f"YAML Error: {util.tab_new_lines(e)}")
-        except Exception as e:
-            util.print_stacktrace()
-            raise Failed(f"YAML Error: {e}")
+        # Replace env variables with config commands
+        if "commands" in self.data:
+            if self.data["commands"] is not None:
+                logger.info(f"Commands found in {config_file}, ignoring env variables and using config commands instead.")
+                self.commands = self.data.pop("commands")
+                if 'dry_run' not in self.commands:
+                    self.commands['dry_run'] = args['dry_run'] if 'dry_run' in args else False
+                # Add default any missing commands as False
+                for v in [
+                    'cross_seed',
+                    'recheck',
+                    'cat_update',
+                    'tag_update',
+                    'rem_unregistered',
+                    'tag_tracker_error',
+                    'rem_orphaned',
+                    'tag_nohardlinks',
+                    'skip_recycle',
+                ]:
+                    if v not in self.commands:
+                        self.commands[v] = False
+
+                logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {self.commands['cross_seed']}")
+                logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
+                logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
+                logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {self.commands['tag_update']}")
+                logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {self.commands['rem_unregistered']}")
+                logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
+                logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
+                logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
+                logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {self.commands['skip_recycle']}")
+                logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
+        else:
+            self.commands = args
+
+        if "qbt" in self.data:                         self.data["qbt"] = self.data.pop("qbt")
+        self.data["settings"] = self.data.pop("settings") if "settings" in self.data else {}
+        if "directory" in self.data:                   self.data["directory"] = self.data.pop("directory")
+        self.data["cat"] = self.data.pop("cat") if "cat" in self.data else {}
+        if "cat_change" in self.data:                  self.data["cat_change"] = self.data.pop("cat_change")
+        if "tracker" in self.data:                     self.data["tracker"] = self.data.pop("tracker")
+        elif "tags" in self.data:                      self.data["tracker"] = self.data.pop("tags")
+        else:                                           self.data["tracker"] = {}
+        if "nohardlinks" in self.data:                 self.data["nohardlinks"] = self.data.pop("nohardlinks")
+        if "recyclebin" in self.data:                  self.data["recyclebin"] = self.data.pop("recyclebin")
+        if "orphaned" in self.data:                    self.data["orphaned"] = self.data.pop("orphaned")
+        if "apprise" in self.data:                     self.data["apprise"] = self.data.pop("apprise")
+        if "notifiarr" in self.data:                   self.data["notifiarr"] = self.data.pop("notifiarr")
+        if "webhooks" in self.data:
+            temp = self.data.pop("webhooks")
+            if 'function' not in temp or ('function' in temp and temp['function'] is None): temp["function"] = {}
+
+            def hooks(attr):
+                if attr in temp:
+                    items = temp.pop(attr)
+                    if items:
+                        temp["function"][attr] = items
+                if attr not in temp["function"]:
+                    temp["function"][attr] = {}
+                    temp["function"][attr] = None
+            hooks("cross_seed")
+            hooks("recheck")
+            hooks("cat_update")
+            hooks("tag_update")
+            hooks("rem_unregistered")
+            hooks("rem_orphaned")
+            hooks("tag_nohardlinks")
+            hooks("empty_recyclebin")
+            self.data["webhooks"] = temp
+        if "bhd" in self.data:                         self.data["bhd"] = self.data.pop("bhd")
 
         self.session = requests.Session()
 
@@ -104,6 +132,8 @@ class Config:
         }
         for func in default_function:
             self.util.check_for_attribute(self.data, func, parent="webhooks", subparent="function", default_is_none=True)
+
+        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
 
         self.AppriseFactory = None
         if "apprise" in self.data:
@@ -137,7 +167,7 @@ class Config:
         try:
             self.Webhooks.start_time_hooks(self.start_time)
         except Failed as e:
-            util.print_stacktrace()
+            logger.stacktrace()
             logger.error(f"Webhooks Error: {e}")
 
         self.BeyondHD = None
@@ -155,7 +185,7 @@ class Config:
 
         # nohardlinks
         self.nohardlinks = None
-        if "nohardlinks" in self.data and self.args['tag_nohardlinks']:
+        if "nohardlinks" in self.data and self.commands['tag_nohardlinks']:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if cat in list(self.data["cat"].keys()):
@@ -176,7 +206,7 @@ class Config:
                     self.notify(e, 'Config')
                     raise Failed(e)
         else:
-            if self.args["tag_nohardlinks"]:
+            if self.commands["tag_nohardlinks"]:
                 e = "Config Error: nohardlinks attribute not found"
                 self.notify(e, 'Config')
                 raise Failed(e)
@@ -192,12 +222,12 @@ class Config:
         if "directory" in self.data:
             self.root_dir = os.path.join(self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), '')
             self.remote_dir = os.path.join(self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), '')
-            if (self.args["cross_seed"] or self.args["tag_nohardlinks"] or self.args["rem_orphaned"]):
+            if (self.commands["cross_seed"] or self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]):
                 self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
             else:
                 if self.recyclebin['enabled']:
                     self.remote_dir = self.util.check_for_attribute(self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir)
-            if self.args["cross_seed"]:
+            if self.commands["cross_seed"]:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
@@ -331,12 +361,12 @@ class Config:
 
     # Empty the recycle bin
     def empty_recycle(self):
-        dry_run = self.args['dry_run']
+        dry_run = self.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_del = 0
         files = []
         size_bytes = 0
-        if not self.args["skip_recycle"]:
+        if not self.commands["skip_recycle"]:
             if self.recyclebin['enabled'] and self.recyclebin['empty_after_x_days']:
                 if self.recyclebin['split_by_category']:
                     if "cat" in self.data and self.data["cat"] is not None:
@@ -356,11 +386,11 @@ class Config:
                 recycle_files = sorted(recycle_files)
                 if recycle_files:
                     body = []
-                    util.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
+                    logger.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
                     prevfolder = ''
                     for file in recycle_files:
                         folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
-                        if folder != prevfolder: body += util.separator(f"Searching: {folder}", space=False, border=False)
+                        if folder != prevfolder: body += logger.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
                         filename = os.path.basename(file)
                         last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
@@ -368,7 +398,7 @@ class Config:
                         days = (now - last_modified) / (60 * 60 * 24)
                         if (self.recyclebin['empty_after_x_days'] <= days):
                             num_del += 1
-                            body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
+                            body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
@@ -377,7 +407,7 @@ class Config:
                         if not dry_run:
                             for path in recycle_path:
                                 util.remove_empty_directories(path, "**/*")
-                        body += util.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
+                        body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
                         attr = {
                             "function": "empty_recyclebin",
                             "title": f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)",
@@ -403,7 +433,7 @@ class Config:
             if config_function:
                 self.Webhooks.function_hooks([config_webhooks[config_function]], attr)
         except Failed as e:
-            util.print_stacktrace()
+            logger.stacktrace()
             logger.error(f"Webhooks Error: {e}")
 
     def notify(self, text, function=None, critical=True):
@@ -411,7 +441,7 @@ class Config:
             try:
                 self.Webhooks.error_hooks(error, function_error=function, critical=critical)
             except Failed as e:
-                util.print_stacktrace()
+                logger.stacktrace()
                 logger.error(f"Webhooks Error: {e}")
 
     def get_json(self, url, json=None, headers=None, params=None):

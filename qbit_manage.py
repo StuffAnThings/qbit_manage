@@ -1,15 +1,11 @@
 #!/usr/bin/python3
 
-import argparse, logging, os, sys, time
-from logging.handlers import RotatingFileHandler
+import argparse, os, sys, time, glob
 from datetime import datetime, timedelta
 
 try:
     import schedule
-    from modules import util
-    from modules.config import Config
-    from modules.util import GracefulKiller
-    from modules.util import Failed
+    from modules.logs import MyLogger
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
@@ -25,9 +21,10 @@ parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, acti
 parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
 parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
 parser.add_argument('-sd', '--startup-delay', dest='startupDelay',  default='0', type=str, help='Set delay in seconds on the first run of a schedule (Default set to 0)')
-parser.add_argument('-c', '--config-file', dest='configfile', action='store', default='config.yml', type=str,
-                    help='This is used if you want to use a different name for your config.yml. Example: tv.yml')
-parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='activity.log', type=str, help='This is used if you want to use a different name for your log file. Example: tv.log',)
+parser.add_argument('-c', '--config-file', dest='configfiles', action='store', default='config.yml', type=str,
+                    help='This is used if you want to use a different name for your config.yml or if you want to load multiple config files using *. Example: tv.yml or config*.yml')
+parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='qbit_manage.log', type=str,
+                    help='This is used if you want to use a different name for your log file. Example: tv.log',)
 parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False,
                     help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
 parser.add_argument('-re', '--recheck', dest='recheck', action="store_true", default=False, help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
@@ -52,19 +49,25 @@ args = parser.parse_args()
 
 
 def get_arg(env_str, default, arg_bool=False, arg_int=False):
-    env_var = os.environ.get(env_str)
-    if env_var:
+    env_vars = [env_str] if not isinstance(env_str, list) else env_str
+    final_value = None
+    for env_var in env_vars:
+        env_value = os.environ.get(env_var)
+        if env_value is not None:
+            final_value = env_value
+            break
+    if final_value is not None:
         if arg_bool:
-            if env_var is True or env_var is False:
-                return env_var
-            elif env_var.lower() in ["t", "true"]:
+            if final_value is True or final_value is False:
+                return final_value
+            elif final_value.lower() in ["t", "true"]:
                 return True
             else:
                 return False
         elif arg_int:
-            return int(env_var)
+            return int(final_value)
         else:
-            return str(env_var)
+            return str(final_value)
     else:
         return default
 
@@ -72,7 +75,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
-config_file = get_arg("QBT_CONFIG", args.configfile)
+config_files = get_arg("QBT_CONFIG", args.configfiles)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 cross_seed = get_arg("QBT_CROSS_SEED", args.cross_seed, arg_bool=True)
 recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
@@ -95,16 +98,28 @@ if debug or trace: log_level = 'DEBUG'
 stats = {}
 args = {}
 
-if os.path.isdir('/config') and os.path.exists(os.path.join('/config', config_file)):
+if os.path.isdir('/config') and glob.glob(os.path.join('/config', config_files)):
     default_dir = '/config'
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+
+
+if '*' not in config_files:
+    config_files = [config_files]
+else:
+    glob_configs = glob.glob(os.path.join(default_dir, config_files))
+    if glob_configs:
+        config_files = [os.path.split(x)[-1] for x in glob_configs]
+    else:
+        print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
+        sys.exit(0)
+
 
 for v in [
     'run',
     'sch',
     'startupDelay',
-    'config_file',
+    'config_files',
     'log_file',
     'cross_seed',
     'recheck',
@@ -124,12 +139,9 @@ for v in [
 ]:
     args[v] = eval(v)
 
-util.separating_character = divider[0]
-
 if screen_width < 90 or screen_width > 300:
     print(f"Argument Error: width argument invalid: {screen_width} must be an integer between 90 and 300 using the default 100")
     screen_width = 100
-util.screen_width = screen_width
 
 # Check if Schedule parameter is a number
 try:
@@ -145,25 +157,23 @@ except ValueError:
     print(f"startupDelay Error: startupDelay is not a number. Current value is set to '{startupDelay}'")
     sys.exit(0)
 
-logger = logging.getLogger('qBit Manage')
-logging.DRYRUN = 25
-logging.addLevelName(logging.DRYRUN, 'DRYRUN')
-setattr(logger, 'dryrun', lambda dryrun, *args: logger._log(logging.DRYRUN, dryrun, args))
-log_lev = getattr(logging, log_level.upper())
-logger.setLevel(log_lev)
+
+logger = MyLogger('qBit Manage', log_file, log_level, default_dir, screen_width, divider[0], False, debug or trace)
+from modules import util
+util.logger = logger
+from modules.config import Config
+from modules.util import GracefulKiller
+from modules.util import Failed
 
 
-def fmt_filter(record):
-    record.levelname = f"[{record.levelname}]"
-    record.filename = f"[{record.filename}:{record.lineno}]"
-    return True
+def my_except_hook(exctype, value, tb):
+    if issubclass(exctype, KeyboardInterrupt):
+        sys.__excepthook__(exctype, value, tb)
+    else:
+        logger.critical("Uncaught Exception", exc_info=(exctype, value, tb))
 
 
-cmd_handler = logging.StreamHandler()
-cmd_handler.setLevel(log_level)
-logger.addHandler(cmd_handler)
-
-sys.excepthook = util.my_except_hook
+sys.excepthook = my_except_hook
 
 version = "Unknown"
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
@@ -173,21 +183,18 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = line
             break
 
-if os.path.exists(os.path.dirname(log_file)):
-    file_logger = log_file
-elif not os.path.exists(os.path.dirname(log_file)) and os.path.dirname(log_file) != '':
-    os.makedirs(os.path.join(default_dir, 'logs'), exist_ok=True)
-    print(f"Log Warning: Log Path {os.path.dirname(log_file)} does not exist. Logs will be saved in the default path: {os.path.join(default_dir, 'logs', os.path.basename(log_file))}")
-    file_logger = os.path.join(default_dir, 'logs', os.path.basename(log_file))
-else:
-    os.makedirs(os.path.join(default_dir, 'logs'), exist_ok=True)
-    file_logger = os.path.join(default_dir, 'logs', os.path.basename(log_file))
-max_bytes = 1024 * 1024 * 2
-file_handler = RotatingFileHandler(file_logger, delay=True, mode="w", maxBytes=max_bytes, backupCount=10, encoding="utf-8")
-util.apply_formatter(file_handler)
-file_handler.addFilter(fmt_filter)
-logger.addHandler(file_handler)
-logger.debug(f"Logs are saved in {file_logger}")
+
+def start_loop():
+    if len(config_files) == 1:
+        args["config_file"] = config_files[0]
+        start()
+    else:
+        for config_file in config_files:
+            args["config_file"] = config_file
+            config_base = os.path.splitext(config_file)[0]
+            logger.add_config_handler(config_base)
+            start()
+            logger.remove_config_handler(config_base)
 
 
 def start():
@@ -195,11 +202,7 @@ def start():
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
     stats_summary = []
-    if dry_run:
-        start_type = "Dry-"
-    else:
-        start_type = ""
-    util.separator(f"Starting {start_type}Run")
+    logger.separator("Starting Run")
     cfg = None
     body = ''
     run_time = ''
@@ -224,26 +227,26 @@ def start():
     }
 
     def FinishedRun():
-        nonlocal end_time, start_time, start_type, stats_summary, run_time, next_run, body
+        nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split('.')[0]
         _, nr = calc_next_run(sch, True)
         next_run_str = nr['next_run_str']
         next_run = nr['next_run']
-        body = util.separator(f"Finished {start_type}Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
-                              .replace('\n\n', '\n').rstrip())[0]
+        body = logger.separator(f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
+                                .replace('\n\n', '\n').rstrip())[0]
         return next_run, body
     try:
         cfg = Config(default_dir, args)
     except Exception as e:
         if 'Qbittorrent Error' in e.args[0]:
-            util.print_multiline(e, 'CRITICAL')
-            util.print_line('Exiting scheduled Run.', 'CRITICAL')
+            logger.print_line(e, 'CRITICAL')
+            logger.print_line('Exiting scheduled Run.', 'CRITICAL')
             FinishedRun()
             return None
         else:
-            util.print_stacktrace()
-            util.print_multiline(e, 'CRITICAL')
+            logger.stacktrace()
+            logger.print_line(e, 'CRITICAL')
 
     if cfg:
         # Set Category
@@ -305,18 +308,17 @@ def start():
     if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
 
     FinishedRun()
-
     if cfg:
         try:
             cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
         except Failed as e:
-            util.print_stacktrace()
+            logger.stacktrace()
             logger.error(f"Webhooks Error: {e}")
 
 
 def end():
     logger.info("Exiting Qbit_manage")
-    logger.removeHandler(file_handler)
+    logger.remove_main_handler()
     sys.exit(0)
 
 
@@ -348,22 +350,23 @@ def calc_next_run(sch, print=False):
 
 if __name__ == '__main__':
     killer = GracefulKiller()
-    util.separator()
-    logger.info(util.centered("        _     _ _                                            "))  # noqa: W605
-    logger.info(util.centered("       | |   (_) |                                           "))  # noqa: W605
-    logger.info(util.centered("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ "))  # noqa: W605
-    logger.info(util.centered("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\"))  # noqa: W605
-    logger.info(util.centered(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/"))  # noqa: W605
-    logger.info(util.centered("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|"))  # noqa: W605
-    logger.info(util.centered("     | |         ______                            __/ |     "))  # noqa: W605
-    logger.info(util.centered("     |_|        |______|                          |___/      "))  # noqa: W605
+    logger.add_main_handler()
+    logger.separator()
+    logger.info_center("        _     _ _                                            ")  # noqa: W605
+    logger.info_center("       | |   (_) |                                           ")  # noqa: W605
+    logger.info_center("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ ")  # noqa: W605
+    logger.info_center("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\")  # noqa: W605
+    logger.info_center(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/")  # noqa: W605
+    logger.info_center("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
+    logger.info_center("     | |         ______                            __/ |     ")  # noqa: W605
+    logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
     logger.info(f"    Version: {version}")
 
-    util.separator(loglevel='DEBUG')
+    logger.separator(loglevel='DEBUG')
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
     logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")
-    logger.debug(f"    --config-file (QBT_CONFIG): {config_file}")
+    logger.debug(f"    --config-file (QBT_CONFIG): {config_files}")
     logger.debug(f"    --log-file (QBT_LOGFILE): {log_file}")
     logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {cross_seed}")
     logger.debug(f"    --recheck (QBT_RECHECK): {recheck}")
@@ -384,15 +387,15 @@ if __name__ == '__main__':
     try:
         if run:
             logger.info("    Run Mode: Script will exit after completion.")
-            start()
+            start_loop()
         else:
-            schedule.every(sch).minutes.do(start)
+            schedule.every(sch).minutes.do(start_loop)
             time_str, _ = calc_next_run(sch)
             logger.info(f"    Scheduled Mode: Running every {time_str}.")
             if startupDelay:
                 logger.info(f"     Startup Delay: Initial Run will start after {startupDelay} seconds")
                 time.sleep(startupDelay)
-            start()
+            start_loop()
             while not killer.kill_now:
                 schedule.run_pending()
                 time.sleep(60)

@@ -1,9 +1,8 @@
-import logging
 from json import JSONDecodeError
-
+from modules import util
 from modules.util import Failed
 
-logger = logging.getLogger("qBit Manage")
+logger = util.logger
 
 
 class Webhooks:
@@ -73,7 +72,7 @@ class Webhooks:
 
     def start_time_hooks(self, start_time):
         if self.run_start_webhooks:
-            dry_run = self.config.args['dry_run']
+            dry_run = self.config.commands['dry_run']
             if dry_run:
                 start_type = "Dry-"
             else:
@@ -83,7 +82,7 @@ class Webhooks:
                 "title": None,
                 "body": f"Starting {start_type}Run",
                 "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "dry_run": self.config.args['dry_run']
+                "dry_run": self.config.commands['dry_run']
             })
 
     def end_time_hooks(self, start_time, end_time, run_time, next_run, stats, body):

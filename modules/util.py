@@ -1,6 +1,4 @@
-import logging, os, shutil, traceback, time, signal, json
-from logging.handlers import RotatingFileHandler
-from ruamel import yaml
+import logging, os, shutil, time, signal, json, ruamel.yaml
 from pathlib import Path
 
 logger = logging.getLogger('qBit Manage')
@@ -62,26 +60,26 @@ class check:
         if data is None or attribute not in data or (attribute in data and data[attribute] is None and not default_is_none):
             message = f"{text} not found"
             if parent and save is True:
-                loaded_config, _, _ = yaml.util.load_yaml_guess_indent(open(self.config.config_path))
+                yaml = YAML(self.config.config_path)
                 if subparent:
                     endline = f"\n{subparent} sub-attribute {attribute} added to config"
-                    if subparent not in loaded_config[parent] or not loaded_config[parent][subparent]:
-                        loaded_config[parent][subparent] = {attribute: default}
-                    elif attribute not in loaded_config[parent]:
-                        if isinstance(loaded_config[parent][subparent], str):
-                            loaded_config[parent][subparent] = {attribute: default}
-                        loaded_config[parent][subparent][attribute] = default
+                    if subparent not in yaml.data[parent] or not yaml.data[parent][subparent]:
+                        yaml.data[parent][subparent] = {attribute: default}
+                    elif attribute not in yaml.data[parent]:
+                        if isinstance(yaml.data[parent][subparent], str):
+                            yaml.data[parent][subparent] = {attribute: default}
+                        yaml.data[parent][subparent][attribute] = default
                     else:
                         endline = ""
                 else:
                     endline = f"\n{parent} sub-attribute {attribute} added to config"
-                    if parent not in loaded_config or not loaded_config[parent]:
-                        loaded_config[parent] = {attribute: default}
-                    elif attribute not in loaded_config[parent] or (attribute in loaded_config[parent] and loaded_config[parent][attribute] is None):
-                        loaded_config[parent][attribute] = default
+                    if parent not in yaml.data or not yaml.data[parent]:
+                        yaml.data[parent] = {attribute: default}
+                    elif attribute not in yaml.data[parent] or (attribute in yaml.data[parent] and yaml.data[parent][attribute] is None):
+                        yaml.data[parent][attribute] = default
                     else:
                         endline = ""
-                yaml.round_trip_dump(loaded_config, open(self.config.config_path, "w"), indent=None, block_seq_indent=2)
+                yaml.save()
             if default_is_none and var_type in ["list", "int_list"]:            return []
         elif data[attribute] is None:
             if default_is_none and var_type == "list":
@@ -162,31 +160,14 @@ class check:
                 message = message + "\n" + options
             raise Failed(f"Config Error: {message}")
         if do_print:
-            print_multiline(f"Config Warning: {message}", "warning")
+            logger.print(f"Config Warning: {message}", "warning")
             if data and attribute in data and data[attribute] and test_list is not None and data[attribute] not in test_list:
-                print_multiline(options)
+                logger.print(options)
         return default
 
 
 class Failed(Exception):
     pass
-
-
-separating_character = "="
-screen_width = 100
-spacing = 0
-
-
-def tab_new_lines(data):
-    return str(data).replace("\n", "\n|\t      ") if "\n" in str(data) else str(data)
-
-
-def add_dict_list(keys, value, dict_map):
-    for key in keys:
-        if key in dict_map:
-            dict_map[key].append(value)
-        else:
-            dict_map[key] = [value]
 
 
 def list_in_text(text, search_list, match_all=False):
@@ -200,98 +181,6 @@ def list_in_text(text, search_list, match_all=False):
         if any(x == m for m in text.split(" ") for x in exception) or any(x in text for x in contains):
             return True
     return False
-
-
-def print_line(lines, loglevel='INFO'):
-    logger.log(getattr(logging, loglevel.upper()), str(lines))
-    return [str(lines)]
-
-
-def print_multiline(lines, loglevel='INFO'):
-    for i, line in enumerate(str(lines).split("\n")):
-        logger.log(getattr(logging, loglevel.upper()), line)
-        if i == 0:
-            logger.handlers[1].setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
-    logger.handlers[1].setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
-    return [(str(lines))]
-
-
-def print_stacktrace():
-    print_multiline(traceback.format_exc(), 'CRITICAL')
-
-
-def my_except_hook(exctype, value, tb):
-    for line in traceback.format_exception(etype=exctype, value=value, tb=tb):
-        print_multiline(line, 'CRITICAL')
-
-
-def centered(text, sep=" "):
-    if len(text) > screen_width - 2:
-        return text
-    space = screen_width - len(text) - 2
-    text = f" {text} "
-    if space % 2 == 1:
-        text += sep
-        space -= 1
-    side = int(space / 2) - 1
-    final_text = f"{sep * side}{text}{sep * side}"
-    return final_text
-
-
-def separator(text=None, space=True, border=True, loglevel='INFO'):
-    sep = " " if space else separating_character
-    for handler in logger.handlers:
-        apply_formatter(handler, border=False)
-    border_text = f"|{separating_character * screen_width}|"
-    if border:
-        logger.log(getattr(logging, loglevel.upper()), border_text)
-    if text:
-        text_list = text.split("\n")
-        for t in text_list:
-            logger.log(getattr(logging, loglevel.upper()),
-                       f"|{sep}{centered(t, sep=sep)}{sep}|")
-        if border:
-            logger.log(getattr(logging, loglevel.upper()), border_text)
-    for handler in logger.handlers:
-        apply_formatter(handler)
-    return [text]
-
-
-def apply_formatter(handler, border=True):
-    text = f"| %(message)-{screen_width - 2}s |" if border else f"%(message)-{screen_width - 2}s"
-    if isinstance(handler, RotatingFileHandler):
-        text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
-        # text = f"[%(asctime)s] %(levelname)-10s {text}"
-    handler.setFormatter(logging.Formatter(text))
-
-
-def adjust_space(display_title):
-    display_title = str(display_title)
-    space_length = spacing - len(display_title)
-    if space_length > 0:
-        display_title += " " * space_length
-    return display_title
-
-
-def insert_space(display_title, space_length=0):
-    display_title = str(display_title)
-    if space_length == 0:
-        space_length = spacing - len(display_title)
-    if space_length > 0:
-        display_title = " " * space_length + display_title
-    return display_title
-
-
-def print_return(text):
-    print(adjust_space(f"| {text}"), end="\r")
-    global spacing
-    spacing = len(text) + 2
-
-
-def print_end():
-    print(adjust_space(" "), end="\r")
-    global spacing
-    spacing = 0
 
 
 # truncate the value of the torrent url to remove sensitive information
@@ -319,7 +208,7 @@ def move_files(src, dest, mod=False):
         shutil.copyfile(src, dest)
         toDelete = True
     except Exception as e:
-        print_stacktrace()
+        logger.stacktrace()
         logger.error(e)
     return toDelete
 
@@ -332,7 +221,7 @@ def copy_files(src, dest):
     try:
         shutil.copyfile(src, dest)
     except Exception as e:
-        print_stacktrace()
+        logger.stacktrace()
         logger.error(e)
 
 
@@ -402,3 +291,36 @@ def human_readable_size(size, decimal_places=3):
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f}{unit}"
+
+
+class YAML:
+    def __init__(self, path=None, input_data=None, check_empty=False, create=False):
+        self.path = path
+        self.input_data = input_data
+        self.yaml = ruamel.yaml.YAML()
+        self.yaml.indent(mapping=2, sequence=2)
+        try:
+            if input_data:
+                self.data = self.yaml.load(input_data)
+            else:
+                if create and not os.path.exists(self.path):
+                    with open(self.path, 'w'):
+                        pass
+                    self.data = {}
+                else:
+                    with open(self.path, encoding="utf-8") as fp:
+                        self.data = self.yaml.load(fp)
+        except ruamel.yaml.error.YAMLError as e:
+            e = str(e).replace("\n", "\n      ")
+            raise Failed(f"YAML Error: {e}")
+        except Exception as e:
+            raise Failed(f"YAML Error: {e}")
+        if not self.data or not isinstance(self.data, dict):
+            if check_empty:
+                raise Failed("YAML Error: File is empty")
+            self.data = {}
+
+    def save(self):
+        if self.path:
+            with open(self.path, 'w') as fp:
+                self.yaml.dump(self.data, fp)
