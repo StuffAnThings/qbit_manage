@@ -160,9 +160,9 @@ class check:
                 message = message + "\n" + options
             raise Failed(f"Config Error: {message}")
         if do_print:
-            logger.print(f"Config Warning: {message}", "warning")
+            logger.print_line(f"Config Warning: {message}", "warning")
             if data and attribute in data and data[attribute] and test_list is not None and data[attribute] not in test_list:
-                logger.print(options)
+                logger.print_line(options)
         return default
 
 
