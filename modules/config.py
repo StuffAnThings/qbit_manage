@@ -231,6 +231,14 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
+            if self.commands["rem_orphaned"]:
+                if "orphaned_dir" in self.data["directory"] and self.data["directory"]["orphaned_dir"] is not None:
+                    default_orphaned = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['orphaned_dir'].rstrip(os.sep)))
+                else:
+                    default_orphaned = os.path.join(self.remote_dir, 'orphaned_data')
+                self.orphaned_dir = self.util.check_for_attribute(self.data, "orphaned_dir", parent="directory", var_type="path", default=default_orphaned, make_dirs=True)
+            else:
+                self.orphaned_dir = None
             if self.recyclebin['enabled']:
                 if "recycle_bin" in self.data["directory"] and self.data["directory"]["recycle_bin"] is not None:
                     default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip(os.sep)))

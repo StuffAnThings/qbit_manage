@@ -776,13 +776,14 @@ class Qbt:
             orphaned_parent_path = set()
             remote_path = self.config.remote_dir
             root_path = self.config.root_dir
+            orphaned_path = self.config.orphaned_dir
             if (remote_path != root_path):
                 root_files = [os.path.join(path.replace(remote_path, root_path), name)
                               for path, subdirs, files in alive_it(os.walk(remote_path))
-                              for name in files if os.path.join(remote_path, 'orphaned_data') not in path]
+                              for name in files if orphaned_path.replace(remote_path, root_path) not in path]
             else:
                 root_files = [os.path.join(path, name) for path, subdirs, files in alive_it(os.walk(root_path))
-                              for name in files if os.path.join(root_path, 'orphaned_data') not in path]
+                              for name in files if orphaned_path.replace(root_path, remote_path) not in path]
 
             # Get an updated list of torrents
             torrent_list = self.get_torrents({'sort': 'added_on'})
@@ -813,20 +814,19 @@ class Qbt:
                 logger.separator("Deleting Orphaned Files", space=False, border=False, loglevel='DEBUG')
 
             if orphaned_files:
-                dir_out = os.path.join(remote_path, 'orphaned_data')
-                os.makedirs(dir_out, exist_ok=True)
+                os.makedirs(orphaned_path, exist_ok=True)
                 body = []
                 num_orphaned = len(orphaned_files)
                 logger.print_line(f"{num_orphaned} Orphaned files found", loglevel)
                 body += logger.print_line("\n".join(orphaned_files), loglevel)
-                body += logger.print_line(f"{'Did not move' if dry_run else 'Moved'} {num_orphaned} Orphaned files to {dir_out.replace(remote_path,root_path)}", loglevel)
+                body += logger.print_line(f"{'Did not move' if dry_run else 'Moved'} {num_orphaned} Orphaned files to {orphaned_path.replace(remote_path,root_path)}", loglevel)
 
                 attr = {
                     "function": "rem_orphaned",
                     "title": f"Removing {num_orphaned} Orphaned Files",
                     "body": "\n".join(body),
                     "orphaned_files": list(orphaned_files),
-                    "orphaned_directory": dir_out.replace(remote_path, root_path),
+                    "orphaned_directory": orphaned_path.replace(remote_path, root_path),
                     "total_orphaned_files": num_orphaned,
                 }
                 self.config.send_notifications(attr)
@@ -835,7 +835,7 @@ class Qbt:
                 if not dry_run:
                     for file in alive_it(orphaned_files):
                         src = file.replace(root_path, remote_path)
-                        dest = os.path.join(dir_out, file.replace(root_path, ''))
+                        dest = os.path.join(orphaned_path, file.replace(root_path, ''))
                         util.move_files(src, dest)
                         orphaned_parent_path.add(os.path.dirname(file).replace(root_path, remote_path))
                         for parent_path in orphaned_parent_path:

@@ -43,6 +43,7 @@ directory:
   remote_dir: "/mnt/user/data/torrents/"
   recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
   torrents_dir: "/qbittorrent/data/BT_backup"
+  orphaned_dir: "/data/torrents/orphaned_data"
 
 cat:
   # Category & Path Parameters
