@@ -267,8 +267,9 @@ class Config:
         self.orphaned = {}
         self.orphaned['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="orphaned", var_type="int", default_is_none=True)
         self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
-        exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
-        self.orphaned['exclude_patterns'].append(exclude_orphaned) if exclude_orphaned not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
+        if self.commands["rem_orphaned"]:
+            exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
+            self.orphaned['exclude_patterns'].append(exclude_orphaned) if exclude_orphaned not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
         if self.recyclebin['enabled']:
             exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
             self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
