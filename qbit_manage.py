@@ -39,7 +39,7 @@ parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action
                           This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. \
                           When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. \
                           You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')
-parser.add_argument('-sr', '--skip-recycle', dest='skip_recycle', action="store_true", default=False, help='Use this to skip emptying the Reycle Bin folder.')
+parser.add_argument('-sc', '--skip-cleanup', dest='skip_cleanup', action="store_true", default=False, help='Use this to skip cleaning up Reycle Bin/Orphaned directory.')
 parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False,
                     help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
 parser.add_argument('-ll', '--log-level', dest='log_level', action="store", default='INFO', type=str, help='Change your log level.')
@@ -85,7 +85,7 @@ rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bo
 tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
-skip_recycle = get_arg("QBT_SKIP_RECYCLE", args.skip_recycle, arg_bool=True)
+skip_cleanup = get_arg("QBT_SKIP_CLEANUP", args.skip_cleanup, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
 divider = get_arg("QBT_DIVIDER", args.divider)
@@ -129,7 +129,7 @@ for v in [
     'tag_tracker_error',
     'rem_orphaned',
     'tag_nohardlinks',
-    'skip_recycle',
+    'skip_cleanup',
     'dry_run',
     'log_level',
     'divider',
@@ -217,6 +217,7 @@ def start():
         "rechecked": 0,
         "orphaned": 0,
         "recycle_emptied": 0,
+        "orphaned_emptied": 0,
         "tagged": 0,
         "categorized": 0,
         "rem_unreg": 0,
@@ -289,8 +290,12 @@ def start():
         stats["orphaned"] += num_orphaned
 
         # Empty RecycleBin
-        recycle_emptied = cfg.empty_recycle()
+        recycle_emptied = cfg.cleanup_dirs("Recycle Bin")
         stats["recycle_emptied"] += recycle_emptied
+
+        # Empty Orphaned Directory
+        orphaned_emptied = cfg.cleanup_dirs("Orphaned Data")
+        stats["orphaned_emptied"] += orphaned_emptied
 
     if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
     if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
@@ -306,6 +311,7 @@ def start():
     if stats["tagged_noHL"] > 0:                stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
     if stats["untagged_noHL"] > 0:              stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
     if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
+    if stats["orphaned_emptied"] > 0:           stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
 
     FinishedRun()
     if cfg:
@@ -376,7 +382,7 @@ if __name__ == '__main__':
     logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
-    logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {skip_recycle}")
+    logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {skip_cleanup}")
     logger.debug(f"    --dry-run (QBT_DRY_RUN): {dry_run}")
     logger.debug(f"    --log-level (QBT_LOG_LEVEL): {log_level}")
     logger.debug(f"    --divider (QBT_DIVIDER): {divider}")

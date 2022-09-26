@@ -802,16 +802,16 @@ class Qbt:
                 excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch(file, exclude_pattern.replace(remote_path, root_path))]
 
             orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
-            if self.config.trace_mode:
-                logger.separator("Torrent Files", space=False, border=False, loglevel='DEBUG')
-                logger.print_line("\n".join(torrent_files), 'DEBUG')
-                logger.separator("Root Files", space=False, border=False, loglevel='DEBUG')
-                logger.print_line("\n".join(root_files), 'DEBUG')
-                logger.separator("Excluded Orphan Files", space=False, border=False, loglevel='DEBUG')
-                logger.print_line("\n".join(excluded_orphan_files), 'DEBUG')
-                logger.separator("Orphaned Files", space=False, border=False, loglevel='DEBUG')
-                logger.print_line("\n".join(orphaned_files), 'DEBUG')
-                logger.separator("Deleting Orphaned Files", space=False, border=False, loglevel='DEBUG')
+            # if self.config.trace_mode:
+            #     logger.separator("Torrent Files", space=False, border=False, loglevel='DEBUG')
+            #     logger.print_line("\n".join(torrent_files), 'DEBUG')
+            #     logger.separator("Root Files", space=False, border=False, loglevel='DEBUG')
+            #     logger.print_line("\n".join(root_files), 'DEBUG')
+            #     logger.separator("Excluded Orphan Files", space=False, border=False, loglevel='DEBUG')
+            #     logger.print_line("\n".join(excluded_orphan_files), 'DEBUG')
+            #     logger.separator("Orphaned Files", space=False, border=False, loglevel='DEBUG')
+            #     logger.print_line("\n".join(orphaned_files), 'DEBUG')
+            #     logger.separator("Deleting Orphaned Files", space=False, border=False, loglevel='DEBUG')
 
             if orphaned_files:
                 os.makedirs(orphaned_path, exist_ok=True)
@@ -836,7 +836,7 @@ class Qbt:
                     for file in alive_it(orphaned_files):
                         src = file.replace(root_path, remote_path)
                         dest = os.path.join(orphaned_path, file.replace(root_path, ''))
-                        util.move_files(src, dest)
+                        util.move_files(src, dest, True)
                         orphaned_parent_path.add(os.path.dirname(file).replace(root_path, remote_path))
                         for parent_path in orphaned_parent_path:
                             util.remove_empty_directories(parent_path, "**/*")

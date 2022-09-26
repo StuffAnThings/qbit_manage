@@ -108,7 +108,8 @@ class Webhooks:
                 "orphaned_files_found": stats["orphaned"],
                 "torrents_tagged_no_hardlinks": stats["tagged_noHL"],
                 "torrents_untagged_no_hardlinks": stats["untagged_noHL"],
-                "files_deleted_from_recyclebin": stats["recycle_emptied"]
+                "files_deleted_from_recyclebin": stats["recycle_emptied"],
+                "files_deleted_from_orphaned": stats["orphaned_emptied"]
             })
 
     def error_hooks(self, text, function_error=None, critical=True):
