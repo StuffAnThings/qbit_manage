@@ -18,5 +18,6 @@ updates:
       interval: daily
     assignees: 
       - "bobokun"
+    target-branch: "develop"
     ignore:
       - dependency-name: "salsify/action-detect-and-tag-new-version"

@@ -49,7 +49,7 @@ class Config:
                     'tag_tracker_error',
                     'rem_orphaned',
                     'tag_nohardlinks',
-                    'skip_recycle',
+                    'skip_cleanup'
                 ]:
                     if v not in self.commands:
                         self.commands[v] = False
@@ -62,7 +62,7 @@ class Config:
                 logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
                 logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
                 logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
-                logger.debug(f"    --skip-recycle (QBT_SKIP_RECYCLE): {self.commands['skip_recycle']}")
+                logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
                 logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
         else:
             self.commands = args
@@ -99,7 +99,7 @@ class Config:
             hooks("rem_unregistered")
             hooks("rem_orphaned")
             hooks("tag_nohardlinks")
-            hooks("empty_recyclebin")
+            hooks("cleanup_dirs")
             self.data["webhooks"] = temp
         if "bhd" in self.data:                         self.data["bhd"] = self.data.pop("bhd")
 
@@ -121,7 +121,7 @@ class Config:
             'tag_tracker_error': None,
             'rem_orphaned': None,
             'tag_nohardlinks': None,
-            'empty_recyclebin': None
+            'cleanup_dirs': None,
         }
 
         self.webhooks = {
@@ -231,6 +231,14 @@ class Config:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", default_is_none=True)
+            if self.commands["rem_orphaned"]:
+                if "orphaned_dir" in self.data["directory"] and self.data["directory"]["orphaned_dir"] is not None:
+                    default_orphaned = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['orphaned_dir'].rstrip(os.sep)))
+                else:
+                    default_orphaned = os.path.join(self.remote_dir, 'orphaned_data')
+                self.orphaned_dir = self.util.check_for_attribute(self.data, "orphaned_dir", parent="directory", var_type="path", default=default_orphaned, make_dirs=True)
+            else:
+                self.orphaned_dir = None
             if self.recyclebin['enabled']:
                 if "recycle_bin" in self.data["directory"] and self.data["directory"]["recycle_bin"] is not None:
                     default_recycle = os.path.join(self.remote_dir, os.path.basename(self.data['directory']['recycle_bin'].rstrip(os.sep)))
@@ -257,7 +265,11 @@ class Config:
 
         # Add Orphaned
         self.orphaned = {}
+        self.orphaned['empty_after_x_days'] = self.util.check_for_attribute(self.data, "empty_after_x_days", parent="orphaned", var_type="int", default_is_none=True)
         self.orphaned['exclude_patterns'] = self.util.check_for_attribute(self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False)
+        if self.commands["rem_orphaned"]:
+            exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
+            self.orphaned['exclude_patterns'].append(exclude_orphaned) if exclude_orphaned not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
         if self.recyclebin['enabled']:
             exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
             self.orphaned['exclude_patterns'].append(exclude_recycle) if exclude_recycle not in self.orphaned['exclude_patterns'] else self.orphaned['exclude_patterns']
@@ -359,66 +371,80 @@ class Config:
             logger.warning(e)
         return category
 
-    # Empty the recycle bin
-    def empty_recycle(self):
+    # Empty old files from recycle bin or orphaned
+    def cleanup_dirs(self, location):
         dry_run = self.commands['dry_run']
         loglevel = 'DRYRUN' if dry_run else 'INFO'
         num_del = 0
         files = []
         size_bytes = 0
-        if not self.commands["skip_recycle"]:
-            if self.recyclebin['enabled'] and self.recyclebin['empty_after_x_days']:
-                if self.recyclebin['split_by_category']:
+        skip = self.commands["skip_cleanup"]
+        if location == "Recycle Bin":
+            enabled = self.recyclebin['enabled']
+            empty_after_x_days = self.recyclebin['empty_after_x_days']
+            function = "cleanup_dirs"
+            location_path = self.recycle_dir
+
+        elif location == "Orphaned Data":
+            enabled = self.commands["rem_orphaned"]
+            empty_after_x_days = self.orphaned['empty_after_x_days']
+            function = "cleanup_dirs"
+            location_path = self.orphaned_dir
+
+        if not skip:
+            if enabled and empty_after_x_days:
+                if location == "Recycle Bin" and self.recyclebin['split_by_category']:
                     if "cat" in self.data and self.data["cat"] is not None:
                         save_path = list(self.data["cat"].values())
-                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(self.recycle_dir.rstrip(os.sep))) for s in save_path]
-                        recycle_path = [self.recycle_dir]
+                        cleaned_save_path = [os.path.join(s.replace(self.root_dir, self.remote_dir), os.path.basename(location_path.rstrip(os.sep))) for s in save_path]
+                        location_path_list = [location_path]
                         for dir in cleaned_save_path:
-                            if os.path.exists(dir): recycle_path.append(dir)
+                            if os.path.exists(dir): location_path_list.append(dir)
                     else:
-                        e = (f'No categories defined. Checking Recycle Bin directory {self.recycle_dir}.')
-                        self.notify(e, 'Empty Recycle Bin', False)
+                        e = (f'No categories defined. Checking {location} directory {location_path}.')
+                        self.notify(e, f'Empty {location}', False)
                         logger.warning(e)
-                        recycle_path = [self.recycle_dir]
+                        location_path_list = [location_path]
                 else:
-                    recycle_path = [self.recycle_dir]
-                recycle_files = [os.path.join(path, name) for r_path in recycle_path for path, subdirs, files in os.walk(r_path) for name in files]
-                recycle_files = sorted(recycle_files)
-                if recycle_files:
+                    location_path_list = [location_path]
+                location_files = [os.path.join(path, name) for r_path in location_path_list for path, subdirs, files in os.walk(r_path) for name in files]
+                location_files = sorted(location_files)
+                if location_files:
                     body = []
-                    logger.separator(f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)", space=True, border=True)
+                    logger.separator(f"Emptying {location} (Files > {empty_after_x_days} days)", space=True, border=True)
                     prevfolder = ''
-                    for file in recycle_files:
-                        folder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
+                    for file in location_files:
+                        folder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                         if folder != prevfolder: body += logger.separator(f"Searching: {folder}", space=False, border=False)
                         fileStats = os.stat(file)
                         filename = os.path.basename(file)
                         last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
-                        if (self.recyclebin['empty_after_x_days'] <= days):
+                        if (empty_after_x_days <= days):
                             num_del += 1
                             body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {filename} from {folder} (Last modified {round(days)} days ago).", loglevel)
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
                             if not dry_run: os.remove(file)
-                        prevfolder = re.search(f".*{os.path.basename(self.recycle_dir.rstrip(os.sep))}", file).group(0)
+                        prevfolder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                     if num_del > 0:
                         if not dry_run:
-                            for path in recycle_path:
+                            for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
-                        body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the Recycle Bin.", loglevel)
+                        body += logger.print_line(f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files ({util.human_readable_size(size_bytes)}) from the {location}.", loglevel)
                         attr = {
-                            "function": "empty_recyclebin",
-                            "title": f"Emptying Recycle Bin (Files > {self.recyclebin['empty_after_x_days']} days)",
+                            "function": function,
+                            "location": location,
+                            "title": f"Emptying {location} (Files > {empty_after_x_days} days)",
                             "body": "\n".join(body),
                             "files": files,
-                            "empty_after_x_days": self.recyclebin['empty_after_x_days'],
+                            "empty_after_x_days": empty_after_x_days,
                             "size_in_bytes": size_bytes
                         }
                         self.send_notifications(attr)
                 else:
-                    logger.debug(f'No files found in "{(",".join(recycle_path))}"')
+                    logger.debug(f'No files found in "{(",".join(location_path_list))}"')
         return num_del
 
     def send_notifications(self, attr):

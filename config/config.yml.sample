@@ -14,7 +14,7 @@ commands:
   tag_tracker_error: False
   rem_orphaned: False
   tag_nohardlinks: False
-  skip_recycle: False
+  skip_cleanup: False
 
 qbt:
   # qBittorrent parameters
@@ -43,6 +43,7 @@ directory:
   remote_dir: "/mnt/user/data/torrents/"
   recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
   torrents_dir: "/qbittorrent/data/BT_backup"
+  orphaned_dir: "/data/torrents/orphaned_data"
 
 cat:
   # Category & Path Parameters
@@ -184,6 +185,10 @@ recyclebin:
 
 orphaned:
   # Orphaned files are those in the root_dir download directory that are not referenced by any active torrents.
+  # Will automatically remove all files and folders in orphaned data after x days. (Checks every script run)
+  # If this variable is not defined it, the orphaned data will never be emptied.
+  # WARNING: Setting this variable to 0 will delete all files immediately upon script run!
+  empty_after_x_days: 60
   # File patterns that will not be considered orphaned files. Handy for generated files that aren't part of the torrent but belong with the torrent's files
   exclude_patterns:
     - "**/.DS_Store"
@@ -227,7 +232,7 @@ webhooks:
     tag_tracker_error: notifiarr
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
-    empty_recyclebin: notifiarr
+    cleanup_dirs: notifiarr
 
 bhd:
   # BHD Integration used for checking unregistered torrents
