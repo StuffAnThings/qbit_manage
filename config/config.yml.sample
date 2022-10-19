@@ -70,6 +70,8 @@ tracker:
   #   max_ratio: 5.0
   # <OPTIONAL> Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding. -2 means the global limit should be used, -1 means no limit.
   #   max_seeding_time: 129600
+  # <OPTIONAL> Will ensure that noHL torrents from this tracker are not deleted by cleanup variable if torrent has not yet met the minimum seeding time (min).
+  #   min_seeding_time: 2000  
   # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
   #   limit_upload_speed: 150
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
@@ -84,6 +86,7 @@ tracker:
       - tag3
     max_ratio: 5.0
     max_seeding_time: 129600
+    min_seeding_time: 30400
     limit_upload_speed: 150
     notifiarr: avistaz
   beyond-hd:
@@ -145,7 +148,8 @@ nohardlinks:
     max_seeding_time: 86400
     # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed:
-    # <OPTIONAL> min seeding time var: Will ensure that torrent is not deleted by cleanup variable if torrent does not meet minimum seeding time (min).
+    # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min). 
+    # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker. 
     min_seeding_time: 43200
 
   # Can have additional categories set with separate ratio/seeding times defined.
@@ -162,8 +166,8 @@ nohardlinks:
     max_seeding_time: 86400
     # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed:
-    # <OPTIONAL> min seeding time var: Will ensure that torrent is not deleted by cleanup variable if torrent does not meet minimum seeding time (min).
-    min_seeding_time: 43200
+    # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min). 
+    # min_seeding_time: # Not specified for this category; tracker's value will be used. Will default to 0 if not specified for the category or tracker. 
 
 recyclebin:
   # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
