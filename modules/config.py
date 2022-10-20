@@ -198,7 +198,7 @@ class Config:
                     self.nohardlinks[cat]['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="nohardlinks", subparent=cat,
                                                                                               var_type="int", default_int=-2, default_is_none=True, do_print=False)
                     self.nohardlinks[cat]['min_seeding_time'] = self.util.check_for_attribute(self.data, "min_seeding_time", parent="nohardlinks", subparent=cat,
-                                                                                              var_type="int", default_int=0, default=0, do_print=False)
+                                                                                              var_type="int", default_int=0, default_is_none=True, do_print=False)
                     self.nohardlinks[cat]['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="nohardlinks", subparent=cat,
                                                                                                 var_type="int", default_int=-1, default_is_none=True, do_print=False)
                 else:
@@ -293,6 +293,7 @@ class Config:
         tracker = {}
         tracker['tag'] = None
         tracker['max_ratio'] = None
+        tracker['min_seeding_time'] = None        
         tracker['max_seeding_time'] = None
         tracker['limit_upload_speed'] = None
         tracker['notifiarr'] = None
@@ -331,6 +332,8 @@ class Config:
                             if isinstance(tracker['tag'], str): tracker['tag'] = [tracker['tag']]
                             tracker['max_ratio'] = self.util.check_for_attribute(self.data, "max_ratio", parent="tracker", subparent=tag_url,
                                                                                  var_type="float", default_int=-2, default_is_none=True, do_print=False, save=False)
+                            tracker['min_seeding_time'] = self.util.check_for_attribute(self.data, "min_seeding_time", parent="tracker", subparent=tag_url,
+                                                                                        var_type="int", default_int=0, default_is_none=True, do_print=False, save=False)
                             tracker['max_seeding_time'] = self.util.check_for_attribute(self.data, "max_seeding_time", parent="tracker", subparent=tag_url,
                                                                                         var_type="int", default_int=-2, default_is_none=True, do_print=False, save=False)
                             tracker['limit_upload_speed'] = self.util.check_for_attribute(self.data, "limit_upload_speed", parent="tracker", subparent=tag_url,

@@ -350,10 +350,18 @@ class Qbt:
                                 self.config.send_notifications(attr)
                             # Cleans up previously tagged noHL torrents
                             else:
+                                # Determine min_seeding_time.  noHl > Tracker w/ default 0
+                                min_seeding_time = 0
+                                tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith('http')])
+                                if nohardlinks[category]["min_seeding_time"]:
+                                    min_seeding_time = nohardlinks[category]["min_seeding_time"]
+                                elif tracker["min_seeding_time"]:
+                                    min_seeding_time = tracker["min_seeding_time"]
+
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                                 if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category]) > 0
-                                   and torrent.seeding_time > (nohardlinks[category]["min_seeding_time"]*60)):
-                                    tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir, root_dir)
+                                    and torrent.seeding_time > (min_seeding_time*60)):
+                                        tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir, root_dir)
                     # Checks to see if previous noHL tagged torrents now have hard links.
                     if (not (util.nohardlink(torrent['content_path'].replace(root_dir, root_dir))) and ('noHL' in torrent.tags)):
                         num_untag += 1
