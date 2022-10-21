@@ -395,7 +395,7 @@ class Config:
             location_path = self.orphaned_dir
 
         if not skip:
-            if enabled and empty_after_x_days:
+            if enabled and empty_after_x_days is not None:
                 if location == "Recycle Bin" and self.recyclebin['split_by_category']:
                     if "cat" in self.data and self.data["cat"] is not None:
                         save_path = list(self.data["cat"].values())
