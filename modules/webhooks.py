@@ -35,9 +35,8 @@ class Webhooks:
                 if self.notifiarr is None:
                     break
                 else:
-                    url, params = self.notifiarr.get_url("notification/qbitManage/")
                     for x in range(6):
-                        response = self.config.get(url, json=json, params=params)
+                        response = self.notifiarr.notification(json=json)
                         if response.status_code < 500:
                             break
             elif webhook == "apprise":

@@ -155,8 +155,6 @@ class Config:
                 try:
                     self.NotifiarrFactory = Notifiarr(self, {
                         "apikey": self.util.check_for_attribute(self.data, "apikey", parent="notifiarr", throw=True),
-                        "develop": self.util.check_for_attribute(self.data, "develop", parent="notifiarr", var_type="bool", default=False, do_print=False, save=False),
-                        "test": self.util.check_for_attribute(self.data, "test", parent="notifiarr", var_type="bool", default=False, do_print=False, save=False),
                         "instance": self.util.check_for_attribute(self.data, "instance", parent="notifiarr", default=False, do_print=False, save=False)
                     })
                 except Failed as e:
