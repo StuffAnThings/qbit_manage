@@ -21,22 +21,29 @@ class Qbt:
         logger.secret(self.username)
         logger.secret(self.password)
         logger.debug(f'Host: {self.host}, Username: {self.username}, Password: {self.password}')
+        e = ''
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password, VERIFY_WEBUI_CERTIFICATE=False)
             self.client.auth_log_in()
 
             SUPPORTED_VERSION = Version.latest_supported_app_version()
             CURRENT_VERSION = self.client.app.version
+            MIN_SUPPORTED_VERSION = 'v4.3.0'
             logger.debug(f'qBittorrent: {self.client.app.version}')
             logger.debug(f'qBittorrent Web API: {self.client.app.web_api_version}')
-            logger.debug(f'qbit_manage support version: {SUPPORTED_VERSION}')
-            if not Version.is_app_version_supported(CURRENT_VERSION):
+            logger.debug(f'qbit_manage support versions: {MIN_SUPPORTED_VERSION} - {SUPPORTED_VERSION}')
+            if CURRENT_VERSION < MIN_SUPPORTED_VERSION:
+                e = (f"Qbittorrent Error: qbit_manage is only comaptible with {MIN_SUPPORTED_VERSION} or higher. You are currently on {CURRENT_VERSION}." + '\n'
+                     + f"Please upgrade to your Qbittorrent version to {MIN_SUPPORTED_VERSION} or higher to use qbit_manage.")
+            elif not Version.is_app_version_supported(CURRENT_VERSION):
                 e = (f"Qbittorrent Error: qbit_manage is only comaptible with {SUPPORTED_VERSION} or lower. You are currently on {CURRENT_VERSION}." + '\n'
                      + f"Please downgrade to your Qbittorrent version to {SUPPORTED_VERSION} to use qbit_manage.")
+            if e:
                 self.config.notify(e, "Qbittorrent")
                 logger.print_line(e, 'CRITICAL')
                 sys.exit(0)
-            logger.info("Qbt Connection Successful")
+            else:
+                logger.info("Qbt Connection Successful")
         except LoginFailed:
             e = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(e, "Qbittorrent")
