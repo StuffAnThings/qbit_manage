@@ -366,9 +366,8 @@ class Qbt:
                                     min_seeding_time = tracker["min_seeding_time"]
 
                                 # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
-                                if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category]) > 0
-                                    and torrent.seeding_time > (min_seeding_time*60)):
-                                        tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir, root_dir)
+                                if (nohardlinks[category]['cleanup'] and torrent.state_enum.is_paused and len(nohardlinks[category]) > 0 and torrent.seeding_time > (min_seeding_time*60)):
+                                    tdel_dict[torrent.name] = torrent['content_path'].replace(root_dir, root_dir)
                     # Checks to see if previous noHL tagged torrents now have hard links.
                     if (not (util.nohardlink(torrent['content_path'].replace(root_dir, root_dir))) and ('noHL' in torrent.tags)):
                         num_untag += 1
@@ -817,16 +816,6 @@ class Qbt:
                 excluded_orphan_files = [file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch(file, exclude_pattern.replace(remote_path, root_path))]
 
             orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
-            # if self.config.trace_mode:
-            #     logger.separator("Torrent Files", space=False, border=False, loglevel='DEBUG')
-            #     logger.print_line("\n".join(torrent_files), 'DEBUG')
-            #     logger.separator("Root Files", space=False, border=False, loglevel='DEBUG')
-            #     logger.print_line("\n".join(root_files), 'DEBUG')
-            #     logger.separator("Excluded Orphan Files", space=False, border=False, loglevel='DEBUG')
-            #     logger.print_line("\n".join(excluded_orphan_files), 'DEBUG')
-            #     logger.separator("Orphaned Files", space=False, border=False, loglevel='DEBUG')
-            #     logger.print_line("\n".join(orphaned_files), 'DEBUG')
-            #     logger.separator("Deleting Orphaned Files", space=False, border=False, loglevel='DEBUG')
 
             if orphaned_files:
                 os.makedirs(orphaned_path, exist_ok=True)

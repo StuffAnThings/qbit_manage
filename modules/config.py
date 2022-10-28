@@ -291,7 +291,7 @@ class Config:
         tracker = {}
         tracker['tag'] = None
         tracker['max_ratio'] = None
-        tracker['min_seeding_time'] = None        
+        tracker['min_seeding_time'] = None
         tracker['max_seeding_time'] = None
         tracker['limit_upload_speed'] = None
         tracker['notifiarr'] = None
