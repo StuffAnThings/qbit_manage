@@ -26,6 +26,8 @@ class BeyondHD:
         except JSONDecodeError as e:
             if response.status_code >= 400:
                 raise Failed(e)
+            elif "Expecting value" in e:
+                logger.debug(e)
         if response.status_code >= 400:
             logger.debug(f"Response: {response_json}")
             raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
