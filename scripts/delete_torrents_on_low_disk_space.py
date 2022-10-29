@@ -3,25 +3,29 @@ You can set a min torrent age and share ratio for a torrent to be deleted.
 You can also allow incomplete torrents to be deleted.
 Torrents will be deleted starting with the ones with the most seeds, only torrents with a single hardlink will be deleted.
 """
-
-
 import os
-import qbittorrentapi
-from datetime import datetime, timedelta
 import shutil
 import time
+from datetime import datetime
+from datetime import timedelta
+
+import qbittorrentapi
 
 
 """===Config==="""
 # qBittorrent WebUi Login
 qbt_login = {"host": "localhost", "port": 8080, "username": "???", "password": "???"}
-PATH = "M:"                                 # Path of drive to monitor
-MIN_FREE_SPACE = 10                         # In GB. Min free space on drive.
-MIN_FREE_USAGE = 0                          # In decimal percentage, 0 to 1. Min % free space on drive.
-MIN_TORRENT_SHARE_RATIO = 0                 # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
-MIN_TORRENT_AGE = 30                        # In days, min age of torrent to delete. Uses seeding time.
-ALLOW_INCOMPLETE_TORRENT_DELETIONS = False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time torrent was added.
-PREFER_PRIVATE_TORRENTS = True              # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
+PATH = "M:"  # Path of drive to monitor
+MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
+MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
+MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
+MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
+ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
+    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time torrent was added.
+)
+PREFER_PRIVATE_TORRENTS = (
+    True  # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
+)
 """===End Config==="""
 
 # Services
@@ -32,15 +36,18 @@ def quit_program(code=0) -> None:
     """Quits program with info"""
     print("Exiting...")
     import sys
+
     sys.exit(code)
 
 
 def setup_services(qbt=False) -> None:
     """Setup required services"""
     global qbt_client
-    
+
     if qbt:
-        qbt_client = qbittorrentapi.Client(host=qbt_login["host"], port=qbt_login["port"], username=qbt_login["username"], password=qbt_login["password"])
+        qbt_client = qbittorrentapi.Client(
+            host=qbt_login["host"], port=qbt_login["port"], username=qbt_login["username"], password=qbt_login["password"]
+        )
         try:
             qbt_client.auth_log_in()
             print("Succesfully connected to qBittorrent!")
@@ -164,11 +171,15 @@ def main() -> None:
     if not is_storage_full():
         print(f"Free space now above threshold, {len(deleted_torrents)} torrents were deleted!")
     else:  # No more torrents to delete but still low on space
-        print(f"WARNING... Free space still below threshold after deleting all {len(deleted_torrents)} eligible torrents! Either:")
-        print(f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE} days'\n"
-              f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO}'\n"
-              f"--- Torrents have multiple hard links\n"
-              f"--- No torrents exists!")
+        print(
+            f"WARNING... Free space still below threshold after deleting all {len(deleted_torrents)} eligible torrents! Either:"
+        )
+        print(
+            f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE} days'\n"
+            f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO}'\n"
+            f"--- Torrents have multiple hard links\n"
+            f"--- No torrents exists!"
+        )
 
     quit_program(0)
 

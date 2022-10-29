@@ -1,5 +1,5 @@
 [flake8]
-ignore = 
+ignore =
   E226, # E226	Missing whitespace around arithmetic operator
   #E302, # E302	Expected 2 blank lines, found 0
   E401, # E401	Multiple imports on one line
@@ -10,4 +10,4 @@ ignore =
   E722, # E722	Do not use bare except, specify exception instead
   W503, # W503  Line break occurred before a binary operator
   E402, # E402  module level import not at top of file
-max-line-length = 200
+max-line-length = 130

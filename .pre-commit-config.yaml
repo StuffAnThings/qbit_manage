@@ -1,0 +1,41 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.3.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-json
+      - id: check-yaml
+      - id: debug-statements
+      - id: requirements-txt-fixer
+      - id: fix-encoding-pragma
+        args: [--remove]
+      - id: pretty-format-json
+        args: [--autofix, --indent, '4', --no-sort-keys]
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.21.0   # or higher tag
+    hooks:
+      - id: yamllint
+        args: [--format, parsable, --strict]
+        exclude: ^.github/
+  - repo: https://github.com/lyz-code/yamlfix
+    rev: 1.1.0
+    hooks:
+      - id: yamlfix
+        exclude: ^.github/
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v3.9.0
+    hooks:
+      - id: reorder-python-imports
+  - repo: https://github.com/psf/black
+    rev: 22.10.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length, '130']
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 5.0.4
+    hooks:
+      - id: flake8
+        args: [--config=.flake8]

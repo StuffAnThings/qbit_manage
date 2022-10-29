@@ -1,4 +1,4 @@
-FROM python:3.9-alpine
+FROM python:3.10-alpine
 
 # install packages
 RUN apk add --no-cache gcc g++ libxml2-dev libxslt-dev shadow bash curl wget jq grep sed coreutils findutils unzip p7zip ca-certificates

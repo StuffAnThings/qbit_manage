@@ -8,4 +8,6 @@ __pycache__/
 .vscode/*
 !.github/**
 *.svg
-.venv
+.venv*
+qbit_manage.egg-info/
+.tox

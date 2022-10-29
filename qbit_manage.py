@@ -1,7 +1,11 @@
 #!/usr/bin/python3
-
-import argparse, os, sys, time, glob
-from datetime import datetime, timedelta
+import argparse
+import glob
+import os
+import sys
+import time
+from datetime import datetime
+from datetime import timedelta
 
 try:
     import schedule
@@ -12,38 +16,148 @@ except ModuleNotFoundError:
 
 
 if sys.version_info[0] != 3 or sys.version_info[1] < 6:
-    print("Version Error: Version: %s.%s.%s incompatible please use Python 3.6+" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))
+    print(
+        "Version Error: Version: %s.%s.%s incompatible please use Python 3.6+"
+        % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+    )
     sys.exit(0)
 
-parser = argparse.ArgumentParser('qBittorrent Manager.', description='A mix of scripts combined for managing qBittorrent.')
+parser = argparse.ArgumentParser("qBittorrent Manager.", description="A mix of scripts combined for managing qBittorrent.")
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
-parser.add_argument('-r', '--run', dest='run', action='store_true', default=False, help='Run without the scheduler. Script will exit after completion.')
-parser.add_argument('-sch', '--schedule', dest='min',  default='1440', type=str, help='Schedule to run every x minutes. (Default set to 1440 (1 day))')
-parser.add_argument('-sd', '--startup-delay', dest='startupDelay',  default='0', type=str, help='Set delay in seconds on the first run of a schedule (Default set to 0)')
-parser.add_argument('-c', '--config-file', dest='configfiles', action='store', default='config.yml', type=str,
-                    help='This is used if you want to use a different name for your config.yml or if you want to load multiple config files using *. Example: tv.yml or config*.yml')
-parser.add_argument('-lf', '--log-file', dest='logfile', action='store', default='qbit_manage.log', type=str,
-                    help='This is used if you want to use a different name for your log file. Example: tv.log',)
-parser.add_argument('-cs', '--cross-seed', dest='cross_seed', action="store_true", default=False,
-                    help='Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent')
-parser.add_argument('-re', '--recheck', dest='recheck', action="store_true", default=False, help='Recheck paused torrents sorted by lowest size. Resume if Completed.')
-parser.add_argument('-cu', '--cat-update', dest='cat_update', action="store_true", default=False, help='Use this if you would like to update your categories.')
-parser.add_argument('-tu', '--tag-update', dest='tag_update', action="store_true", default=False,
-                    help='Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag. (Only adds tags to untagged torrents)')
-parser.add_argument('-ru', '--rem-unregistered', dest='rem_unregistered', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
-parser.add_argument('-tte', '--tag-tracker-error', dest='tag_tracker_error', action="store_true", default=False, help='Use this if you would like to tag torrents that do not have a working tracker.')
-parser.add_argument('-ro', '--rem-orphaned', dest='rem_orphaned', action="store_true", default=False, help='Use this if you would like to remove unregistered torrents.')
-parser.add_argument('-tnhl', '--tag-nohardlinks', dest='tag_nohardlinks', action="store_true", default=False,
-                    help='Use this to tag any torrents that do not have any hard links associated with any of the files. \
-                          This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. \
-                          When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. \
-                          You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.')
-parser.add_argument('-sc', '--skip-cleanup', dest='skip_cleanup', action="store_true", default=False, help='Use this to skip cleaning up Reycle Bin/Orphaned directory.')
-parser.add_argument('-dr', '--dry-run', dest='dry_run', action="store_true", default=False,
-                    help='If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.')
-parser.add_argument('-ll', '--log-level', dest='log_level', action="store", default='INFO', type=str, help='Change your log level.')
-parser.add_argument("-d", "--divider", dest="divider", help="Character that divides the sections (Default: '=')", default="=", type=str)
+parser.add_argument(
+    "-r",
+    "--run",
+    dest="run",
+    action="store_true",
+    default=False,
+    help="Run without the scheduler. Script will exit after completion.",
+)
+parser.add_argument(
+    "-sch",
+    "--schedule",
+    dest="min",
+    default="1440",
+    type=str,
+    help="Schedule to run every x minutes. (Default set to 1440 (1 day))",
+)
+parser.add_argument(
+    "-sd",
+    "--startup-delay",
+    dest="startupDelay",
+    default="0",
+    type=str,
+    help="Set delay in seconds on the first run of a schedule (Default set to 0)",
+)
+parser.add_argument(
+    "-c",
+    "--config-file",
+    dest="configfiles",
+    action="store",
+    default="config.yml",
+    type=str,
+    help="This is used if you want to use a different name for your config.yml or if you want to load multiple"
+    "config files using *. Example: tv.yml or config*.yml",
+)
+parser.add_argument(
+    "-lf",
+    "--log-file",
+    dest="logfile",
+    action="store",
+    default="qbit_manage.log",
+    type=str,
+    help="This is used if you want to use a different name for your log file. Example: tv.log",
+)
+parser.add_argument(
+    "-cs",
+    "--cross-seed",
+    dest="cross_seed",
+    action="store_true",
+    default=False,
+    help="Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent",
+)
+parser.add_argument(
+    "-re",
+    "--recheck",
+    dest="recheck",
+    action="store_true",
+    default=False,
+    help="Recheck paused torrents sorted by lowest size. Resume if Completed.",
+)
+parser.add_argument(
+    "-cu",
+    "--cat-update",
+    dest="cat_update",
+    action="store_true",
+    default=False,
+    help="Use this if you would like to update your categories.",
+)
+parser.add_argument(
+    "-tu",
+    "--tag-update",
+    dest="tag_update",
+    action="store_true",
+    default=False,
+    help="Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag."
+    " (Only adds tags to untagged torrents)",
+)
+parser.add_argument(
+    "-ru",
+    "--rem-unregistered",
+    dest="rem_unregistered",
+    action="store_true",
+    default=False,
+    help="Use this if you would like to remove unregistered torrents.",
+)
+parser.add_argument(
+    "-tte",
+    "--tag-tracker-error",
+    dest="tag_tracker_error",
+    action="store_true",
+    default=False,
+    help="Use this if you would like to tag torrents that do not have a working tracker.",
+)
+parser.add_argument(
+    "-ro",
+    "--rem-orphaned",
+    dest="rem_orphaned",
+    action="store_true",
+    default=False,
+    help="Use this if you would like to remove unregistered torrents.",
+)
+parser.add_argument(
+    "-tnhl",
+    "--tag-nohardlinks",
+    dest="tag_nohardlinks",
+    action="store_true",
+    default=False,
+    help="Use this to tag any torrents that do not have any hard links associated with any of the files. "
+    "This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. "
+    "When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. "
+    "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.",
+)
+parser.add_argument(
+    "-sc",
+    "--skip-cleanup",
+    dest="skip_cleanup",
+    action="store_true",
+    default=False,
+    help="Use this to skip cleaning up Reycle Bin/Orphaned directory.",
+)
+parser.add_argument(
+    "-dr",
+    "--dry-run",
+    dest="dry_run",
+    action="store_true",
+    default=False,
+    help="If you would like to see what is gonna happen but not actually move/delete or tag/categorize anything.",
+)
+parser.add_argument(
+    "-ll", "--log-level", dest="log_level", action="store", default="INFO", type=str, help="Change your log level."
+)
+parser.add_argument(
+    "-d", "--divider", dest="divider", help="Character that divides the sections (Default: '=')", default="=", type=str
+)
 parser.add_argument("-w", "--width", dest="width", help="Screen Width (Default: 100)", default=100, type=int)
 args = parser.parse_args()
 
@@ -93,18 +207,19 @@ screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
 trace = get_arg("QBT_TRACE", args.trace, arg_bool=True)
 
-if debug or trace: log_level = 'DEBUG'
+if debug or trace:
+    log_level = "DEBUG"
 
 stats = {}
 args = {}
 
-if os.path.isdir('/config') and glob.glob(os.path.join('/config', config_files)):
-    default_dir = '/config'
+if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files)):
+    default_dir = "/config"
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
 
-if '*' not in config_files:
+if "*" not in config_files:
     config_files = [config_files]
 else:
     glob_configs = glob.glob(os.path.join(default_dir, config_files))
@@ -116,26 +231,26 @@ else:
 
 
 for v in [
-    'run',
-    'sch',
-    'startupDelay',
-    'config_files',
-    'log_file',
-    'cross_seed',
-    'recheck',
-    'cat_update',
-    'tag_update',
-    'rem_unregistered',
-    'tag_tracker_error',
-    'rem_orphaned',
-    'tag_nohardlinks',
-    'skip_cleanup',
-    'dry_run',
-    'log_level',
-    'divider',
-    'screen_width',
-    'debug',
-    'trace'
+    "run",
+    "sch",
+    "startupDelay",
+    "config_files",
+    "log_file",
+    "cross_seed",
+    "recheck",
+    "cat_update",
+    "tag_update",
+    "rem_unregistered",
+    "tag_tracker_error",
+    "rem_orphaned",
+    "tag_nohardlinks",
+    "skip_cleanup",
+    "dry_run",
+    "log_level",
+    "divider",
+    "screen_width",
+    "debug",
+    "trace",
 ]:
     args[v] = eval(v)
 
@@ -158,8 +273,9 @@ except ValueError:
     sys.exit(0)
 
 
-logger = MyLogger('qBit Manage', log_file, log_level, default_dir, screen_width, divider[0], False, debug or trace)
+logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, debug or trace)
 from modules import util
+
 util.logger = logger
 from modules.config import Config
 from modules.util import GracefulKiller
@@ -204,8 +320,8 @@ def start():
     stats_summary = []
     logger.separator("Starting Run")
     cfg = None
-    body = ''
-    run_time = ''
+    body = ""
+    run_time = ""
     end_time = None
     next_run = None
     global stats
@@ -224,30 +340,33 @@ def start():
         "tagged_tracker_error": 0,
         "untagged_tracker_error": 0,
         "tagged_noHL": 0,
-        "untagged_noHL": 0
+        "untagged_noHL": 0,
     }
 
     def FinishedRun():
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
-        run_time = str(end_time - start_time).split('.')[0]
+        run_time = str(end_time - start_time).split(".")[0]
         _, nr = calc_next_run(sch, True)
-        next_run_str = nr['next_run_str']
-        next_run = nr['next_run']
-        body = logger.separator(f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}"
-                                .replace('\n\n', '\n').rstrip())[0]
+        next_run_str = nr["next_run_str"]
+        next_run = nr["next_run"]
+        body = logger.separator(
+            f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
+            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace("\n\n", "\n").rstrip()
+        )[0]
         return next_run, body
+
     try:
         cfg = Config(default_dir, args)
     except Exception as e:
-        if 'Qbittorrent Error' in e.args[0]:
-            logger.print_line(e, 'CRITICAL')
-            logger.print_line('Exiting scheduled Run.', 'CRITICAL')
+        if "Qbittorrent Error" in e.args[0]:
+            logger.print_line(e, "CRITICAL")
+            logger.print_line("Exiting scheduled Run.", "CRITICAL")
             FinishedRun()
             return None
         else:
             logger.stacktrace()
-            logger.print_line(e, 'CRITICAL')
+            logger.print_line(e, "CRITICAL")
 
     if cfg:
         # Set Category
@@ -260,7 +379,7 @@ def start():
 
         # Remove Unregistered Torrents
         num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
-        stats["rem_unreg"] += (num_deleted + num_deleted_contents)
+        stats["rem_unreg"] += num_deleted + num_deleted_contents
         stats["deleted"] += num_deleted
         stats["deleted_contents"] += num_deleted_contents
         stats["tagged_tracker_error"] += num_tagged
@@ -297,21 +416,36 @@ def start():
         orphaned_emptied = cfg.cleanup_dirs("Orphaned Data")
         stats["orphaned_emptied"] += orphaned_emptied
 
-    if stats["categorized"] > 0:                stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
-    if stats["tagged"] > 0:                     stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
-    if stats["rem_unreg"] > 0:                  stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
-    if stats["tagged_tracker_error"] > 0:       stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents Tagged: {stats['tagged_tracker_error']}")
-    if stats["untagged_tracker_error"] > 0:     stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents untagged: {stats['untagged_tracker_error']}")
-    if stats["added"] > 0:                      stats_summary.append(f"Total Torrents Added: {stats['added']}")
-    if stats["resumed"] > 0:                    stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
-    if stats["rechecked"] > 0:                  stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
-    if stats["deleted"] > 0:                    stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
-    if stats["deleted_contents"] > 0:           stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
-    if stats["orphaned"] > 0:                   stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
-    if stats["tagged_noHL"] > 0:                stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
-    if stats["untagged_noHL"] > 0:              stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
-    if stats["recycle_emptied"] > 0:            stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
-    if stats["orphaned_emptied"] > 0:           stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
+    if stats["categorized"] > 0:
+        stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
+    if stats["tagged"] > 0:
+        stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
+    if stats["rem_unreg"] > 0:
+        stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
+    if stats["tagged_tracker_error"] > 0:
+        stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents Tagged: {stats['tagged_tracker_error']}")
+    if stats["untagged_tracker_error"] > 0:
+        stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents untagged: {stats['untagged_tracker_error']}")
+    if stats["added"] > 0:
+        stats_summary.append(f"Total Torrents Added: {stats['added']}")
+    if stats["resumed"] > 0:
+        stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
+    if stats["rechecked"] > 0:
+        stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
+    if stats["deleted"] > 0:
+        stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
+    if stats["deleted_contents"] > 0:
+        stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
+    if stats["orphaned"] > 0:
+        stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
+    if stats["tagged_noHL"] > 0:
+        stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
+    if stats["untagged_noHL"] > 0:
+        stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
+    if stats["recycle_emptied"] > 0:
+        stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
+    if stats["orphaned_emptied"] > 0:
+        stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
 
     FinishedRun()
     if cfg:
@@ -330,14 +464,14 @@ def end():
 
 def calc_next_run(sch, print=False):
     current = datetime.now().strftime("%H:%M")
-    seconds = sch*60
+    seconds = sch * 60
     time_to_run = datetime.now() + timedelta(minutes=sch)
     time_to_run_str = time_to_run.strftime("%H:%M")
     new_seconds = (datetime.strptime(time_to_run_str, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
-    time_str = ''
+    time_str = ""
     next_run = {}
     if run is False:
-        next_run['next_run'] = time_to_run
+        next_run["next_run"] = time_to_run
         if new_seconds < 0:
             new_seconds += 86400
         if (seconds is None or new_seconds < seconds) and new_seconds > 0:
@@ -347,14 +481,15 @@ def calc_next_run(sch, print=False):
             minutes = int((seconds % 3600) // 60)
             time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
             time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
-            if print: next_run['next_run_str'] = (f"Current Time: {current} | {time_str} until the next run at {time_to_run_str}")
+            if print:
+                next_run["next_run_str"] = f"Current Time: {current} | {time_str} until the next run at {time_to_run_str}"
     else:
-        next_run['next_run'] = None
-        next_run['next_run_str'] = ''
+        next_run["next_run"] = None
+        next_run["next_run_str"] = ""
     return time_str, next_run
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     killer = GracefulKiller()
     logger.add_main_handler()
     logger.separator()
@@ -368,7 +503,7 @@ if __name__ == '__main__':
     logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
     logger.info(f"    Version: {version}")
 
-    logger.separator(loglevel='DEBUG')
+    logger.separator(loglevel="DEBUG")
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
     logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")

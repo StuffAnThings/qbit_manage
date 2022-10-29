@@ -16,7 +16,7 @@ updates:
     directory: '/'
     schedule:
       interval: daily
-    assignees: 
+    assignees:
       - "bobokun"
     target-branch: "develop"
     ignore:
