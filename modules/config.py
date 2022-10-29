@@ -291,6 +291,15 @@ class Config:
                         default_is_none=True,
                         do_print=False,
                     )
+                    self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
+                        self.data,
+                        "resume_torrent_after_untagging_noHL",
+                        parent="nohardlinks",
+                        subparent=cat,
+                        var_type="bool",
+                        default=True,
+                        do_print=False,
+                    )
                 else:
                     e = f"Config Error: Category {cat} is defined under nohardlinks attribute "
                     "but is not defined in the cat attribute."

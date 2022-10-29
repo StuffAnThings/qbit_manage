@@ -475,7 +475,7 @@ class Qbt:
                                     torrent, restore_max_ratio, restore_max_seeding_time, restore_limit_upload_speed, restore=True
                                 )
                             )
-                            if torrent.state == "pausedUP":
+                            if torrent.state == "pausedUP" and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
                                 torrent.resume()
                         attr = {
                             "function": "untag_nohardlinks",

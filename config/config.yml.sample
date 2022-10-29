@@ -151,7 +151,8 @@ nohardlinks:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
     # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
     min_seeding_time: 43200
-
+    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after restoring original share limits
+    resume_torrent_after_untagging_noHL: false
   # Can have additional categories set with separate ratio/seeding times defined.
   series-completed:
     # <OPTIONAL> exclude_tags var: Will exclude the following tags when searching through the category.
@@ -168,6 +169,8 @@ nohardlinks:
     limit_upload_speed:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
     # min_seeding_time: # Not specified for this category; tracker's value will be used. Will default to 0 if not specified for the category or tracker.
+    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after restoring original share limits
+    resume_torrent_after_untagging_noHL: false
 
 recyclebin:
   # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
