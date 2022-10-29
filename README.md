@@ -28,7 +28,6 @@ Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for inst
 3. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
 ## Usage
 To run the script in an interactive terminal with a list of possible commands run:
-
 ```bash
 python qbit_manage.py -h
 ```
