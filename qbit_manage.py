@@ -496,9 +496,9 @@ if __name__ == "__main__":
     logger.info_center("        _     _ _                                            ")  # noqa: W605
     logger.info_center("       | |   (_) |                                           ")  # noqa: W605
     logger.info_center("   __ _| |__  _| |_   _ __ ___   __ _ _ __   __ _  __ _  ___ ")  # noqa: W605
-    logger.info_center("  / _` | '_ \| | __| | '_ ` _ \ / _` | '_ \ / _` |/ _` |/ _ \\")  # noqa: W605
+    logger.info_center("  / _` | '_ \\| | __| | '_ ` _ \\ / _` | '_ \\ / _` |/ _` |/ _ \\")  # noqa: W605
     logger.info_center(" | (_| | |_) | | |_  | | | | | | (_| | | | | (_| | (_| |  __/")  # noqa: W605
-    logger.info_center("  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
+    logger.info_center(r"  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
     logger.info_center("     | |         ______                            __/ |     ")  # noqa: W605
     logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
     logger.info(f"    Version: {version}")

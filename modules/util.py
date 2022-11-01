@@ -191,7 +191,7 @@ class Failed(Exception):
 def list_in_text(text, search_list, match_all=False):
     if isinstance(search_list, list):
         search_list = set(search_list)
-    contains = set([x for x in search_list if " " in x])
+    contains = {x for x in search_list if " " in x}
     exception = search_list - contains
     if match_all:
         if all(x == m for m in text.split(" ") for x in exception) or all(x in text for x in contains):
@@ -278,7 +278,7 @@ def nohardlink(file):
 # Load json file if exists
 def load_json(file):
     if os.path.isfile(file):
-        f = open(file, "r")
+        f = open(file)
         data = json.load(f)
         f.close()
     else:
