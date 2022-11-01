@@ -5,14 +5,21 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: check-merge-conflict
       - id: check-json
       - id: check-yaml
       - id: debug-statements
       - id: requirements-txt-fixer
+      - id: check-added-large-files
+      - id: check-byte-order-marker
       - id: fix-encoding-pragma
         args: [--remove]
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
+  - repo: https://github.com/pre-commit/mirrors-autopep8
+    rev: v2.0.0
+    hooks:
+      - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.21.0   # or higher tag
     hooks:

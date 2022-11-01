@@ -23,3 +23,4 @@ test.py
 .flake8
 qbit_manage.egg-info/
 .tox
+*.env

@@ -274,12 +274,12 @@ except ValueError:
 
 
 logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, debug or trace)
-from modules import util
+from modules import util  # noqa
 
 util.logger = logger
-from modules.config import Config
-from modules.util import GracefulKiller
-from modules.util import Failed
+from modules.config import Config  # noqa
+from modules.util import GracefulKiller  # noqa
+from modules.util import Failed  # noqa
 
 
 def my_except_hook(exctype, value, tb):
