@@ -17,7 +17,10 @@ config
 Dockerfile
 venv
 .idea
-.venv
+.venv*
 test.py
 !config/config.yml.sample
 .flake8
+qbit_manage.egg-info/
+.tox
+*.env

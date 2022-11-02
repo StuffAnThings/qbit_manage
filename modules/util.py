@@ -1,40 +1,57 @@
-import logging, os, shutil, time, signal, json, ruamel.yaml
+import json
+import logging
+import os
+import shutil
+import signal
+import time
 from pathlib import Path
 
-logger = logging.getLogger('qBit Manage')
+import ruamel.yaml
+
+logger = logging.getLogger("qBit Manage")
 
 
 def get_list(data, lower=False, split=True, int_list=False):
-    if data is None:                return None
-    elif isinstance(data, list):    return data
-    elif isinstance(data, dict):    return [data]
-    elif split is False:            return [str(data)]
-    elif lower is True:             return [d.strip().lower() for d in str(data).split(",")]
+    if data is None:
+        return None
+    elif isinstance(data, list):
+        return data
+    elif isinstance(data, dict):
+        return [data]
+    elif split is False:
+        return [str(data)]
+    elif lower is True:
+        return [d.strip().lower() for d in str(data).split(",")]
     elif int_list is True:
-        try:                            return [int(d.strip()) for d in str(data).split(",")]
-        except ValueError:              return []
-    else:                           return [d.strip() for d in str(data).split(",")]
+        try:
+            return [int(d.strip()) for d in str(data).split(",")]
+        except ValueError:
+            return []
+    else:
+        return [d.strip() for d in str(data).split(",")]
 
 
 class check:
     def __init__(self, config):
         self.config = config
 
-    def check_for_attribute(self,
-                            data,
-                            attribute,
-                            parent=None,
-                            subparent=None,
-                            test_list=None,
-                            default=None,
-                            do_print=True,
-                            default_is_none=False,
-                            req_default=False,
-                            var_type="str",
-                            default_int=0,
-                            throw=False,
-                            save=True,
-                            make_dirs=False):
+    def check_for_attribute(
+        self,
+        data,
+        attribute,
+        parent=None,
+        subparent=None,
+        test_list=None,
+        default=None,
+        do_print=True,
+        default_is_none=False,
+        req_default=False,
+        var_type="str",
+        default_int=0,
+        throw=False,
+        save=True,
+        make_dirs=False,
+    ):
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -75,12 +92,15 @@ class check:
                     endline = f"\n{parent} sub-attribute {attribute} added to config"
                     if parent not in yaml.data or not yaml.data[parent]:
                         yaml.data[parent] = {attribute: default}
-                    elif attribute not in yaml.data[parent] or (attribute in yaml.data[parent] and yaml.data[parent][attribute] is None):
+                    elif attribute not in yaml.data[parent] or (
+                        attribute in yaml.data[parent] and yaml.data[parent][attribute] is None
+                    ):
                         yaml.data[parent][attribute] = default
                     else:
                         endline = ""
                 yaml.save()
-            if default_is_none and var_type in ["list", "int_list"]:            return []
+            if default_is_none and var_type in ["list", "int_list"]:
+                return []
         elif data[attribute] is None:
             if default_is_none and var_type == "list":
                 return []
@@ -114,14 +134,13 @@ class check:
                 message = f"{text} must a float >= {float(default_int)}"
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
-                return os.path.join(data[attribute], '')
+                return os.path.join(data[attribute], "")
             else:
                 message = f"Path {os.path.abspath(data[attribute])} does not exist"
         elif var_type == "list":
             return get_list(data[attribute], split=False)
         elif var_type == "list_path":
-            temp_list = [p for p in get_list(
-                data[attribute], split=False) if os.path.exists(os.path.abspath(p))]
+            temp_list = [p for p in get_list(data[attribute], split=False) if os.path.exists(os.path.abspath(p))]
             if len(temp_list) > 0:
                 return temp_list
             else:
@@ -133,10 +152,10 @@ class check:
         else:
             message = f"{text}: {data[attribute]} is an invalid input"
         if var_type == "path" and default and os.path.exists(os.path.abspath(default)):
-            return os.path.join(default, '')
+            return os.path.join(default, "")
         elif var_type == "path" and default and make_dirs:
             os.makedirs(default, exist_ok=True)
-            return os.path.join(default, '')
+            return os.path.join(default, "")
         elif var_type == "path" and default:
             if data and attribute in data and data[attribute]:
                 message = f"neither {data[attribute]} or the default path {default} could be found"
@@ -147,8 +166,7 @@ class check:
             message = message + f" using {default} as default"
         message = message + endline
         if req_default and default is None:
-            raise Failed(
-                f"Config Error: {attribute} attribute must be set under {parent}.")
+            raise Failed(f"Config Error: {attribute} attribute must be set under {parent}.")
         options = ""
         if test_list:
             for option, description in test_list.items():
@@ -171,8 +189,9 @@ class Failed(Exception):
 
 
 def list_in_text(text, search_list, match_all=False):
-    if isinstance(search_list, list): search_list = set(search_list)
-    contains = set([x for x in search_list if ' ' in x])
+    if isinstance(search_list, list):
+        search_list = set(search_list)
+    contains = {x for x in search_list if " " in x}
     exception = search_list - contains
     if match_all:
         if all(x == m for m in text.split(" ") for x in exception) or all(x in text for x in contains):
@@ -245,21 +264,21 @@ def remove_empty_directories(pathlib_root_dir, pattern):
 # will check if there are any hard links if it passes a file or folder
 def nohardlink(file):
     check = True
-    if (os.path.isfile(file)):
-        if (os.stat(file).st_nlink > 1):
+    if os.path.isfile(file):
+        if os.stat(file).st_nlink > 1:
             check = False
     else:
         for path, subdirs, files in os.walk(file):
             for x in files:
-                if (os.stat(os.path.join(path, x)).st_nlink > 1):
+                if os.stat(os.path.join(path, x)).st_nlink > 1:
                     check = False
     return check
 
 
 # Load json file if exists
 def load_json(file):
-    if (os.path.isfile(file)):
-        f = open(file, "r")
+    if os.path.isfile(file):
+        f = open(file)
         data = json.load(f)
         f.close()
     else:
@@ -269,7 +288,7 @@ def load_json(file):
 
 # Save json file overwrite if exists
 def save_json(torrent_json, dest):
-    with open(dest, 'w', encoding='utf-8') as f:
+    with open(dest, "w", encoding="utf-8") as f:
         json.dump(torrent_json, f, ensure_ascii=False, indent=4)
 
 
@@ -286,7 +305,7 @@ class GracefulKiller:
 
 
 def human_readable_size(size, decimal_places=3):
-    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
+    for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:
         if size < 1024.0:
             break
         size /= 1024.0
@@ -304,7 +323,7 @@ class YAML:
                 self.data = self.yaml.load(input_data)
             else:
                 if create and not os.path.exists(self.path):
-                    with open(self.path, 'w'):
+                    with open(self.path, "w"):
                         pass
                     self.data = {}
                 else:
@@ -322,5 +341,5 @@ class YAML:
 
     def save(self):
         if self.path:
-            with open(self.path, 'w') as fp:
+            with open(self.path, "w") as fp:
                 self.yaml.dump(self.data, fp)

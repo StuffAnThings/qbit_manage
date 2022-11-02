@@ -1,4 +1,9 @@
-import io, logging, os, re, sys, traceback
+import io
+import logging
+import os
+import re
+import sys
+import traceback
 from logging.handlers import RotatingFileHandler
 
 LOG_DIR = "logs"
@@ -41,8 +46,8 @@ class MyLogger:
         os.makedirs(self.log_dir, exist_ok=True)
         self._logger = logging.getLogger(self.logger_name)
         logging.DRYRUN = DRYRUN
-        logging.addLevelName(DRYRUN, 'DRYRUN')
-        setattr(self._logger, 'dryrun', lambda dryrun, *args: self._logger._log(DRYRUN, dryrun, args))
+        logging.addLevelName(DRYRUN, "DRYRUN")
+        setattr(self._logger, "dryrun", lambda dryrun, *args: self._logger._log(DRYRUN, dryrun, args))
         self._log_level = getattr(logging, log_level.upper())
         self._logger.setLevel(self._log_level)
 
@@ -80,7 +85,7 @@ class MyLogger:
         if config_key in self.config_handlers:
             self._logger.addHandler(self.config_handlers[config_key])
         else:
-            self.config_handlers[config_key] = self._get_handler(os.path.join(self.log_dir, config_key + '.log'))
+            self.config_handlers[config_key] = self._get_handler(os.path.join(self.log_dir, config_key + ".log"))
             self._logger.addHandler(self.config_handlers[config_key])
 
     def remove_config_handler(self, config_key):
@@ -99,7 +104,7 @@ class MyLogger:
         final_text = f"{text}{sep * side}{sep * side}" if left else f"{sep * side}{text}{sep * side}"
         return final_text
 
-    def separator(self, text=None, space=True, border=True, side_space=True, left=False, loglevel='INFO'):
+    def separator(self, text=None, space=True, border=True, side_space=True, left=False, loglevel="INFO"):
         sep = " " if space else self.separating_character
         for handler in self._logger.handlers:
             self._formatter(handler, border=False)
@@ -116,7 +121,7 @@ class MyLogger:
             self._formatter(handler)
         return [text]
 
-    def print_line(self, msg, loglevel='INFO', *args, **kwargs):
+    def print_line(self, msg, loglevel="INFO", *args, **kwargs):
         loglvl = getattr(logging, loglevel.upper())
         if self._logger.isEnabledFor(loglvl):
             self._log(loglvl, str(msg), args, **kwargs)
@@ -245,10 +250,10 @@ class MyLogger:
             sinfo = None
             if stack_info:
                 sio = io.StringIO()
-                sio.write('Stack (most recent call last):\n')
+                sio.write("Stack (most recent call last):\n")
                 traceback.print_stack(f, file=sio)
                 sinfo = sio.getvalue()
-                if sinfo[-1] == '\n':
+                if sinfo[-1] == "\n":
                     sinfo = sinfo[:-1]
                 sio.close()
             rv = (co.co_filename, f.f_lineno, co.co_name, sinfo)
