@@ -32,7 +32,7 @@ PREFER_PRIVATE_TORRENTS = (
 qbt_client: qbittorrentapi.Client = None
 
 
-def quit_program(code=0) -> None:
+def quit_program(code=0):
     """Quits program with info"""
     print("Exiting...")
     import sys
@@ -40,7 +40,7 @@ def quit_program(code=0) -> None:
     sys.exit(code)
 
 
-def setup_services(qbt=False) -> None:
+def setup_services(qbt=False):
     """Setup required services"""
     global qbt_client
 
@@ -56,17 +56,17 @@ def setup_services(qbt=False) -> None:
             quit_program(1)
 
 
-def bytes_to_gb(data) -> float:
+def bytes_to_gb(data):
     """Converts bytes to GB."""
     return data / 1024**3
 
 
-def seconds_to_days(seconds) -> float:
+def seconds_to_days(seconds):
     """Converts seconds to days."""
     return seconds / 60 / 60 / 24
 
 
-def get_disk_usage() -> tuple[float, float]:
+def get_disk_usage():
     """Gets the free space and free usage of disk."""
     stat = shutil.disk_usage(PATH)
     free_space = bytes_to_gb(stat.free)
@@ -74,7 +74,7 @@ def get_disk_usage() -> tuple[float, float]:
     return free_space, free_usage
 
 
-def is_storage_full() -> bool:
+def is_storage_full():
     """Checks if free space are below user threshold."""
     free_space, free_usage = get_disk_usage()
     if free_space < MIN_FREE_SPACE or free_usage < MIN_FREE_USAGE:
@@ -82,13 +82,13 @@ def is_storage_full() -> bool:
     return False
 
 
-def print_free_space() -> None:
+def print_free_space():
     """Prints free space and user threshold."""
     free_space, free_usage = get_disk_usage()
     print(f"Free space: {free_space:.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:.2f} GB ({MIN_FREE_USAGE:.2%}) ")
 
 
-def is_torrent_public(torrent_hash, setup=True) -> bool:
+def is_torrent_public(torrent_hash, setup=True):
     """Checks if torrent is public or private by word 'private' in tracker messages."""
     setup_services(qbt=setup)
     torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
@@ -98,7 +98,7 @@ def is_torrent_public(torrent_hash, setup=True) -> bool:
     return True
 
 
-def has_single_hard_link(path) -> bool:
+def has_single_hard_link(path):
     """Check if file has a single hard link. False if any file in directory has multiple."""
     # Check all files if path is directory
     if os.path.isfile(path):
@@ -113,7 +113,7 @@ def has_single_hard_link(path) -> bool:
     return True
 
 
-def torrent_age_satisfied(torrent) -> bool:
+def torrent_age_satisfied(torrent):
     """Gets the age of the torrent based on config"""
     if ALLOW_INCOMPLETE_TORRENT_DELETIONS:
         return datetime.now() >= datetime.fromtimestamp(torrent["added_on"]) + timedelta(days=MIN_TORRENT_AGE)
@@ -121,7 +121,7 @@ def torrent_age_satisfied(torrent) -> bool:
         return seconds_to_days(torrent["seeding_time"]) >= MIN_TORRENT_AGE
 
 
-def main() -> None:
+def main():
 
     # If free space above requirements, terminate
     print_free_space()
