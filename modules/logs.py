@@ -184,7 +184,7 @@ class MyLogger:
             self.spacing = 0
 
     def secret(self, text):
-        if str(text) not in self.secrets:
+        if str(text) not in self.secrets and str(text):
             self.secrets.append(str(text))
 
     def insert_space(self, display_title, space_length=0):
