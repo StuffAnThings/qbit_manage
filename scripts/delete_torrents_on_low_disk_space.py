@@ -144,7 +144,11 @@ def main():
     torrent_num_seeds_raw = []
     for torrent in qbt_client.torrents_info():
         torrent_share_ratio = qbt_client.torrents_properties(torrent["hash"])["share_ratio"]
-        if torrent_on_monitored_drive(torrent) and torrent_age_satisfied(torrent) and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO:
+        if (
+            torrent_on_monitored_drive(torrent)
+            and torrent_age_satisfied(torrent)
+            and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO
+        ):
             torrent_hashes_raw.append(torrent["hash"])
             torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
             torrent_num_seeds_raw.append(torrent["num_complete"])
