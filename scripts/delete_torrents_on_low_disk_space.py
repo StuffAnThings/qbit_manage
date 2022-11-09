@@ -2,12 +2,11 @@
 You can set a min torrent age and share ratio for a torrent to be deleted.
 You can also allow incomplete torrents to be deleted.
 Torrents will be deleted starting with the ones with the most seeds, only torrents with a single hardlink will be deleted.
+Only torrents on configured drive path will be deleted. To monitor multiple drives, use multiple copies of this script.
 """
 import os
 import shutil
 import time
-from datetime import datetime
-from datetime import timedelta
 
 import qbittorrentapi
 
@@ -15,13 +14,13 @@ import qbittorrentapi
 """===Config==="""
 # qBittorrent WebUi Login
 qbt_login = {"host": "localhost", "port": 8080, "username": "???", "password": "???"}
-PATH = "M:"  # Path of drive to monitor
+PATH = "M:"  # Path of drive to monitor. Only torrents with paths that start with this may be deleted.
 MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
 MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
 MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
 MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
-    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time torrent was added.
+    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
 )
 PREFER_PRIVATE_TORRENTS = (
     True  # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
@@ -113,10 +112,15 @@ def has_single_hard_link(path):
     return True
 
 
+def torrent_on_monitored_drive(torrent):
+    """Check if torrent path is within monitored drive"""
+    return torrent["content_path"].startswith(PATH)
+
+
 def torrent_age_satisfied(torrent):
     """Gets the age of the torrent based on config"""
     if ALLOW_INCOMPLETE_TORRENT_DELETIONS:
-        return datetime.now() >= datetime.fromtimestamp(torrent["added_on"]) + timedelta(days=MIN_TORRENT_AGE)
+        return seconds_to_days(torrent["time_active"]) >= MIN_TORRENT_AGE
     else:
         return seconds_to_days(torrent["seeding_time"]) >= MIN_TORRENT_AGE
 
@@ -140,7 +144,11 @@ def main():
     torrent_num_seeds_raw = []
     for torrent in qbt_client.torrents_info():
         torrent_share_ratio = qbt_client.torrents_properties(torrent["hash"])["share_ratio"]
-        if torrent_age_satisfied(torrent) and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO:
+        if (
+            torrent_on_monitored_drive(torrent)
+            and torrent_age_satisfied(torrent)
+            and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO
+        ):
             torrent_hashes_raw.append(torrent["hash"])
             torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
             torrent_num_seeds_raw.append(torrent["num_complete"])
