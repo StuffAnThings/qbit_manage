@@ -330,9 +330,9 @@ class Qbt:
                     logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1), self.config.loglevel
                 )
         if max_ratio or max_seeding_time:
-            if (max_ratio == -2 or max_seeding_time == -2) and not restore:
+            if (max_ratio == -2 and max_seeding_time == -2) and not restore:
                 body += logger.print_line(logger.insert_space("Share Limit: Use Global Share Limit", 4), self.config.loglevel)
-            elif (max_ratio == -1 or max_seeding_time == -1) and not restore:
+            elif (max_ratio == -1 and max_seeding_time == -1) and not restore:
                 body += logger.print_line(logger.insert_space("Share Limit: Set No Share Limit", 4), self.config.loglevel)
             else:
                 if max_ratio != torrent.max_ratio and (not max_seeding_time or max_seeding_time < 0):
@@ -357,13 +357,6 @@ class Qbt:
                     torrent.set_upload_limit(-1)
                 else:
                     torrent.set_upload_limit(limit_upload_speed * 1024)
-            if (max_ratio or max_seeding_time) and not restore:
-                if max_ratio == -2 or max_seeding_time == -2:
-                    torrent.set_share_limits(-2, -2)
-                    return body
-                elif max_ratio == -1 or max_seeding_time == -1:
-                    torrent.set_share_limits(-1, -1)
-                    return body
             if not max_ratio:
                 max_ratio = torrent.max_ratio
             if not max_seeding_time:
