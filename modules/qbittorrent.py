@@ -94,8 +94,6 @@ class Qbt:
         #              (Returns True if at least one of the torrent with the State is categorized as Complete.)
         # first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
         def get_torrent_info(torrent_list):
-            dry_run = self.config.commands["dry_run"]
-            loglevel = "DRYRUN" if dry_run else "INFO"
             torrentdict = {}
             t_obj_unreg = []
             t_obj_valid = []
@@ -103,7 +101,9 @@ class Qbt:
             settings = self.config.settings
             logger.separator("Checking Settings", space=False, border=False)
             if settings["force_auto_tmm"]:
-                logger.print_line("force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", loglevel)
+                logger.print_line(
+                    "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", self.config.loglevel
+                )
             logger.separator("Gathering Torrent Information", space=True, border=True)
             for torrent in alive_it(torrent_list):
                 is_complete = False
@@ -111,7 +111,12 @@ class Qbt:
                 status = None
                 working_tracker = None
                 issue = {"potential": False}
-                if torrent.auto_tmm is False and settings["force_auto_tmm"] and torrent.category != "" and not dry_run:
+                if (
+                    torrent.auto_tmm is False
+                    and settings["force_auto_tmm"]
+                    and torrent.category != ""
+                    and not self.config.dry_run
+                ):
                     torrent.set_auto_management(True)
                 try:
                     torrent_name = torrent.name
@@ -200,15 +205,13 @@ class Qbt:
         return self.client.torrents.info(**params)
 
     def category(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         num_cat = 0
 
         def update_cat(new_cat, cat_change):
-            nonlocal dry_run, torrent, num_cat
+            nonlocal torrent, num_cat
             tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
             old_cat = torrent.category
-            if not dry_run:
+            if not self.config.dry_run:
                 try:
                     torrent.set_category(category=new_cat)
                     if torrent.auto_tmm is False and self.config.settings["force_auto_tmm"]:
@@ -216,20 +219,20 @@ class Qbt:
                 except Conflict409Error:
                     e = logger.print_line(
                         f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.',
-                        loglevel,
+                        self.config.loglevel,
                     )
                     self.config.notify(e, "Update Category", False)
                     self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
                     torrent.set_category(category=new_cat)
             body = []
-            body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), loglevel)
+            body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
             if cat_change:
-                body += logger.print_line(logger.insert_space(f"Old Category: {old_cat}", 3), loglevel)
+                body += logger.print_line(logger.insert_space(f"Old Category: {old_cat}", 3), self.config.loglevel)
                 title = "Moving Categories"
             else:
                 title = "Updating Categories"
-            body += logger.print_line(logger.insert_space(f"New Category: {new_cat}", 3), loglevel)
-            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+            body += logger.print_line(logger.insert_space(f"New Category: {new_cat}", 3), self.config.loglevel)
+            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
             attr = {
                 "function": "cat_update",
                 "title": title,
@@ -258,14 +261,14 @@ class Qbt:
                         update_cat(new_cat, True)
 
             if num_cat >= 1:
-                logger.print_line(f"{'Did not update' if dry_run else 'Updated'} {num_cat} new categories.", loglevel)
+                logger.print_line(
+                    f"{'Did not update' if self.config.dry_run else 'Updated'} {num_cat} new categories.", self.config.loglevel
+                )
             else:
-                logger.print_line("No new torrents to categorize.", loglevel)
+                logger.print_line("No new torrents to categorize.", self.config.loglevel)
         return num_cat
 
     def tags(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         num_tags = 0
         ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
         if self.config.commands["tag_update"]:
@@ -277,14 +280,14 @@ class Qbt:
                     if tracker["tag"]:
                         num_tags += len(tracker["tag"])
                         body = []
-                        body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), loglevel)
+                        body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
                         body += logger.print_line(
                             logger.insert_space(
                                 f'New Tag{"s" if len(tracker["tag"]) > 1 else ""}: {", ".join(tracker["tag"])}', 8
                             ),
-                            loglevel,
+                            self.config.loglevel,
                         )
-                        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+                        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                         body.extend(
                             self.set_tags_and_limits(
                                 torrent,
@@ -310,40 +313,43 @@ class Qbt:
                         }
                         self.config.send_notifications(attr)
             if num_tags >= 1:
-                logger.print_line(f"{'Did not update' if dry_run else 'Updated'} {num_tags} new tags.", loglevel)
+                logger.print_line(
+                    f"{'Did not update' if self.config.dry_run else 'Updated'} {num_tags} new tags.", self.config.loglevel
+                )
             else:
-                logger.print_line("No new torrents to tag.", loglevel)
+                logger.print_line("No new torrents to tag.", self.config.loglevel)
         return num_tags
 
     def set_tags_and_limits(self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, restore=False):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         body = []
-        # Print Logs
         if limit_upload_speed:
             if limit_upload_speed == -1:
-                body += logger.print_line(logger.insert_space("Limit UL Speed: Infinity", 1), loglevel)
+                body += logger.print_line(logger.insert_space("Limit UL Speed: Infinity", 1), self.config.loglevel)
             else:
-                body += logger.print_line(logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1), loglevel)
+                body += logger.print_line(
+                    logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1), self.config.loglevel
+                )
         if max_ratio or max_seeding_time:
             if (max_ratio == -2 or max_seeding_time == -2) and not restore:
-                body += logger.print_line(logger.insert_space("Share Limit: Use Global Share Limit", 4), loglevel)
+                body += logger.print_line(logger.insert_space("Share Limit: Use Global Share Limit", 4), self.config.loglevel)
             elif (max_ratio == -1 or max_seeding_time == -1) and not restore:
-                body += logger.print_line(logger.insert_space("Share Limit: Set No Share Limit", 4), loglevel)
+                body += logger.print_line(logger.insert_space("Share Limit: Set No Share Limit", 4), self.config.loglevel)
             else:
                 if max_ratio != torrent.max_ratio and (not max_seeding_time or max_seeding_time < 0):
-                    body += logger.print_line(logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4), loglevel)
+                    body += logger.print_line(
+                        logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4), self.config.loglevel
+                    )
                 elif max_seeding_time != torrent.max_seeding_time and (not max_ratio or max_ratio < 0):
                     body += logger.print_line(
-                        logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4), loglevel
+                        logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4), self.config.loglevel
                     )
                 elif max_ratio != torrent.max_ratio and max_seeding_time != torrent.max_seeding_time:
                     body += logger.print_line(
                         logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min", 4),
-                        loglevel,
+                        self.config.loglevel,
                     )
         # Update Torrents
-        if not dry_run:
+        if not self.config.dry_run:
             if tags:
                 torrent.add_tags(tags)
             if limit_upload_speed:
@@ -366,8 +372,6 @@ class Qbt:
         return body
 
     def tag_nohardlinks(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         num_tags = 0  # counter for the number of torrents that has no hard links
         del_tor = 0  # counter for the number of torrents that has no hard links and \
         # meets the criteria for ratio limit/seed limit for deletion
@@ -405,9 +409,13 @@ class Qbt:
                             if "noHL" not in torrent.tags:
                                 num_tags += 1
                                 body = []
-                                body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), loglevel)
-                                body += logger.print_line(logger.insert_space("Added Tag: noHL", 6), loglevel)
-                                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+                                body += logger.print_line(
+                                    logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel
+                                )
+                                body += logger.print_line(logger.insert_space("Added Tag: noHL", 6), self.config.loglevel)
+                                body += logger.print_line(
+                                    logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel
+                                )
                                 body.extend(
                                     self.set_tags_and_limits(
                                         torrent,
@@ -454,11 +462,13 @@ class Qbt:
                         num_untag += 1
                         body = []
                         body += logger.print_line(
-                            f"Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.", loglevel
+                            f"Previous Tagged noHL Torrent Name: {torrent.name} has hard links found now.", self.config.loglevel
                         )
-                        body += logger.print_line(logger.insert_space("Removed Tag: noHL", 6), loglevel)
-                        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
-                        body += logger.print_line(f"{'Not Reverting' if dry_run else 'Reverting'} share limits.", loglevel)
+                        body += logger.print_line(logger.insert_space("Removed Tag: noHL", 6), self.config.loglevel)
+                        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                        body += logger.print_line(
+                            f"{'Not Reverting' if self.config.dry_run else 'Reverting'} share limits.", self.config.loglevel
+                        )
                         restore_max_ratio = tracker["max_ratio"]
                         restore_max_seeding_time = tracker["max_seeding_time"]
                         restore_limit_upload_speed = tracker["limit_upload_speed"]
@@ -468,7 +478,7 @@ class Qbt:
                             restore_max_seeding_time = -2
                         if restore_limit_upload_speed is None:
                             restore_limit_upload_speed = -1
-                        if not dry_run:
+                        if not self.config.dry_run:
                             torrent.remove_tags(tags="noHL")
                             body.extend(
                                 self.set_tags_and_limits(
@@ -503,11 +513,13 @@ class Qbt:
                             if torrent["content_path"].replace(root_dir, root_dir) == tdel_dict[t_name]:
                                 tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
                                 body = []
-                                body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), loglevel)
-                                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+                                body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+                                body += logger.print_line(
+                                    logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel
+                                )
                                 body += logger.print_line(
                                     logger.insert_space("Cleanup: True [No hard links found and meets Share Limits.]", 8),
-                                    loglevel,
+                                    self.config.loglevel,
                                 )
                                 attr = {
                                     "function": "cleanup_tag_nohardlinks",
@@ -523,61 +535,60 @@ class Qbt:
                                     if t_count > 1 and ("" in t_msg or 2 in t_status):
                                         del_tor += 1
                                         attr["torrents_deleted_and_contents"] = False
-                                        if not dry_run:
+                                        if not self.config.dry_run:
                                             self.tor_delete_recycle(torrent, attr)
                                         body += logger.print_line(
-                                            logger.insert_space("Deleted .torrent but NOT content files.", 8), loglevel
+                                            logger.insert_space("Deleted .torrent but NOT content files.", 8),
+                                            self.config.loglevel,
                                         )
                                     else:
                                         del_tor_cont += 1
                                         attr["torrents_deleted_and_contents"] = True
-                                        if not dry_run:
+                                        if not self.config.dry_run:
                                             self.tor_delete_recycle(torrent, attr)
                                         body += logger.print_line(
-                                            logger.insert_space("Deleted .torrent AND content files.", 8), loglevel
+                                            logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel
                                         )
                                 else:
                                     del_tor += 1
                                     attr["torrents_deleted_and_contents"] = False
-                                    if not dry_run:
+                                    if not self.config.dry_run:
                                         self.tor_delete_recycle(torrent, attr)
                                     body += logger.print_line(
-                                        logger.insert_space("Deleted .torrent but NOT content files.", 8), loglevel
+                                        logger.insert_space("Deleted .torrent but NOT content files.", 8), self.config.loglevel
                                     )
                                 attr["body"] = "\n".join(body)
                                 self.config.send_notifications(attr)
                                 self.torrentinfo[t_name]["count"] -= 1
             if num_tags >= 1:
                 logger.print_line(
-                    f"{'Did not Tag/set' if dry_run else 'Tag/set'} share limits for {num_tags} "
+                    f"{'Did not Tag/set' if self.config.dry_run else 'Tag/set'} share limits for {num_tags} "
                     f".torrent{'s.' if num_tags > 1 else '.'}",
-                    loglevel,
+                    self.config.loglevel,
                 )
             else:
-                logger.print_line("No torrents to tag with no hard links.", loglevel)
+                logger.print_line("No torrents to tag with no hard links.", self.config.loglevel)
             if num_untag >= 1:
                 logger.print_line(
-                    f"{'Did not delete' if dry_run else 'Deleted'} noHL tags / share limits for {num_untag} "
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} noHL tags / share limits for {num_untag} "
                     f".torrent{'s.' if num_untag > 1 else '.'}",
-                    loglevel,
+                    self.config.loglevel,
                 )
             if del_tor >= 1:
                 logger.print_line(
-                    f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} "
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} {del_tor} "
                     f".torrent{'s' if del_tor > 1 else ''} but not content files.",
-                    loglevel,
+                    self.config.loglevel,
                 )
             if del_tor_cont >= 1:
                 logger.print_line(
-                    f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} "
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} {del_tor_cont} "
                     f".torrent{'s' if del_tor_cont > 1 else ''} AND content files.",
-                    loglevel,
+                    self.config.loglevel,
                 )
         return num_tags, num_untag, del_tor, del_tor_cont
 
     def rem_unregistered(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         del_tor = 0
         del_tor_cont = 0
         num_tor_error = 0
@@ -588,7 +599,7 @@ class Qbt:
         cfg_tag_error = self.config.commands["tag_tracker_error"]
 
         def tag_tracker_error():
-            nonlocal dry_run, t_name, msg_up, msg, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
+            nonlocal t_name, msg_up, msg, tracker, t_cat, torrent, tag_error, tor_error_summary, num_tor_error
             tor_error = ""
             tor_error += logger.insert_space(f"Torrent Name: {t_name}", 3) + "\n"
             tor_error += logger.insert_space(f"Status: {msg}", 9) + "\n"
@@ -608,15 +619,15 @@ class Qbt:
                 "notifiarr_indexer": tracker["notifiarr"],
             }
             self.config.send_notifications(attr)
-            if not dry_run:
+            if not self.config.dry_run:
                 torrent.add_tags(tags=tag_error)
 
         def del_unregistered():
-            nonlocal dry_run, loglevel, del_tor, del_tor_cont, t_name, msg_up, msg, tracker, t_cat, t_msg, t_status, torrent
+            nonlocal del_tor, del_tor_cont, t_name, msg_up, msg, tracker, t_cat, t_msg, t_status, torrent
             body = []
-            body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), loglevel)
-            body += logger.print_line(logger.insert_space(f"Status: {msg}", 9), loglevel)
-            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
+            body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+            body += logger.print_line(logger.insert_space(f"Status: {msg}", 9), self.config.loglevel)
+            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
             attr = {
                 "function": "rem_unregistered",
                 "title": "Removing Unregistered Torrents",
@@ -630,21 +641,23 @@ class Qbt:
                 # Checks if any of the original torrents are working
                 if "" in t_msg or 2 in t_status:
                     attr["torrents_deleted_and_contents"] = False
-                    if not dry_run:
+                    if not self.config.dry_run:
                         self.tor_delete_recycle(torrent, attr)
-                    body += logger.print_line(logger.insert_space("Deleted .torrent but NOT content files.", 8), loglevel)
+                    body += logger.print_line(
+                        logger.insert_space("Deleted .torrent but NOT content files.", 8), self.config.loglevel
+                    )
                     del_tor += 1
                 else:
                     attr["torrents_deleted_and_contents"] = True
-                    if not dry_run:
+                    if not self.config.dry_run:
                         self.tor_delete_recycle(torrent, attr)
-                    body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), loglevel)
+                    body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel)
                     del_tor_cont += 1
             else:
                 attr["torrents_deleted_and_contents"] = True
-                if not dry_run:
+                if not self.config.dry_run:
                     self.tor_delete_recycle(torrent, attr)
-                body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), loglevel)
+                body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel)
                 del_tor_cont += 1
             attr["body"] = "\n".join(body)
             self.config.send_notifications(attr)
@@ -684,11 +697,13 @@ class Qbt:
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
                     num_untag += 1
                     body = []
-                    body += logger.print_line(f"Previous Tagged {tag_error} torrent currently has a working tracker.", loglevel)
-                    body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), loglevel)
-                    body += logger.print_line(logger.insert_space(f"Removed Tag: {tag_error}", 4), loglevel)
-                    body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), loglevel)
-                    if not dry_run:
+                    body += logger.print_line(
+                        f"Previous Tagged {tag_error} torrent currently has a working tracker.", self.config.loglevel
+                    )
+                    body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                    body += logger.print_line(logger.insert_space(f"Removed Tag: {tag_error}", 4), self.config.loglevel)
+                    body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                    if not self.config.dry_run:
                         torrent.remove_tags(tags=tag_error)
                     attr = {
                         "function": "untag_tracker_error",
@@ -746,35 +761,36 @@ class Qbt:
                 if del_tor >= 1 or del_tor_cont >= 1:
                     if del_tor >= 1:
                         logger.print_line(
-                            f"{'Did not delete' if dry_run else 'Deleted'} {del_tor} "
+                            f"{'Did not delete' if self.config.dry_run else 'Deleted'} {del_tor} "
                             f".torrent{'s' if del_tor > 1 else ''} but not content files.",
-                            loglevel,
+                            self.config.loglevel,
                         )
                     if del_tor_cont >= 1:
                         logger.print_line(
-                            f"{'Did not delete' if dry_run else 'Deleted'} {del_tor_cont} "
+                            f"{'Did not delete' if self.config.dry_run else 'Deleted'} {del_tor_cont} "
                             f".torrent{'s' if del_tor_cont > 1 else ''} AND content files.",
-                            loglevel,
+                            self.config.loglevel,
                         )
                 else:
-                    logger.print_line("No unregistered torrents found.", loglevel)
+                    logger.print_line("No unregistered torrents found.", self.config.loglevel)
             if num_untag >= 1:
                 logger.print_line(
-                    f"{'Did not delete' if dry_run else 'Deleted'} {tag_error} tags for {num_untag} "
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} {tag_error} tags for {num_untag} "
                     f".torrent{'s.' if num_untag > 1 else '.'}",
-                    loglevel,
+                    self.config.loglevel,
                 )
             if num_tor_error >= 1:
                 logger.separator(
-                    f"{num_tor_error} Torrents with tracker errors found", space=False, border=False, loglevel=loglevel
+                    f"{num_tor_error} Torrents with tracker errors found",
+                    space=False,
+                    border=False,
+                    loglevel=self.config.loglevel,
                 )
-                logger.print_line(tor_error_summary.rstrip(), loglevel)
+                logger.print_line(tor_error_summary.rstrip(), self.config.loglevel)
         return del_tor, del_tor_cont, num_tor_error, num_untag
 
     # Function used to move any torrents from the cross seed directory to the correct save directory
     def cross_seed(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         added = 0  # Keep track of total torrents tagged
         tagged = 0  # Track # of torrents tagged that are not cross-seeded
         if self.config.commands["cross_seed"]:
@@ -804,11 +820,13 @@ class Qbt:
                     if self.torrentinfo[t_name]["is_complete"]:
                         categories.append(category)
                         body = []
-                        body += logger.print_line(f"{'Not Adding' if dry_run else 'Adding'} to qBittorrent:", loglevel)
-                        body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), loglevel)
-                        body += logger.print_line(logger.insert_space(f"Category: {category}", 7), loglevel)
-                        body += logger.print_line(logger.insert_space(f"Save_Path: {dest}", 6), loglevel)
-                        body += logger.print_line(logger.insert_space(f"Tracker: {t_tracker}", 8), loglevel)
+                        body += logger.print_line(
+                            f"{'Not Adding' if self.config.dry_run else 'Adding'} to qBittorrent:", self.config.loglevel
+                        )
+                        body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+                        body += logger.print_line(logger.insert_space(f"Category: {category}", 7), self.config.loglevel)
+                        body += logger.print_line(logger.insert_space(f"Save_Path: {dest}", 6), self.config.loglevel)
+                        body += logger.print_line(logger.insert_space(f"Tracker: {t_tracker}", 8), self.config.loglevel)
                         attr = {
                             "function": "cross_seed",
                             "title": "Adding New Cross-Seed Torrent",
@@ -821,18 +839,20 @@ class Qbt:
                         }
                         self.config.send_notifications(attr)
                         added += 1
-                        if not dry_run:
+                        if not self.config.dry_run:
                             self.client.torrents.add(
                                 torrent_files=src, save_path=dest, category=category, tags="cross-seed", is_paused=True
                             )
                             util.move_files(src, dir_cs_out)
                     else:
-                        logger.print_line(f"Found {t_name} in {dir_cs} but original torrent is not complete.", loglevel)
-                        logger.print_line("Not adding to qBittorrent", loglevel)
+                        logger.print_line(
+                            f"Found {t_name} in {dir_cs} but original torrent is not complete.", self.config.loglevel
+                        )
+                        logger.print_line("Not adding to qBittorrent", self.config.loglevel)
                 else:
                     error = f"{t_name} not found in torrents. Cross-seed Torrent not added to qBittorrent."
-                    if dry_run:
-                        logger.print_line(error, loglevel)
+                    if self.config.dry_run:
+                        logger.print_line(error, self.config.loglevel)
                     else:
                         logger.print_line(error, "WARNING")
                     self.config.notify(error, "cross-seed", False)
@@ -847,7 +867,9 @@ class Qbt:
                 ):
                     tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
                     tagged += 1
-                    body = logger.print_line(f"{'Not Adding' if dry_run else 'Adding'} 'cross-seed' tag to {t_name}", loglevel)
+                    body = logger.print_line(
+                        f"{'Not Adding' if self.config.dry_run else 'Adding'} 'cross-seed' tag to {t_name}", self.config.loglevel
+                    )
                     attr = {
                         "function": "tag_cross_seed",
                         "title": "Tagging Cross-Seed Torrent",
@@ -858,25 +880,29 @@ class Qbt:
                         "torrent_tracker": tracker,
                     }
                     self.config.send_notifications(attr)
-                    if not dry_run:
+                    if not self.config.dry_run:
                         torrent.add_tags(tags="cross-seed")
 
             numcategory = Counter(categories)
             for c in numcategory:
                 if numcategory[c] > 0:
                     logger.print_line(
-                        f"{numcategory[c]} {c} cross-seed .torrents {'not added' if dry_run else 'added'}.", loglevel
+                        f"{numcategory[c]} {c} cross-seed .torrents {'not added' if self.config.dry_run else 'added'}.",
+                        self.config.loglevel,
                     )
             if added > 0:
-                logger.print_line(f"Total {added} cross-seed .torrents {'not added' if dry_run else 'added'}.", loglevel)
+                logger.print_line(
+                    f"Total {added} cross-seed .torrents {'not added' if self.config.dry_run else 'added'}.", self.config.loglevel
+                )
             if tagged > 0:
-                logger.print_line(f"Total {tagged} cross-seed .torrents {'not tagged' if dry_run else 'tagged'}.", loglevel)
+                logger.print_line(
+                    f"Total {tagged} cross-seed .torrents {'not tagged' if self.config.dry_run else 'tagged'}.",
+                    self.config.loglevel,
+                )
         return added, tagged
 
     # Function used to recheck paused torrents sorted by size and resume torrents that are completed
     def recheck(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         resumed = 0
         rechecked = 0
         if self.config.commands["recheck"]:
@@ -891,7 +917,8 @@ class Qbt:
                         if torrent.max_ratio < 0 and torrent.max_seeding_time < 0:
                             resumed += 1
                             body = logger.print_line(
-                                f"{'Not Resuming' if dry_run else 'Resuming'} [{tracker['tag']}] - {torrent.name}", loglevel
+                                f"{'Not Resuming' if self.config.dry_run else 'Resuming'} [{tracker['tag']}] - {torrent.name}",
+                                self.config.loglevel,
                             )
                             attr = {
                                 "function": "recheck",
@@ -903,7 +930,7 @@ class Qbt:
                                 "notifiarr_indexer": tracker["notifiarr"],
                             }
                             self.config.send_notifications(attr)
-                            if not dry_run:
+                            if not self.config.dry_run:
                                 torrent.resume()
                         else:
                             # Check to see if torrent meets AutoTorrentManagement criteria
@@ -935,7 +962,9 @@ class Qbt:
                             ):
                                 resumed += 1
                                 body = logger.print_line(
-                                    f"{'Not Resuming' if dry_run else 'Resuming'} [{tracker['tag']}] - {torrent.name}", loglevel
+                                    f"{'Not Resuming' if self.config.dry_run else 'Resuming'} [{tracker['tag']}] - "
+                                    f"{torrent.name}",
+                                    self.config.loglevel,
                                 )
                                 attr = {
                                     "function": "recheck",
@@ -947,7 +976,7 @@ class Qbt:
                                     "notifiarr_indexer": tracker["notifiarr"],
                                 }
                                 self.config.send_notifications(attr)
-                                if not dry_run:
+                                if not self.config.dry_run:
                                     torrent.resume()
                     # Recheck
                     elif (
@@ -957,7 +986,8 @@ class Qbt:
                     ):
                         rechecked += 1
                         body = logger.print_line(
-                            f"{'Not Rechecking' if dry_run else 'Rechecking'} [{tracker['tag']}] - {torrent.name}", loglevel
+                            f"{'Not Rechecking' if self.config.dry_run else 'Rechecking'} [{tracker['tag']}] - {torrent.name}",
+                            self.config.loglevel,
                         )
                         attr = {
                             "function": "recheck",
@@ -969,13 +999,11 @@ class Qbt:
                             "notifiarr_indexer": tracker["notifiarr"],
                         }
                         self.config.send_notifications(attr)
-                        if not dry_run:
+                        if not self.config.dry_run:
                             torrent.recheck()
         return resumed, rechecked
 
     def rem_orphaned(self):
-        dry_run = self.config.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         orphaned = 0
         if self.config.commands["rem_orphaned"]:
             logger.separator("Checking for Orphaned Files", space=False, border=False)
@@ -1029,12 +1057,12 @@ class Qbt:
                 os.makedirs(orphaned_path, exist_ok=True)
                 body = []
                 num_orphaned = len(orphaned_files)
-                logger.print_line(f"{num_orphaned} Orphaned files found", loglevel)
-                body += logger.print_line("\n".join(orphaned_files), loglevel)
+                logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
+                body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
                 body += logger.print_line(
-                    f"{'Did not move' if dry_run else 'Moved'} {num_orphaned} Orphaned files "
+                    f"{'Did not move' if self.config.dry_run else 'Moved'} {num_orphaned} Orphaned files "
                     f"to {orphaned_path.replace(remote_path,root_path)}",
-                    loglevel,
+                    self.config.loglevel,
                 )
 
                 attr = {
@@ -1048,7 +1076,7 @@ class Qbt:
                 self.config.send_notifications(attr)
                 # Delete empty directories after moving orphan files
                 logger.info("Cleaning up any empty directories...")
-                if not dry_run:
+                if not self.config.dry_run:
                     for file in alive_it(orphaned_files):
                         src = file.replace(root_path, remote_path)
                         dest = os.path.join(orphaned_path, file.replace(root_path, ""))
@@ -1057,7 +1085,7 @@ class Qbt:
                         for parent_path in orphaned_parent_path:
                             util.remove_empty_directories(parent_path, "**/*")
             else:
-                logger.print_line("No Orphaned Files found.", loglevel)
+                logger.print_line("No Orphaned Files found.", self.config.loglevel)
         return orphaned
 
     def tor_delete_recycle(self, torrent, info):

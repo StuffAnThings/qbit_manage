@@ -127,7 +127,8 @@ class Config:
             self.data["webhooks"] = temp
         if "bhd" in self.data:
             self.data["bhd"] = self.data.pop("bhd")
-
+        self.dry_run = self.commands["dry_run"]
+        self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
         self.settings = {
@@ -577,8 +578,6 @@ class Config:
 
     # Empty old files from recycle bin or orphaned
     def cleanup_dirs(self, location):
-        dry_run = self.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         num_del = 0
         files = []
         size_bytes = 0
@@ -640,23 +639,23 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                f"{'Did not delete' if dry_run else 'Deleted'} "
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
                                 f"{filename} from {folder} (Last modified {round(days)} days ago).",
-                                loglevel,
+                                self.loglevel,
                             )
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
-                            if not dry_run:
+                            if not self.dry_run:
                                 os.remove(file)
                         prevfolder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                     if num_del > 0:
-                        if not dry_run:
+                        if not self.dry_run:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files "
+                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",
-                            loglevel,
+                            self.loglevel,
                         )
                         attr = {
                             "function": function,
