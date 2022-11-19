@@ -16,6 +16,7 @@ WARN = WARNING
 DRYRUN = 25
 INFO = 20
 DEBUG = 10
+TRACE = 5
 
 
 def fmt_filter(record):
@@ -28,12 +29,11 @@ _srcfile = os.path.normcase(fmt_filter.__code__.co_filename)
 
 
 class MyLogger:
-    def __init__(self, logger_name, log_file, log_level, default_dir, screen_width, separating_character, ignore_ghost, is_debug):
+    def __init__(self, logger_name, log_file, log_level, default_dir, screen_width, separating_character, ignore_ghost):
         self.logger_name = logger_name
         self.default_dir = default_dir
         self.screen_width = screen_width
         self.separating_character = separating_character
-        self.is_debug = is_debug
         self.ignore_ghost = ignore_ghost
         self.log_dir = os.path.join(default_dir, LOG_DIR)
         self.main_log = log_file if os.path.exists(os.path.dirname(log_file)) else os.path.join(self.log_dir, log_file)
@@ -48,6 +48,9 @@ class MyLogger:
         logging.DRYRUN = DRYRUN
         logging.addLevelName(DRYRUN, "DRYRUN")
         setattr(self._logger, "dryrun", lambda dryrun, *args: self._logger._log(DRYRUN, dryrun, args))
+        logging.TRACE = TRACE
+        logging.addLevelName(TRACE, "TRACE")
+        setattr(self._logger, "trace", lambda trace, *args: self._logger._log(TRACE, trace, args))
         self._log_level = getattr(logging, log_level.upper())
         self._logger.setLevel(self._log_level)
 
@@ -126,6 +129,10 @@ class MyLogger:
         if self._logger.isEnabledFor(loglvl):
             self._log(loglvl, str(msg), args, **kwargs)
         return [str(msg)]
+
+    def trace(self, msg, *args, **kwargs):
+        if self._logger.isEnabledFor(TRACE):
+            self._log(TRACE, str(msg), args, **kwargs)
 
     def debug(self, msg, *args, **kwargs):
         if self._logger.isEnabledFor(DEBUG):

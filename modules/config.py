@@ -38,8 +38,6 @@ class Config:
 
         self.util = check(self)
         self.default_dir = default_dir
-        self.test_mode = args["test"] if "test" in args else False
-        self.trace_mode = args["trace"] if "trace" in args else False
         self.start_time = args["time_obj"]
 
         loaded_yaml = YAML(self.config_path)
