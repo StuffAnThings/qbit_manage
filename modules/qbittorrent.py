@@ -262,10 +262,15 @@ class Qbt:
 
             # Change categories
             if self.config.cat_change:
+                logger.trace(f"config.cat_change: {self.config.cat_change}")
                 for old_cat in self.config.cat_change:
+                    logger.trace(f"old_cat:{old_cat}")
                     torrent_list = self.get_torrents({"category": old_cat, "filter": "completed"})
+                    logger.trace(f"torrent_list:{torrent_list}")
                     for torrent in torrent_list:
+                        logger.trace(f"torrent: {torrent}")
                         new_cat = self.config.cat_change[old_cat]
+                        logger.trace(f"new_cat: {new_cat}")
                         update_cat(new_cat, True)
 
             if num_cat >= 1:
