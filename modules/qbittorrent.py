@@ -255,7 +255,7 @@ class Qbt:
 
         if self.config.commands["cat_update"]:
             logger.separator("Updating Categories", space=False, border=False)
-            torrent_list = self.get_torrents({"category": "", "filter": "completed"})
+            torrent_list = self.get_torrents({"category": "", "status_filter": "completed"})
             for torrent in torrent_list:
                 new_cat = self.config.get_category(torrent.save_path)
                 update_cat(new_cat, False)
@@ -263,7 +263,7 @@ class Qbt:
             # Change categories
             if self.config.cat_change:
                 for old_cat in self.config.cat_change:
-                    torrent_list = self.get_torrents({"category": old_cat, "filter": "completed"})
+                    torrent_list = self.get_torrents({"category": old_cat, "status_filter": "completed"})
                     for torrent in torrent_list:
                         new_cat = self.config.cat_change[old_cat]
                         update_cat(new_cat, True)
@@ -333,13 +333,7 @@ class Qbt:
     ):
         body = []
         if limit_upload_speed:
-            if limit_upload_speed == -1:
-                msg = logger.insert_space("Limit UL Speed: Infinity", 1)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
-            else:
+            if limit_upload_speed != -1:
                 msg = logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1)
                 if do_print:
                     body += logger.print_line(msg, self.config.loglevel)
@@ -515,7 +509,7 @@ class Qbt:
             root_dir = self.config.root_dir
             remote_dir = self.config.remote_dir
             for category in nohardlinks:
-                torrent_list = self.get_torrents({"category": category, "filter": "completed"})
+                torrent_list = self.get_torrents({"category": category, "status_filter": "completed"})
                 if len(torrent_list) == 0:
                     e = (
                         "No torrents found in the category ("
@@ -611,7 +605,7 @@ class Qbt:
                         self.config.send_notifications(attr)
                 # loop through torrent list again for cleanup purposes
                 if nohardlinks[category]["cleanup"]:
-                    torrent_list = self.get_torrents({"category": category, "filter": "completed"})
+                    torrent_list = self.get_torrents({"category": category, "status_filter": "completed"})
                     for torrent in torrent_list:
                         t_name = torrent.name
                         if t_name in tdel_dict.keys() and "noHL" in torrent.tags:

@@ -256,9 +256,9 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="float",
-                        default_int=-2,
-                        default_is_none=True,
+                        min_int=-2,
                         do_print=False,
+                        default=-1,
                     )
                     self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
                         self.data,
@@ -266,9 +266,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=-2,
-                        default_is_none=True,
+                        min_int=-2,
                         do_print=False,
+                        default=-1,
+                        save=False,
                     )
                     self.nohardlinks[cat]["min_seeding_time"] = self.util.check_for_attribute(
                         self.data,
@@ -276,9 +277,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=0,
-                        default_is_none=True,
+                        min_int=0,
                         do_print=False,
+                        default=0,
+                        save=False,
                     )
                     self.nohardlinks[cat]["limit_upload_speed"] = self.util.check_for_attribute(
                         self.data,
@@ -286,9 +288,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=-1,
-                        default_is_none=True,
+                        min_int=-1,
                         do_print=False,
+                        default=-1,
+                        save=False,
                     )
                     self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
                         self.data,
@@ -298,6 +301,7 @@ class Config:
                         var_type="bool",
                         default=True,
                         do_print=False,
+                        save=False,
                     )
                 else:
                     e = f"Config Error: Category {cat} is defined under nohardlinks attribute "
@@ -491,9 +495,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="float",
-                                default_int=-2,
-                                default_is_none=True,
+                                min_int=-2,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["min_seeding_time"] = self.util.check_for_attribute(
@@ -502,9 +506,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=0,
-                                default_is_none=True,
+                                min_int=0,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["max_seeding_time"] = self.util.check_for_attribute(
@@ -513,9 +517,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=-2,
-                                default_is_none=True,
+                                min_int=-2,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["limit_upload_speed"] = self.util.check_for_attribute(
@@ -524,9 +528,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=-1,
-                                default_is_none=True,
+                                min_int=-1,
                                 do_print=False,
+                                default=0,
                                 save=False,
                             )
                             tracker["notifiarr"] = self.util.check_for_attribute(

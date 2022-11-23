@@ -47,7 +47,7 @@ class check:
         default_is_none=False,
         req_default=False,
         var_type="str",
-        default_int=0,
+        min_int=0,
         throw=False,
         save=True,
         make_dirs=False,
@@ -119,19 +119,21 @@ class check:
             else:
                 message = f"{text} must be either true or false"
         elif var_type == "int":
-            if isinstance(data[attribute], int) and data[attribute] >= default_int:
+            if isinstance(data[attribute], int) and data[attribute] >= min_int:
                 return data[attribute]
             else:
-                message = f"{text} must an integer >= {default_int}"
+                message = f"{text} must an integer >= {min_int}"
+                throw = True
         elif var_type == "float":
             try:
                 data[attribute] = float(data[attribute])
             except:
                 pass
-            if isinstance(data[attribute], float) and data[attribute] >= default_int:
+            if isinstance(data[attribute], float) and data[attribute] >= min_int:
                 return data[attribute]
             else:
-                message = f"{text} must a float >= {float(default_int)}"
+                message = f"{text} must a float >= {float(min_int)}"
+                throw = True
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
@@ -162,7 +164,7 @@ class check:
             else:
                 message = f"no {text} found and the default path {default} could not be found"
             default = None
-        if default is not None or default_is_none:
+        if (default is not None or default_is_none) and not message:
             message = message + f" using {default} as default"
         message = message + endline
         if req_default and default is None:
