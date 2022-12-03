@@ -442,45 +442,44 @@ class Config:
         tracker["limit_upload_speed"] = None
         tracker["notifiarr"] = None
         tracker["url"] = None
-        if not urls:
-            return tracker
+        tracker_other_tag = self.util.check_for_attribute(
+            self.data, "tag", parent="tracker", subparent="other", default_is_none=True, var_type="list", save=False
+        )
         try:
             tracker["url"] = util.trunc_val(urls[0], os.sep)
         except IndexError as e:
             tracker["url"] = None
-            logger.debug(f"Tracker Url:{urls}")
-            logger.debug(e)
+            if not urls:
+                urls = []
+                if not tracker_other_tag:
+                    tracker_other_tag = ["other"]
+                tracker["url"] = "No http URL found"
+            else:
+                logger.debug(f"Tracker Url:{urls}")
+                logger.debug(e)
         if "tracker" in self.data and self.data["tracker"] is not None:
             tag_values = self.data["tracker"]
             for tag_url, tag_details in tag_values.items():
                 for url in urls:
                     if tag_url in url:
-                        try:
-                            tracker["url"] = util.trunc_val(url, os.sep)
-                            default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
-                        except IndexError as e:
-                            logger.debug(f"Tracker Url:{url}")
-                            logger.debug(e)
-                        # If using Format 1 convert to format 2
+                        if tracker["url"] is None:
+                            default_tag = tracker_other_tag
+                        else:
+                            try:
+                                tracker["url"] = util.trunc_val(url, os.sep)
+                                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+                            except IndexError as e:
+                                logger.debug(f"Tracker Url:{url}")
+                                logger.debug(e)
+                        # Tracker Format 1 deprecated.
                         if isinstance(tag_details, str):
-                            tracker["tag"] = self.util.check_for_attribute(
-                                self.data, tag_url, parent="tracker", default=default_tag, var_type="list"
+                            e = (
+                                "Config Error: Tracker format invalid. Please see config.yml.sample for correct format and fix "
+                                f"`{tag_details}` in the Tracker section of the config."
                             )
-                            self.util.check_for_attribute(
-                                self.data,
-                                "tag",
-                                parent="tracker",
-                                subparent=tag_url,
-                                default=tracker["tag"],
-                                do_print=False,
-                                var_type="list",
-                            )
-                            if tracker["tag"] == default_tag:
-                                try:
-                                    self.data["tracker"][tag_url]["tag"] = [default_tag]
-                                except Exception:
-                                    self.data["tracker"][tag_url] = {"tag": [default_tag]}
-                        # Using Format 2
+                            self.notify(e, "Config")
+                            raise Failed(e)
+                        # Using new Format
                         else:
                             tracker["tag"] = self.util.check_for_attribute(
                                 self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
@@ -543,6 +542,62 @@ class Config:
                                 save=False,
                             )
                         return tracker
+            if tracker_other_tag:
+                tracker["tag"] = tracker_other_tag
+                tracker["max_ratio"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_ratio",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="float",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["min_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=0,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["max_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["limit_upload_speed"] = self.util.check_for_attribute(
+                    self.data,
+                    "limit_upload_speed",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-1,
+                    do_print=False,
+                    default=0,
+                    save=False,
+                )
+                tracker["notifiarr"] = self.util.check_for_attribute(
+                    self.data,
+                    "notifiarr",
+                    parent="tracker",
+                    subparent="other",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                return tracker
         if tracker["url"]:
             default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
             tracker["tag"] = self.util.check_for_attribute(
