@@ -2,12 +2,11 @@
 You can set a min torrent age and share ratio for a torrent to be deleted.
 You can also allow incomplete torrents to be deleted.
 Torrents will be deleted starting with the ones with the most seeds, only torrents with a single hardlink will be deleted.
+Only torrents on configured drive path will be deleted. To monitor multiple drives, use multiple copies of this script.
 """
 import os
 import shutil
 import time
-from datetime import datetime
-from datetime import timedelta
 
 import qbittorrentapi
 
@@ -15,13 +14,13 @@ import qbittorrentapi
 """===Config==="""
 # qBittorrent WebUi Login
 qbt_login = {"host": "localhost", "port": 8080, "username": "???", "password": "???"}
-PATH = "M:"  # Path of drive to monitor
+PATH = "M:"  # Path of drive to monitor. Only torrents with paths that start with this may be deleted.
 MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
 MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
 MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
 MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
-    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time torrent was added.
+    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
 )
 PREFER_PRIVATE_TORRENTS = (
     True  # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
@@ -32,7 +31,7 @@ PREFER_PRIVATE_TORRENTS = (
 qbt_client: qbittorrentapi.Client = None
 
 
-def quit_program(code=0) -> None:
+def quit_program(code=0):
     """Quits program with info"""
     print("Exiting...")
     import sys
@@ -40,7 +39,7 @@ def quit_program(code=0) -> None:
     sys.exit(code)
 
 
-def setup_services(qbt=False) -> None:
+def setup_services(qbt=False):
     """Setup required services"""
     global qbt_client
 
@@ -56,17 +55,17 @@ def setup_services(qbt=False) -> None:
             quit_program(1)
 
 
-def bytes_to_gb(data) -> float:
+def bytes_to_gb(data):
     """Converts bytes to GB."""
     return data / 1024**3
 
 
-def seconds_to_days(seconds) -> float:
+def seconds_to_days(seconds):
     """Converts seconds to days."""
     return seconds / 60 / 60 / 24
 
 
-def get_disk_usage() -> tuple[float, float]:
+def get_disk_usage():
     """Gets the free space and free usage of disk."""
     stat = shutil.disk_usage(PATH)
     free_space = bytes_to_gb(stat.free)
@@ -74,7 +73,7 @@ def get_disk_usage() -> tuple[float, float]:
     return free_space, free_usage
 
 
-def is_storage_full() -> bool:
+def is_storage_full():
     """Checks if free space are below user threshold."""
     free_space, free_usage = get_disk_usage()
     if free_space < MIN_FREE_SPACE or free_usage < MIN_FREE_USAGE:
@@ -82,13 +81,13 @@ def is_storage_full() -> bool:
     return False
 
 
-def print_free_space() -> None:
+def print_free_space():
     """Prints free space and user threshold."""
     free_space, free_usage = get_disk_usage()
     print(f"Free space: {free_space:.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:.2f} GB ({MIN_FREE_USAGE:.2%}) ")
 
 
-def is_torrent_public(torrent_hash, setup=True) -> bool:
+def is_torrent_public(torrent_hash, setup=True):
     """Checks if torrent is public or private by word 'private' in tracker messages."""
     setup_services(qbt=setup)
     torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
@@ -98,7 +97,7 @@ def is_torrent_public(torrent_hash, setup=True) -> bool:
     return True
 
 
-def has_single_hard_link(path) -> bool:
+def has_single_hard_link(path):
     """Check if file has a single hard link. False if any file in directory has multiple."""
     # Check all files if path is directory
     if os.path.isfile(path):
@@ -113,15 +112,20 @@ def has_single_hard_link(path) -> bool:
     return True
 
 
-def torrent_age_satisfied(torrent) -> bool:
+def torrent_on_monitored_drive(torrent):
+    """Check if torrent path is within monitored drive"""
+    return torrent["content_path"].startswith(PATH)
+
+
+def torrent_age_satisfied(torrent):
     """Gets the age of the torrent based on config"""
     if ALLOW_INCOMPLETE_TORRENT_DELETIONS:
-        return datetime.now() >= datetime.fromtimestamp(torrent["added_on"]) + timedelta(days=MIN_TORRENT_AGE)
+        return seconds_to_days(torrent["time_active"]) >= MIN_TORRENT_AGE
     else:
         return seconds_to_days(torrent["seeding_time"]) >= MIN_TORRENT_AGE
 
 
-def main() -> None:
+def main():
 
     # If free space above requirements, terminate
     print_free_space()
@@ -140,7 +144,11 @@ def main() -> None:
     torrent_num_seeds_raw = []
     for torrent in qbt_client.torrents_info():
         torrent_share_ratio = qbt_client.torrents_properties(torrent["hash"])["share_ratio"]
-        if torrent_age_satisfied(torrent) and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO:
+        if (
+            torrent_on_monitored_drive(torrent)
+            and torrent_age_satisfied(torrent)
+            and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO
+        ):
             torrent_hashes_raw.append(torrent["hash"])
             torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
             torrent_num_seeds_raw.append(torrent["num_complete"])

@@ -18,11 +18,11 @@ class BeyondHD:
     def search(self, json, path="torrents/"):
         url = f"{base_url}{path}{self.apikey}"
         json["action"] = "search"
-        if self.config.trace_mode:
-            logger.debug(url)
-            logger.debug(f"JSON: {json}")
+        logger.trace(url)
+        logger.trace(f"JSON: {json}")
         try:
-            response = self.config.post(url, json=json)
+            response = self.config.post(url, json=json, headers={"User-Agent": "Chrome"})
+            logger.trace(response)
             response_json = response.json()
         except JSONDecodeError as e:
             if response.status_code >= 400:

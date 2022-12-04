@@ -38,8 +38,6 @@ class Config:
 
         self.util = check(self)
         self.default_dir = default_dir
-        self.test_mode = args["test"] if "test" in args else False
-        self.trace_mode = args["trace"] if "trace" in args else False
         self.start_time = args["time_obj"]
 
         loaded_yaml = YAML(self.config_path)
@@ -129,7 +127,8 @@ class Config:
             self.data["webhooks"] = temp
         if "bhd" in self.data:
             self.data["bhd"] = self.data.pop("bhd")
-
+        self.dry_run = self.commands["dry_run"]
+        self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
         self.settings = {
@@ -257,9 +256,9 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="float",
-                        default_int=-2,
-                        default_is_none=True,
+                        min_int=-2,
                         do_print=False,
+                        default=-1,
                     )
                     self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
                         self.data,
@@ -267,9 +266,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=-2,
-                        default_is_none=True,
+                        min_int=-2,
                         do_print=False,
+                        default=-1,
+                        save=False,
                     )
                     self.nohardlinks[cat]["min_seeding_time"] = self.util.check_for_attribute(
                         self.data,
@@ -277,9 +277,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=0,
-                        default_is_none=True,
+                        min_int=0,
                         do_print=False,
+                        default=0,
+                        save=False,
                     )
                     self.nohardlinks[cat]["limit_upload_speed"] = self.util.check_for_attribute(
                         self.data,
@@ -287,9 +288,10 @@ class Config:
                         parent="nohardlinks",
                         subparent=cat,
                         var_type="int",
-                        default_int=-1,
-                        default_is_none=True,
+                        min_int=-1,
                         do_print=False,
+                        default=-1,
+                        save=False,
                     )
                     self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
                         self.data,
@@ -299,6 +301,7 @@ class Config:
                         var_type="bool",
                         default=True,
                         do_print=False,
+                        save=False,
                     )
                 else:
                     e = f"Config Error: Category {cat} is defined under nohardlinks attribute "
@@ -439,45 +442,44 @@ class Config:
         tracker["limit_upload_speed"] = None
         tracker["notifiarr"] = None
         tracker["url"] = None
-        if not urls:
-            return tracker
+        tracker_other_tag = self.util.check_for_attribute(
+            self.data, "tag", parent="tracker", subparent="other", default_is_none=True, var_type="list", save=False
+        )
         try:
             tracker["url"] = util.trunc_val(urls[0], os.sep)
         except IndexError as e:
             tracker["url"] = None
-            logger.debug(f"Tracker Url:{urls}")
-            logger.debug(e)
+            if not urls:
+                urls = []
+                if not tracker_other_tag:
+                    tracker_other_tag = ["other"]
+                tracker["url"] = "No http URL found"
+            else:
+                logger.debug(f"Tracker Url:{urls}")
+                logger.debug(e)
         if "tracker" in self.data and self.data["tracker"] is not None:
             tag_values = self.data["tracker"]
             for tag_url, tag_details in tag_values.items():
                 for url in urls:
                     if tag_url in url:
-                        try:
-                            tracker["url"] = util.trunc_val(url, os.sep)
-                            default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
-                        except IndexError as e:
-                            logger.debug(f"Tracker Url:{url}")
-                            logger.debug(e)
-                        # If using Format 1 convert to format 2
+                        if tracker["url"] is None:
+                            default_tag = tracker_other_tag
+                        else:
+                            try:
+                                tracker["url"] = util.trunc_val(url, os.sep)
+                                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+                            except IndexError as e:
+                                logger.debug(f"Tracker Url:{url}")
+                                logger.debug(e)
+                        # Tracker Format 1 deprecated.
                         if isinstance(tag_details, str):
-                            tracker["tag"] = self.util.check_for_attribute(
-                                self.data, tag_url, parent="tracker", default=default_tag, var_type="list"
+                            e = (
+                                "Config Error: Tracker format invalid. Please see config.yml.sample for correct format and fix "
+                                f"`{tag_details}` in the Tracker section of the config."
                             )
-                            self.util.check_for_attribute(
-                                self.data,
-                                "tag",
-                                parent="tracker",
-                                subparent=tag_url,
-                                default=tracker["tag"],
-                                do_print=False,
-                                var_type="list",
-                            )
-                            if tracker["tag"] == default_tag:
-                                try:
-                                    self.data["tracker"][tag_url]["tag"] = [default_tag]
-                                except Exception:
-                                    self.data["tracker"][tag_url] = {"tag": [default_tag]}
-                        # Using Format 2
+                            self.notify(e, "Config")
+                            raise Failed(e)
+                        # Using new Format
                         else:
                             tracker["tag"] = self.util.check_for_attribute(
                                 self.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
@@ -492,9 +494,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="float",
-                                default_int=-2,
-                                default_is_none=True,
+                                min_int=-2,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["min_seeding_time"] = self.util.check_for_attribute(
@@ -503,9 +505,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=0,
-                                default_is_none=True,
+                                min_int=0,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["max_seeding_time"] = self.util.check_for_attribute(
@@ -514,9 +516,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=-2,
-                                default_is_none=True,
+                                min_int=-2,
                                 do_print=False,
+                                default=-1,
                                 save=False,
                             )
                             tracker["limit_upload_speed"] = self.util.check_for_attribute(
@@ -525,9 +527,9 @@ class Config:
                                 parent="tracker",
                                 subparent=tag_url,
                                 var_type="int",
-                                default_int=-1,
-                                default_is_none=True,
+                                min_int=-1,
                                 do_print=False,
+                                default=0,
                                 save=False,
                             )
                             tracker["notifiarr"] = self.util.check_for_attribute(
@@ -540,6 +542,62 @@ class Config:
                                 save=False,
                             )
                         return tracker
+            if tracker_other_tag:
+                tracker["tag"] = tracker_other_tag
+                tracker["max_ratio"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_ratio",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="float",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["min_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=0,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["max_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["limit_upload_speed"] = self.util.check_for_attribute(
+                    self.data,
+                    "limit_upload_speed",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-1,
+                    do_print=False,
+                    default=0,
+                    save=False,
+                )
+                tracker["notifiarr"] = self.util.check_for_attribute(
+                    self.data,
+                    "notifiarr",
+                    parent="tracker",
+                    subparent="other",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                return tracker
         if tracker["url"]:
             default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
             tracker["tag"] = self.util.check_for_attribute(
@@ -579,8 +637,6 @@ class Config:
 
     # Empty old files from recycle bin or orphaned
     def cleanup_dirs(self, location):
-        dry_run = self.commands["dry_run"]
-        loglevel = "DRYRUN" if dry_run else "INFO"
         num_del = 0
         files = []
         size_bytes = 0
@@ -642,23 +698,23 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                f"{'Did not delete' if dry_run else 'Deleted'} "
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
                                 f"{filename} from {folder} (Last modified {round(days)} days ago).",
-                                loglevel,
+                                self.loglevel,
                             )
                             files += [str(filename)]
                             size_bytes += os.path.getsize(file)
-                            if not dry_run:
+                            if not self.dry_run:
                                 os.remove(file)
                         prevfolder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                     if num_del > 0:
-                        if not dry_run:
+                        if not self.dry_run:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            f"{'Did not delete' if dry_run else 'Deleted'} {num_del} files "
+                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",
-                            loglevel,
+                            self.loglevel,
                         )
                         attr = {
                             "function": function,

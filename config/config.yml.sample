@@ -72,7 +72,7 @@ tracker:
   #   max_seeding_time: 129600
   # <OPTIONAL> Will ensure that noHL torrents from this tracker are not deleted by cleanup variable if torrent has not yet met the minimum seeding time (min).
   #   min_seeding_time: 2000
-  # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 sets the limit to infinity)
+  # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 means no limit)
   #   limit_upload_speed: 150
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
   #   notifiarr: <notifiarr indexer>
@@ -129,6 +129,9 @@ tracker:
     notifiarr: torrentleech
   tv-vault:
     tag: TV-Vault
+  # The "other" key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag
+  other:
+    tag: other
 
 nohardlinks:
   # Tag Movies/Series that are not hard linked
@@ -140,7 +143,7 @@ nohardlinks:
       - Beyond-HD
       - AnimeBytes
       - MaM
-    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
     cleanup: false
     # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
@@ -151,7 +154,7 @@ nohardlinks:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
     # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
     min_seeding_time: 43200
-    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after restoring original share limits
+    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
     resume_torrent_after_untagging_noHL: false
   # Can have additional categories set with separate ratio/seeding times defined.
   series-completed:
@@ -159,7 +162,7 @@ nohardlinks:
     exclude_tags:
       - Beyond-HD
       - BroadcasTheNet
-    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that are in paused state and has the NoHL tag
+    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
     cleanup: false
     # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
     max_ratio: 4.0
@@ -169,7 +172,7 @@ nohardlinks:
     limit_upload_speed:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
     # min_seeding_time: # Not specified for this category; tracker's value will be used. Will default to 0 if not specified for the category or tracker.
-    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after restoring original share limits
+    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
     resume_torrent_after_untagging_noHL: false
 
 recyclebin:

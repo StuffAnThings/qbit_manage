@@ -23,13 +23,11 @@ class Webhooks:
         self.apprise = apprise
 
     def _request(self, webhooks, json):
-        if self.config.trace_mode:
-            logger.debug("")
-            logger.debug(f"JSON: {json}")
+        logger.trace("")
+        logger.trace(f"JSON: {json}")
         for webhook in list(set(webhooks)):
             response = None
-            if self.config.trace_mode:
-                logger.debug(f"Webhook: {webhook}")
+            logger.trace(f"Webhook: {webhook}")
             if webhook is None:
                 break
             elif webhook == "notifiarr":
@@ -56,8 +54,7 @@ class Webhooks:
                 skip = False
                 try:
                     response_json = response.json()
-                    if self.config.trace_mode:
-                        logger.debug(f"Response: {response_json}")
+                    logger.trace(f"Response: {response_json}")
                     if (
                         "result" in response_json
                         and response_json["result"] == "error"

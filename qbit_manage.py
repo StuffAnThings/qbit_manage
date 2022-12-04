@@ -207,8 +207,10 @@ screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
 trace = get_arg("QBT_TRACE", args.trace, arg_bool=True)
 
-if debug or trace:
+if debug:
     log_level = "DEBUG"
+if trace:
+    log_level = "TRACE"
 
 stats = {}
 args = {}
@@ -273,7 +275,7 @@ except ValueError:
     sys.exit(0)
 
 
-logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, debug or trace)
+logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False)
 from modules import util  # noqa
 
 util.logger = logger
