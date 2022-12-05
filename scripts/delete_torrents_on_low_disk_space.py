@@ -19,16 +19,20 @@ MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
 MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
 MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
 MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
+MAX_SIZE_PER_TRACKER = 0  # In GB. If total size of torrents containing this tracker is above this limit, delete those torrents first. 0 to disable.
+SPECIFIC_TRACKER_SIZES = {}  # A python dict where key is the tracker url and value is the max tracker size in GB. This overides MAX_SIZE_PER_TRACKER for that tracker url.
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
     False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
 )
 PREFER_PRIVATE_TORRENTS = (
-    True  # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
+    True  # Will delete public torrents before private ones regardless of seed difference or tracker sizes. See is_torrent_public().
 )
+PRIVATE_TRACKERS = ["http://example.com"]  # Additional trackers urls to consider private. Save a comma separated strings. Don't include the port to match all ports.
 """===End Config==="""
 
-# Services
+# Misc
 qbt_client: qbittorrentapi.Client = None
+tracker_sizes = {}
 
 
 def quit_program(code=0):
@@ -94,6 +98,40 @@ def is_torrent_public(torrent_hash, setup=True):
     for tracker in torrent_trackers:
         if "private" in tracker["msg"].lower():
             return False
+        for tracker_url in PRIVATE_TRACKERS:
+            if tracker_url in tracker["url"]:
+                return False
+    return True
+
+
+def update_tracker_sizes(torrent_hash, torrent_size_bytes, setup=True):
+    """Updates global tracker sizes dict with current torrent size"""
+    setup_services(qbt=setup)
+    torrent_size_gb = bytes_to_gb(torrent_size_bytes)
+    torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
+    for tracker in torrent_trackers:
+        tracker_url = tracker["url"]
+        if "://" not in tracker_url:  # Ignore PeX, LSD, DHT
+            continue
+        if tracker_url in tracker_sizes:
+            tracker_sizes[tracker_url] += torrent_size_gb
+        else:
+            tracker_sizes[tracker_url] = torrent_size_gb
+
+
+def trackers_under_limit(torrent_hash, setup=True):
+    """Checks if all torrent trackers are under size limit."""
+    setup_services(qbt=setup)
+    torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
+    for tracker in torrent_trackers:
+        tracker_url = tracker["url"]
+        if "://" not in tracker_url:  # Ignore PeX, LSD, DHT
+            continue
+        if tracker_url in SPECIFIC_TRACKER_SIZES:
+            if tracker_sizes.get(tracker_url, 0) > SPECIFIC_TRACKER_SIZES[tracker_url]:
+                return False
+        elif MAX_SIZE_PER_TRACKER and tracker_sizes.get(tracker_url, 0) > MAX_SIZE_PER_TRACKER:
+            return False
     return True
 
 
@@ -139,10 +177,14 @@ def main():
 
     # Get all torrents older than threshold
     print("Getting all torrents above age and seeding threshold...")
+    all_torrents_info = qbt_client.torrents_info()
+    for torrent in all_torrents_info:
+        update_tracker_sizes(torrent["hash"], torrent["size"], setup=False)
     torrent_hashes_raw = []
     torrent_privacy_raw = []
+    torrent_tracker_sizes_raw = []
     torrent_num_seeds_raw = []
-    for torrent in qbt_client.torrents_info():
+    for torrent in all_torrents_info:
         torrent_share_ratio = qbt_client.torrents_properties(torrent["hash"])["share_ratio"]
         if (
             torrent_on_monitored_drive(torrent)
@@ -151,11 +193,12 @@ def main():
         ):
             torrent_hashes_raw.append(torrent["hash"])
             torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
+            torrent_tracker_sizes_raw.append(trackers_under_limit(torrent["hash"], setup=False))
             torrent_num_seeds_raw.append(torrent["num_complete"])
 
     # Sort so most available torrent is last.
     torrent_hashes = []
-    for *_, torrent_hash in sorted(zip(torrent_privacy_raw, torrent_num_seeds_raw, torrent_hashes_raw)):
+    for *_, torrent_hash in sorted(zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_hashes_raw)):
         torrent_hashes.append(torrent_hash)
 
     # Delete torrents until storage is above threshold
