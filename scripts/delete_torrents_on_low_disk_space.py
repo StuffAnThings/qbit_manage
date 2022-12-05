@@ -19,15 +19,16 @@ MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
 MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
 MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
 MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
-MAX_SIZE_PER_TRACKER = 0  # In GB. If total size of torrents containing this tracker is above this limit, delete those torrents first. 0 to disable.
-SPECIFIC_TRACKER_SIZES = {}  # A python dict where key is the tracker url and value is the max tracker size in GB. This overides MAX_SIZE_PER_TRACKER for that tracker url.
+# In GB. If total size of torrents containing this tracker is above this limit, delete those torrents first. 0 to disable.
+MAX_SIZE_PER_TRACKER = 0
+# A python dict where key is the tracker url and value is the max tracker size in GB. This overides MAX_SIZE_PER_TRACKER for that tracker url.
+SPECIFIC_TRACKER_SIZES = {}
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
     False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
 )
-PREFER_PRIVATE_TORRENTS = (
-    True  # Will delete public torrents before private ones regardless of seed difference or tracker sizes. See is_torrent_public().
-)
-PRIVATE_TRACKERS = ["http://example.com"]  # Additional trackers urls to consider private. Save a comma separated strings. Don't include the port to match all ports.
+PREFER_PRIVATE_TORRENTS = True  # Will delete public torrents before private ones regardless of seed difference or tracker sizes. See is_torrent_public().
+# Additional trackers urls to consider private. Save a comma separated strings. Don't include the port to match all ports.
+PRIVATE_TRACKERS = ["http://example.com"]
 """===End Config==="""
 
 # Misc
@@ -198,7 +199,9 @@ def main():
 
     # Sort so most available torrent is last.
     torrent_hashes = []
-    for *_, torrent_hash in sorted(zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_hashes_raw)):
+    for *_, torrent_hash in sorted(
+        zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_hashes_raw)
+    ):
         torrent_hashes.append(torrent_hash)
 
     # Delete torrents until storage is above threshold
