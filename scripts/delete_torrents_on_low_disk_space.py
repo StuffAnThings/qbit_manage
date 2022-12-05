@@ -120,8 +120,8 @@ def update_tracker_sizes(torrent_hash, torrent_size_bytes, setup=True):
             tracker_sizes[tracker_url] = torrent_size_gb
 
 
-def trackers_under_limit(torrent_hash, setup=True):
-    """Checks if all torrent trackers are under size limit."""
+def trackers_above_limit(torrent_hash, setup=True):
+    """Checks if all torrent trackers are above size limit."""
     setup_services(qbt=setup)
     torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
     for tracker in torrent_trackers:
@@ -130,10 +130,10 @@ def trackers_under_limit(torrent_hash, setup=True):
             continue
         if tracker_url in SPECIFIC_TRACKER_SIZES:
             if tracker_sizes.get(tracker_url, 0) > SPECIFIC_TRACKER_SIZES[tracker_url]:
-                return False
+                return True
         elif MAX_SIZE_PER_TRACKER and tracker_sizes.get(tracker_url, 0) > MAX_SIZE_PER_TRACKER:
-            return False
-    return True
+            return True
+    return False
 
 
 def has_single_hard_link(path):
@@ -194,7 +194,7 @@ def main():
         ):
             torrent_hashes_raw.append(torrent["hash"])
             torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
-            torrent_tracker_sizes_raw.append(trackers_under_limit(torrent["hash"], setup=False))
+            torrent_tracker_sizes_raw.append(trackers_above_limit(torrent["hash"], setup=False))
             torrent_num_seeds_raw.append(torrent["num_complete"])
 
     # Sort so most available torrent is last.
