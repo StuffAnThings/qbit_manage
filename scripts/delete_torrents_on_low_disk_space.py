@@ -1,11 +1,11 @@
 """This script deletes torrents once your drive space drops below a certain threshold.
-You can set a min torrent age and share ratio for a torrent to be deleted.
-You can also allow incomplete torrents to be deleted.
-Torrents will be deleted starting with the ones with the most seeds, only torrents with a single hardlink will be deleted.
+You can set a min torrent age and share ratio for a torrent to be deleted. You can also allow incomplete torrents to be deleted.
+Torrents will be deleted starting with the ones with the most seeds then size, only torrents with a single hardlink will be deleted.
 Only torrents on configured drive path will be deleted. To monitor multiple drives, use multiple copies of this script.
 """
 import os
 import shutil
+import sys
 import time
 
 import qbittorrentapi
@@ -30,29 +30,26 @@ ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
 PREFER_PRIVATE_TORRENTS = True
 # Additional trackers urls to consider private. Save a comma separated strings. Don't include the port to match all ports.
 PRIVATE_TRACKERS = ["http://example.com"]
+DRY_RUN = True  # If True will only show what torrents will be deleted.
 """===End Config==="""
 
 # Misc
 qbt_client: qbittorrentapi.Client = None
+TORRENTS = {}  # Information about all the torrents from api calls. Each hash will contain the api call results for that hash.
 tracker_sizes = {}
 
 
 def quit_program(code=0):
     """Quits program with info"""
     print("Exiting...")
-    import sys
-
     sys.exit(code)
 
 
-def setup_services(qbt=False):
+def setup_services():
     """Setup required services"""
     global qbt_client
-
-    if qbt:
-        qbt_client = qbittorrentapi.Client(
-            host=qbt_login["host"], port=qbt_login["port"], username=qbt_login["username"], password=qbt_login["password"]
-        )
+    if not qbt_client:
+        qbt_client = qbittorrentapi.Client(host=qbt_login["host"], port=qbt_login["port"])
         try:
             qbt_client.auth_log_in()
             print("Succesfully connected to qBittorrent!")
@@ -72,32 +69,40 @@ def seconds_to_days(seconds):
 
 
 def get_disk_usage():
-    """Gets the free space and free usage of disk."""
+    """Gets the free space, free usage, and total of disk in GB."""
     stat = shutil.disk_usage(PATH)
     free_space = bytes_to_gb(stat.free)
     free_usage = stat.free / stat.total
-    return free_space, free_usage
+    return [free_space, free_usage, bytes_to_gb(stat.total)]
 
 
-def is_storage_full():
-    """Checks if free space are below user threshold."""
-    free_space, free_usage = get_disk_usage()
+def is_storage_full(disk_usage=None):
+    """Checks if free space are below user threshold. Optional disk_usage parameter to use non-realtime usage."""
+    if disk_usage:
+        free_space, free_usage, _ = disk_usage
+    else:
+        free_space, free_usage, _ = get_disk_usage()
     if free_space < MIN_FREE_SPACE or free_usage < MIN_FREE_USAGE:
         return True
     return False
 
 
+def update_projected_storage(projected_usage, torrent_size_gb):
+    """Updates the projected usage by adding torrent size."""
+    projected_usage[0] += torrent_size_gb
+    projected_usage[2] += torrent_size_gb
+    projected_usage[1] = projected_usage[0] / projected_usage[2]
+
+
 def print_free_space():
     """Prints free space and user threshold."""
-    free_space, free_usage = get_disk_usage()
-    print(f"Free space: {free_space:.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:.2f} GB ({MIN_FREE_USAGE:.2%}) ")
+    free_space, free_usage, total = get_disk_usage()
+    print(f"Free space: {free_space:,.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:,.2f} GB ({MIN_FREE_USAGE:.2%}) - Total: {total:,.2f} GB")
 
 
-def is_torrent_public(torrent_hash, setup=True):
+def is_torrent_public(torrent_hash):
     """Checks if torrent is public or private by word 'private' in tracker messages."""
-    setup_services(qbt=setup)
-    torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
-    for tracker in torrent_trackers:
+    for tracker in TORRENTS[torrent_hash]["torrents_trackers"]:
         if "private" in tracker["msg"].lower():
             return False
         for tracker_url in PRIVATE_TRACKERS:
@@ -106,12 +111,11 @@ def is_torrent_public(torrent_hash, setup=True):
     return True
 
 
-def update_tracker_sizes(torrent_hash, torrent_size_bytes, setup=True):
+def update_tracker_sizes(torrent_hash):
     """Updates global tracker sizes dict with current torrent size"""
-    setup_services(qbt=setup)
-    torrent_size_gb = bytes_to_gb(torrent_size_bytes)
-    torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
-    for tracker in torrent_trackers:
+    setup_services()
+    torrent_size_gb = bytes_to_gb(TORRENTS[torrent_hash]["torrents_info"]["size"])
+    for tracker in TORRENTS[torrent_hash]["torrents_trackers"]:
         tracker_url = tracker["url"]
         if "://" not in tracker_url:  # Ignore PeX, LSD, DHT
             continue
@@ -121,11 +125,9 @@ def update_tracker_sizes(torrent_hash, torrent_size_bytes, setup=True):
             tracker_sizes[tracker_url] = torrent_size_gb
 
 
-def trackers_above_limit(torrent_hash, setup=True):
+def trackers_above_limit(torrent_hash):
     """Checks if all torrent trackers are above size limit."""
-    setup_services(qbt=setup)
-    torrent_trackers = qbt_client.torrents_trackers(torrent_hash)
-    for tracker in torrent_trackers:
+    for tracker in TORRENTS[torrent_hash]["torrents_trackers"]:
         tracker_url = tracker["url"]
         if "://" not in tracker_url:  # Ignore PeX, LSD, DHT
             continue
@@ -137,8 +139,9 @@ def trackers_above_limit(torrent_hash, setup=True):
     return False
 
 
-def has_single_hard_link(path):
+def torrent_has_single_hard_link(torrent_hash):
     """Check if file has a single hard link. False if any file in directory has multiple."""
+    path = TORRENTS[torrent_hash]["torrents_info"]["content_path"]
     # Check all files if path is directory
     if os.path.isfile(path):
         if os.stat(path).st_nlink > 1:
@@ -152,89 +155,96 @@ def has_single_hard_link(path):
     return True
 
 
-def torrent_on_monitored_drive(torrent):
+def torrent_on_monitored_drive(torrent_hash):
     """Check if torrent path is within monitored drive"""
-    return torrent["content_path"].startswith(PATH)
+    return TORRENTS[torrent_hash]["torrents_info"]["content_path"].startswith(PATH)
 
 
-def torrent_age_satisfied(torrent):
+def torrent_age_satisfied(torrent_hash):
     """Gets the age of the torrent based on config"""
     if ALLOW_INCOMPLETE_TORRENT_DELETIONS:
-        return seconds_to_days(torrent["time_active"]) >= MIN_TORRENT_AGE
+        return seconds_to_days(TORRENTS[torrent_hash]["torrents_info"]["time_active"]) >= MIN_TORRENT_AGE
     else:
-        return seconds_to_days(torrent["seeding_time"]) >= MIN_TORRENT_AGE
+        return seconds_to_days(TORRENTS[torrent_hash]["torrents_info"]["seeding_time"]) >= MIN_TORRENT_AGE
 
 
 def main():
-
     # If free space above requirements, terminate
     print_free_space()
     if is_storage_full():
-        print("Drive space low, will be deleting torrents...")
+        if not DRY_RUN:
+            print("Drive space low, will be deleting torrents...")
+        else:
+            print("DRY RUN: Drive space low but no torrents will be deleted...")
     else:
         print("Free space already above threshold, no torrents were deleted!")
         quit_program(0)
-
-    setup_services(qbt=True)
+    setup_services()
 
     # Get all torrents older than threshold
-    print("Getting all torrents above age and seeding threshold...")
-    all_torrents_info = qbt_client.torrents_info()
-    for torrent in all_torrents_info:
-        update_tracker_sizes(torrent["hash"], torrent["size"], setup=False)
-    torrent_hashes_raw = []
+    print("Getting all torrents...")
+    temp_torrents_info = qbt_client.torrents_info()
+    total_torrents = 0
+    for torrent_info in temp_torrents_info:
+        TORRENTS[torrent_info["hash"]] = {}
+        TORRENTS[torrent_info["hash"]]["torrents_info"] = torrent_info
+        TORRENTS[torrent_info["hash"]]["torrents_properties"] = qbt_client.torrents_properties(torrent_info["hash"])
+        TORRENTS[torrent_info["hash"]]["torrents_trackers"] = qbt_client.torrents_trackers(torrent_info["hash"])
+        update_tracker_sizes(torrent_info["hash"])
+        total_torrents += 1
+
+    print("Getting elligible torrents...")
+    torrent_elligible_hashes_raw = []
     torrent_privacy_raw = []
     torrent_tracker_sizes_raw = []
     torrent_num_seeds_raw = []
-    for torrent in all_torrents_info:
-        torrent_share_ratio = qbt_client.torrents_properties(torrent["hash"])["share_ratio"]
-        if (
-            torrent_on_monitored_drive(torrent)
-            and torrent_age_satisfied(torrent)
-            and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO
-        ):
-            torrent_hashes_raw.append(torrent["hash"])
-            torrent_privacy_raw.append(is_torrent_public(torrent["hash"], setup=False) if PREFER_PRIVATE_TORRENTS else True)
-            torrent_tracker_sizes_raw.append(trackers_above_limit(torrent["hash"], setup=False))
-            torrent_num_seeds_raw.append(torrent["num_complete"])
-
+    torrent_sizes_raw = []
+    for torrent_hash in TORRENTS:
+        torrent_share_ratio = TORRENTS[torrent_hash]["torrents_properties"]["share_ratio"]
+        if (torrent_on_monitored_drive(torrent_hash) and torrent_age_satisfied(torrent_hash) and
+        torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO and torrent_has_single_hard_link(torrent_hash)):
+            torrent_elligible_hashes_raw.append(torrent_hash)
+            torrent_privacy_raw.append(is_torrent_public(torrent_hash) if PREFER_PRIVATE_TORRENTS else True)
+            torrent_tracker_sizes_raw.append(trackers_above_limit(torrent_hash))
+            torrent_num_seeds_raw.append(TORRENTS[torrent_hash]["torrents_info"]["num_complete"])
+            torrent_sizes_raw.append(TORRENTS[torrent_hash]["torrents_info"]["size"])
     # Sort so most available torrent is last.
-    torrent_hashes = []
-    for *_, torrent_hash in sorted(
-        zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_hashes_raw)
-    ):
-        torrent_hashes.append(torrent_hash)
+    elligible_torrent_hashes = []
+    sort_order = zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_sizes_raw, torrent_elligible_hashes_raw)
+    for *_, torrent_hash in sorted(sort_order):
+        elligible_torrent_hashes.append(torrent_hash)
+    num_elligible_torrents = len(elligible_torrent_hashes)
 
-    # Delete torrents until storage is above threshold
-    deleted_torrents = []
-    if torrent_hashes:
-        print("Deleting torrents with a single hard link...")
-        while is_storage_full() and torrent_hashes:
-            torrent_hash = torrent_hashes.pop()
-            torrent_info = qbt_client.torrents_info(torrent_hashes=torrent_hash)[0]
-            torrent_name = torrent_info["name"]
-            torrent_path = torrent_info["content_path"]
-            # Only delete torrents with a single hard link as ones with multiple won't free any space
-            if has_single_hard_link(torrent_path):
-                qbt_client.torrents_delete(torrent_hashes=torrent_hash, delete_files=True)
-                deleted_torrents.append(torrent_name)
-                print(f"--- {torrent_name}")
-                time.sleep(1)  # Sleep a bit after each deletion to make sure disk usage is updated.
+    print("Getting torrents to delete...")
+    torrent_hashes_to_delete = []
+    if elligible_torrent_hashes:
+        projected_storage = get_disk_usage()
+        while is_storage_full(projected_storage) and elligible_torrent_hashes:
+            torrent_hash = elligible_torrent_hashes.pop()
+            torrent_hashes_to_delete.append(torrent_hash)
+            torrent_info = TORRENTS[torrent_hash]["torrents_info"]
+            torrent_size_gb = bytes_to_gb(torrent_info["size"])
+            update_projected_storage(projected_storage, torrent_size_gb)
+            print(f"--- {torrent_info['name']}: {torrent_size_gb:,.2f} GB")
+    num_torrents_to_delete = len(torrent_hashes_to_delete)
+    if not DRY_RUN:
+        print(f"Deleting {num_torrents_to_delete:,}/{num_elligible_torrents:,} elligible torrents! (Total: {total_torrents:,})")
+        qbt_client.torrents_delete(torrent_hashes=torrent_hashes_to_delete, delete_files=True)
+        time.sleep(1)  # Need to wait a bit for disk usage to update
+    else:
+        print(f"DRY RUN: {num_torrents_to_delete:,}/{num_elligible_torrents:,} elligible torrents would be deleted! (Total: {total_torrents:,})")
 
     # Print results
-    print_free_space()
-    if not is_storage_full():
-        print(f"Free space now above threshold, {len(deleted_torrents)} torrents were deleted!")
-    else:  # No more torrents to delete but still low on space
-        print(
-            f"WARNING... Free space still below threshold after deleting all {len(deleted_torrents)} eligible torrents! Either:"
-        )
-        print(
-            f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE} days'\n"
-            f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO}'\n"
-            f"--- Torrents have multiple hard links\n"
-            f"--- No torrents exists!"
-        )
+    if not DRY_RUN:
+        print_free_space()
+        if not is_storage_full():
+            print(f"Free space now above threshold!")
+        else:  # No more torrents to delete but still low on space
+            print(f"WARNING... Free space still below threshold after deleting all {num_torrents_to_delete:,} eligible torrents! Either:")
+            print(f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE:,} days'\n"
+                f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO:,}'\n"
+                f"--- Torrents have multiple hard links\n"
+                f"--- No torrents exists!")
 
     quit_program(0)
 
