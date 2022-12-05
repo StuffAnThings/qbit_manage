@@ -26,7 +26,8 @@ SPECIFIC_TRACKER_SIZES = {}
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
     False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
 )
-PREFER_PRIVATE_TORRENTS = True  # Will delete public torrents before private ones regardless of seed difference or tracker sizes. See is_torrent_public().
+# Will delete public torrents before private ones regardless of seed difference or tracker sizes. See is_torrent_public().
+PREFER_PRIVATE_TORRENTS = True
 # Additional trackers urls to consider private. Save a comma separated strings. Don't include the port to match all ports.
 PRIVATE_TRACKERS = ["http://example.com"]
 """===End Config==="""
