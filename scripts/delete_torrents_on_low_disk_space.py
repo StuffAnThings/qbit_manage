@@ -97,7 +97,9 @@ def update_projected_storage(projected_usage, torrent_size_gb):
 def print_free_space():
     """Prints free space and user threshold."""
     free_space, free_usage, total = get_disk_usage()
-    print(f"Free space: {free_space:,.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:,.2f} GB ({MIN_FREE_USAGE:.2%}) - Total: {total:,.2f} GB")
+    print(
+        f"Free space: {free_space:,.2f} GB ({free_usage:.2%}) - Thresholds: {MIN_FREE_SPACE:,.2f} GB ({MIN_FREE_USAGE:.2%}) - Total: {total:,.2f} GB"
+    )
 
 
 def is_torrent_public(torrent_hash):
@@ -201,8 +203,12 @@ def main():
     torrent_sizes_raw = []
     for torrent_hash in TORRENTS:
         torrent_share_ratio = TORRENTS[torrent_hash]["torrents_properties"]["share_ratio"]
-        if (torrent_on_monitored_drive(torrent_hash) and torrent_age_satisfied(torrent_hash) and
-        torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO and torrent_has_single_hard_link(torrent_hash)):
+        if (
+            torrent_on_monitored_drive(torrent_hash)
+            and torrent_age_satisfied(torrent_hash)
+            and torrent_share_ratio >= MIN_TORRENT_SHARE_RATIO
+            and torrent_has_single_hard_link(torrent_hash)
+        ):
             torrent_elligible_hashes_raw.append(torrent_hash)
             torrent_privacy_raw.append(is_torrent_public(torrent_hash) if PREFER_PRIVATE_TORRENTS else True)
             torrent_tracker_sizes_raw.append(trackers_above_limit(torrent_hash))
@@ -210,7 +216,9 @@ def main():
             torrent_sizes_raw.append(TORRENTS[torrent_hash]["torrents_info"]["size"])
     # Sort so most available torrent is last.
     elligible_torrent_hashes = []
-    sort_order = zip(torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_sizes_raw, torrent_elligible_hashes_raw)
+    sort_order = zip(
+        torrent_privacy_raw, torrent_tracker_sizes_raw, torrent_num_seeds_raw, torrent_sizes_raw, torrent_elligible_hashes_raw
+    )
     for *_, torrent_hash in sorted(sort_order):
         elligible_torrent_hashes.append(torrent_hash)
     num_elligible_torrents = len(elligible_torrent_hashes)
@@ -232,7 +240,9 @@ def main():
         qbt_client.torrents_delete(torrent_hashes=torrent_hashes_to_delete, delete_files=True)
         time.sleep(1)  # Need to wait a bit for disk usage to update
     else:
-        print(f"DRY RUN: {num_torrents_to_delete:,}/{num_elligible_torrents:,} elligible torrents would be deleted! (Total: {total_torrents:,})")
+        print(
+            f"DRY RUN: {num_torrents_to_delete:,}/{num_elligible_torrents:,} elligible torrents would be deleted! (Total: {total_torrents:,})"
+        )
 
     # Print results
     if not DRY_RUN:
@@ -240,11 +250,15 @@ def main():
         if not is_storage_full():
             print(f"Free space now above threshold!")
         else:  # No more torrents to delete but still low on space
-            print(f"WARNING... Free space still below threshold after deleting all {num_torrents_to_delete:,} eligible torrents! Either:")
-            print(f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE:,} days'\n"
+            print(
+                f"WARNING... Free space still below threshold after deleting all {num_torrents_to_delete:,} eligible torrents! Either:"
+            )
+            print(
+                f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE:,} days'\n"
                 f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO:,}'\n"
                 f"--- Torrents have multiple hard links\n"
-                f"--- No torrents exists!")
+                f"--- No torrents exists!"
+            )
 
     quit_program(0)
 
