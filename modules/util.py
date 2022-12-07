@@ -264,16 +264,29 @@ def remove_empty_directories(pathlib_root_dir, pattern):
 
 
 # will check if there are any hard links if it passes a file or folder
+# If a folder is passed, it will take the largest file in that folder and only check for hardlinks
+# of the remaining files where the file is greater size a percentage of the largest file
+# This fixes the bug in #192
 def nohardlink(file):
     check = True
     if os.path.isfile(file):
+        logger.trace(f"Checking file: {file}")
         if os.stat(file).st_nlink > 1:
             check = False
     else:
-        for path, subdirs, files in os.walk(file):
-            for x in files:
-                if os.stat(os.path.join(path, x)).st_nlink > 1:
-                    check = False
+        sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+        threshold = 0.5
+        largest_file_size = os.stat(sorted_files[0]).st_size
+        logger.trace(f"Largest file: {sorted_files[0]}")
+        logger.trace(f"Largest file size: {largest_file_size}")
+        for x in sorted_files:
+            file_size = os.stat(x).st_size
+            file_no_hardlinks = os.stat(x).st_nlink
+            logger.trace(f"Checking file: {file}")
+            logger.trace(f"Checking file size: {file_size}")
+            logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+            if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
+                check = False
     return check
 
 
