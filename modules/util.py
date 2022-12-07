@@ -279,6 +279,12 @@ def nohardlink(file):
         logger.trace(f"Folder: {file}")
         logger.trace(f"Files Sorted by size: {sorted_files}")
         threshold = 0.5
+        if not sorted_files:
+            msg = (
+                f"Nohardlink Error: Unable to open the folder {file}."
+                "Please make sure qbit_manage has access to this directory."
+            )
+            raise Failed(msg)
         largest_file_size = os.stat(sorted_files[0]).st_size
         logger.trace(f"Largest file: {sorted_files[0]}")
         logger.trace(f"Largest file size: {largest_file_size}")
