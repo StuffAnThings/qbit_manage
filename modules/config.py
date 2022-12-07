@@ -433,7 +433,8 @@ class Config:
             raise Failed(e)
 
     # Get tags from config file based on keyword
-    def get_tags(self, urls):
+    def get_tags(self, trackers):
+        urls = [x.url for x in trackers if x.url.startswith("http")]
         tracker = {}
         tracker["tag"] = None
         tracker["max_ratio"] = None

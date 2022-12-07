@@ -217,7 +217,7 @@ class Qbt:
 
         def update_cat(new_cat, cat_change):
             nonlocal torrent, num_cat
-            tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+            tracker = self.config.get_tags(torrent.trackers)
             old_cat = torrent.category
             if not self.config.dry_run:
                 try:
@@ -284,7 +284,7 @@ class Qbt:
             for torrent in self.torrent_list:
                 check_tags = util.get_list(torrent.tags)
                 if torrent.tags == "" or (len([x for x in check_tags if x not in ignore_tags]) == 0):
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                    tracker = self.config.get_tags(torrent.trackers)
                     if tracker["tag"]:
                         num_tags += len(tracker["tag"])
                         body = []
@@ -520,7 +520,7 @@ class Qbt:
                     logger.warning(e)
                     continue
                 for torrent in torrent_list:
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                    tracker = self.config.get_tags(torrent.trackers)
                     if any(tag in torrent.tags for tag in nohardlinks[category]["exclude_tags"]):
                         # Skip to the next torrent if we find any torrents that are in the exclude tag
                         continue
@@ -533,7 +533,7 @@ class Qbt:
                             # Cleans up previously tagged noHL torrents
                             # Determine min_seeding_time.  noHl > Tracker w/ default 0
                             min_seeding_time = 0
-                            tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                            tracker = self.config.get_tags(torrent.trackers)
                             if nohardlinks[category]["min_seeding_time"]:
                                 min_seeding_time = nohardlinks[category]["min_seeding_time"]
                             elif tracker["min_seeding_time"]:
@@ -614,7 +614,7 @@ class Qbt:
                             t_status = self.torrentinfo[t_name]["status"]
                             # Double check that the content path is the same before we delete anything
                             if torrent["content_path"].replace(root_dir, root_dir) == tdel_dict[t_name]["content_path"]:
-                                tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                                tracker = self.config.get_tags(torrent.trackers)
                                 body = []
                                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                                 body += logger.print_line(
@@ -798,7 +798,7 @@ class Qbt:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any error torrents Tags that are no longer unreachable.
                 if tag_error in check_tags:
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                    tracker = self.config.get_tags(torrent.trackers)
                     num_untag += 1
                     body = []
                     body += logger.print_line(
@@ -969,7 +969,7 @@ class Qbt:
                     and self.torrentinfo[t_name]["count"] > 1
                     and self.torrentinfo[t_name]["first_hash"] != torrent.hash
                 ):
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                    tracker = self.config.get_tags(torrent.trackers)
                     tagged += 1
                     body = logger.print_line(
                         f"{'Not Adding' if self.config.dry_run else 'Adding'} 'cross-seed' tag to {t_name}", self.config.loglevel
@@ -1015,7 +1015,7 @@ class Qbt:
             torrent_list = self.get_torrents({"status_filter": "paused", "sort": "size"})
             if torrent_list:
                 for torrent in torrent_list:
-                    tracker = self.config.get_tags([x.url for x in torrent.trackers if x.url.startswith("http")])
+                    tracker = self.config.get_tags(torrent.trackers)
                     # Resume torrent if completed
                     if torrent.progress == 1:
                         if torrent.max_ratio < 0 and torrent.max_seeding_time < 0:
