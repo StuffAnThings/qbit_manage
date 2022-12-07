@@ -600,7 +600,11 @@ class Config:
                 )
                 return tracker
         if tracker["url"]:
-            default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+            logger.trace(f"tracker url: {tracker['url']}")
+            if tracker_other_tag:
+                default_tag = tracker_other_tag
+            else:
+                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
             tracker["tag"] = self.util.check_for_attribute(
                 self.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list"
             )
