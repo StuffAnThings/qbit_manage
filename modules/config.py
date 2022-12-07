@@ -18,6 +18,19 @@ from modules.webhooks import Webhooks
 
 logger = util.logger
 
+COMMANDS = [
+    "cross_seed",
+    "recheck",
+    "cat_update",
+    "tag_update",
+    "rem_unregistered",
+    "tag_tracker_error",
+    "rem_orphaned",
+    "tag_nohardlinks",
+    "skip_cleanup",
+    "dry_run",
+]
+
 
 class Config:
     def __init__(self, default_dir, args):
@@ -47,24 +60,16 @@ class Config:
         if "commands" in self.data:
             if self.data["commands"] is not None:
                 logger.info(f"Commands found in {config_file}, ignoring env variables and using config commands instead.")
-                self.commands = self.data.pop("commands")
-                if "dry_run" not in self.commands:
-                    self.commands["dry_run"] = args["dry_run"] if "dry_run" in args else False
-                # Add default any missing commands as False
-                for v in [
-                    "cross_seed",
-                    "recheck",
-                    "cat_update",
-                    "tag_update",
-                    "rem_unregistered",
-                    "tag_tracker_error",
-                    "rem_orphaned",
-                    "tag_nohardlinks",
-                    "skip_cleanup",
-                ]:
-                    if v not in self.commands:
-                        self.commands[v] = False
-
+                self.commands = {}
+                for command in COMMANDS:
+                    self.commands[command] = self.util.check_for_attribute(
+                        self.data,
+                        command,
+                        parent="commands",
+                        var_type="bool",
+                        default=False,
+                        save=True,
+                    )
                 logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {self.commands['cross_seed']}")
                 logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
                 logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")

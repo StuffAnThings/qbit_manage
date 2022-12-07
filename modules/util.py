@@ -118,6 +118,7 @@ class check:
                 return data[attribute]
             else:
                 message = f"{text} must be either true or false"
+                throw = True
         elif var_type == "int":
             if isinstance(data[attribute], int) and data[attribute] >= min_int:
                 return data[attribute]
