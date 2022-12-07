@@ -830,7 +830,7 @@ class Qbt:
                 try:
                     for x in torrent.trackers:
                         if x.url.startswith("http"):
-                            tracker = self.config.get_tags([x.url])
+                            tracker = self.config.get_tags([x])
                             msg_up = x.msg.upper()
                             msg = x.msg
                             # Tag any error torrents
