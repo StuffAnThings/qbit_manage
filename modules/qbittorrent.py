@@ -552,7 +552,9 @@ class Qbt:
                                 if tor_reach_seed_limit:
                                     if torrent.name not in tdel_dict:
                                         tdel_dict[torrent.name] = {}
-                                    tdel_dict[torrent.name]["content_path"] = torrent["content_path"].replace(root_dir, root_dir)
+                                    tdel_dict[torrent.name]["content_path"] = torrent["content_path"].replace(
+                                        root_dir, remote_dir
+                                    )
                                     tdel_dict[torrent.name]["body"] = tor_reach_seed_limit
                                 else:
                                     # Updates torrent to see if "MinSeedTimeNotReached" tag has been added
@@ -560,7 +562,7 @@ class Qbt:
                                     # Checks to see if previously noHL share limits have changed.
                                     add_tag_noHL(add_tag=False)
                     # Checks to see if previous noHL tagged torrents now have hard links.
-                    if not (util.nohardlink(torrent["content_path"].replace(root_dir, root_dir))) and ("noHL" in torrent.tags):
+                    if not (util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir))) and ("noHL" in torrent.tags):
                         num_untag += 1
                         body = []
                         body += logger.print_line(
@@ -613,7 +615,7 @@ class Qbt:
                             t_msg = self.torrentinfo[t_name]["msg"]
                             t_status = self.torrentinfo[t_name]["status"]
                             # Double check that the content path is the same before we delete anything
-                            if torrent["content_path"].replace(root_dir, root_dir) == tdel_dict[t_name]["content_path"]:
+                            if torrent["content_path"].replace(root_dir, remote_dir) == tdel_dict[t_name]["content_path"]:
                                 tracker = self.config.get_tags(torrent.trackers)
                                 body = []
                                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
@@ -634,7 +636,7 @@ class Qbt:
                                     "torrent_tracker": tracker["url"],
                                     "notifiarr_indexer": tracker["notifiarr"],
                                 }
-                                if os.path.exists(torrent["content_path"].replace(root_dir, root_dir)):
+                                if os.path.exists(torrent["content_path"].replace(root_dir, remote_dir)):
                                     # Checks if any of the original torrents are working
                                     if t_count > 1 and ("" in t_msg or 2 in t_status):
                                         del_tor += 1
