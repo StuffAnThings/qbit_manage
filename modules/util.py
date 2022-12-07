@@ -276,6 +276,8 @@ def nohardlink(file):
             check = False
     else:
         sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+        logger.trace(f"Folder: {file}")
+        logger.trace(f"Files Sorted by size: {sorted_files}")
         threshold = 0.5
         largest_file_size = os.stat(sorted_files[0]).st_size
         logger.trace(f"Largest file: {sorted_files[0]}")
