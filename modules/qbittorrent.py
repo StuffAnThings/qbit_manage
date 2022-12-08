@@ -4,8 +4,6 @@ from collections import Counter
 from datetime import timedelta
 from fnmatch import fnmatch
 
-from alive_progress import alive_it
-from alive_progress import config_handler
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import Conflict409Error
@@ -23,7 +21,6 @@ logger = util.logger
 class Qbt:
     def __init__(self, config, params):
         self.config = config
-        config_handler.set_global(bar=None, receipt=False)
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
@@ -113,7 +110,7 @@ class Qbt:
                     "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", self.config.loglevel
                 )
             logger.separator("Gathering Torrent Information", space=True, border=True)
-            for torrent in alive_it(torrent_list):
+            for torrent in torrent_list:
                 is_complete = False
                 msg = None
                 status = None
@@ -1124,21 +1121,21 @@ class Qbt:
             if remote_path != root_path:
                 root_files = [
                     os.path.join(path.replace(remote_path, root_path), name)
-                    for path, subdirs, files in alive_it(os.walk(remote_path))
+                    for path, subdirs, files in os.walk(remote_path)
                     for name in files
                     if orphaned_path.replace(remote_path, root_path) not in path
                 ]
             else:
                 root_files = [
                     os.path.join(path, name)
-                    for path, subdirs, files in alive_it(os.walk(root_path))
+                    for path, subdirs, files in os.walk(root_path)
                     for name in files
                     if orphaned_path.replace(root_path, remote_path) not in path
                 ]
 
             # Get an updated list of torrents
             torrent_list = self.get_torrents({"sort": "added_on"})
-            for torrent in alive_it(torrent_list):
+            for torrent in torrent_list:
                 for file in torrent.files:
                     fullpath = os.path.join(torrent.save_path, file.name)
                     # Replace fullpath with \\ if qbm is runnig in docker (linux) but qbt is on windows
@@ -1183,7 +1180,7 @@ class Qbt:
                 # Delete empty directories after moving orphan files
                 logger.info("Cleaning up any empty directories...")
                 if not self.config.dry_run:
-                    for file in alive_it(orphaned_files):
+                    for file in orphaned_files:
                         src = file.replace(root_path, remote_path)
                         dest = os.path.join(orphaned_path, file.replace(root_path, ""))
                         util.move_files(src, dest, True)
