@@ -229,6 +229,8 @@ def move_files(src, dest, mod=False):
         logger.warning(f"{p} : Copying files instead.")
         shutil.copyfile(src, dest)
         toDelete = True
+    except FileNotFoundError as f:
+        logger.warning(f"{f} : source: {src} -> destination: {dest}")
     except Exception as e:
         logger.stacktrace()
         logger.error(e)
