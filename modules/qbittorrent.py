@@ -518,12 +518,13 @@ class Qbt:
                     continue
                 for torrent in torrent_list:
                     tracker = self.config.get_tags(torrent.trackers)
+                    has_nohardlinks = util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir))
                     if any(tag in torrent.tags for tag in nohardlinks[category]["exclude_tags"]):
                         # Skip to the next torrent if we find any torrents that are in the exclude tag
                         continue
                     else:
                         # Checks for any hard links and not already tagged
-                        if util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir)):
+                        if has_nohardlinks:
                             # Will only tag new torrents that don't have noHL tag
                             if "noHL" not in torrent.tags:
                                 add_tag_noHL(add_tag=True)
@@ -559,7 +560,7 @@ class Qbt:
                                     # Checks to see if previously noHL share limits have changed.
                                     add_tag_noHL(add_tag=False)
                     # Checks to see if previous noHL tagged torrents now have hard links.
-                    if not (util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir))) and ("noHL" in torrent.tags):
+                    if not (has_nohardlinks) and ("noHL" in torrent.tags):
                         num_untag += 1
                         body = []
                         body += logger.print_line(
