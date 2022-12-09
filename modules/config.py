@@ -242,6 +242,8 @@ class Config:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if cat in list(self.data["cat"].keys()):
+                    is_max_ratio_defined = self.data["nohardlinks"][cat].get("max_ratio")
+                    is_max_seeding_time_defined = self.data["nohardlinks"][cat].get("max_seeding_time")
                     self.nohardlinks[cat] = {}
                     self.nohardlinks[cat]["exclude_tags"] = self.util.check_for_attribute(
                         self.data,
@@ -255,27 +257,52 @@ class Config:
                     self.nohardlinks[cat]["cleanup"] = self.util.check_for_attribute(
                         self.data, "cleanup", parent="nohardlinks", subparent=cat, var_type="bool", default=False, do_print=False
                     )
-                    self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
-                        self.data,
-                        "max_ratio",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="float",
-                        min_int=-2,
-                        do_print=False,
-                        default=-1,
-                    )
-                    self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
-                        self.data,
-                        "max_seeding_time",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="int",
-                        min_int=-2,
-                        do_print=False,
-                        default=-1,
-                        save=False,
-                    )
+                    if is_max_ratio_defined or is_max_seeding_time_defined:
+                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
+                            self.data,
+                            "max_ratio",
+                            parent="nohardlinks",
+                            subparent=cat,
+                            var_type="float",
+                            min_int=-2,
+                            do_print=False,
+                            default=-1,
+                            save=False,
+                        )
+                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
+                            self.data,
+                            "max_seeding_time",
+                            parent="nohardlinks",
+                            subparent=cat,
+                            var_type="int",
+                            min_int=-2,
+                            do_print=False,
+                            default=-1,
+                            save=False,
+                        )
+                    else:
+                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
+                            self.data,
+                            "max_ratio",
+                            parent="nohardlinks",
+                            subparent=cat,
+                            var_type="float",
+                            min_int=-2,
+                            do_print=False,
+                            default_is_none=True,
+                            save=False,
+                        )
+                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
+                            self.data,
+                            "max_seeding_time",
+                            parent="nohardlinks",
+                            subparent=cat,
+                            var_type="int",
+                            min_int=-2,
+                            do_print=False,
+                            default_is_none=True,
+                            save=False,
+                        )
                     self.nohardlinks[cat]["min_seeding_time"] = self.util.check_for_attribute(
                         self.data,
                         "min_seeding_time",
@@ -295,7 +322,7 @@ class Config:
                         var_type="int",
                         min_int=-1,
                         do_print=False,
-                        default=-1,
+                        default=0,
                         save=False,
                     )
                     self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
@@ -315,7 +342,7 @@ class Config:
                     raise Failed(e)
         else:
             if self.commands["tag_nohardlinks"]:
-                e = "Config Error: nohardlinks attribute not found"
+                e = "Config Error: nohardlinks attribute max_ratio not found"
                 self.notify(e, "Config")
                 raise Failed(e)
 
@@ -494,17 +521,54 @@ class Config:
                                 self.data["tracker"][tag_url]["tag"] = [tag_url]
                             if isinstance(tracker["tag"], str):
                                 tracker["tag"] = [tracker["tag"]]
-                            tracker["max_ratio"] = self.util.check_for_attribute(
-                                self.data,
-                                "max_ratio",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="float",
-                                min_int=-2,
-                                do_print=False,
-                                default=-1,
-                                save=False,
-                            )
+                            is_max_ratio_defined = self.data["tracker"].get("max_ratio")
+                            is_max_seeding_time_defined = self.data["tracker"].get("max_seeding_time")
+                            if is_max_ratio_defined or is_max_seeding_time_defined:
+                                tracker["max_ratio"] = self.util.check_for_attribute(
+                                    self.data,
+                                    "max_ratio",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="float",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default=-1,
+                                    save=False,
+                                )
+                                tracker["max_seeding_time"] = self.util.check_for_attribute(
+                                    self.data,
+                                    "max_seeding_time",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="int",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default=-1,
+                                    save=False,
+                                )
+                            else:
+                                tracker["max_ratio"] = self.util.check_for_attribute(
+                                    self.data,
+                                    "max_ratio",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="float",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default_is_none=True,
+                                    save=False,
+                                )
+                                tracker["max_seeding_time"] = self.util.check_for_attribute(
+                                    self.data,
+                                    "max_seeding_time",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="int",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default_is_none=True,
+                                    save=False,
+                                )
                             tracker["min_seeding_time"] = self.util.check_for_attribute(
                                 self.data,
                                 "min_seeding_time",
@@ -513,18 +577,7 @@ class Config:
                                 var_type="int",
                                 min_int=0,
                                 do_print=False,
-                                default=-1,
-                                save=False,
-                            )
-                            tracker["max_seeding_time"] = self.util.check_for_attribute(
-                                self.data,
-                                "max_seeding_time",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="int",
-                                min_int=-2,
-                                do_print=False,
-                                default=-1,
+                                default=0,
                                 save=False,
                             )
                             tracker["limit_upload_speed"] = self.util.check_for_attribute(
