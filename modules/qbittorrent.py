@@ -475,7 +475,7 @@ class Qbt:
                 tags="noHL",
                 do_print=False,
             )
-            if body_tags_and_limits:
+            if body_tags_and_limits or add_tag:
                 num_tags += 1
                 # Resume torrent if it was paused now that the share limit has changed
                 if torrent.state == "pausedUP" and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
