@@ -283,7 +283,7 @@ def nohardlink(file):
         threshold = 0.5
         if not sorted_files:
             msg = (
-                f"Nohardlink Error: Unable to open the folder {file}."
+                f"Nohardlink Error: Unable to open the folder {file}. "
                 "Please make sure qbit_manage has access to this directory."
             )
             raise Failed(msg)
