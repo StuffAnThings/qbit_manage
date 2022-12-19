@@ -518,7 +518,7 @@ class Qbt:
                     continue
                 for torrent in torrent_list:
                     tracker = self.config.get_tags(torrent.trackers)
-                    has_nohardlinks = util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir))
+                    has_nohardlinks = util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir), self.config.notify)
                     if any(tag in torrent.tags for tag in nohardlinks[category]["exclude_tags"]):
                         # Skip to the next torrent if we find any torrents that are in the exclude tag
                         continue

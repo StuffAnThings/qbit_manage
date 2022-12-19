@@ -270,7 +270,7 @@ def remove_empty_directories(pathlib_root_dir, pattern):
 # If a folder is passed, it will take the largest file in that folder and only check for hardlinks
 # of the remaining files where the file is greater size a percentage of the largest file
 # This fixes the bug in #192
-def nohardlink(file):
+def nohardlink(file, notify):
     check = True
     if os.path.isfile(file):
         logger.trace(f"Checking file: {file}")
@@ -284,9 +284,10 @@ def nohardlink(file):
         if not sorted_files:
             msg = (
                 f"Nohardlink Error: Unable to open the folder {file}. "
-                "Please make sure qbit_manage has access to this directory."
+                "Please make sure folder exists and qbit_manage has access to this directory."
             )
-            raise Failed(msg)
+            notify(msg, "nohardlink")
+            logger.warning(msg)
         largest_file_size = os.stat(sorted_files[0]).st_size
         logger.trace(f"Largest file: {sorted_files[0]}")
         logger.trace(f"Largest file size: {largest_file_size}")
