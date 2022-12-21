@@ -288,17 +288,18 @@ def nohardlink(file, notify):
             )
             notify(msg, "nohardlink")
             logger.warning(msg)
-        largest_file_size = os.stat(sorted_files[0]).st_size
-        logger.trace(f"Largest file: {sorted_files[0]}")
-        logger.trace(f"Largest file size: {largest_file_size}")
-        for x in sorted_files:
-            file_size = os.stat(x).st_size
-            file_no_hardlinks = os.stat(x).st_nlink
-            logger.trace(f"Checking file: {file}")
-            logger.trace(f"Checking file size: {file_size}")
-            logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-            if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
-                check = False
+        else:
+            largest_file_size = os.stat(sorted_files[0]).st_size
+            logger.trace(f"Largest file: {sorted_files[0]}")
+            logger.trace(f"Largest file size: {largest_file_size}")
+            for x in sorted_files:
+                file_size = os.stat(x).st_size
+                file_no_hardlinks = os.stat(x).st_nlink
+                logger.trace(f"Checking file: {file}")
+                logger.trace(f"Checking file size: {file_size}")
+                logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+                if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
+                    check = False
     return check
 
 
