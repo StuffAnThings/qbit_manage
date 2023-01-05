@@ -548,12 +548,12 @@ class Qbt:
                                     tracker["url"],
                                 )
                                 if tor_reach_seed_limit:
-                                    if torrent.name not in tdel_dict:
-                                        tdel_dict[torrent.name] = {}
-                                    tdel_dict[torrent.name]["content_path"] = torrent["content_path"].replace(
+                                    if torrent.hash not in tdel_dict:
+                                        tdel_dict[torrent.hash] = {}
+                                    tdel_dict[torrent.hash]["content_path"] = torrent["content_path"].replace(
                                         root_dir, remote_dir
                                     )
-                                    tdel_dict[torrent.name]["body"] = tor_reach_seed_limit
+                                    tdel_dict[torrent.hash]["body"] = tor_reach_seed_limit
                                 else:
                                     # Updates torrent to see if "MinSeedTimeNotReached" tag has been added
                                     torrent = self.get_torrents({"torrent_hashes": [torrent.hash]}).data[0]
@@ -608,19 +608,20 @@ class Qbt:
                     torrent_list = self.get_torrents({"category": category, "status_filter": "completed"})
                     for torrent in torrent_list:
                         t_name = torrent.name
-                        if t_name in tdel_dict.keys() and "noHL" in torrent.tags:
+                        t_hash = torrent.hash
+                        if t_hash in tdel_dict.keys() and "noHL" in torrent.tags:
                             t_count = self.torrentinfo[t_name]["count"]
                             t_msg = self.torrentinfo[t_name]["msg"]
                             t_status = self.torrentinfo[t_name]["status"]
                             # Double check that the content path is the same before we delete anything
-                            if torrent["content_path"].replace(root_dir, remote_dir) == tdel_dict[t_name]["content_path"]:
+                            if torrent["content_path"].replace(root_dir, remote_dir) == tdel_dict[t_hash]["content_path"]:
                                 tracker = self.config.get_tags(torrent.trackers)
                                 body = []
                                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                                 body += logger.print_line(
                                     logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel
                                 )
-                                body += logger.print_line(tdel_dict[t_name]["body"], self.config.loglevel)
+                                body += logger.print_line(tdel_dict[t_hash]["body"], self.config.loglevel)
                                 body += logger.print_line(
                                     logger.insert_space("Cleanup: True [No hard links found and meets Share Limits.]", 8),
                                     self.config.loglevel,
