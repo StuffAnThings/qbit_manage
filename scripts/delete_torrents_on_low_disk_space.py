@@ -126,7 +126,6 @@ def torrent_age_satisfied(torrent):
 
 
 def main():
-
     # If free space above requirements, terminate
     print_free_space()
     if is_storage_full():
