@@ -21,13 +21,13 @@ repos:
     hooks:
       - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.28.0   # or higher tag
+    rev: v1.29.0  # or higher tag
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.1.1
+    rev: 1.8.1
     hooks:
       - id: yamlfix
         exclude: ^.github/
@@ -41,7 +41,7 @@ repos:
       - id: pyupgrade
         args: [--py3-plus]
   - repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.1.0
     hooks:
       - id: black
         language_version: python3
