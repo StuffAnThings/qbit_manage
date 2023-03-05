@@ -1,7 +1,5 @@
 # Requirements Updated
-- Bump qbittorrent-api from 2022.11.42 to 2023.2.43
-
+- Adds check for minimum python requirement of 3.8.1+
 # Bug Fixes
-- Fixes NoHL torrents being removed when criteria not met (#205)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.4.3...v3.4.4
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.4.4...v3.4.5

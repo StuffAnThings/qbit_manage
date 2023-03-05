@@ -15,9 +15,9 @@ except ModuleNotFoundError:
     sys.exit(0)
 
 
-if sys.version_info[0] != 3 or sys.version_info[1] < 6:
+if sys.version_info < (3, 8, 1):
     print(
-        "Version Error: Version: %s.%s.%s incompatible please use Python 3.6+"
+        "Version Error: Version: %s.%s.%s incompatible please use Python 3.8.1+"
         % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
     )
     sys.exit(0)
