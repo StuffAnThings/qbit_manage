@@ -32,14 +32,22 @@ jobs:
 
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Build and push
         id: docker_build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: ./
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG
+          token: ${{ secrets.PAT }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
