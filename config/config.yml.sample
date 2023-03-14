@@ -25,7 +25,7 @@ qbt:
 settings:
   force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
   tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
-  ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has one or more of the tags defined here.
+  ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
     - cross-seed
@@ -62,6 +62,7 @@ cat_change:
 
 
 tracker:
+  # Mandatory
   # Tag Parameters
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
@@ -206,6 +207,7 @@ orphaned:
     - "**/@eaDir"
     - "/data/torrents/temp/**"
     - "**/*.!qB"
+    - '**/_unpackerred'
 
 apprise:
   # Apprise integration with webhooks
@@ -229,7 +231,7 @@ webhooks:
   # Set value to notifiarr if using notifiarr integration
   # Set value to apprise if using apprise integration
   # Set value to a valid webhook URL
-  # Leave Empty/Blank to disable
+  # Set value to nothing (leave Empty/Blank) to disable
   error: https://mywebhookurl.com/qbt_manage
   run_start: notifiarr
   run_end: apprise
