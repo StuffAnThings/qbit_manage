@@ -1,4 +1,5 @@
 from json import JSONDecodeError
+from requests.exceptions import JSONDecodeError as requestsJSONDecodeError
 
 from modules import util
 from modules.util import Failed
@@ -70,7 +71,7 @@ class Webhooks:
                         response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")
                     ) and skip is False:
                         raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
-                except JSONDecodeError:
+                except (JSONDecodeError, requestsJSONDecodeError):
                     if response.status_code >= 400:
                         raise Failed(f"({response.status_code} [{response.reason}])")
 
