@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+"""qBittorrent Manager."""
 import argparse
 import glob
 import os
@@ -14,11 +15,14 @@ except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
 
+REQUIRED_VERSION = (3, 8, 1)
+REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
+current_version = sys.version_info
 
-if sys.version_info < (3, 8, 1):
+if current_version < (REQUIRED_VERSION):
     print(
-        "Version Error: Version: %s.%s.%s incompatible please use Python 3.8.1+"
-        % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+        "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
+        % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
     )
     sys.exit(0)
 
@@ -142,7 +146,7 @@ parser.add_argument(
     dest="skip_cleanup",
     action="store_true",
     default=False,
-    help="Use this to skip cleaning up Reycle Bin/Orphaned directory.",
+    help="Use this to skip cleaning up Recycle Bin/Orphaned directory.",
 )
 parser.add_argument(
     "-dr",
@@ -163,6 +167,7 @@ args = parser.parse_args()
 
 
 def get_arg(env_str, default, arg_bool=False, arg_int=False):
+    """Get argument from environment variable or command line argument."""
     env_vars = [env_str] if not isinstance(env_str, list) else env_str
     final_value = None
     for env_var in env_vars:
@@ -284,11 +289,12 @@ from modules.util import GracefulKiller  # noqa
 from modules.util import Failed  # noqa
 
 
-def my_except_hook(exctype, value, tb):
+def my_except_hook(exctype, value, tbi):
+    """Handle uncaught exceptions"""
     if issubclass(exctype, KeyboardInterrupt):
-        sys.__excepthook__(exctype, value, tb)
+        sys.__excepthook__(exctype, value, tbi)
     else:
-        logger.critical("Uncaught Exception", exc_info=(exctype, value, tb))
+        logger.critical("Uncaught Exception", exc_info=(exctype, value, tbi))
 
 
 sys.excepthook = my_except_hook
@@ -303,6 +309,7 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
 
 
 def start_loop():
+    """Start the main loop"""
     if len(config_files) == 1:
         args["config_file"] = config_files[0]
         start()
@@ -316,6 +323,7 @@ def start_loop():
 
 
 def start():
+    """Start the run"""
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
@@ -345,13 +353,14 @@ def start():
         "untagged_noHL": 0,
     }
 
-    def FinishedRun():
+    def finished_run():
+        """Handle the end of a run"""
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
-        run_time = str(end_time - start_time).split(".")[0]
-        _, nr = calc_next_run(sch, True)
-        next_run_str = nr["next_run_str"]
-        next_run = nr["next_run"]
+        run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
+        _, nxt_run = calc_next_run(sch, True)
+        next_run_str = nxt_run["next_run_str"]
+        next_run = nxt_run["next_run"]
         body = logger.separator(
             f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
             f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace("\n\n", "\n").rstrip()
@@ -360,15 +369,15 @@ def start():
 
     try:
         cfg = Config(default_dir, args)
-    except Exception as e:
-        if "Qbittorrent Error" in e.args[0]:
-            logger.print_line(e, "CRITICAL")
+    except Exception as ex:
+        if "Qbittorrent Error" in ex.args[0]:
+            logger.print_line(ex, "CRITICAL")
             logger.print_line("Exiting scheduled Run.", "CRITICAL")
-            FinishedRun()
+            finished_run()
             return None
         else:
             logger.stacktrace()
-            logger.print_line(e, "CRITICAL")
+            logger.print_line(ex, "CRITICAL")
 
     if cfg:
         # Set Category
@@ -449,28 +458,29 @@ def start():
     if stats["orphaned_emptied"] > 0:
         stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
 
-    FinishedRun()
+    finished_run()
     if cfg:
         try:
             cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
-        except Failed as e:
+        except Failed as err:
             logger.stacktrace()
-            logger.error(f"Webhooks Error: {e}")
+            logger.error(f"Webhooks Error: {err}")
 
 
 def end():
+    """Ends the program"""
     logger.info("Exiting Qbit_manage")
     logger.remove_main_handler()
     sys.exit(0)
 
 
-def calc_next_run(sch, print=False):
+def calc_next_run(schd, write_out=False):
+    """Calculates the next run time based on the schedule"""
     current = datetime.now().strftime("%H:%M")
-    seconds = sch * 60
-    time_to_run = datetime.now() + timedelta(minutes=sch)
+    seconds = schd * 60
+    time_to_run = datetime.now() + timedelta(minutes=schd)
     time_to_run_str = time_to_run.strftime("%H:%M")
     new_seconds = (datetime.strptime(time_to_run_str, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
-    time_str = ""
     next_run = {}
     if run is False:
         next_run["next_run"] = time_to_run
@@ -481,14 +491,14 @@ def calc_next_run(sch, print=False):
         if seconds is not None:
             hours = int(seconds // 3600)
             minutes = int((seconds % 3600) // 60)
-            time_str = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
-            time_str += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
-            if print:
-                next_run["next_run_str"] = f"Current Time: {current} | {time_str} until the next run at {time_to_run_str}"
+            time_until = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
+            time_until += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
+            if write_out:
+                next_run["next_run_str"] = f"Current Time: {current} | {time_until} until the next run at {time_to_run_str}"
     else:
         next_run["next_run"] = None
         next_run["next_run_str"] = ""
-    return time_str, next_run
+    return time_until, next_run
 
 
 if __name__ == "__main__":

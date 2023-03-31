@@ -953,11 +953,11 @@ class Qbt:
             dir_cs_out = os.path.join(dir_cs, "qbit_manage_added")
             os.makedirs(dir_cs_out, exist_ok=True)
             for file in cs_files:
-                t_name = file.split("]", 2)[2].split(".torrent")[0]
+                tr_name = file.split("]", 2)[2].split(".torrent")[0]
                 t_tracker = file.split("]", 2)[1][1:]
                 # Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
                 # Returned the dictionary of filtered item
-                torrentdict_file = dict(filter(lambda item: t_name in item[0], self.torrentinfo.items()))
+                torrentdict_file = dict(filter(lambda item: tr_name in item[0], self.torrentinfo.items()))
                 if torrentdict_file:
                     # Get the exact torrent match name from torrentdict
                     t_name = next(iter(torrentdict_file))
