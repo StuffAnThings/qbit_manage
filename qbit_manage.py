@@ -379,6 +379,11 @@ def start():
         num_tagged = cfg.qbt.tags()
         stats["tagged"] += num_tagged
 
+        # Set Cross Seed
+        num_added, num_tagged = cfg.qbt.cross_seed()
+        stats["added"] += num_added
+        stats["tagged"] += num_tagged
+
         # Remove Unregistered Torrents
         num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
         stats["rem_unreg"] += num_deleted + num_deleted_contents
@@ -386,11 +391,6 @@ def start():
         stats["deleted_contents"] += num_deleted_contents
         stats["tagged_tracker_error"] += num_tagged
         stats["untagged_tracker_error"] += num_untagged
-        stats["tagged"] += num_tagged
-
-        # Set Cross Seed
-        num_added, num_tagged = cfg.qbt.cross_seed()
-        stats["added"] += num_added
         stats["tagged"] += num_tagged
 
         # Recheck Torrents
