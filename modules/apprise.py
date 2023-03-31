@@ -1,3 +1,4 @@
+"""Apprise notification class"""
 from modules import util
 from modules.util import Failed
 
@@ -5,6 +6,8 @@ logger = util.logger
 
 
 class Apprise:
+    """Apprise notification class"""
+
     def __init__(self, config, params):
         self.config = config
         self.api_url = params["api_url"]

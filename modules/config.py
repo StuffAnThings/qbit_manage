@@ -1,3 +1,4 @@
+"""Config class for qBittorrent-Manage"""
 import os
 import re
 import stat
@@ -33,6 +34,8 @@ COMMANDS = [
 
 
 class Config:
+    """Config class for qBittorrent-Manage"""
+
     def __init__(self, default_dir, args):
         logger.info("Locating config...")
         self.args = args
@@ -161,7 +164,7 @@ class Config:
             "cleanup_dirs": None,
         }
 
-        self.webhooks = {
+        self.webhooks_factory = {
             "error": self.util.check_for_attribute(self.data, "error", parent="webhooks", var_type="list", default_is_none=True),
             "run_start": self.util.check_for_attribute(
                 self.data, "run_start", parent="webhooks", var_type="list", default_is_none=True
@@ -178,12 +181,12 @@ class Config:
 
         self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
 
-        self.AppriseFactory = None
+        self.apprise_factory = None
         if "apprise" in self.data:
             if self.data["apprise"] is not None:
                 logger.info("Connecting to Apprise...")
                 try:
-                    self.AppriseFactory = Apprise(
+                    self.apprise_factory = Apprise(
                         self,
                         {
                             "api_url": self.util.check_for_attribute(
@@ -194,16 +197,16 @@ class Config:
                             ),
                         },
                     )
-                except Failed as e:
-                    logger.error(e)
-                logger.info(f"Apprise Connection {'Failed' if self.AppriseFactory is None else 'Successful'}")
+                except Failed as err:
+                    logger.error(err)
+                logger.info(f"Apprise Connection {'Failed' if self.apprise_factory is None else 'Successful'}")
 
-        self.NotifiarrFactory = None
+        self.notifiarr_factory = None
         if "notifiarr" in self.data:
             if self.data["notifiarr"] is not None:
                 logger.info("Connecting to Notifiarr...")
                 try:
-                    self.NotifiarrFactory = Notifiarr(
+                    self.notifiarr_factory = Notifiarr(
                         self,
                         {
                             "apikey": self.util.check_for_attribute(self.data, "apikey", parent="notifiarr", throw=True),
@@ -212,29 +215,31 @@ class Config:
                             ),
                         },
                     )
-                except Failed as e:
-                    logger.error(e)
-                logger.info(f"Notifiarr Connection {'Failed' if self.NotifiarrFactory is None else 'Successful'}")
+                except Failed as err:
+                    logger.error(err)
+                logger.info(f"Notifiarr Connection {'Failed' if self.notifiarr_factory is None else 'Successful'}")
 
-        self.Webhooks = Webhooks(self, self.webhooks, notifiarr=self.NotifiarrFactory, apprise=self.AppriseFactory)
+        self.webhooks_factory = Webhooks(
+            self, self.webhooks_factory, notifiarr=self.notifiarr_factory, apprise=self.apprise_factory
+        )
         try:
-            self.Webhooks.start_time_hooks(self.start_time)
-        except Failed as e:
+            self.webhooks_factory.start_time_hooks(self.start_time)
+        except Failed as err:
             logger.stacktrace()
-            logger.error(f"Webhooks Error: {e}")
+            logger.error(f"Webhooks Error: {err}")
 
-        self.BeyondHD = None
+        self.beyond_hd = None
         if "bhd" in self.data:
             if self.data["bhd"] is not None:
                 logger.info("Connecting to BHD API...")
                 try:
-                    self.BeyondHD = BeyondHD(
+                    self.beyond_hd = BeyondHD(
                         self, {"apikey": self.util.check_for_attribute(self.data, "apikey", parent="bhd", throw=True)}
                     )
-                except Failed as e:
-                    logger.error(e)
-                    self.notify(e, "BHD")
-                logger.info(f"BHD Connection {'Failed' if self.BeyondHD is None else 'Successful'}")
+                except Failed as err:
+                    logger.error(err)
+                    self.notify(err, "BHD")
+                logger.info(f"BHD Connection {'Failed' if self.beyond_hd is None else 'Successful'}")
 
         # nohardlinks
         self.nohardlinks = None
@@ -336,15 +341,15 @@ class Config:
                         save=False,
                     )
                 else:
-                    e = f"Config Error: Category {cat} is defined under nohardlinks attribute "
+                    err = f"Config Error: Category {cat} is defined under nohardlinks attribute "
                     "but is not defined in the cat attribute."
-                    self.notify(e, "Config")
-                    raise Failed(e)
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
-                e = "Config Error: nohardlinks attribute max_ratio not found"
-                self.notify(e, "Config")
-                raise Failed(e)
+                err = "Config Error: nohardlinks attribute max_ratio not found"
+                self.notify(err, "Config")
+                raise Failed(err)
 
         # Add RecycleBin
         self.recyclebin = {}
@@ -416,9 +421,9 @@ class Config:
             if self.recyclebin["enabled"] and self.recyclebin["save_torrents"]:
                 self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
                 if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
-                    e = f"Config Error: The location {self.torrents_dir} does not contain any .torrents"
-                    self.notify(e, "Config")
-                    raise Failed(e)
+                    err = f"Config Error: The location {self.torrents_dir} does not contain any .torrents"
+                    self.notify(err, "Config")
+                    raise Failed(err)
             else:
                 self.torrents_dir = self.util.check_for_attribute(
                     self.data, "torrents_dir", parent="directory", default_is_none=True
@@ -728,9 +733,9 @@ class Config:
                             for s in save_path
                         ]
                         location_path_list = [location_path]
-                        for dir in cleaned_save_path:
-                            if os.path.exists(dir):
-                                location_path_list.append(dir)
+                        for folder in cleaned_save_path:
+                            if os.path.exists(folder):
+                                location_path_list.append(folder)
                     else:
                         e = f"No categories defined. Checking {location} directory {location_path}."
                         self.notify(e, f"Empty {location}", False)
@@ -796,25 +801,25 @@ class Config:
     def send_notifications(self, attr):
         try:
             function = attr["function"]
-            config_webhooks = self.Webhooks.function_webhooks
+            config_webhooks = self.webhooks_factory.function_webhooks
             config_function = None
             for key in config_webhooks:
                 if key in function:
                     config_function = key
                     break
             if config_function:
-                self.Webhooks.function_hooks([config_webhooks[config_function]], attr)
+                self.webhooks_factory.function_hooks([config_webhooks[config_function]], attr)
         except Failed as e:
             logger.stacktrace()
-            logger.error(f"Webhooks Error: {e}")
+            logger.error(f"webhooks_factory Error: {e}")
 
     def notify(self, text, function=None, critical=True):
         for error in util.get_list(text, split=False):
             try:
-                self.Webhooks.error_hooks(error, function_error=function, critical=critical)
+                self.webhooks_factory.error_hooks(error, function_error=function, critical=critical)
             except Failed as e:
                 logger.stacktrace()
-                logger.error(f"Webhooks Error: {e}")
+                logger.error(f"webhooks_factory Error: {e}")
 
     def get_json(self, url, json=None, headers=None, params=None):
         return self.get(url, json=json, headers=headers, params=params).json()
