@@ -1280,7 +1280,7 @@ class Qbt:
                         except Exception as ex:
                             logger.stacktrace()
                             self.config.notify(ex, "Deleting Torrent", False)
-                            logger.warning("RecycleBin Warning: {ex}")
+                            logger.warning(f"RecycleBin Warning: {ex}")
                 if "tracker_torrent_files" in torrent_json:
                     tracker_torrent_files = torrent_json["tracker_torrent_files"]
                 else:
