@@ -48,7 +48,9 @@ class Webhooks:
                 response = self.config.post(webhook_post, json=json)
             if response.status_code < 500:
                 return response
+            logger.debug(f"({response.status_code} [{response.reason}]) Retrying in {request_delay} seconds.")
             time.sleep(request_delay)
+            logger.debug(f"(Retry {retry_count + 1} of {retry_attempts}.")
             retry_count += 1
         logger.warning(f"({response.status_code} [{response.reason}]) after {retry_attempts} attempts.")
 
@@ -64,14 +66,9 @@ class Webhooks:
             logger.trace(f"Webhook: {webhook}")
             if webhook is None:
                 break
-            elif webhook == "notifiarr":
-                if self.notifiarr is None:
-                    logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
-                    break
-            elif webhook == "apprise":
-                if self.apprise is None:
-                    logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
-                    break
+            elif (webhook == "notifiarr" and self.notifiarr is None) or (webhook == "apprise" and self.apprise is None):
+                logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
+                break
             response = self.request_and_check(webhook, json)
             if response:
                 skip = False
@@ -85,7 +82,7 @@ class Webhooks:
                         and "response" in response_json["details"]
                     ):
                         if "trigger is not enabled" in response_json["details"]["response"]:
-                            logger.debug(f"Notifiarr Warning: {response_json['details']['response']}")
+                            logger.info(f"Notifiarr Warning: {response_json['details']['response']}")
                             skip = True
                         else:
                             raise Failed(f"Notifiarr Error: {response_json['details']['response']}")
