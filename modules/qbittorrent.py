@@ -365,7 +365,6 @@ class Qbt:
                         body += logger.print_line(msg, self.config.loglevel)
                     else:
                         body.append(msg)
-
                 elif max_seeding_time != torrent.max_seeding_time and (not max_ratio or max_ratio < 0):
                     msg = logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4)
                     if do_print:
@@ -470,7 +469,7 @@ class Qbt:
 
         def add_tag_no_hl(add_tag=True):
             """Add tag noHL to torrents with no hardlinks"""
-            nonlocal num_tags, torrent, tracker, nohardlinks, category
+            nonlocal num_tags, torrent, tracker, nohardlinks, category, max_ratio, max_seeding_time
             body = []
             body.append(logger.insert_space(f"Torrent Name: {torrent.name}", 3))
             if add_tag:
@@ -481,8 +480,8 @@ class Qbt:
             body.append(logger.insert_space(f'Tracker: {tracker["url"]}', 8))
             body_tags_and_limits = self.set_tags_and_limits(
                 torrent,
-                nohardlinks[category]["max_ratio"],
-                nohardlinks[category]["max_seeding_time"],
+                max_ratio,
+                max_seeding_time,
                 nohardlinks[category]["limit_upload_speed"],
                 tags="noHL",
                 do_print=False,
@@ -505,8 +504,8 @@ class Qbt:
                     "torrent_tag": "noHL",
                     "torrent_tracker": tracker["url"],
                     "notifiarr_indexer": tracker["notifiarr"],
-                    "torrent_max_ratio": nohardlinks[category]["max_ratio"],
-                    "torrent_max_seeding_time": nohardlinks[category]["max_seeding_time"],
+                    "torrent_max_ratio": max_ratio,
+                    "torrent_max_seeding_time": max_seeding_time,
                     "torrent_limit_upload_speed": nohardlinks[category]["limit_upload_speed"],
                 }
                 self.config.send_notifications(attr)
@@ -536,26 +535,54 @@ class Qbt:
                         continue
                     else:
                         # Checks for any hardlinks and not already tagged
+                        # Cleans up previously tagged noHL torrents that no longer have hardlinks
                         if has_nohardlinks:
                             # Will only tag new torrents that don't have noHL tag
                             if "noHL" not in torrent.tags:
                                 add_tag_no_hl(add_tag=True)
-                            # Cleans up previously tagged noHL torrents
-                            # Determine min_seeding_time.
-                            # If min_seeding_time is not set in the category, use the tracker's min_seeding_time
-                            min_seeding_time = 0
                             tracker = self.config.get_tags(torrent.trackers)
-                            if nohardlinks[category]["min_seeding_time"]:
-                                min_seeding_time = nohardlinks[category]["min_seeding_time"]
-                            elif tracker["min_seeding_time"]:
+                            # Determine min_seeding_time.
+                            # If only tracker setting is set, use tracker's min_seeding_time
+                            # If only nohardlinks category setting is set, use nohardlinks category's min_seeding_time
+                            # If both tracker and nohardlinks category setting is set, use the larger of the two
+                            # If neither set, use 0 (no limit)
+                            min_seeding_time = 0
+                            if (
+                                tracker["min_seeding_time"]
+                                and tracker["min_seeding_time"] >= nohardlinks[category]["min_seeding_time"]
+                            ):
                                 min_seeding_time = tracker["min_seeding_time"]
-
+                            elif nohardlinks[category]["min_seeding_time"]:
+                                min_seeding_time = nohardlinks[category]["min_seeding_time"]
+                            # Determine max_ratio.
+                            # If only tracker setting is set, use tracker's max_ratio
+                            # If only nohardlinks category setting is set, use nohardlinks category's max_ratio
+                            # If both tracker and nohardlinks category setting is set, use the larger of the two
+                            # If neither set, use -1 (no limit)
+                            max_ratio = -1
+                            if tracker["max_ratio"] and tracker["max_ratio"] >= nohardlinks[category]["max_ratio"]:
+                                max_ratio = tracker["max_ratio"]
+                            elif nohardlinks[category]["max_ratio"]:
+                                max_ratio = nohardlinks[category]["max_ratio"]
+                            # Determine max_seeding_time.
+                            # If only tracker setting is set, use tracker's max_seeding_time
+                            # If only nohardlinks category setting is set, use nohardlinks category's max_seeding_time
+                            # If both tracker and nohardlinks category setting is set, use the larger of the two
+                            # If neither set, use -1 (no limit)
+                            max_seeding_time = -1
+                            if (
+                                tracker["max_seeding_time"]
+                                and tracker["max_seeding_time"] >= nohardlinks[category]["max_seeding_time"]
+                            ):
+                                max_seeding_time = tracker["max_seeding_time"]
+                            elif nohardlinks[category]["max_seeding_time"]:
+                                max_seeding_time = nohardlinks[category]["max_seeding_time"]
                             # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                             if nohardlinks[category]["cleanup"] and len(nohardlinks[category]) > 0:
                                 tor_reach_seed_limit = self.has_reached_seed_limit(
                                     torrent,
-                                    nohardlinks[category]["max_ratio"],
-                                    nohardlinks[category]["max_seeding_time"],
+                                    max_ratio,
+                                    max_seeding_time,
                                     min_seeding_time,
                                     nohardlinks[category]["resume_torrent_after_untagging_noHL"],
                                     tracker["url"],
@@ -582,7 +609,8 @@ class Qbt:
                         body += logger.print_line(logger.insert_space("Removed Tag: noHL", 6), self.config.loglevel)
                         body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                         body += logger.print_line(
-                            f"{'Not Reverting' if self.config.dry_run else 'Reverting'} share limits.", self.config.loglevel
+                            f"{'Not Reverting' if self.config.dry_run else 'Reverting'} to tracker or Global share limits.",
+                            self.config.loglevel,
                         )
                         restore_max_ratio = tracker["max_ratio"]
                         restore_max_seeding_time = tracker["max_seeding_time"]
@@ -1242,7 +1270,7 @@ class Qbt:
                     torrent_json["torrent_name"] = info["torrent_name"]
                     torrent_json["category"] = info["torrent_category"]
                 else:
-                    logger.info("Adding %s to existing %s", info['torrent_tracker'], {os.path.basename(torrent_json_file)})
+                    logger.info("Adding %s to existing %s", info["torrent_tracker"], {os.path.basename(torrent_json_file)})
                 dot_torrent_files = []
                 for file in os.listdir(self.config.torrents_dir):
                     if file.startswith(info_hash):
