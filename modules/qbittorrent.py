@@ -537,9 +537,6 @@ class Qbt:
                         # Checks for any hardlinks and not already tagged
                         # Cleans up previously tagged noHL torrents that no longer have hardlinks
                         if has_nohardlinks:
-                            # Will only tag new torrents that don't have noHL tag
-                            if "noHL" not in torrent.tags:
-                                add_tag_no_hl(add_tag=True)
                             tracker = self.config.get_tags(torrent.trackers)
                             # Determine min_seeding_time.
                             # If only tracker setting is set, use tracker's min_seeding_time
@@ -577,6 +574,11 @@ class Qbt:
                                 max_seeding_time = tracker["max_seeding_time"]
                             elif nohardlinks[category]["max_seeding_time"]:
                                 max_seeding_time = nohardlinks[category]["max_seeding_time"]
+
+                            # Will only tag new torrents that don't have noHL tag
+                            if "noHL" not in torrent.tags:
+                                add_tag_no_hl(add_tag=True)
+
                             # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
                             if nohardlinks[category]["cleanup"] and len(nohardlinks[category]) > 0:
                                 tor_reach_seed_limit = self.has_reached_seed_limit(
