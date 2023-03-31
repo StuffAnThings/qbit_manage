@@ -1,4 +1,5 @@
 """Class to handle webhooks."""
+import time
 from json import JSONDecodeError
 
 from requests.exceptions import JSONDecodeError as requestsJSONDecodeError
@@ -28,6 +29,28 @@ class Webhooks:
         self.notifiarr = notifiarr
         self.apprise = apprise
 
+    def request_and_check(self, webhook_type, json):
+        """
+        Send a webhook request and check for errors.
+        retry up to 6 times if the response is a 500+ error.
+        """
+        retry_count = 0
+        retry_attempts = 6
+        request_delay = 2
+        for retry_count in range(retry_attempts):
+            if webhook_type == "notifiarr":
+                response = self.notifiarr.notification(json=json)
+            else:
+                if webhook_type == "apprise":
+                    json["urls"] = self.apprise.notify_url
+                    webhook_type = f"{self.apprise.api_url}/notify"
+            response = self.config.post(webhook_type, json=json)
+            if response.status_code < 500:
+                return response
+            time.sleep(request_delay)
+            retry_count += 1
+        raise Failed(f"({response.status_code} [{response.reason}]) after {retry_attempts} attempts.")
+
     def _request(self, webhooks, json):
         """Send a webhook request."""
         logger.trace("")
@@ -39,22 +62,13 @@ class Webhooks:
                 break
             elif webhook == "notifiarr":
                 if self.notifiarr is None:
+                    logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
                     break
-                else:
-                    response = self.notifiarr.notification(json=json)
-                    if response.status_code < 500:
-                        break
             elif webhook == "apprise":
                 if self.apprise is None:
-                    logger.warning("Webhook attribute set to apprise but apprise attribute is not configured.")
+                    logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
                     break
-                else:
-                    json["urls"] = self.apprise.notify_url
-                    response = self.config.post(f"{self.apprise.api_url}/notify", json=json)
-                    if response.status_code < 500:
-                        break
-            else:
-                response = self.config.post(webhook, json=json)
+            response = response = self.request_and_check(webhook, json)
             if response:
                 skip = False
                 try:
