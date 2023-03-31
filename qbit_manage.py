@@ -16,12 +16,13 @@ except ModuleNotFoundError:
     sys.exit(0)
 
 REQUIRED_VERSION = (3, 8, 1)
+REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
 current_version = sys.version_info
 
-if current_version < (REQUIRED_VERSION):
+if current_version < (REQUIRED_VERSION_STR):
     print(
         "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
-        % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION)
+        % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
     )
     sys.exit(0)
 
