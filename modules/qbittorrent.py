@@ -12,9 +12,9 @@ from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
 from qbittorrentapi import Version
 
-from .util import Failed
-from .util import list_in_text
 from modules import util
+from modules.util import Failed
+from modules.util import list_in_text
 
 logger = util.logger
 
@@ -24,6 +24,9 @@ class Qbt:
     Qbittorrent Class
     """
 
+    SUPPORTED_VERSION = Version.latest_supported_app_version()
+    MIN_SUPPORTED_VERSION = "v4.3.0"
+
     def __init__(self, config, params):
         self.config = config
         self.host = params["host"]
@@ -31,31 +34,28 @@ class Qbt:
         self.password = params["password"]
         logger.secret(self.username)
         logger.secret(self.password)
-        logger.debug("Host: %s, Username: %s, Password: %s", self.host, self.username, self.password)
+        logger.debug(f"Host: {self.host}, Username: {self.username}, Password: {self.password}")
         ex = ""
         try:
             self.client = Client(host=self.host, username=self.username, password=self.password, VERIFY_WEBUI_CERTIFICATE=False)
             self.client.auth_log_in()
-
-            supported_version = Version.latest_supported_app_version()
-            current_version = self.client.app.version
-            min_supported_version = "v4.3.0"
-            logger.debug("qBittorrent: %s", self.client.app.version)
-            logger.debug("qBittorrent Web API: %s", self.client.app.web_api_version)
-            logger.debug("qbit_manage support versions: %s - %s", min_supported_version, supported_version)
-            if current_version < min_supported_version:
+            self.current_version = self.client.app.version
+            logger.debug(f"qBittorrent: {self.current_version}")
+            logger.debug(f"qBittorrent Web API: {self.client.app.web_api_version}")
+            logger.debug(f"qbit_manage supported versions: {self.MIN_SUPPORTED_VERSION} - {self.SUPPORTED_VERSION}")
+            if self.current_version < self.MIN_SUPPORTED_VERSION:
                 ex = (
-                    f"Qbittorrent Error: qbit_manage is only compatible with {min_supported_version} or higher. "
-                    f"You are currently on {current_version}."
+                    f"Qbittorrent Error: qbit_manage is only compatible with {self.MIN_SUPPORTED_VERSION} or higher. "
+                    f"You are currently on {self.current_version}."
                     + "\n"
-                    + f"Please upgrade to your Qbittorrent version to {min_supported_version} or higher to use qbit_manage."
+                    + f"Please upgrade to your Qbittorrent version to {self.MIN_SUPPORTED_VERSION} or higher to use qbit_manage."
                 )
-            elif not Version.is_app_version_supported(current_version):
+            elif not Version.is_app_version_supported(self.current_version):
                 ex = (
-                    f"Qbittorrent Error: qbit_manage is only compatible with {supported_version} or lower. "
-                    f"You are currently on {current_version}."
+                    f"Qbittorrent Error: qbit_manage is only compatible with {self.SUPPORTED_VERSION} or lower. "
+                    f"You are currently on {self.current_version}."
                     + "\n"
-                    + f"Please downgrade to your Qbittorrent version to {supported_version} to use qbit_manage."
+                    + f"Please downgrade to your Qbittorrent version to {self.SUPPORTED_VERSION} to use qbit_manage."
                 )
             if ex:
                 self.config.notify(ex, "Qbittorrent")
@@ -903,7 +903,7 @@ class Qbt:
                 except Exception as ex:
                     logger.stacktrace()
                     self.config.notify(ex, "Remove Unregistered Torrents", False)
-                    logger.error("Unknown Error: %s", ex)
+                    logger.error("Unknown Error: {ex}")
             if cfg_rem_unregistered:
                 if del_tor >= 1 or del_tor_cont >= 1:
                     if del_tor >= 1:
@@ -1266,11 +1266,11 @@ class Qbt:
                 torrent_json_file = os.path.join(torrents_json_path, f"{info['torrent_name']}.json")
                 torrent_json = util.load_json(torrent_json_file)
                 if not torrent_json:
-                    logger.info("Saving Torrent JSON file to %s", torrent_json_file)
+                    logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
                     torrent_json["torrent_name"] = info["torrent_name"]
                     torrent_json["category"] = info["torrent_category"]
                 else:
-                    logger.info("Adding %s to existing %s", info["torrent_tracker"], {os.path.basename(torrent_json_file)})
+                    logger.info(f"Adding {info['torrent_tracker']} to existing {os.path.basename(torrent_json_file)}")
                 dot_torrent_files = []
                 for file in os.listdir(self.config.torrents_dir):
                     if file.startswith(info_hash):
@@ -1280,7 +1280,7 @@ class Qbt:
                         except Exception as ex:
                             logger.stacktrace()
                             self.config.notify(ex, "Deleting Torrent", False)
-                            logger.warning("RecycleBin Warning: %s", ex)
+                            logger.warning("RecycleBin Warning: {ex}")
                 if "tracker_torrent_files" in torrent_json:
                     tracker_torrent_files = torrent_json["tracker_torrent_files"]
                 else:
@@ -1305,7 +1305,7 @@ class Qbt:
                     if torrent_json["deleted_contents"] is False and info["torrents_deleted_and_contents"] is True:
                         torrent_json["deleted_contents"] = info["torrents_deleted_and_contents"]
                 logger.debug("")
-                logger.debug("JSON: %s", torrent_json)
+                logger.debug(f"JSON: {torrent_json}")
                 util.save_json(torrent_json, torrent_json_file)
             if info["torrents_deleted_and_contents"] is True:
                 logger.separator(f"Moving {len(tor_files)} files to RecycleBin", space=False, border=False, loglevel="DEBUG")
@@ -1314,7 +1314,7 @@ class Qbt:
                 else:
                     logger.print_line("\n".join(tor_files), "DEBUG")
                 logger.debug(
-                    "Moved %s files to %s", len(tor_files), recycle_path.replace(self.config.remote_dir, self.config.root_dir)
+                    f"Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir,self.config.root_dir)}"
                 )
 
                 # Move files from torrent contents to Recycle bin
