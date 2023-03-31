@@ -41,10 +41,11 @@ class Webhooks:
             if webhook == "notifiarr":
                 response = self.notifiarr.notification(json=json)
             else:
+                webhook_post = webhook
                 if webhook == "apprise":
                     json["urls"] = self.apprise.notify_url
-                    webhook_type = f"{self.apprise.api_url}/notify"
-                response = self.config.post(webhook_type, json=json)
+                    webhook_post = f"{self.apprise.api_url}/notify"
+                response = self.config.post(webhook_post, json=json)
             if response.status_code < 500:
                 return response
             time.sleep(request_delay)
@@ -52,7 +53,10 @@ class Webhooks:
         logger.warning(f"({response.status_code} [{response.reason}]) after {retry_attempts} attempts.")
 
     def _request(self, webhooks, json):
-        """Send a webhook request."""
+        """
+        Send a webhook request via request_and_check.
+        Check for errors and log them.
+        """
         logger.trace("")
         logger.trace(f"JSON: {json}")
         for webhook in list(set(webhooks)):
@@ -68,7 +72,7 @@ class Webhooks:
                 if self.apprise is None:
                     logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
                     break
-            response = response = self.request_and_check(webhook, json)
+            response = self.request_and_check(webhook, json)
             if response:
                 skip = False
                 try:
