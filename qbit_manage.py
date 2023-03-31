@@ -19,7 +19,7 @@ REQUIRED_VERSION = (3, 8, 1)
 REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
 current_version = sys.version_info
 
-if current_version < (REQUIRED_VERSION_STR):
+if current_version < (REQUIRED_VERSION):
     print(
         "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
         % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
