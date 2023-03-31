@@ -29,7 +29,7 @@ class Webhooks:
         self.notifiarr = notifiarr
         self.apprise = apprise
 
-    def request_and_check(self, webhook_type, json):
+    def request_and_check(self, webhook, json):
         """
         Send a webhook request and check for errors.
         retry up to 6 times if the response is a 500+ error.
@@ -38,18 +38,18 @@ class Webhooks:
         retry_attempts = 6
         request_delay = 2
         for retry_count in range(retry_attempts):
-            if webhook_type == "notifiarr":
+            if webhook == "notifiarr":
                 response = self.notifiarr.notification(json=json)
             else:
-                if webhook_type == "apprise":
+                if webhook == "apprise":
                     json["urls"] = self.apprise.notify_url
                     webhook_type = f"{self.apprise.api_url}/notify"
-            response = self.config.post(webhook_type, json=json)
+                response = self.config.post(webhook_type, json=json)
             if response.status_code < 500:
                 return response
             time.sleep(request_delay)
             retry_count += 1
-        raise Failed(f"({response.status_code} [{response.reason}]) after {retry_attempts} attempts.")
+        logger.warning(f"({response.status_code} [{response.reason}]) after {retry_attempts} attempts.")
 
     def _request(self, webhooks, json):
         """Send a webhook request."""
