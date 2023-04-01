@@ -481,6 +481,7 @@ def calc_next_run(schd, write_out=False):
     time_to_run = datetime.now() + timedelta(minutes=schd)
     time_to_run_str = time_to_run.strftime("%H:%M")
     new_seconds = (datetime.strptime(time_to_run_str, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
+    time_until = ""
     next_run = {}
     if run is False:
         next_run["next_run"] = time_to_run
