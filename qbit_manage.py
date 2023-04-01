@@ -461,7 +461,7 @@ def start():
     finished_run()
     if cfg:
         try:
-            cfg.Webhooks.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
+            cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
         except Failed as err:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
