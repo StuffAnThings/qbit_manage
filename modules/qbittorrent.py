@@ -895,11 +895,11 @@ class Qbt:
                                     # Check for unregistered torrents using BHD API if the tracker is BHD
                                     if (
                                         "tracker.beyond-hd.me" in tracker["url"]
-                                        and self.config.BeyondHD is not None
+                                        and self.config.beyond_hd is not None
                                         and not list_in_text(msg_up, ignore_msgs)
                                     ):
                                         json = {"info_hash": torrent.hash}
-                                        response = self.config.BeyondHD.search(json)
+                                        response = self.config.beyond_hd.search(json)
                                         if response["total_results"] == 0:
                                             del_unregistered()
                                             break
@@ -912,7 +912,7 @@ class Qbt:
                 except Exception as ex:
                     logger.stacktrace()
                     self.config.notify(ex, "Remove Unregistered Torrents", False)
-                    logger.error("Unknown Error: {ex}")
+                    logger.error(f"Remove Unregistered Torrents Error: {ex}")
             if cfg_rem_unregistered:
                 if del_tor >= 1 or del_tor_cont >= 1:
                     if del_tor >= 1:
