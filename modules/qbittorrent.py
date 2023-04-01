@@ -402,6 +402,8 @@ class Qbt:
         def _has_reached_min_seeding_time_limit():
             print_log = []
             if torrent.seeding_time >= min_seeding_time * 60:
+                if "MinSeedTimeNotReached" in torrent.tags:
+                    torrent.remove_tags(tags="MinSeedTimeNotReached")
                 return True
             else:
                 print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
@@ -468,12 +470,12 @@ class Qbt:
         num_untag = 0  # counter for number of torrents that previously had no hardlinks but now have hardlinks
 
         def add_tag_no_hl(add_tag=True):
-            """Add tag noHL to torrents with no hardlinks"""
+            """Add tag nohardlinks_tag to torrents with no hardlinks"""
             nonlocal num_tags, torrent, tracker, nohardlinks, category, max_ratio, max_seeding_time
             body = []
             body.append(logger.insert_space(f"Torrent Name: {torrent.name}", 3))
             if add_tag:
-                body.append(logger.insert_space("Added Tag: noHL", 6))
+                body.append(logger.insert_space(f"Added Tag: {self.config.nohardlinks_tag}", 6))
                 title = "Tagging Torrents with No Hardlinks"
             else:
                 title = "Changing Share Ratio of Torrents with No Hardlinks"
@@ -483,13 +485,13 @@ class Qbt:
                 max_ratio,
                 max_seeding_time,
                 nohardlinks[category]["limit_upload_speed"],
-                tags="noHL",
+                tags=self.config.nohardlinks_tag,
                 do_print=False,
             )
             if body_tags_and_limits or add_tag:
                 num_tags += 1
                 # Resume torrent if it was paused now that the share limit has changed
-                if torrent.state == "pausedUP" and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
+                if torrent.state_enum.is_complete and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
                     if not self.config.dry_run:
                         torrent.resume()
                 body.extend(body_tags_and_limits)
@@ -501,7 +503,7 @@ class Qbt:
                     "body": "\n".join(body),
                     "torrent_name": torrent.name,
                     "torrent_category": torrent.category,
-                    "torrent_tag": "noHL",
+                    "torrent_tag": self.config.nohardlinks_tag,
                     "torrent_tracker": tracker["url"],
                     "notifiarr_indexer": tracker["notifiarr"],
                     "torrent_max_ratio": max_ratio,
@@ -535,7 +537,7 @@ class Qbt:
                         continue
                     else:
                         # Checks for any hardlinks and not already tagged
-                        # Cleans up previously tagged noHL torrents that no longer have hardlinks
+                        # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
                         if has_nohardlinks:
                             tracker = self.config.get_tags(torrent.trackers)
                             # Determine min_seeding_time.
@@ -575,8 +577,8 @@ class Qbt:
                             elif nohardlinks[category]["max_seeding_time"]:
                                 max_seeding_time = nohardlinks[category]["max_seeding_time"]
 
-                            # Will only tag new torrents that don't have noHL tag
-                            if "noHL" not in torrent.tags:
+                            # Will only tag new torrents that don't have nohardlinks_tag tag
+                            if self.config.nohardlinks_tag not in torrent.tags:
                                 add_tag_no_hl(add_tag=True)
 
                             # Deletes torrent with data if cleanup is set to true and meets the ratio/seeding requirements
@@ -599,16 +601,20 @@ class Qbt:
                                 else:
                                     # Updates torrent to see if "MinSeedTimeNotReached" tag has been added
                                     torrent = self.get_torrents({"torrent_hashes": [torrent.hash]}).data[0]
-                                    # Checks to see if previously noHL share limits have changed.
+                                    # Checks to see if previously nohardlinks_tag share limits have changed.
                                     add_tag_no_hl(add_tag=False)
-                    # Checks to see if previous noHL tagged torrents now have hardlinks.
-                    if not (has_nohardlinks) and ("noHL" in torrent.tags):
+                    # Checks to see if previous nohardlinks_tag tagged torrents now have hardlinks.
+                    if not (has_nohardlinks) and (self.config.nohardlinks_tag in torrent.tags):
                         num_untag += 1
                         body = []
                         body += logger.print_line(
-                            f"Previous Tagged noHL Torrent Name: {torrent.name} has hardlinks found now.", self.config.loglevel
+                            f"Previous Tagged {self.config.nohardlinks_tag} "
+                            f"Torrent Name: {torrent.name} has hardlinks found now.",
+                            self.config.loglevel,
                         )
-                        body += logger.print_line(logger.insert_space("Removed Tag: noHL", 6), self.config.loglevel)
+                        body += logger.print_line(
+                            logger.insert_space(f"Removed Tag: {self.config.nohardlinks_tag}", 6), self.config.loglevel
+                        )
                         body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                         body += logger.print_line(
                             f"{'Not Reverting' if self.config.dry_run else 'Reverting'} to tracker or Global share limits.",
@@ -624,13 +630,13 @@ class Qbt:
                         if restore_limit_upload_speed is None:
                             restore_limit_upload_speed = -1
                         if not self.config.dry_run:
-                            torrent.remove_tags(tags="noHL")
+                            torrent.remove_tags(tags=self.config.nohardlinks_tag)
                             body.extend(
                                 self.set_tags_and_limits(
                                     torrent, restore_max_ratio, restore_max_seeding_time, restore_limit_upload_speed, restore=True
                                 )
                             )
-                            if torrent.state == "pausedUP" and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
+                            if torrent.state_enum.is_complete and nohardlinks[category]["resume_torrent_after_untagging_noHL"]:
                                 torrent.resume()
                         attr = {
                             "function": "untag_nohardlinks",
@@ -638,7 +644,7 @@ class Qbt:
                             "body": "\n".join(body),
                             "torrent_name": torrent.name,
                             "torrent_category": torrent.category,
-                            "torrent_tag": "noHL",
+                            "torrent_tag": self.config.nohardlinks_tag,
                             "torrent_tracker": tracker["url"],
                             "notifiarr_indexer": tracker["notifiarr"],
                             "torrent_max_ratio": restore_max_ratio,
@@ -652,7 +658,7 @@ class Qbt:
                     for torrent in torrent_list:
                         t_name = torrent.name
                         t_hash = torrent.hash
-                        if t_hash in tdel_dict and "noHL" in torrent.tags:
+                        if t_hash in tdel_dict and self.config.nohardlinks_tag in torrent.tags:
                             t_count = self.torrentinfo[t_name]["count"]
                             t_msg = self.torrentinfo[t_name]["msg"]
                             t_status = self.torrentinfo[t_name]["status"]
@@ -718,7 +724,8 @@ class Qbt:
                 logger.print_line("No torrents to tag with no hardlinks.", self.config.loglevel)
             if num_untag >= 1:
                 logger.print_line(
-                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} noHL tags / share limits for {num_untag} "
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} "
+                    f"{self.config.nohardlinks_tag} tags / share limits for {num_untag} "
                     f".torrent{'s.' if num_untag > 1 else '.'}",
                     self.config.loglevel,
                 )
@@ -743,7 +750,7 @@ class Qbt:
         num_tor_error = 0
         num_untag = 0
         tor_error_summary = ""
-        tag_error = self.config.settings["tracker_error_tag"]
+        tag_error = self.config.tracker_error_tag
         cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         cfg_tag_error = self.config.commands["tag_tracker_error"]
 

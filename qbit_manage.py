@@ -434,9 +434,9 @@ def start():
     if stats["rem_unreg"] > 0:
         stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
     if stats["tagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents Tagged: {stats['tagged_tracker_error']}")
+        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents Tagged: {stats['tagged_tracker_error']}")
     if stats["untagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.settings['tracker_error_tag']} Torrents untagged: {stats['untagged_tracker_error']}")
+        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents untagged: {stats['untagged_tracker_error']}")
     if stats["added"] > 0:
         stats_summary.append(f"Total Torrents Added: {stats['added']}")
     if stats["resumed"] > 0:
@@ -450,9 +450,9 @@ def start():
     if stats["orphaned"] > 0:
         stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
     if stats["tagged_noHL"] > 0:
-        stats_summary.append(f"Total noHL Torrents Tagged: {stats['tagged_noHL']}")
+        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
     if stats["untagged_noHL"] > 0:
-        stats_summary.append(f"Total noHL Torrents untagged: {stats['untagged_noHL']}")
+        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
     if stats["recycle_emptied"] > 0:
         stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
     if stats["orphaned_emptied"] > 0:

@@ -25,6 +25,7 @@ qbt:
 settings:
   force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
   tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
+  nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue

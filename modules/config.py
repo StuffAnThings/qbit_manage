@@ -146,8 +146,13 @@ class Config:
             "tracker_error_tag": self.util.check_for_attribute(
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
+            "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
         }
-        default_ignore_tags = ["noHL", self.settings["tracker_error_tag"], "cross-seed"]
+
+        self.tracker_error_tag = self.settings["tracker_error_tag"]
+        self.nohardlinks_tag = self.settings["nohardlinks_tag"]
+
+        default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
             self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
         )
