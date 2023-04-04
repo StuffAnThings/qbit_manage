@@ -1,3 +1,4 @@
+""" Utility functions for qBit Manage. """
 import json
 import logging
 import os
@@ -12,6 +13,7 @@ logger = logging.getLogger("qBit Manage")
 
 
 def get_list(data, lower=False, split=True, int_list=False):
+    """Return a list from a string or list."""
     if data is None:
         return None
     elif isinstance(data, list):
@@ -32,6 +34,8 @@ def get_list(data, lower=False, split=True, int_list=False):
 
 
 class check:
+    """Check for attributes in config."""
+
     def __init__(self, config):
         self.config = config
 
@@ -52,6 +56,7 @@ class check:
         save=True,
         make_dirs=False,
     ):
+        """Check for attribute in config."""
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -188,10 +193,13 @@ class check:
 
 
 class Failed(Exception):
+    """Exception raised for errors in the input."""
+
     pass
 
 
 def list_in_text(text, search_list, match_all=False):
+    """Check if a list of strings is in a string"""
     if isinstance(search_list, list):
         search_list = set(search_list)
     contains = {x for x in search_list if " " in x}
@@ -205,77 +213,80 @@ def list_in_text(text, search_list, match_all=False):
     return False
 
 
-# truncate the value of the torrent url to remove sensitive information
-def trunc_val(s, d, n=3):
+def trunc_val(stg, delm, num=3):
+    """Truncate the value of the torrent url to remove sensitive information"""
     try:
-        x = d.join(s.split(d, n)[:n])
+        val = delm.join(stg.split(delm, num)[:num])
     except IndexError:
-        x = None
-    return x
+        val = None
+    return val
 
 
-# Move files from source to destination, mod variable is to change the date modified of the file being moved
 def move_files(src, dest, mod=False):
+    """Move files from source to destination, mod variable is to change the date modified of the file being moved"""
     dest_path = os.path.dirname(dest)
-    toDelete = False
+    to_delete = False
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
     try:
         if mod is True:
-            modTime = time.time()
-            os.utime(src, (modTime, modTime))
+            mod_time = time.time()
+            os.utime(src, (mod_time, mod_time))
         shutil.move(src, dest)
-    except PermissionError as p:
-        logger.warning(f"{p} : Copying files instead.")
+    except PermissionError as perm:
+        logger.warning(f"{perm} : Copying files instead.")
         shutil.copyfile(src, dest)
-        toDelete = True
-    except FileNotFoundError as f:
-        logger.warning(f"{f} : source: {src} -> destination: {dest}")
-    except Exception as e:
+        to_delete = True
+    except FileNotFoundError as file:
+        logger.warning(f"{file} : source: {src} -> destination: {dest}")
+    except Exception as ex:
         logger.stacktrace()
-        logger.error(e)
-    return toDelete
+        logger.error(ex)
+    return to_delete
 
 
-# Copy Files from source to destination
 def copy_files(src, dest):
+    """Copy files from source to destination"""
     dest_path = os.path.dirname(dest)
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path)
     try:
         shutil.copyfile(src, dest)
-    except Exception as e:
+    except Exception as ex:
         logger.stacktrace()
-        logger.error(e)
+        logger.error(ex)
 
 
-# Remove any empty directories after moving files
 def remove_empty_directories(pathlib_root_dir, pattern):
+    """Remove empty directories recursively."""
     pathlib_root_dir = Path(pathlib_root_dir)
     # list all directories recursively and sort them by path,
     # longest first
-    L = sorted(
+    longest = sorted(
         pathlib_root_dir.glob(pattern),
         key=lambda p: len(str(p)),
         reverse=True,
     )
-    for pdir in L:
+    for pdir in longest:
         try:
             pdir.rmdir()  # remove directory if empty
         except OSError:
             continue  # catch and continue if non-empty
 
 
-# will check if there are any hard links if it passes a file or folder
-# If a folder is passed, it will take the largest file in that folder and only check for hardlinks
-# of the remaining files where the file is greater size a percentage of the largest file
-# This fixes the bug in #192
 def nohardlink(file, notify):
-    check = True
+    """
+    Check if there are any hard links
+    Will check if there are any hard links if it passes a file or folder
+    If a folder is passed, it will take the largest file in that folder and only check for hardlinks
+    of the remaining files where the file is greater size a percentage of the largest file
+    This fixes the bug in #192
+    """
+    check_for_hl = True
     if os.path.isfile(file):
         logger.trace(f"Checking file: {file}")
         if os.stat(file).st_nlink > 1:
-            check = False
+            check_for_hl = False
     else:
         sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
         logger.trace(f"Folder: {file}")
@@ -292,36 +303,40 @@ def nohardlink(file, notify):
             largest_file_size = os.stat(sorted_files[0]).st_size
             logger.trace(f"Largest file: {sorted_files[0]}")
             logger.trace(f"Largest file size: {largest_file_size}")
-            for x in sorted_files:
-                file_size = os.stat(x).st_size
-                file_no_hardlinks = os.stat(x).st_nlink
+            for files in sorted_files:
+                file_size = os.stat(files).st_size
+                file_no_hardlinks = os.stat(files).st_nlink
                 logger.trace(f"Checking file: {file}")
                 logger.trace(f"Checking file size: {file_size}")
                 logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
                 if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
-                    check = False
-    return check
+                    check_for_hl = False
+    return check_for_hl
 
 
-# Load json file if exists
 def load_json(file):
+    """Load json file if exists"""
     if os.path.isfile(file):
-        f = open(file)
-        data = json.load(f)
-        f.close()
+        file = open(file)
+        data = json.load(file)
+        file.close()
     else:
         data = {}
     return data
 
 
-# Save json file overwrite if exists
 def save_json(torrent_json, dest):
-    with open(dest, "w", encoding="utf-8") as f:
-        json.dump(torrent_json, f, ensure_ascii=False, indent=4)
+    """Save json file to destination"""
+    with open(dest, "w", encoding="utf-8") as file:
+        json.dump(torrent_json, file, ensure_ascii=False, indent=4)
 
 
-# Gracefully kill script when docker stops
 class GracefulKiller:
+    """
+    Class to catch SIGTERM and SIGINT signals.
+    Gracefully kill script when docker stops.
+    """
+
     kill_now = False
 
     def __init__(self):
@@ -329,10 +344,12 @@ class GracefulKiller:
         signal.signal(signal.SIGTERM, self.exit_gracefully)
 
     def exit_gracefully(self, *args):
+        """Set kill_now to True to exit gracefully."""
         self.kill_now = True
 
 
 def human_readable_size(size, decimal_places=3):
+    """Convert bytes to human readable size"""
     for unit in ["B", "KiB", "MiB", "GiB", "TiB"]:
         if size < 1024.0:
             break
@@ -341,6 +358,8 @@ def human_readable_size(size, decimal_places=3):
 
 
 class YAML:
+    """Class to load and save yaml files"""
+
     def __init__(self, path=None, input_data=None, check_empty=False, create=False):
         self.path = path
         self.input_data = input_data
@@ -355,19 +374,20 @@ class YAML:
                         pass
                     self.data = {}
                 else:
-                    with open(self.path, encoding="utf-8") as fp:
-                        self.data = self.yaml.load(fp)
-        except ruamel.yaml.error.YAMLError as e:
-            e = str(e).replace("\n", "\n      ")
-            raise Failed(f"YAML Error: {e}")
-        except Exception as e:
-            raise Failed(f"YAML Error: {e}")
+                    with open(self.path, encoding="utf-8") as filepath:
+                        self.data = self.yaml.load(filepath)
+        except ruamel.yaml.error.YAMLError as yerr:
+            err = str(yerr).replace("\n", "\n      ")
+            raise Failed(f"YAML Error: {err}") from yerr
+        except Exception as yerr:
+            raise Failed(f"YAML Error: {yerr}") from yerr
         if not self.data or not isinstance(self.data, dict):
             if check_empty:
                 raise Failed("YAML Error: File is empty")
             self.data = {}
 
     def save(self):
+        """Save yaml file"""
         if self.path:
-            with open(self.path, "w") as fp:
-                self.yaml.dump(self.data, fp)
+            with open(self.path, "w") as filepath:
+                self.yaml.dump(self.data, filepath)

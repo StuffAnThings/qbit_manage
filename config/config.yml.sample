@@ -25,6 +25,7 @@ qbt:
 settings:
   force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
   tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
+  nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
@@ -146,14 +147,19 @@ nohardlinks:
       - MaM
     # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
     cleanup: false
-    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
+    # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
     max_ratio: 4.0
-    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding.
+    # Delete this key from a category's config to use the tracker's configured max_seeding_time. Will default to -1 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
     max_seeding_time: 86400
     # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
     # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
     min_seeding_time: 43200
     # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
     resume_torrent_after_untagging_noHL: false
@@ -165,14 +171,20 @@ nohardlinks:
       - BroadcasTheNet
     # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
     cleanup: false
-    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading
+    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
+    # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
     max_ratio: 4.0
-    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding
+    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding.
+    # Delete this key from a category's config to use the tracker's configured max_seeding_time. Will default to -1 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
     max_seeding_time: 86400
     # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed:
     # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
-    # min_seeding_time: # Not specified for this category; tracker's value will be used. Will default to 0 if not specified for the category or tracker.
+    # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
+    # Uses the larger value of the noHL Category or Tracker specific setting.
+    min_seeding_time: 43200
     # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
     resume_torrent_after_untagging_noHL: false
 
