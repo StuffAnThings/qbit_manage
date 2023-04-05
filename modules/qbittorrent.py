@@ -546,7 +546,7 @@ class Qbt:
                             # If both tracker and nohardlinks category setting is set, use the larger of the two
                             # If neither set, use 0 (no limit)
                             min_seeding_time = 0
-                            if (tracker["min_seeding_time"] is not None and nohardlinks[category]["min_seeding_time"] is not None:
+                            if tracker["min_seeding_time"] is not None and nohardlinks[category]["min_seeding_time"] is not None:
                                 if tracker["min_seeding_time"] >= nohardlinks[category]["min_seeding_time"]:
                                     min_seeding_time=tracker["min_seeding_time"]
                             elif nohardlinks[category]["min_seeding_time"]:
