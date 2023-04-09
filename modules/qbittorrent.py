@@ -1349,3 +1349,8 @@ class Qbt:
                 torrent.delete(delete_files=True)
             else:
                 torrent.delete(delete_files=False)
+        try:
+            if torrent in self.torrent_list:
+                self.torrent_list.remove(torrent)
+        except ValueError:
+            logger.debug(f"Torrent {torrent.name} has already been deleted from torrent list.")
