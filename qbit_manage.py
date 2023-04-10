@@ -287,6 +287,8 @@ util.logger = logger
 from modules.config import Config  # noqa
 from modules.util import GracefulKiller  # noqa
 from modules.util import Failed  # noqa
+from modules.core.category import Category  # noqa
+from modules.core.tags import Tags  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -369,6 +371,8 @@ def start():
 
     try:
         cfg = Config(default_dir, args)
+        qbit_manager = cfg.qbt
+
     except Exception as ex:
         if "Qbittorrent Error" in ex.args[0]:
             logger.print_line(ex, "CRITICAL")
@@ -379,14 +383,14 @@ def start():
             logger.stacktrace()
             logger.print_line(ex, "CRITICAL")
 
-    if cfg:
+    if qbit_manager:
         # Set Category
-        num_categorized = cfg.qbt.category()
-        stats["categorized"] += num_categorized
+        if cfg.commands["cat_update"]:
+            stats["categorized"] += Category(qbit_manager).stats
 
         # Set Tags
-        num_tagged = cfg.qbt.tags()
-        stats["tagged"] += num_tagged
+        if cfg.commands["tag_update"]:
+            stats["tagged"] += Tags(qbit_manager).stats
 
         # Remove Unregistered Torrents
         num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()

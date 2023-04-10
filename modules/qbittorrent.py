@@ -7,7 +7,6 @@ from fnmatch import fnmatch
 
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
-from qbittorrentapi import Conflict409Error
 from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
 from qbittorrentapi import Version
@@ -26,6 +25,7 @@ class Qbt:
 
     SUPPORTED_VERSION = Version.latest_supported_app_version()
     MIN_SUPPORTED_VERSION = "v4.3.0"
+    TORRENT_DICT_COMMANDS = ["recheck", "cross_seed", "rem_unregistered", "tag_tracker_error", "tag_nohardlinks"]
 
     def __init__(self, config, params):
         self.config = config
@@ -83,255 +83,126 @@ class Qbt:
         self.global_max_seeding_time_enabled = self.client.app.preferences.max_seeding_time_enabled
         self.global_max_seeding_time = self.client.app.preferences.max_seeding_time
 
-        def get_torrent_info(torrent_list):
-            """
-            Will create a 2D Dictionary with the torrent name as the key
-            torrentdict = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'count':1, 'msg':'[]'...},
-                        'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}, 'count':2, 'msg':'[]'...}
-            List of dictionary key definitions
-            Category = Returns category of the torrent (str)
-            save_path = Returns the save path of the torrent (str)
-            count = Returns a count of the total number of torrents with the same name (int)
-            msg = Returns a list of torrent messages by name (list of str)
-            status = Returns the list of status numbers of the torrent by name
-            (0: Tracker is disabled (used for DHT, PeX, and LSD),
-            1: Tracker has not been contacted yet,
-            2: Tracker has been contacted and is working,
-            3: Tracker is updating,
-            4: Tracker has been contacted, but it is not working (or doesn't send proper replies)
-            is_complete = Returns the state of torrent
-                        (Returns True if at least one of the torrent with the State is categorized as Complete.)
-            first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
-                Takes in a number n, returns the square of n
-            """
-            torrentdict = {}
-            t_obj_unreg = []  # list of unregistered torrent objects
-            t_obj_valid = []  # list of working torrents
-            t_obj_list = []  # list of all torrent objects
-            settings = self.config.settings
-            logger.separator("Checking Settings", space=False, border=False)
-            if settings["force_auto_tmm"]:
-                logger.print_line(
-                    "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", self.config.loglevel
-                )
-            logger.separator("Gathering Torrent Information", space=True, border=True)
-            for torrent in torrent_list:
-                is_complete = False
-                msg = None
-                status = None
-                working_tracker = None
-                issue = {"potential": False}
-                if (
-                    torrent.auto_tmm is False
-                    and settings["force_auto_tmm"]
-                    and torrent.category != ""
-                    and not self.config.dry_run
-                ):
-                    torrent.set_auto_management(True)
-                try:
-                    torrent_name = torrent.name
-                    torrent_hash = torrent.hash
-                    torrent_is_complete = torrent.state_enum.is_complete
-                    save_path = torrent.save_path
-                    category = torrent.category
-                    torrent_trackers = torrent.trackers
-                except Exception as ex:
-                    self.config.notify(ex, "Get Torrent Info", False)
-                    logger.warning(ex)
-                if torrent_name in torrentdict:
-                    t_obj_list.append(torrent)
-                    t_count = torrentdict[torrent_name]["count"] + 1
-                    msg_list = torrentdict[torrent_name]["msg"]
-                    status_list = torrentdict[torrent_name]["status"]
-                    is_complete = True if torrentdict[torrent_name]["is_complete"] is True else torrent_is_complete
-                    first_hash = torrentdict[torrent_name]["first_hash"]
-                else:
-                    t_obj_list = [torrent]
-                    t_count = 1
-                    msg_list = []
-                    status_list = []
-                    is_complete = torrent_is_complete
-                    first_hash = torrent_hash
-                for trk in torrent_trackers:
-                    if trk.url.startswith("http"):
-                        status = trk.status
-                        msg = trk.msg.upper()
-                        exception = [
-                            "DOWN",
-                            "DOWN.",
-                            "IT MAY BE DOWN,",
-                            "UNREACHABLE",
-                            "(UNREACHABLE)",
-                            "BAD GATEWAY",
-                            "TRACKER UNAVAILABLE",
-                        ]
-                        if trk.status == 2:
-                            working_tracker = True
-                            break
-                        # Add any potential unregistered torrents to a list
-                        if trk.status == 4 and not list_in_text(msg, exception):
-                            issue["potential"] = True
-                            issue["msg"] = msg
-                            issue["status"] = status
-                if working_tracker:
-                    status = 2
-                    msg = ""
-                    t_obj_valid.append(torrent)
-                elif issue["potential"]:
-                    status = issue["status"]
-                    msg = issue["msg"]
-                    t_obj_unreg.append(torrent)
-                if msg is not None:
-                    msg_list.append(msg)
-                if status is not None:
-                    status_list.append(status)
-                torrentattr = {
-                    "torrents": t_obj_list,
-                    "Category": category,
-                    "save_path": save_path,
-                    "count": t_count,
-                    "msg": msg_list,
-                    "status": status_list,
-                    "is_complete": is_complete,
-                    "first_hash": first_hash,
-                }
-                torrentdict[torrent_name] = torrentattr
-            return torrentdict, t_obj_unreg, t_obj_valid
-
-        self.torrentinfo = None
-        self.torrentissue = None
-        self.torrentvalid = None
-        if (
-            config.commands["recheck"]
-            or config.commands["cross_seed"]
-            or config.commands["rem_unregistered"]
-            or config.commands["tag_tracker_error"]
-            or config.commands["tag_nohardlinks"]
-        ):
+        if any(config.commands.get(command, False) for command in self.TORRENT_DICT_COMMANDS):
             # Get an updated torrent dictionary information of the torrents
-            self.torrentinfo, self.torrentissue, self.torrentvalid = get_torrent_info(self.torrent_list)
+            self.get_torrent_info()
+        else:
+            self.torrentinfo = None
+            self.torrentissue = None
+            self.torrentvalid = None
+
+    def get_torrent_info(self):
+        """
+        Will create a 2D Dictionary with the torrent name as the key
+        self.torrentinfo = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'count':1, 'msg':'[]'...},
+                    'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}, 'count':2, 'msg':'[]'...}
+        List of dictionary key definitions
+        Category = Returns category of the torrent (str)
+        save_path = Returns the save path of the torrent (str)
+        count = Returns a count of the total number of torrents with the same name (int)
+        msg = Returns a list of torrent messages by name (list of str)
+        status = Returns the list of status numbers of the torrent by name
+        (0: Tracker is disabled (used for DHT, PeX, and LSD),
+        1: Tracker has not been contacted yet,
+        2: Tracker has been contacted and is working,
+        3: Tracker is updating,
+        4: Tracker has been contacted, but it is not working (or doesn't send proper replies)
+        is_complete = Returns the state of torrent
+                    (Returns True if at least one of the torrent with the State is categorized as Complete.)
+        first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
+            Takes in a number n, returns the square of n
+        """
+        self.torrentinfo = {}
+        self.torrentissue = []  # list of unregistered torrent objects
+        self.torrentvalid = []  # list of working torrents
+        t_obj_list = []  # list of all torrent objects
+        settings = self.config.settings
+        logger.separator("Checking Settings", space=False, border=False)
+        if settings["force_auto_tmm"]:
+            logger.print_line(
+                "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", self.config.loglevel
+            )
+        logger.separator("Gathering Torrent Information", space=True, border=True)
+        for torrent in self.torrent_list:
+            is_complete = False
+            msg = None
+            status = None
+            working_tracker = None
+            issue = {"potential": False}
+            if torrent.auto_tmm is False and settings["force_auto_tmm"] and torrent.category != "" and not self.config.dry_run:
+                torrent.set_auto_management(True)
+            try:
+                torrent_name = torrent.name
+                torrent_hash = torrent.hash
+                torrent_is_complete = torrent.state_enum.is_complete
+                save_path = torrent.save_path
+                category = torrent.category
+                torrent_trackers = torrent.trackers
+            except Exception as ex:
+                self.config.notify(ex, "Get Torrent Info", False)
+                logger.warning(ex)
+            if torrent_name in self.torrentinfo:
+                t_obj_list.append(torrent)
+                t_count = self.torrentinfo[torrent_name]["count"] + 1
+                msg_list = self.torrentinfo[torrent_name]["msg"]
+                status_list = self.torrentinfo[torrent_name]["status"]
+                is_complete = True if self.torrentinfo[torrent_name]["is_complete"] is True else torrent_is_complete
+                first_hash = self.torrentinfo[torrent_name]["first_hash"]
+            else:
+                t_obj_list = [torrent]
+                t_count = 1
+                msg_list = []
+                status_list = []
+                is_complete = torrent_is_complete
+                first_hash = torrent_hash
+            for trk in torrent_trackers:
+                if trk.url.startswith("http"):
+                    status = trk.status
+                    msg = trk.msg.upper()
+                    exception = [
+                        "DOWN",
+                        "DOWN.",
+                        "IT MAY BE DOWN,",
+                        "UNREACHABLE",
+                        "(UNREACHABLE)",
+                        "BAD GATEWAY",
+                        "TRACKER UNAVAILABLE",
+                    ]
+                    if trk.status == 2:
+                        working_tracker = True
+                        break
+                    # Add any potential unregistered torrents to a list
+                    if trk.status == 4 and not list_in_text(msg, exception):
+                        issue["potential"] = True
+                        issue["msg"] = msg
+                        issue["status"] = status
+            if working_tracker:
+                status = 2
+                msg = ""
+                self.torrentvalid.append(torrent)
+            elif issue["potential"]:
+                status = issue["status"]
+                msg = issue["msg"]
+                self.torrentissue.append(torrent)
+            if msg is not None:
+                msg_list.append(msg)
+            if status is not None:
+                status_list.append(status)
+            torrentattr = {
+                "torrents": t_obj_list,
+                "Category": category,
+                "save_path": save_path,
+                "count": t_count,
+                "msg": msg_list,
+                "status": status_list,
+                "is_complete": is_complete,
+                "first_hash": first_hash,
+            }
+            self.torrentinfo[torrent_name] = torrentattr
 
     def get_torrents(self, params):
         """Get torrents from qBittorrent"""
         return self.client.torrents.info(**params)
-
-    def category(self):
-        """Update category for torrents"""
-        num_cat = 0
-
-        def update_cat(new_cat, cat_change):
-            nonlocal torrent, num_cat
-            tracker = self.config.get_tags(torrent.trackers)
-            old_cat = torrent.category
-            if not self.config.dry_run:
-                try:
-                    torrent.set_category(category=new_cat)
-                    if torrent.auto_tmm is False and self.config.settings["force_auto_tmm"]:
-                        torrent.set_auto_management(True)
-                except Conflict409Error:
-                    ex = logger.print_line(
-                        f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.',
-                        self.config.loglevel,
-                    )
-                    self.config.notify(ex, "Update Category", False)
-                    self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
-                    torrent.set_category(category=new_cat)
-            body = []
-            body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
-            if cat_change:
-                body += logger.print_line(logger.insert_space(f"Old Category: {old_cat}", 3), self.config.loglevel)
-                title = "Moving Categories"
-            else:
-                title = "Updating Categories"
-            body += logger.print_line(logger.insert_space(f"New Category: {new_cat}", 3), self.config.loglevel)
-            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
-            attr = {
-                "function": "cat_update",
-                "title": title,
-                "body": "\n".join(body),
-                "torrent_name": torrent.name,
-                "torrent_category": new_cat,
-                "torrent_tracker": tracker["url"],
-                "notifiarr_indexer": tracker["notifiarr"],
-            }
-            self.config.send_notifications(attr)
-            num_cat += 1
-
-        if self.config.commands["cat_update"]:
-            logger.separator("Updating Categories", space=False, border=False)
-            torrent_list = self.get_torrents({"category": "", "status_filter": "completed"})
-            for torrent in torrent_list:
-                new_cat = self.config.get_category(torrent.save_path)
-                update_cat(new_cat, False)
-
-            # Change categories
-            if self.config.cat_change:
-                for old_cat in self.config.cat_change:
-                    torrent_list = self.get_torrents({"category": old_cat, "status_filter": "completed"})
-                    for torrent in torrent_list:
-                        new_cat = self.config.cat_change[old_cat]
-                        update_cat(new_cat, True)
-
-            if num_cat >= 1:
-                logger.print_line(
-                    f"{'Did not update' if self.config.dry_run else 'Updated'} {num_cat} new categories.", self.config.loglevel
-                )
-            else:
-                logger.print_line("No new torrents to categorize.", self.config.loglevel)
-        return num_cat
-
-    def tags(self):
-        """Update tags for torrents"""
-        num_tags = 0
-        ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
-        if self.config.commands["tag_update"]:
-            logger.separator("Updating Tags", space=False, border=False)
-            for torrent in self.torrent_list:
-                check_tags = util.get_list(torrent.tags)
-                if torrent.tags == "" or (len([trk for trk in check_tags if trk not in ignore_tags]) == 0):
-                    tracker = self.config.get_tags(torrent.trackers)
-                    if tracker["tag"]:
-                        num_tags += len(tracker["tag"])
-                        body = []
-                        body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
-                        body += logger.print_line(
-                            logger.insert_space(
-                                f'New Tag{"s" if len(tracker["tag"]) > 1 else ""}: {", ".join(tracker["tag"])}', 8
-                            ),
-                            self.config.loglevel,
-                        )
-                        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
-                        body.extend(
-                            self.set_tags_and_limits(
-                                torrent,
-                                tracker["max_ratio"],
-                                tracker["max_seeding_time"],
-                                tracker["limit_upload_speed"],
-                                tracker["tag"],
-                            )
-                        )
-                        category = self.config.get_category(torrent.save_path) if torrent.category == "" else torrent.category
-                        attr = {
-                            "function": "tag_update",
-                            "title": "Updating Tags",
-                            "body": "\n".join(body),
-                            "torrent_name": torrent.name,
-                            "torrent_category": category,
-                            "torrent_tag": ", ".join(tracker["tag"]),
-                            "torrent_tracker": tracker["url"],
-                            "notifiarr_indexer": tracker["notifiarr"],
-                            "torrent_max_ratio": tracker["max_ratio"],
-                            "torrent_max_seeding_time": tracker["max_seeding_time"],
-                            "torrent_limit_upload_speed": tracker["limit_upload_speed"],
-                        }
-                        self.config.send_notifications(attr)
-            if num_tags >= 1:
-                logger.print_line(
-                    f"{'Did not update' if self.config.dry_run else 'Updated'} {num_tags} new tags.", self.config.loglevel
-                )
-            else:
-                logger.print_line("No new torrents to tag.", self.config.loglevel)
-        return num_tags
 
     def set_tags_and_limits(
         self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, restore=False, do_print=True
@@ -460,6 +331,240 @@ class Qbt:
             return body
         return False
 
+    def get_tags(self, trackers):
+        """Get tags from config file based on keyword"""
+        urls = [x.url for x in trackers if x.url.startswith("http")]
+        tracker = {}
+        tracker["tag"] = None
+        tracker["max_ratio"] = None
+        tracker["min_seeding_time"] = None
+        tracker["max_seeding_time"] = None
+        tracker["limit_upload_speed"] = None
+        tracker["notifiarr"] = None
+        tracker["url"] = None
+        tracker_other_tag = self.config.util.check_for_attribute(
+            self.config.data, "tag", parent="tracker", subparent="other", default_is_none=True, var_type="list", save=False
+        )
+        try:
+            tracker["url"] = util.trunc_val(urls[0], os.sep)
+        except IndexError as e:
+            tracker["url"] = None
+            if not urls:
+                urls = []
+                if not tracker_other_tag:
+                    tracker_other_tag = ["other"]
+                tracker["url"] = "No http URL found"
+            else:
+                logger.debug(f"Tracker Url:{urls}")
+                logger.debug(e)
+        if "tracker" in self.config.data and self.config.data["tracker"] is not None:
+            tag_values = self.config.data["tracker"]
+            for tag_url, tag_details in tag_values.items():
+                for url in urls:
+                    if tag_url in url:
+                        if tracker["url"] is None:
+                            default_tag = tracker_other_tag
+                        else:
+                            try:
+                                tracker["url"] = util.trunc_val(url, os.sep)
+                                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+                            except IndexError as e:
+                                logger.debug(f"Tracker Url:{url}")
+                                logger.debug(e)
+                        # Tracker Format 1 deprecated.
+                        if isinstance(tag_details, str):
+                            e = (
+                                "Config Error: Tracker format invalid. Please see config.yml.sample for correct format and fix "
+                                f"`{tag_details}` in the Tracker section of the config."
+                            )
+                            self.config.notify(e, "Config")
+                            raise Failed(e)
+                        # Using new Format
+                        else:
+                            tracker["tag"] = self.config.util.check_for_attribute(
+                                self.config.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
+                            )
+                            if tracker["tag"] == [tag_url]:
+                                self.config.data["tracker"][tag_url]["tag"] = [tag_url]
+                            if isinstance(tracker["tag"], str):
+                                tracker["tag"] = [tracker["tag"]]
+                            is_max_ratio_defined = self.config.data["tracker"].get("max_ratio")
+                            is_max_seeding_time_defined = self.config.data["tracker"].get("max_seeding_time")
+                            if is_max_ratio_defined or is_max_seeding_time_defined:
+                                tracker["max_ratio"] = self.config.util.check_for_attribute(
+                                    self.config.data,
+                                    "max_ratio",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="float",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default=-1,
+                                    save=False,
+                                )
+                                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
+                                    self.config.data,
+                                    "max_seeding_time",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="int",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default=-1,
+                                    save=False,
+                                )
+                            else:
+                                tracker["max_ratio"] = self.config.util.check_for_attribute(
+                                    self.config.data,
+                                    "max_ratio",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="float",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default_is_none=True,
+                                    save=False,
+                                )
+                                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
+                                    self.config.data,
+                                    "max_seeding_time",
+                                    parent="tracker",
+                                    subparent=tag_url,
+                                    var_type="int",
+                                    min_int=-2,
+                                    do_print=False,
+                                    default_is_none=True,
+                                    save=False,
+                                )
+                            tracker["min_seeding_time"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "min_seeding_time",
+                                parent="tracker",
+                                subparent=tag_url,
+                                var_type="int",
+                                min_int=0,
+                                do_print=False,
+                                default=0,
+                                save=False,
+                            )
+                            tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "limit_upload_speed",
+                                parent="tracker",
+                                subparent=tag_url,
+                                var_type="int",
+                                min_int=-1,
+                                do_print=False,
+                                default=0,
+                                save=False,
+                            )
+                            tracker["notifiarr"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "notifiarr",
+                                parent="tracker",
+                                subparent=tag_url,
+                                default_is_none=True,
+                                do_print=False,
+                                save=False,
+                            )
+                        return tracker
+            if tracker_other_tag:
+                tracker["tag"] = tracker_other_tag
+                tracker["max_ratio"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "max_ratio",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="float",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["min_seeding_time"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "min_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=0,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "max_seeding_time",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-2,
+                    do_print=False,
+                    default=-1,
+                    save=False,
+                )
+                tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "limit_upload_speed",
+                    parent="tracker",
+                    subparent="other",
+                    var_type="int",
+                    min_int=-1,
+                    do_print=False,
+                    default=0,
+                    save=False,
+                )
+                tracker["notifiarr"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "notifiarr",
+                    parent="tracker",
+                    subparent="other",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                return tracker
+        if tracker["url"]:
+            logger.trace(f"tracker url: {tracker['url']}")
+            if tracker_other_tag:
+                default_tag = tracker_other_tag
+            else:
+                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+            tracker["tag"] = self.config.util.check_for_attribute(
+                self.config.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list"
+            )
+            if isinstance(tracker["tag"], str):
+                tracker["tag"] = [tracker["tag"]]
+            try:
+                self.config.data["tracker"][default_tag]["tag"] = [default_tag]
+            except Exception:
+                self.config.data["tracker"][default_tag] = {"tag": [default_tag]}
+            e = f'No tags matched for {tracker["url"]}. Please check your config.yml file. Setting tag to {default_tag}'
+            self.config.notify(e, "Tag", False)
+            logger.warning(e)
+        return tracker
+
+    def get_category(self, path):
+        """Get category from config file based on path provided"""
+        category = ""
+        path = os.path.join(path, "")
+        if "cat" in self.config.data and self.config.data["cat"] is not None:
+            cat_path = self.config.data["cat"]
+            for cat, save_path in cat_path.items():
+                if os.path.join(save_path, "") == path:
+                    category = cat
+                    break
+
+        if not category:
+            default_cat = path.split(os.sep)[-2]
+            category = str(default_cat)
+            self.config.util.check_for_attribute(self.config.data, default_cat, parent="cat", default=path)
+            self.config.data["cat"][str(default_cat)] = path
+            e = f"No categories matched for the save path {path}. Check your config.yml file. - Setting category to {default_cat}"
+            self.config.notify(e, "Category", False)
+            logger.warning(e)
+        return category
+
     def tag_nohardlinks(self):
         """Tag torrents with no hardlinks"""
         num_tags = 0  # counter for the number of torrents that has no hardlinks
@@ -530,7 +635,7 @@ class Qbt:
                     logger.warning(ex)
                     continue
                 for torrent in torrent_list:
-                    tracker = self.config.get_tags(torrent.trackers)
+                    tracker = self.get_tags(torrent.trackers)
                     has_nohardlinks = util.nohardlink(torrent["content_path"].replace(root_dir, remote_dir), self.config.notify)
                     if any(tag in torrent.tags for tag in nohardlinks[category]["exclude_tags"]):
                         # Skip to the next torrent if we find any torrents that are in the exclude tag
@@ -539,7 +644,7 @@ class Qbt:
                         # Checks for any hardlinks and not already tagged
                         # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
                         if has_nohardlinks:
-                            tracker = self.config.get_tags(torrent.trackers)
+                            tracker = self.get_tags(torrent.trackers)
                             # Determine min_seeding_time.
                             # If only tracker setting is set, use tracker's min_seeding_time
                             # If only nohardlinks category setting is set, use nohardlinks category's min_seeding_time
@@ -666,7 +771,7 @@ class Qbt:
                             t_status = self.torrentinfo[t_name]["status"]
                             # Double check that the content path is the same before we delete anything
                             if torrent["content_path"].replace(root_dir, remote_dir) == tdel_dict[t_hash]["content_path"]:
-                                tracker = self.config.get_tags(torrent.trackers)
+                                tracker = self.get_tags(torrent.trackers)
                                 body = []
                                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                                 body += logger.print_line(
@@ -852,7 +957,7 @@ class Qbt:
                 check_tags = util.get_list(torrent.tags)
                 # Remove any error torrents Tags that are no longer unreachable.
                 if tag_error in check_tags:
-                    tracker = self.config.get_tags(torrent.trackers)
+                    tracker = self.get_tags(torrent.trackers)
                     num_untag += 1
                     body = []
                     body += logger.print_line(
@@ -884,7 +989,7 @@ class Qbt:
                 try:
                     for trk in torrent.trackers:
                         if trk.url.startswith("http"):
-                            tracker = self.config.get_tags([trk])
+                            tracker = self.get_tags([trk])
                             msg_up = trk.msg.upper()
                             msg = trk.msg
                             # Tag any error torrents
@@ -964,16 +1069,16 @@ class Qbt:
             for file in cs_files:
                 tr_name = file.split("]", 2)[2].split(".torrent")[0]
                 t_tracker = file.split("]", 2)[1][1:]
-                # Substring Key match in dictionary (used because t_name might not match exactly with torrentdict key)
+                # Substring Key match in dictionary (used because t_name might not match exactly with self.torrentinfo key)
                 # Returned the dictionary of filtered item
                 torrentdict_file = dict(filter(lambda item: tr_name in item[0], self.torrentinfo.items()))
                 if torrentdict_file:
-                    # Get the exact torrent match name from torrentdict
+                    # Get the exact torrent match name from self.torrentinfo
                     t_name = next(iter(torrentdict_file))
                     dest = os.path.join(self.torrentinfo[t_name]["save_path"], "")
                     src = os.path.join(dir_cs, file)
                     dir_cs_out = os.path.join(dir_cs, "qbit_manage_added", file)
-                    category = self.config.get_category(dest)
+                    category = self.get_category(dest)
                     # Only add cross-seed torrent if original torrent is complete
                     if self.torrentinfo[t_name]["is_complete"]:
                         categories.append(category)
@@ -1023,7 +1128,7 @@ class Qbt:
                     and self.torrentinfo[t_name]["count"] > 1
                     and self.torrentinfo[t_name]["first_hash"] != torrent.hash
                 ):
-                    tracker = self.config.get_tags(torrent.trackers)
+                    tracker = self.get_tags(torrent.trackers)
                     tagged += 1
                     body = logger.print_line(
                         f"{'Not Adding' if self.config.dry_run else 'Adding'} 'cross-seed' tag to {t_name}", self.config.loglevel
@@ -1069,7 +1174,7 @@ class Qbt:
             torrent_list = self.get_torrents({"status_filter": "paused", "sort": "size"})
             if torrent_list:
                 for torrent in torrent_list:
-                    tracker = self.config.get_tags(torrent.trackers)
+                    tracker = self.get_tags(torrent.trackers)
                     # Resume torrent if completed
                     if torrent.progress == 1:
                         if torrent.max_ratio < 0 and torrent.max_seeding_time < 0:
