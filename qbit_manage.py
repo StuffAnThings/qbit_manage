@@ -290,6 +290,7 @@ from modules.util import Failed  # noqa
 from modules.core.category import Category  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.core.remove_unregistered import RemoveUnregistered  # noqa
+from modules.core.cross_seed import CrossSeed  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -404,9 +405,10 @@ def start():
             stats["tagged"] += rem_unreg.stats_tagged
 
         # Set Cross Seed
-        num_added, num_tagged = cfg.qbt.cross_seed()
-        stats["added"] += num_added
-        stats["tagged"] += num_tagged
+        if cfg.commands["cross_seed"]:
+            cross_seed = CrossSeed(qbit_manager)
+            stats["added"] += cross_seed.stats_added
+            stats["tagged"] += cross_seed.stats_tagged
 
         # Recheck Torrents
         num_resumed, num_rechecked = cfg.qbt.recheck()

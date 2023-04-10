@@ -1,7 +1,6 @@
 """Qbittorrent Module"""
 import os
 import sys
-from collections import Counter
 from datetime import timedelta
 from fnmatch import fnmatch
 
@@ -849,118 +848,6 @@ class Qbt:
                     self.config.loglevel,
                 )
         return num_tags, num_untag, del_tor, del_tor_cont
-
-    def cross_seed(self):
-        """Move torrents from cross seed directory to correct save directory."""
-        added = 0  # Keep track of total torrents tagged
-        tagged = 0  # Track # of torrents tagged that are not cross-seeded
-        if self.config.commands["cross_seed"]:
-            logger.separator("Checking for Cross-Seed Torrents", space=False, border=False)
-            # List of categories for all torrents moved
-            categories = []
-
-            # Only get torrent files
-            cs_files = [f for f in os.listdir(self.config.cross_seed_dir) if f.endswith("torrent")]
-            dir_cs = self.config.cross_seed_dir
-            dir_cs_out = os.path.join(dir_cs, "qbit_manage_added")
-            os.makedirs(dir_cs_out, exist_ok=True)
-            for file in cs_files:
-                tr_name = file.split("]", 2)[2].split(".torrent")[0]
-                t_tracker = file.split("]", 2)[1][1:]
-                # Substring Key match in dictionary (used because t_name might not match exactly with self.torrentinfo key)
-                # Returned the dictionary of filtered item
-                torrentdict_file = dict(filter(lambda item: tr_name in item[0], self.torrentinfo.items()))
-                if torrentdict_file:
-                    # Get the exact torrent match name from self.torrentinfo
-                    t_name = next(iter(torrentdict_file))
-                    dest = os.path.join(self.torrentinfo[t_name]["save_path"], "")
-                    src = os.path.join(dir_cs, file)
-                    dir_cs_out = os.path.join(dir_cs, "qbit_manage_added", file)
-                    category = self.get_category(dest)
-                    # Only add cross-seed torrent if original torrent is complete
-                    if self.torrentinfo[t_name]["is_complete"]:
-                        categories.append(category)
-                        body = []
-                        body += logger.print_line(
-                            f"{'Not Adding' if self.config.dry_run else 'Adding'} to qBittorrent:", self.config.loglevel
-                        )
-                        body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                        body += logger.print_line(logger.insert_space(f"Category: {category}", 7), self.config.loglevel)
-                        body += logger.print_line(logger.insert_space(f"Save_Path: {dest}", 6), self.config.loglevel)
-                        body += logger.print_line(logger.insert_space(f"Tracker: {t_tracker}", 8), self.config.loglevel)
-                        attr = {
-                            "function": "cross_seed",
-                            "title": "Adding New Cross-Seed Torrent",
-                            "body": "\n".join(body),
-                            "torrent_name": t_name,
-                            "torrent_category": category,
-                            "torrent_save_path": dest,
-                            "torrent_tag": "cross-seed",
-                            "torrent_tracker": t_tracker,
-                        }
-                        self.config.send_notifications(attr)
-                        added += 1
-                        if not self.config.dry_run:
-                            self.client.torrents.add(
-                                torrent_files=src, save_path=dest, category=category, tags="cross-seed", is_paused=True
-                            )
-                            util.move_files(src, dir_cs_out)
-                    else:
-                        logger.print_line(
-                            f"Found {t_name} in {dir_cs} but original torrent is not complete.", self.config.loglevel
-                        )
-                        logger.print_line("Not adding to qBittorrent", self.config.loglevel)
-                else:
-                    error = f"{t_name} not found in torrents. Cross-seed Torrent not added to qBittorrent."
-                    if self.config.dry_run:
-                        logger.print_line(error, self.config.loglevel)
-                    else:
-                        logger.print_line(error, "WARNING")
-                    self.config.notify(error, "cross-seed", False)
-            # Tag missing cross-seed torrents tags
-            for torrent in self.torrent_list:
-                t_name = torrent.name
-                t_cat = torrent.category
-                if (
-                    "cross-seed" not in torrent.tags
-                    and self.torrentinfo[t_name]["count"] > 1
-                    and self.torrentinfo[t_name]["first_hash"] != torrent.hash
-                ):
-                    tracker = self.get_tags(torrent.trackers)
-                    tagged += 1
-                    body = logger.print_line(
-                        f"{'Not Adding' if self.config.dry_run else 'Adding'} 'cross-seed' tag to {t_name}", self.config.loglevel
-                    )
-                    attr = {
-                        "function": "tag_cross_seed",
-                        "title": "Tagging Cross-Seed Torrent",
-                        "body": body,
-                        "torrent_name": t_name,
-                        "torrent_category": t_cat,
-                        "torrent_tag": "cross-seed",
-                        "torrent_tracker": tracker,
-                    }
-                    self.config.send_notifications(attr)
-                    if not self.config.dry_run:
-                        torrent.add_tags(tags="cross-seed")
-
-            numcategory = Counter(categories)
-            for cat in numcategory:
-                if numcategory[cat] > 0:
-                    logger.print_line(
-                        f"{numcategory[cat]} {cat} cross-seed .torrents {'not added' if self.config.dry_run else 'added'}.",
-                        self.config.loglevel,
-                    )
-            if added > 0:
-                logger.print_line(
-                    f"Total {added} cross-seed .torrents {'not added' if self.config.dry_run else 'added'}.", self.config.loglevel
-                )
-            if tagged > 0:
-                logger.print_line(
-                    f"Total {tagged} cross-seed .torrents {'not tagged' if self.config.dry_run else 'tagged'}.",
-                    self.config.loglevel,
-                )
-        return added, tagged
 
     def recheck(self):
         """Function used to recheck paused torrents sorted by size and resume torrents that are completed"""
