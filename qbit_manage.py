@@ -293,6 +293,7 @@ from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
 from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
+from modules.core.remove_orphaned import RemoveOrphaned  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -428,16 +429,14 @@ def start():
             stats["deleted_contents"] += no_hardlinks.stats_deleted_contents
 
         # Remove Orphaned Files
-        num_orphaned = cfg.qbt.rem_orphaned()
-        stats["orphaned"] += num_orphaned
+        if cfg.commands["rem_orphaned"]:
+            stats["orphaned"] += RemoveOrphaned(qbit_manager).stats
 
         # Empty RecycleBin
-        recycle_emptied = cfg.cleanup_dirs("Recycle Bin")
-        stats["recycle_emptied"] += recycle_emptied
+        stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
 
         # Empty Orphaned Directory
-        orphaned_emptied = cfg.cleanup_dirs("Orphaned Data")
-        stats["orphaned_emptied"] += orphaned_emptied
+        stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
 
     if stats["categorized"] > 0:
         stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")

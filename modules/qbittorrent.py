@@ -2,7 +2,6 @@
 import os
 import sys
 from datetime import timedelta
-from fnmatch import fnmatch
 
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
@@ -563,92 +562,6 @@ class Qbt:
             self.config.notify(e, "Category", False)
             logger.warning(e)
         return category
-
-    def rem_orphaned(self):
-        """Remove orphaned files from remote directory"""
-        orphaned = 0
-        if self.config.commands["rem_orphaned"]:
-            logger.separator("Checking for Orphaned Files", space=False, border=False)
-            torrent_files = []
-            root_files = []
-            orphaned_files = []
-            excluded_orphan_files = []
-            orphaned_parent_path = set()
-            remote_path = self.config.remote_dir
-            root_path = self.config.root_dir
-            orphaned_path = self.config.orphaned_dir
-            if remote_path != root_path:
-                root_files = [
-                    os.path.join(path.replace(remote_path, root_path), name)
-                    for path, subdirs, files in os.walk(remote_path)
-                    for name in files
-                    if orphaned_path.replace(remote_path, root_path) not in path
-                ]
-            else:
-                root_files = [
-                    os.path.join(path, name)
-                    for path, subdirs, files in os.walk(root_path)
-                    for name in files
-                    if orphaned_path.replace(root_path, remote_path) not in path
-                ]
-
-            # Get an updated list of torrents
-            torrent_list = self.get_torrents({"sort": "added_on"})
-            for torrent in torrent_list:
-                for file in torrent.files:
-                    fullpath = os.path.join(torrent.save_path, file.name)
-                    # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
-                    fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
-                    torrent_files.append(fullpath)
-
-            orphaned_files = set(root_files) - set(torrent_files)
-            orphaned_files = sorted(orphaned_files)
-
-            if self.config.orphaned["exclude_patterns"]:
-                exclude_patterns = self.config.orphaned["exclude_patterns"]
-                excluded_orphan_files = [
-                    file
-                    for file in orphaned_files
-                    for exclude_pattern in exclude_patterns
-                    if fnmatch(file, exclude_pattern.replace(remote_path, root_path))
-                ]
-
-            orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
-
-            if orphaned_files:
-                os.makedirs(orphaned_path, exist_ok=True)
-                body = []
-                num_orphaned = len(orphaned_files)
-                logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
-                body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
-                body += logger.print_line(
-                    f"{'Did not move' if self.config.dry_run else 'Moved'} {num_orphaned} Orphaned files "
-                    f"to {orphaned_path.replace(remote_path,root_path)}",
-                    self.config.loglevel,
-                )
-
-                attr = {
-                    "function": "rem_orphaned",
-                    "title": f"Removing {num_orphaned} Orphaned Files",
-                    "body": "\n".join(body),
-                    "orphaned_files": list(orphaned_files),
-                    "orphaned_directory": orphaned_path.replace(remote_path, root_path),
-                    "total_orphaned_files": num_orphaned,
-                }
-                self.config.send_notifications(attr)
-                # Delete empty directories after moving orphan files
-                logger.info("Cleaning up any empty directories...")
-                if not self.config.dry_run:
-                    for file in orphaned_files:
-                        src = file.replace(root_path, remote_path)
-                        dest = os.path.join(orphaned_path, file.replace(root_path, ""))
-                        util.move_files(src, dest, True)
-                        orphaned_parent_path.add(os.path.dirname(file).replace(root_path, remote_path))
-                        for parent_path in orphaned_parent_path:
-                            util.remove_empty_directories(parent_path, "**/*")
-            else:
-                logger.print_line("No Orphaned Files found.", self.config.loglevel)
-        return orphaned
 
     def tor_delete_recycle(self, torrent, info):
         """Move torrent to recycle bin"""
