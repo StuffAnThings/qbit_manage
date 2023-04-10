@@ -546,39 +546,73 @@ class Qbt:
                             # If both tracker and nohardlinks category setting is set, use the larger of the two
                             # If neither set, use 0 (no limit)
                             min_seeding_time = 0
+                            logger.trace(f'tracker["min_seeding_time"] is {tracker["min_seeding_time"]}')
+                            logger.trace(
+                                f'nohardlinks[category]["min_seeding_time"] is {nohardlinks[category]["min_seeding_time"]}')
                             if tracker["min_seeding_time"] is not None and nohardlinks[category]["min_seeding_time"] is not None:
                                 if tracker["min_seeding_time"] >= nohardlinks[category]["min_seeding_time"]:
                                     min_seeding_time = tracker["min_seeding_time"]
+                                    logger.debug(f'Using tracker["min_seeding_time"] {min_seeding_time}')
+                                else:
+                                    min_seeding_time = nohardlinks[category]["min_seeding_time"]
+                                    logger.debug(
+                                        f'Using nohardlinks[category]["min_seeding_time"] {min_seeding_time}')
                             elif nohardlinks[category]["min_seeding_time"]:
                                 min_seeding_time = nohardlinks[category]["min_seeding_time"]
+                                logger.debug(
+                                    f'Using nohardlinks[category]["min_seeding_time"] {min_seeding_time}')
                             elif tracker["min_seeding_time"]:
                                 min_seeding_time = tracker["min_seeding_time"]
+                                logger.debug(f'Using tracker["min_seeding_time"] {min_seeding_time}')
+                            else:
+                                logger.debug(f'Using default min_seeding_time {min_seeding_time}')
                             # Determine max_ratio.
                             # If only tracker setting is set, use tracker's max_ratio
                             # If only nohardlinks category setting is set, use nohardlinks category's max_ratio
                             # If both tracker and nohardlinks category setting is set, use the larger of the two
                             # If neither set, use -1 (no limit)
                             max_ratio = -1
+                            logger.trace(f'tracker["max_ratio"] is {tracker["max_ratio"]}')
+                            logger.trace(f'nohardlinks[category]["max_ratio"] is {nohardlinks[category]["max_ratio"]}')
                             if tracker["max_ratio"] is not None and nohardlinks[category]["max_ratio"] is not None:
                                 if tracker["max_ratio"] >= nohardlinks[category]["max_ratio"]:
                                     max_ratio = tracker["max_ratio"]
+                                    logger.debug(f'Using (tracker["max_ratio"]) {max_ratio}')
+                                else:
+                                    max_ratio = nohardlinks[category]["max_ratio"]
+                                    logger.debug(f'Using (nohardlinks[category]["max_ratio"]) {max_ratio}')
                             elif nohardlinks[category]["max_ratio"]:
                                 max_ratio = nohardlinks[category]["max_ratio"]
+                                logger.debug(f'Using (nohardlinks[category]["max_ratio"]) {max_ratio}')
                             elif tracker["max_ratio"]:
                                 max_ratio = tracker["max_ratio"]
+                                logger.debug(f'Using (tracker["max_ratio"]) {max_ratio}')
+                            else:
+                                logger.debug(f'Using default (max_ratio) {max_ratio}')
                             # Determine max_seeding_time.
                             # If only tracker setting is set, use tracker's max_seeding_time
                             # If only nohardlinks category setting is set, use nohardlinks category's max_seeding_time
                             # If both tracker and nohardlinks category setting is set, use the larger of the two
                             # If neither set, use -1 (no limit)
                             max_seeding_time = -1
+                            logger.trace(f'tracker["max_seeding_time"] is {tracker["max_seeding_time"]}')
+                            logger.trace(
+                                f'nohardlinks[category]["max_seeding_time"] is {nohardlinks[category]["max_seeding_time"]}')
                             if tracker["max_seeding_time"] is not None and nohardlinks[category]["max_seeding_time"] is not None:
                                 if tracker["max_seeding_time"] >= nohardlinks[category]["max_seeding_time"]:
                                     max_seeding_time = tracker["max_seeding_time"]
+                                    logger.debug(f'Using (tracker["max_seeding_time"]) {max_seeding_time}')
+                                else:
+                                    max_seeding_time = nohardlinks[category]["max_seeding_time"]
+                                    logger.debug(f'Using (nohardlinks[category]["max_seeding_time"]) {max_seeding_time}')
                             elif nohardlinks[category]["max_seeding_time"]:
                                 max_seeding_time = nohardlinks[category]["max_seeding_time"]
+                                logger.debug(f'Using (nohardlinks[category]["max_seeding_time"]) {max_seeding_time}')
                             elif tracker["max_seeding_time"]:
                                 max_seeding_time = tracker["max_seeding_time"]
+                                logger.debug(f'Using (tracker["max_seeding_time"]) {max_seeding_time}')
+                            else:
+                                logger.debug(f'Using default (max_seeding_time) {max_seeding_time}')
                             # Will only tag new torrents that don't have nohardlinks_tag tag
                             if self.config.nohardlinks_tag not in torrent.tags:
                                 add_tag_no_hl(add_tag=True)
