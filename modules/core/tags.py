@@ -14,7 +14,6 @@ class Tags:
 
     def tags(self):
         """Update tags for torrents"""
-        self.stats = 0
         ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:

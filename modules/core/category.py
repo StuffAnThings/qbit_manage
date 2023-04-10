@@ -16,8 +16,6 @@ class Category:
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
-        self.stats = 0
-
         logger.separator("Updating Categories", space=False, border=False)
         torrent_list = self.qbt.get_torrents({"category": "", "status_filter": "completed"})
         for torrent in torrent_list:

@@ -289,6 +289,7 @@ from modules.util import GracefulKiller  # noqa
 from modules.util import Failed  # noqa
 from modules.core.category import Category  # noqa
 from modules.core.tags import Tags  # noqa
+from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -392,14 +393,15 @@ def start():
         if cfg.commands["tag_update"]:
             stats["tagged"] += Tags(qbit_manager).stats
 
-        # Remove Unregistered Torrents
-        num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
-        stats["rem_unreg"] += num_deleted + num_deleted_contents
-        stats["deleted"] += num_deleted
-        stats["deleted_contents"] += num_deleted_contents
-        stats["tagged_tracker_error"] += num_tagged
-        stats["untagged_tracker_error"] += num_untagged
-        stats["tagged"] += num_tagged
+        # Remove Unregistered Torrents and tag errors
+        if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
+            rem_unreg = RemoveUnregistered(qbit_manager)
+            stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
+            stats["deleted"] += rem_unreg.stats_deleted
+            stats["deleted_contents"] += rem_unreg.stats_deleted_contents
+            stats["tagged_tracker_error"] += rem_unreg.stats_tagged
+            stats["untagged_tracker_error"] += rem_unreg.stats_untagged
+            stats["tagged"] += rem_unreg.stats_tagged
 
         # Set Cross Seed
         num_added, num_tagged = cfg.qbt.cross_seed()
