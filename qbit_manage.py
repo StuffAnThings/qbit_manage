@@ -292,6 +292,7 @@ from modules.core.tags import Tags  # noqa
 from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
+from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -418,12 +419,13 @@ def start():
             stats["rechecked"] += recheck.stats_rechecked
 
         # Tag NoHardLinks
-        num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
-        stats["tagged"] += num_tagged
-        stats["tagged_noHL"] += num_tagged
-        stats["untagged_noHL"] += num_untagged
-        stats["deleted"] += num_deleted
-        stats["deleted_contents"] += num_deleted_contents
+        if cfg.commands["tag_nohardlinks"]:
+            no_hardlinks = TagNoHardLinks(qbit_manager)
+            stats["tagged"] += no_hardlinks.stats_tagged
+            stats["tagged_noHL"] += no_hardlinks.stats_tagged
+            stats["untagged_noHL"] += no_hardlinks.stats_untagged
+            stats["deleted"] += no_hardlinks.stats_deleted
+            stats["deleted_contents"] += no_hardlinks.stats_deleted_contents
 
         # Remove Orphaned Files
         num_orphaned = cfg.qbt.rem_orphaned()
