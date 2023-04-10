@@ -1,15 +1,6 @@
-# Requirements Updated
-- Adds check for minimum python requirement of 3.8.1+ (Fixes #221)
-- Updates qbitorrent api to 2023.3.44
-
-# New Features
-- Adds support for custom noHL tag (closes #210)
-
 # Bug Fixes
-- Fix wrapped JSON Decod error from requests (#245) - Thanks @USA-RedDragon
-- Code Refactor / lint - Thanks @bakerboy448
-- Adds docstrings - Thanks @bakerboy448
-- Fixes #229 - Thanks @bakerboy448
-- Fixes #218 - Thanks @bakerboy448
+- Fixes #255
+- Fixes #260
+- Fixes #258
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.4.4...v3.5.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.5.0...v3.5.1

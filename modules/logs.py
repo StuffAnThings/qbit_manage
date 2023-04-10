@@ -46,7 +46,7 @@ class MyLogger:
         self.save_errors = False
         self.saved_errors = []
         self.config_handlers = {}
-        self.secrets = []
+        self.secrets = set()
         self.spacing = 0
         os.makedirs(self.log_dir, exist_ok=True)
         self._logger = logging.getLogger(self.logger_name)
@@ -220,7 +220,7 @@ class MyLogger:
     def secret(self, text):
         """Add secret"""
         if str(text) not in self.secrets and str(text):
-            self.secrets.append(str(text))
+            self.secrets.add(str(text))
 
     def insert_space(self, display_title, space_length=0):
         """Insert space"""
@@ -246,7 +246,7 @@ class MyLogger:
                 if isinstance(handler, RotatingFileHandler):
                     handler.setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
         else:
-            for secret in self.secrets:
+            for secret in sorted(self.secrets, reverse=True):
                 if secret in msg:
                     msg = msg.replace(secret, "(redacted)")
             if "HTTPConnectionPool" in msg:
