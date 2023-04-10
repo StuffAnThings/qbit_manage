@@ -3,7 +3,7 @@
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/StuffAnThings/qbit_manage?style=plastic)](https://github.com/StuffAnThings/qbit_manage/releases)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/StuffAnThings/qbit_manage/latest/develop?label=Commits%20in%20Develop&style=plastic)](https://github.com/StuffAnThings/qbit_manage/tree/develop)
 [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/bobokun/qbit_manage?label=docker&sort=semver&style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
-![Github Workflow Status](https://img.shields.io/github/workflow/status/StuffAnThings/qbit_manage/Docker%20Latest%20Release?style=plastic)
+![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/StuffAnThings/qbit_manage/latest.yml?style=plastic)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/StuffAnThings/qbit_manage/master.svg)](https://results.pre-commit.ci/latest/github/StuffAnThings/qbit_manage/master)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bobokun/qbit_manage?style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
 [![Sponsor or Donate](https://img.shields.io/badge/-Sponsor_or_Donate-blueviolet?style=plastic)](https://github.com/sponsors/bobokun)
