@@ -291,6 +291,7 @@ from modules.core.category import Category  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
+from modules.core.recheck import ReCheck  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -411,9 +412,10 @@ def start():
             stats["tagged"] += cross_seed.stats_tagged
 
         # Recheck Torrents
-        num_resumed, num_rechecked = cfg.qbt.recheck()
-        stats["resumed"] += num_resumed
-        stats["rechecked"] += num_rechecked
+        if cfg.commands["recheck"]:
+            recheck = ReCheck(qbit_manager)
+            stats["resumed"] += recheck.stats_resumed
+            stats["rechecked"] += recheck.stats_rechecked
 
         # Tag NoHardLinks
         num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
