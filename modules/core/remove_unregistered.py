@@ -21,10 +21,18 @@ class RemoveUnregistered:
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
 
-        if self.cfg_tag_error:
-            logger.separator("Tagging Torrents with Tracker Errors", space=False, border=False)
-        elif self.cfg_rem_unregistered:
-            logger.separator("Removing Unregistered Torrents", space=False, border=False)
+        tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
+        rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
+
+        if tag_error_msg and rem_unregistered_msg:
+            message = f"{tag_error_msg} and {rem_unregistered_msg}"
+        elif tag_error_msg:
+            message = tag_error_msg
+        elif rem_unregistered_msg:
+            message = rem_unregistered_msg
+
+        if message:
+            logger.separator(message, space=False, border=False)
 
         self.rem_unregistered()
 
@@ -34,7 +42,7 @@ class RemoveUnregistered:
             check_tags = util.get_list(torrent.tags)
             # Remove any error torrents Tags that are no longer unreachable.
             if self.tag_error in check_tags:
-                tracker = self.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(torrent.trackers)
                 self.stats_untagged += 1
                 body = []
                 body += logger.print_line(
