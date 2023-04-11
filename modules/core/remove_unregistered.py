@@ -2,38 +2,12 @@ from qbittorrentapi import NotFound404Error
 
 from modules import util
 from modules.util import list_in_text
+from modules.util import TorrentMessages
 
 logger = util.logger
 
 
 class RemoveUnregistered:
-    UNREGISTERED_MSGS = [
-        "UNREGISTERED",
-        "TORRENT NOT FOUND",
-        "TORRENT IS NOT FOUND",
-        "NOT REGISTERED",
-        "NOT EXIST",
-        "UNKNOWN TORRENT",
-        "TRUMP",
-        "RETITLED",
-        "TRUNCATED",
-        "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
-    ]
-
-    IGNORE_MSGS = [
-        "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
-        "MISSING PASSKEY",
-        "MISSING INFO_HASH",
-        "PASSKEY IS INVALID",
-        "INVALID PASSKEY",
-        "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
-        "COULD NOT PARSE BENCODED DATA",
-        "STREAM TRUNCATED",
-    ]
-
-    # Tracker has been contacted, but it is not working (or doesn't send proper replies)
-    TORRENT_STATUS_NOT_WORKING = 4
-
     def __init__(self, qbit_manager):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
@@ -98,20 +72,20 @@ class RemoveUnregistered:
                         msg = trk.msg
                         # Tag any error torrents
                         if self.cfg_tag_error:
-                            if trk.status == self.TORRENT_STATUS_NOT_WORKING and self.tag_error not in check_tags:
+                            if trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING and self.tag_error not in check_tags:
                                 self.tag_tracker_error()
                         if self.cfg_rem_unregistered:
                             # Tag any error torrents that are not unregistered
                             if (
-                                not list_in_text(msg_up, self.UNREGISTERED_MSGS)
-                                and trk.status == self.TORRENT_STATUS_NOT_WORKING
+                                not list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
+                                and trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING
                                 and self.tag_error not in check_tags
                             ):
                                 # Check for unregistered torrents using BHD API if the tracker is BHD
                                 if (
                                     "tracker.beyond-hd.me" in tracker["url"]
                                     and self.config.beyond_hd is not None
-                                    and not list_in_text(msg_up, self.IGNORE_MSGS)
+                                    and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
                                 ):
                                     json = {"info_hash": torrent.hash}
                                     response = self.config.beyond_hd.search(json)
@@ -120,9 +94,9 @@ class RemoveUnregistered:
                                         break
                                 self.tag_tracker_error()
                             if (
-                                list_in_text(msg_up, self.UNREGISTERED_MSGS)
-                                and not list_in_text(msg_up, self.IGNORE_MSGS)
-                                and trk.status == self.TORRENT_STATUS_NOT_WORKING
+                                list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
+                                and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
+                                and trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING
                             ):
                                 self.del_unregistered()
                                 break

@@ -33,6 +33,50 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [d.strip() for d in str(data).split(",")]
 
 
+class TorrentMessages:
+    """Contains list of messages to check against a status of a torrent"""
+
+    UNREGISTERED_MSGS = [
+        "UNREGISTERED",
+        "TORRENT NOT FOUND",
+        "TORRENT IS NOT FOUND",
+        "NOT REGISTERED",
+        "NOT EXIST",
+        "UNKNOWN TORRENT",
+        "TRUMP",
+        "RETITLED",
+        "TRUNCATED",
+        "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
+    ]
+
+    IGNORE_MSGS = [
+        "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
+        "MISSING PASSKEY",
+        "MISSING INFO_HASH",
+        "PASSKEY IS INVALID",
+        "INVALID PASSKEY",
+        "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
+        "COULD NOT PARSE BENCODED DATA",
+        "STREAM TRUNCATED",
+    ]
+
+    EXCEPTIONS_MSGS = [
+        "DOWN",
+        "DOWN.",
+        "IT MAY BE DOWN,",
+        "UNREACHABLE",
+        "(UNREACHABLE)",
+        "BAD GATEWAY",
+        "TRACKER UNAVAILABLE",
+    ]
+
+    TORRENT_STATUS_DISABLED = 0  # Tracker is disabled (used for DHT, PeX, and LSD)
+    TORRENT_STATUS_NOT_CONTACTED = 1  # Tracker has not been contacted yet
+    TORRENT_STATUS_WORKING = 2  # Tracker has been contacted and is working
+    TORRENT_STATUS_UPDATING = 3  # Tracker is updating
+    TORRENT_STATUS_NOT_WORKING = 4  # Tracker has been contacted, but it is not working (or doesn't send proper replies)
+
+
 class check:
     """Check for attributes in config."""
 

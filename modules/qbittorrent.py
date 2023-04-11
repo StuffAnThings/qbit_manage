@@ -12,6 +12,7 @@ from qbittorrentapi import Version
 from modules import util
 from modules.util import Failed
 from modules.util import list_in_text
+from modules.util import TorrentMessages
 
 logger = util.logger
 
@@ -157,20 +158,13 @@ class Qbt:
                 if trk.url.startswith("http"):
                     status = trk.status
                     msg = trk.msg.upper()
-                    exception = [
-                        "DOWN",
-                        "DOWN.",
-                        "IT MAY BE DOWN,",
-                        "UNREACHABLE",
-                        "(UNREACHABLE)",
-                        "BAD GATEWAY",
-                        "TRACKER UNAVAILABLE",
-                    ]
-                    if trk.status == 2:
+                    if trk.status == TorrentMessages.TORRENT_STATUS_WORKING:
                         working_tracker = True
                         break
                     # Add any potential unregistered torrents to a list
-                    if trk.status == 4 and not list_in_text(msg, exception):
+                    if trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING and not list_in_text(
+                        msg, TorrentMessages.EXCEPTIONS_MSGS
+                    ):
                         issue["potential"] = True
                         issue["msg"] = msg
                         issue["status"] = status
