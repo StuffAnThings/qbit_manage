@@ -33,6 +33,44 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [d.strip() for d in str(data).split(",")]
 
 
+class TorrentMessages:
+    """Contains list of messages to check against a status of a torrent"""
+
+    UNREGISTERED_MSGS = [
+        "UNREGISTERED",
+        "TORRENT NOT FOUND",
+        "TORRENT IS NOT FOUND",
+        "NOT REGISTERED",
+        "NOT EXIST",
+        "UNKNOWN TORRENT",
+        "TRUMP",
+        "RETITLED",
+        "TRUNCATED",
+        "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
+    ]
+
+    IGNORE_MSGS = [
+        "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
+        "MISSING PASSKEY",
+        "MISSING INFO_HASH",
+        "PASSKEY IS INVALID",
+        "INVALID PASSKEY",
+        "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
+        "COULD NOT PARSE BENCODED DATA",
+        "STREAM TRUNCATED",
+    ]
+
+    EXCEPTIONS_MSGS = [
+        "DOWN",
+        "DOWN.",
+        "IT MAY BE DOWN,",
+        "UNREACHABLE",
+        "(UNREACHABLE)",
+        "BAD GATEWAY",
+        "TRACKER UNAVAILABLE",
+    ]
+
+
 class check:
     """Check for attributes in config."""
 

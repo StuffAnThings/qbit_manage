@@ -1,6 +1,8 @@
-# Bug Fixes
-- Fixes #255
-- Fixes #260
-- Fixes #258
+# Requirements Updated
+- Updates qbitorrent api to 2023.4.45
+- Updates Schedule to 1.2.0
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.5.0...v3.5.1
+# Refactoring
+- Refactor qbit_manage to split up core functions into separate files
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.5.1...v3.6.0

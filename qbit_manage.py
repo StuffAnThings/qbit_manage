@@ -287,6 +287,13 @@ util.logger = logger
 from modules.config import Config  # noqa
 from modules.util import GracefulKiller  # noqa
 from modules.util import Failed  # noqa
+from modules.core.category import Category  # noqa
+from modules.core.tags import Tags  # noqa
+from modules.core.remove_unregistered import RemoveUnregistered  # noqa
+from modules.core.cross_seed import CrossSeed  # noqa
+from modules.core.recheck import ReCheck  # noqa
+from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
+from modules.core.remove_orphaned import RemoveOrphaned  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -369,6 +376,8 @@ def start():
 
     try:
         cfg = Config(default_dir, args)
+        qbit_manager = cfg.qbt
+
     except Exception as ex:
         if "Qbittorrent Error" in ex.args[0]:
             logger.print_line(ex, "CRITICAL")
@@ -379,53 +388,55 @@ def start():
             logger.stacktrace()
             logger.print_line(ex, "CRITICAL")
 
-    if cfg:
+    if qbit_manager:
         # Set Category
-        num_categorized = cfg.qbt.category()
-        stats["categorized"] += num_categorized
+        if cfg.commands["cat_update"]:
+            stats["categorized"] += Category(qbit_manager).stats
 
         # Set Tags
-        num_tagged = cfg.qbt.tags()
-        stats["tagged"] += num_tagged
+        if cfg.commands["tag_update"]:
+            stats["tagged"] += Tags(qbit_manager).stats
 
-        # Remove Unregistered Torrents
-        num_deleted, num_deleted_contents, num_tagged, num_untagged = cfg.qbt.rem_unregistered()
-        stats["rem_unreg"] += num_deleted + num_deleted_contents
-        stats["deleted"] += num_deleted
-        stats["deleted_contents"] += num_deleted_contents
-        stats["tagged_tracker_error"] += num_tagged
-        stats["untagged_tracker_error"] += num_untagged
-        stats["tagged"] += num_tagged
+        # Remove Unregistered Torrents and tag errors
+        if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
+            rem_unreg = RemoveUnregistered(qbit_manager)
+            stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
+            stats["deleted"] += rem_unreg.stats_deleted
+            stats["deleted_contents"] += rem_unreg.stats_deleted_contents
+            stats["tagged_tracker_error"] += rem_unreg.stats_tagged
+            stats["untagged_tracker_error"] += rem_unreg.stats_untagged
+            stats["tagged"] += rem_unreg.stats_tagged
 
         # Set Cross Seed
-        num_added, num_tagged = cfg.qbt.cross_seed()
-        stats["added"] += num_added
-        stats["tagged"] += num_tagged
+        if cfg.commands["cross_seed"]:
+            cross_seed = CrossSeed(qbit_manager)
+            stats["added"] += cross_seed.stats_added
+            stats["tagged"] += cross_seed.stats_tagged
 
         # Recheck Torrents
-        num_resumed, num_rechecked = cfg.qbt.recheck()
-        stats["resumed"] += num_resumed
-        stats["rechecked"] += num_rechecked
+        if cfg.commands["recheck"]:
+            recheck = ReCheck(qbit_manager)
+            stats["resumed"] += recheck.stats_resumed
+            stats["rechecked"] += recheck.stats_rechecked
 
         # Tag NoHardLinks
-        num_tagged, num_untagged, num_deleted, num_deleted_contents = cfg.qbt.tag_nohardlinks()
-        stats["tagged"] += num_tagged
-        stats["tagged_noHL"] += num_tagged
-        stats["untagged_noHL"] += num_untagged
-        stats["deleted"] += num_deleted
-        stats["deleted_contents"] += num_deleted_contents
+        if cfg.commands["tag_nohardlinks"]:
+            no_hardlinks = TagNoHardLinks(qbit_manager)
+            stats["tagged"] += no_hardlinks.stats_tagged
+            stats["tagged_noHL"] += no_hardlinks.stats_tagged
+            stats["untagged_noHL"] += no_hardlinks.stats_untagged
+            stats["deleted"] += no_hardlinks.stats_deleted
+            stats["deleted_contents"] += no_hardlinks.stats_deleted_contents
 
         # Remove Orphaned Files
-        num_orphaned = cfg.qbt.rem_orphaned()
-        stats["orphaned"] += num_orphaned
+        if cfg.commands["rem_orphaned"]:
+            stats["orphaned"] += RemoveOrphaned(qbit_manager).stats
 
         # Empty RecycleBin
-        recycle_emptied = cfg.cleanup_dirs("Recycle Bin")
-        stats["recycle_emptied"] += recycle_emptied
+        stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
 
         # Empty Orphaned Directory
-        orphaned_emptied = cfg.cleanup_dirs("Orphaned Data")
-        stats["orphaned_emptied"] += orphaned_emptied
+        stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
 
     if stats["categorized"] > 0:
         stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
