@@ -7,6 +7,7 @@ from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
+from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
 
 from modules import util
@@ -158,11 +159,11 @@ class Qbt:
                 if trk.url.startswith("http"):
                     status = trk.status
                     msg = trk.msg.upper()
-                    if trk.status == TorrentMessages.TORRENT_STATUS_WORKING:
+                    if TrackerStatus(trk.status) == TrackerStatus.WORKING:
                         working_tracker = True
                         break
                     # Add any potential unregistered torrents to a list
-                    if trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING and not list_in_text(
+                    if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING and not list_in_text(
                         msg, TorrentMessages.EXCEPTIONS_MSGS
                     ):
                         issue["potential"] = True

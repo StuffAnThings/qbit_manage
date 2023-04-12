@@ -1,4 +1,5 @@
 from qbittorrentapi import NotFound404Error
+from qbittorrentapi import TrackerStatus
 
 from modules import util
 from modules.util import list_in_text
@@ -65,6 +66,21 @@ class RemoveUnregistered:
                 }
                 self.config.send_notifications(attr)
 
+    def check_for_unregistered_torrents_using_bhd_api(self, tracker, msg_up, torrent_hash):
+        """
+        Checks if a torrent is unregistered using the BHD API if the tracker is BHD.
+        """
+        if (
+            "tracker.beyond-hd.me" in tracker["url"]
+            and self.config.beyond_hd is not None
+            and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
+        ):
+            json = {"info_hash": torrent_hash}
+            response = self.config.beyond_hd.search(json)
+            if response["total_results"] == 0:
+                return True
+        return False
+
     def process_torrent_issues(self):
         for torrent in self.qbt.torrentissue:
             self.t_name = torrent.name
@@ -78,36 +94,22 @@ class RemoveUnregistered:
                         tracker = self.qbt.get_tags([trk])
                         msg_up = trk.msg.upper()
                         msg = trk.msg
-                        # Tag any error torrents
-                        if self.cfg_tag_error:
-                            if trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING and self.tag_error not in check_tags:
+                        if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
+                            # Tag any error torrents
+                            if self.cfg_tag_error and self.tag_error not in check_tags:
                                 self.tag_tracker_error(msg, tracker, torrent)
-                        if self.cfg_rem_unregistered:
-                            # Tag any error torrents that are not unregistered
-                            if (
-                                not list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
-                                and trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING
-                                and self.tag_error not in check_tags
-                            ):
-                                # Check for unregistered torrents using BHD API if the tracker is BHD
-                                if (
-                                    "tracker.beyond-hd.me" in tracker["url"]
-                                    and self.config.beyond_hd is not None
-                                    and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
+                            # Check for unregistered torrents
+                            if self.cfg_rem_unregistered:
+                                if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
+                                    msg_up, TorrentMessages.IGNORE_MSGS
                                 ):
-                                    json = {"info_hash": torrent.hash}
-                                    response = self.config.beyond_hd.search(json)
-                                    if response["total_results"] == 0:
+                                    self.del_unregistered(msg, tracker, torrent)
+                                    break
+                                else:
+                                    if self.check_for_unregistered_torrents_using_bhd_api(tracker, msg_up, torrent.hash):
                                         self.del_unregistered(msg, tracker, torrent)
                                         break
-                                self.tag_tracker_error(msg, tracker, torrent)
-                            if (
-                                list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
-                                and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
-                                and trk.status == TorrentMessages.TORRENT_STATUS_NOT_WORKING
-                            ):
-                                self.del_unregistered(msg, tracker, torrent)
-                                break
+
             except NotFound404Error:
                 continue
             except Exception as ex:

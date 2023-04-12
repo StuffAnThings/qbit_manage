@@ -70,12 +70,6 @@ class TorrentMessages:
         "TRACKER UNAVAILABLE",
     ]
 
-    TORRENT_STATUS_DISABLED = 0  # Tracker is disabled (used for DHT, PeX, and LSD)
-    TORRENT_STATUS_NOT_CONTACTED = 1  # Tracker has not been contacted yet
-    TORRENT_STATUS_WORKING = 2  # Tracker has been contacted and is working
-    TORRENT_STATUS_UPDATING = 3  # Tracker is updating
-    TORRENT_STATUS_NOT_WORKING = 4  # Tracker has been contacted, but it is not working (or doesn't send proper replies)
-
 
 class check:
     """Check for attributes in config."""
