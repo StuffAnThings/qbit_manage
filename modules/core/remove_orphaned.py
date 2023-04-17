@@ -1,10 +1,12 @@
 import os
+from multiprocessing import Pool, cpu_count
+from itertools import repeat
 from fnmatch import fnmatch
 
 from modules import util
 
 logger = util.logger
-
+_config = None
 
 class RemoveOrphaned:
     def __init__(self, qbit_manager):
@@ -17,6 +19,9 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
+        global _config
+        _config = self.config
+
         self.rem_orphaned()
 
     def rem_orphaned(self):
@@ -27,25 +32,28 @@ class RemoveOrphaned:
         root_files = []
         orphaned_files = []
         excluded_orphan_files = []
-        orphaned_parent_path = set()
 
         if self.remote_dir != self.root_dir:
+            local_orphaned_dir = self.orphaned_dir.replace(self.remote_dir, self.root_dir)
             root_files = [
                 os.path.join(path.replace(self.remote_dir, self.root_dir), name)
                 for path, subdirs, files in os.walk(self.remote_dir)
                 for name in files
-                if self.orphaned_dir.replace(self.remote_dir, self.root_dir) not in path
+                if local_orphaned_dir not in path
             ]
         else:
             root_files = [
                 os.path.join(path, name)
                 for path, subdirs, files in os.walk(self.root_dir)
                 for name in files
-                if self.orphaned_dir.replace(self.root_dir, self.remote_dir) not in path
+                if self.orphaned_dir not in path
             ]
 
+
         # Get an updated list of torrents
+        logger.print_line("Removing torrent files from orphans", self.config.loglevel)
         torrent_list = self.qbt.get_torrents({"sort": "added_on"})
+        logger.print_line("Fetched torrents", self.config.loglevel)
         for torrent in torrent_list:
             for file in torrent.files:
                 fullpath = os.path.join(torrent.save_path, file.name)
@@ -54,20 +62,24 @@ class RemoveOrphaned:
                 torrent_files.append(fullpath)
 
         orphaned_files = set(root_files) - set(torrent_files)
-        orphaned_files = sorted(orphaned_files)
 
         if self.config.orphaned["exclude_patterns"]:
-            exclude_patterns = self.config.orphaned["exclude_patterns"]
+            logger.print_line("Processing orphan exclude patterns")
+            exclude_patterns = [
+                exclude_pattern.replace(self.remote_dir, self.root_dir)
+                for exclude_pattern in self.config.orphaned["exclude_patterns"]
+            ]
             excluded_orphan_files = [
                 file
                 for file in orphaned_files
                 for exclude_pattern in exclude_patterns
-                if fnmatch(file, exclude_pattern.replace(self.remote_dir, self.root_dir))
+                if fnmatch(file, exclude_pattern)
             ]
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
 
         if orphaned_files:
+            orphaned_files = sorted(orphaned_files)
             os.makedirs(self.orphaned_dir, exist_ok=True)
             body = []
             num_orphaned = len(orphaned_files)
@@ -91,12 +103,16 @@ class RemoveOrphaned:
             # Delete empty directories after moving orphan files
             logger.info("Cleaning up any empty directories...")
             if not self.config.dry_run:
-                for file in orphaned_files:
-                    src = file.replace(self.root_dir, self.remote_dir)
-                    dest = os.path.join(self.orphaned_dir, file.replace(self.root_dir, ""))
-                    util.move_files(src, dest, True)
-                    orphaned_parent_path.add(os.path.dirname(file).replace(self.root_dir, self.remote_dir))
-                    for parent_path in orphaned_parent_path:
-                        util.remove_empty_directories(parent_path, "**/*")
+                with Pool(processes = cpu_count()) as pool:
+                    orphaned_parent_path = set(pool.map(move_orphan, orphaned_files))
+
+                    logger.print_line("Removing orphan dirs", self.config.loglevel)
+                    pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
+
+def move_orphan(file):
+    src = file.replace(_config.root_dir, _config.remote_dir) # Could be optimized to only run when root != remote
+    dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
+    util.move_files(src, dest, True)
+    return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir) # Another candidate for micro optimizing
