@@ -1,12 +1,14 @@
 import os
-from multiprocessing import Pool, cpu_count
-from itertools import repeat
 from fnmatch import fnmatch
+from itertools import repeat
+from multiprocessing import cpu_count
+from multiprocessing import Pool
 
 from modules import util
 
 logger = util.logger
 _config = None
+
 
 class RemoveOrphaned:
     def __init__(self, qbit_manager):
@@ -49,7 +51,6 @@ class RemoveOrphaned:
                 if self.orphaned_dir not in path
             ]
 
-
         # Get an updated list of torrents
         logger.print_line("Removing torrent files from orphans", self.config.loglevel)
         torrent_list = self.qbt.get_torrents({"sort": "added_on"})
@@ -70,10 +71,7 @@ class RemoveOrphaned:
                 for exclude_pattern in self.config.orphaned["exclude_patterns"]
             ]
             excluded_orphan_files = [
-                file
-                for file in orphaned_files
-                for exclude_pattern in exclude_patterns
-                if fnmatch(file, exclude_pattern)
+                file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch(file, exclude_pattern)
             ]
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
@@ -103,7 +101,7 @@ class RemoveOrphaned:
             # Delete empty directories after moving orphan files
             logger.info("Cleaning up any empty directories...")
             if not self.config.dry_run:
-                with Pool(processes = cpu_count()) as pool:
+                with Pool(processes=cpu_count()) as pool:
                     orphaned_parent_path = set(pool.map(move_orphan, orphaned_files))
 
                     logger.print_line("Removing orphan dirs", self.config.loglevel)
@@ -111,8 +109,9 @@ class RemoveOrphaned:
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
 
+
 def move_orphan(file):
-    src = file.replace(_config.root_dir, _config.remote_dir) # Could be optimized to only run when root != remote
+    src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
     dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
     util.move_files(src, dest, True)
-    return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir) # Another candidate for micro optimizing
+    return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir)  # Another candidate for micro optimizing
