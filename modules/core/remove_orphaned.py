@@ -52,9 +52,8 @@ class RemoveOrphaned:
             ]
 
         # Get an updated list of torrents
-        logger.print_line("Removing torrent files from orphans", self.config.loglevel)
+        logger.print_line("Locating orphan files", self.config.loglevel)
         torrent_list = self.qbt.get_torrents({"sort": "added_on"})
-        logger.print_line("Fetched torrents", self.config.loglevel)
         for torrent in torrent_list:
             for file in torrent.files:
                 fullpath = os.path.join(torrent.save_path, file.name)
@@ -84,7 +83,7 @@ class RemoveOrphaned:
             logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
             body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
             body += logger.print_line(
-                f"{'Did not move' if self.config.dry_run else 'Moved'} {num_orphaned} Orphaned files "
+                f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
                 f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}",
                 self.config.loglevel,
             )
@@ -99,12 +98,11 @@ class RemoveOrphaned:
             }
             self.config.send_notifications(attr)
             # Delete empty directories after moving orphan files
-            logger.info("Cleaning up any empty directories...")
             if not self.config.dry_run:
                 with Pool(processes=cpu_count()) as pool:
                     orphaned_parent_path = set(pool.map(move_orphan, orphaned_files))
 
-                    logger.print_line("Removing orphan dirs", self.config.loglevel)
+                    logger.print_line("Removing newly empty directories", self.config.loglevel)
                     pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
