@@ -69,11 +69,6 @@ class RemoveOrphaned:
                 if fullpath not in torrent_files
             ]
         )
-        for file in torrent.files:
-            fullpath = os.path.join(torrent.save_path, file.name)
-            # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
-            fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
-            torrent_files.append(fullpath)
 
         orphaned_files = set(root_files) - set(torrent_files)
 
@@ -140,3 +135,4 @@ def move_orphan(file):
     dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
     util.move_files(src, dest, True)
     return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir)  # Another candidate for micro optimizing
+
