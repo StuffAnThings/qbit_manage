@@ -135,4 +135,3 @@ def move_orphan(file):
     dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
     util.move_files(src, dest, True)
     return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir)  # Another candidate for micro optimizing
-
