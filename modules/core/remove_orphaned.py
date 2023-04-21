@@ -23,8 +23,9 @@ class RemoveOrphaned:
 
         global _config
         _config = self.config
-
+        self.pool = Pool(processes=max(cpu_count()-1, 1))
         self.rem_orphaned()
+        self.cleanup_pool()
 
     def rem_orphaned(self):
         """Remove orphaned files from remote directory"""
@@ -54,7 +55,18 @@ class RemoveOrphaned:
         # Get an updated list of torrents
         logger.print_line("Locating orphan files", self.config.loglevel)
         torrent_list = self.qbt.get_torrents({"sort": "added_on"})
+        torrent_files_and_save_path = []
         for torrent in torrent_list:
+            torrent_files = []
+            for torrent_files_dict in torrent.files:
+                torrent_files.append(torrent_files_dict.name)
+            torrent_files_and_save_path.append((torrent_files, torrent.save_path))
+        torrent_files.extend(
+            [
+                fullpath for fullpathlist in self.pool.starmap(get_full_path_of_torrent_files, torrent_files_and_save_path)
+                for fullpath in fullpathlist if fullpath not in torrent_files
+            ]
+        )
             for file in torrent.files:
                 fullpath = os.path.join(torrent.save_path, file.name)
                 # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
@@ -99,15 +111,24 @@ class RemoveOrphaned:
             self.config.send_notifications(attr)
             # Delete empty directories after moving orphan files
             if not self.config.dry_run:
-                with Pool(processes=cpu_count()) as pool:
-                    orphaned_parent_path = set(pool.map(move_orphan, orphaned_files))
+                orphaned_parent_path = set(self.pool.map(move_orphan, orphaned_files))
+                logger.print_line("Removing newly empty directories", self.config.loglevel)
+                self.pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
 
-                    logger.print_line("Removing newly empty directories", self.config.loglevel)
-                    pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
 
-
+    def cleanup_pool(self):
+        self.pool.close()
+        self.pool.join()
+def get_full_path_of_torrent_files(torrent_files, save_path):
+    fullpath_torrent_files = []
+    for file in torrent_files:
+        fullpath = os.path.join(save_path, file)
+        # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
+        fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
+        fullpath_torrent_files.append(fullpath)
+    return fullpath_torrent_files
 def move_orphan(file):
     src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
     dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
