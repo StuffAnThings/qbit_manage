@@ -265,7 +265,7 @@ def move_files(src, dest, mod=False):
     dest_path = os.path.dirname(dest)
     to_delete = False
     if os.path.isdir(dest_path) is False:
-        os.makedirs(dest_path)
+        os.makedirs(dest_path, exist_ok=True)
     try:
         if mod is True:
             mod_time = time.time()
@@ -305,6 +305,7 @@ def remove_empty_directories(pathlib_root_dir, pattern):
         key=lambda p: len(str(p)),
         reverse=True,
     )
+    longest.append(pathlib_root_dir)
     for pdir in longest:
         try:
             pdir.rmdir()  # remove directory if empty

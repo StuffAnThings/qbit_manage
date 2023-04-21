@@ -1,9 +1,13 @@
 import os
 from fnmatch import fnmatch
+from itertools import repeat
+from multiprocessing import cpu_count
+from multiprocessing import Pool
 
 from modules import util
 
 logger = util.logger
+_config = None
 
 
 class RemoveOrphaned:
@@ -17,7 +21,11 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
+        global _config
+        _config = self.config
+        self.pool = Pool(processes=max(cpu_count() - 1, 1))
         self.rem_orphaned()
+        self.cleanup_pool()
 
     def rem_orphaned(self):
         """Remove orphaned files from remote directory"""
@@ -27,54 +35,64 @@ class RemoveOrphaned:
         root_files = []
         orphaned_files = []
         excluded_orphan_files = []
-        orphaned_parent_path = set()
 
         if self.remote_dir != self.root_dir:
+            local_orphaned_dir = self.orphaned_dir.replace(self.remote_dir, self.root_dir)
             root_files = [
                 os.path.join(path.replace(self.remote_dir, self.root_dir), name)
                 for path, subdirs, files in os.walk(self.remote_dir)
                 for name in files
-                if self.orphaned_dir.replace(self.remote_dir, self.root_dir) not in path
+                if local_orphaned_dir not in path
             ]
         else:
             root_files = [
                 os.path.join(path, name)
                 for path, subdirs, files in os.walk(self.root_dir)
                 for name in files
-                if self.orphaned_dir.replace(self.root_dir, self.remote_dir) not in path
+                if self.orphaned_dir not in path
             ]
 
         # Get an updated list of torrents
+        logger.print_line("Locating orphan files", self.config.loglevel)
         torrent_list = self.qbt.get_torrents({"sort": "added_on"})
+        torrent_files_and_save_path = []
         for torrent in torrent_list:
-            for file in torrent.files:
-                fullpath = os.path.join(torrent.save_path, file.name)
-                # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
-                fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
-                torrent_files.append(fullpath)
+            torrent_files = []
+            for torrent_files_dict in torrent.files:
+                torrent_files.append(torrent_files_dict.name)
+            torrent_files_and_save_path.append((torrent_files, torrent.save_path))
+        torrent_files.extend(
+            [
+                fullpath
+                for fullpathlist in self.pool.starmap(get_full_path_of_torrent_files, torrent_files_and_save_path)
+                for fullpath in fullpathlist
+                if fullpath not in torrent_files
+            ]
+        )
 
         orphaned_files = set(root_files) - set(torrent_files)
-        orphaned_files = sorted(orphaned_files)
 
         if self.config.orphaned["exclude_patterns"]:
-            exclude_patterns = self.config.orphaned["exclude_patterns"]
+            logger.print_line("Processing orphan exclude patterns")
+            exclude_patterns = [
+                exclude_pattern.replace(self.remote_dir, self.root_dir)
+                for exclude_pattern in self.config.orphaned["exclude_patterns"]
+            ]
             excluded_orphan_files = [
-                file
-                for file in orphaned_files
-                for exclude_pattern in exclude_patterns
-                if fnmatch(file, exclude_pattern.replace(self.remote_dir, self.root_dir))
+                file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch(file, exclude_pattern)
             ]
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
 
         if orphaned_files:
+            orphaned_files = sorted(orphaned_files)
             os.makedirs(self.orphaned_dir, exist_ok=True)
             body = []
             num_orphaned = len(orphaned_files)
             logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
             body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
             body += logger.print_line(
-                f"{'Did not move' if self.config.dry_run else 'Moved'} {num_orphaned} Orphaned files "
+                f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
                 f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}",
                 self.config.loglevel,
             )
@@ -89,14 +107,31 @@ class RemoveOrphaned:
             }
             self.config.send_notifications(attr)
             # Delete empty directories after moving orphan files
-            logger.info("Cleaning up any empty directories...")
             if not self.config.dry_run:
-                for file in orphaned_files:
-                    src = file.replace(self.root_dir, self.remote_dir)
-                    dest = os.path.join(self.orphaned_dir, file.replace(self.root_dir, ""))
-                    util.move_files(src, dest, True)
-                    orphaned_parent_path.add(os.path.dirname(file).replace(self.root_dir, self.remote_dir))
-                    for parent_path in orphaned_parent_path:
-                        util.remove_empty_directories(parent_path, "**/*")
+                orphaned_parent_path = set(self.pool.map(move_orphan, orphaned_files))
+                logger.print_line("Removing newly empty directories", self.config.loglevel)
+                self.pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
+
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
+
+    def cleanup_pool(self):
+        self.pool.close()
+        self.pool.join()
+
+
+def get_full_path_of_torrent_files(torrent_files, save_path):
+    fullpath_torrent_files = []
+    for file in torrent_files:
+        fullpath = os.path.join(save_path, file)
+        # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
+        fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
+        fullpath_torrent_files.append(fullpath)
+    return fullpath_torrent_files
+
+
+def move_orphan(file):
+    src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
+    dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
+    util.move_files(src, dest, True)
+    return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir)  # Another candidate for micro optimizing
