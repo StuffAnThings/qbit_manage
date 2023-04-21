@@ -1,8 +1,8 @@
 # Requirements Updated
-- Updates qbitorrent api to 2023.4.45
-- Updates Schedule to 1.2.0
+- Updates qbitorrent api to 2023.4.47
 
-# Refactoring
-- Refactor qbit_manage to split up core functions into separate files
+# Bug Fixes
+- Fixes bug in not removing empty directories (Thanks to @buthed010203 #266)
+- Speed up remove_orphan by using multiprocessing (Thanks to @buthed010203 #266)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.5.1...v3.6.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.0...v3.6.1
