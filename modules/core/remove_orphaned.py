@@ -23,7 +23,7 @@ class RemoveOrphaned:
 
         global _config
         _config = self.config
-        self.pool = Pool(processes=max(cpu_count()-1, 1))
+        self.pool = Pool(processes=max(cpu_count() - 1, 1))
         self.rem_orphaned()
         self.cleanup_pool()
 
@@ -63,15 +63,17 @@ class RemoveOrphaned:
             torrent_files_and_save_path.append((torrent_files, torrent.save_path))
         torrent_files.extend(
             [
-                fullpath for fullpathlist in self.pool.starmap(get_full_path_of_torrent_files, torrent_files_and_save_path)
-                for fullpath in fullpathlist if fullpath not in torrent_files
+                fullpath
+                for fullpathlist in self.pool.starmap(get_full_path_of_torrent_files, torrent_files_and_save_path)
+                for fullpath in fullpathlist
+                if fullpath not in torrent_files
             ]
         )
-            for file in torrent.files:
-                fullpath = os.path.join(torrent.save_path, file.name)
-                # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
-                fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
-                torrent_files.append(fullpath)
+        for file in torrent.files:
+            fullpath = os.path.join(torrent.save_path, file.name)
+            # Replace fullpath with \\ if qbm is running in docker (linux) but qbt is on windows
+            fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
+            torrent_files.append(fullpath)
 
         orphaned_files = set(root_files) - set(torrent_files)
 
@@ -121,6 +123,8 @@ class RemoveOrphaned:
     def cleanup_pool(self):
         self.pool.close()
         self.pool.join()
+
+
 def get_full_path_of_torrent_files(torrent_files, save_path):
     fullpath_torrent_files = []
     for file in torrent_files:
@@ -129,6 +133,8 @@ def get_full_path_of_torrent_files(torrent_files, save_path):
         fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
         fullpath_torrent_files.append(fullpath)
     return fullpath_torrent_files
+
+
 def move_orphan(file):
     src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
     dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
