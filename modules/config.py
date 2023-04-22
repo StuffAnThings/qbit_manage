@@ -96,8 +96,6 @@ class Config:
             self.data["cat_change"] = self.data.pop("cat_change")
         if "tracker" in self.data:
             self.data["tracker"] = self.data.pop("tracker")
-        elif "tags" in self.data:
-            self.data["tracker"] = self.data.pop("tags")
         else:
             self.data["tracker"] = {}
         if "nohardlinks" in self.data:
