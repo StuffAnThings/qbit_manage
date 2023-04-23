@@ -3,5 +3,6 @@
 
 # Bug Fixes
 - Fixes bug in cross_seed (Fixes #270)
+- Bug causing RecycleBin not to be created when full path is defined. (Fixes #271)
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.1...v3.6.2
