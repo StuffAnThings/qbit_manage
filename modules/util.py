@@ -182,7 +182,14 @@ class check:
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
             else:
-                message = f"Path {os.path.abspath(data[attribute])} does not exist"
+                if make_dirs:
+                    try:
+                        os.makedirs(data[attribute], exist_ok=True)
+                        return os.path.join(data[attribute], "")
+                    except OSError:
+                        message = f"Path {os.path.abspath(data[attribute])} does not exist and can't be created"
+                else:
+                    message = f"Path {os.path.abspath(data[attribute])} does not exist"
         elif var_type == "list":
             return get_list(data[attribute], split=False)
         elif var_type == "list_path":
