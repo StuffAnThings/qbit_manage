@@ -21,7 +21,7 @@ repos:
     hooks:
       - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.30.0  # or higher tag
+    rev: v1.31.0  # or higher tag
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
