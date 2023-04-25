@@ -1,8 +1,6 @@
-# Requirements Updated
-- Updates qbitorrent api to 2023.4.47
-
 # Bug Fixes
-- Fixes bug in not removing empty directories (Thanks to @buthed010203 #266)
-- Speed up remove_orphan by using multiprocessing (Thanks to @buthed010203 #266)
+- Fixes bug in cross_seed (Fixes #270)
+- Bug causing RecycleBin not to be created when full path is defined. (Fixes #271)
+- Fixes Uncaught exception while emptying recycle bin (Fixes #272)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.0...v3.6.1
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.1...v3.6.2

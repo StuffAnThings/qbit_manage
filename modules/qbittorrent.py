@@ -364,102 +364,92 @@ class Qbt:
                             except IndexError as e:
                                 logger.debug(f"Tracker Url:{url}")
                                 logger.debug(e)
-                        # Tracker Format 1 deprecated.
-                        if isinstance(tag_details, str):
-                            e = (
-                                "Config Error: Tracker format invalid. Please see config.yml.sample for correct format and fix "
-                                f"`{tag_details}` in the Tracker section of the config."
+                        tracker["tag"] = self.config.util.check_for_attribute(
+                            self.config.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
+                        )
+                        if tracker["tag"] == [tag_url]:
+                            self.config.data["tracker"][tag_url]["tag"] = [tag_url]
+                        if isinstance(tracker["tag"], str):
+                            tracker["tag"] = [tracker["tag"]]
+                        is_max_ratio_defined = self.config.data["tracker"].get("max_ratio")
+                        is_max_seeding_time_defined = self.config.data["tracker"].get("max_seeding_time")
+                        if is_max_ratio_defined or is_max_seeding_time_defined:
+                            tracker["max_ratio"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "max_ratio",
+                                parent="tracker",
+                                subparent=tag_url,
+                                var_type="float",
+                                min_int=-2,
+                                do_print=False,
+                                default=-1,
+                                save=False,
                             )
-                            self.config.notify(e, "Config")
-                            raise Failed(e)
-                        # Using new Format
+                            tracker["max_seeding_time"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "max_seeding_time",
+                                parent="tracker",
+                                subparent=tag_url,
+                                var_type="int",
+                                min_int=-2,
+                                do_print=False,
+                                default=-1,
+                                save=False,
+                            )
                         else:
-                            tracker["tag"] = self.config.util.check_for_attribute(
-                                self.config.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
-                            )
-                            if tracker["tag"] == [tag_url]:
-                                self.config.data["tracker"][tag_url]["tag"] = [tag_url]
-                            if isinstance(tracker["tag"], str):
-                                tracker["tag"] = [tracker["tag"]]
-                            is_max_ratio_defined = self.config.data["tracker"].get("max_ratio")
-                            is_max_seeding_time_defined = self.config.data["tracker"].get("max_seeding_time")
-                            if is_max_ratio_defined or is_max_seeding_time_defined:
-                                tracker["max_ratio"] = self.config.util.check_for_attribute(
-                                    self.config.data,
-                                    "max_ratio",
-                                    parent="tracker",
-                                    subparent=tag_url,
-                                    var_type="float",
-                                    min_int=-2,
-                                    do_print=False,
-                                    default=-1,
-                                    save=False,
-                                )
-                                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
-                                    self.config.data,
-                                    "max_seeding_time",
-                                    parent="tracker",
-                                    subparent=tag_url,
-                                    var_type="int",
-                                    min_int=-2,
-                                    do_print=False,
-                                    default=-1,
-                                    save=False,
-                                )
-                            else:
-                                tracker["max_ratio"] = self.config.util.check_for_attribute(
-                                    self.config.data,
-                                    "max_ratio",
-                                    parent="tracker",
-                                    subparent=tag_url,
-                                    var_type="float",
-                                    min_int=-2,
-                                    do_print=False,
-                                    default_is_none=True,
-                                    save=False,
-                                )
-                                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
-                                    self.config.data,
-                                    "max_seeding_time",
-                                    parent="tracker",
-                                    subparent=tag_url,
-                                    var_type="int",
-                                    min_int=-2,
-                                    do_print=False,
-                                    default_is_none=True,
-                                    save=False,
-                                )
-                            tracker["min_seeding_time"] = self.config.util.check_for_attribute(
+                            tracker["max_ratio"] = self.config.util.check_for_attribute(
                                 self.config.data,
-                                "min_seeding_time",
+                                "max_ratio",
                                 parent="tracker",
                                 subparent=tag_url,
-                                var_type="int",
-                                min_int=0,
+                                var_type="float",
+                                min_int=-2,
                                 do_print=False,
-                                default=0,
-                                save=False,
-                            )
-                            tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "limit_upload_speed",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="int",
-                                min_int=-1,
-                                do_print=False,
-                                default=0,
-                                save=False,
-                            )
-                            tracker["notifiarr"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "notifiarr",
-                                parent="tracker",
-                                subparent=tag_url,
                                 default_is_none=True,
-                                do_print=False,
                                 save=False,
                             )
+                            tracker["max_seeding_time"] = self.config.util.check_for_attribute(
+                                self.config.data,
+                                "max_seeding_time",
+                                parent="tracker",
+                                subparent=tag_url,
+                                var_type="int",
+                                min_int=-2,
+                                do_print=False,
+                                default_is_none=True,
+                                save=False,
+                            )
+                        tracker["min_seeding_time"] = self.config.util.check_for_attribute(
+                            self.config.data,
+                            "min_seeding_time",
+                            parent="tracker",
+                            subparent=tag_url,
+                            var_type="int",
+                            min_int=0,
+                            do_print=False,
+                            default=0,
+                            save=False,
+                        )
+                        tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
+                            self.config.data,
+                            "limit_upload_speed",
+                            parent="tracker",
+                            subparent=tag_url,
+                            var_type="int",
+                            min_int=-1,
+                            do_print=False,
+                            default=0,
+                            save=False,
+                        )
+                        tracker["notifiarr"] = self.config.util.check_for_attribute(
+                            self.config.data,
+                            "notifiarr",
+                            parent="tracker",
+                            subparent=tag_url,
+                            default_is_none=True,
+                            do_print=False,
+                            save=False,
+                        )
                         return tracker
             if tracker_other_tag:
                 tracker["tag"] = tracker_other_tag

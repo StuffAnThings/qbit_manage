@@ -182,7 +182,14 @@ class check:
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
             else:
-                message = f"Path {os.path.abspath(data[attribute])} does not exist"
+                if make_dirs:
+                    try:
+                        os.makedirs(data[attribute], exist_ok=True)
+                        return os.path.join(data[attribute], "")
+                    except OSError:
+                        message = f"Path {os.path.abspath(data[attribute])} does not exist and can't be created"
+                else:
+                    message = f"Path {os.path.abspath(data[attribute])} does not exist"
         elif var_type == "list":
             return get_list(data[attribute], split=False)
         elif var_type == "list_path":
@@ -197,11 +204,13 @@ class check:
             return data[attribute]
         else:
             message = f"{text}: {data[attribute]} is an invalid input"
-        if var_type == "path" and default and os.path.exists(os.path.abspath(default)):
-            return os.path.join(default, "")
-        elif var_type == "path" and default and make_dirs:
-            os.makedirs(default, exist_ok=True)
-            return os.path.join(default, "")
+        if var_type == "path" and default:
+            default_path = os.path.abspath(default)
+            if make_dirs and not os.path.exists(default_path):
+                os.makedirs(default, exist_ok=True)
+            if os.path.exists(default_path):
+                default = os.path.join(default, "")
+                message = message + f", using {default} as default"
         elif var_type == "path" and default:
             if data and attribute in data and data[attribute]:
                 message = f"neither {data[attribute]} or the default path {default} could be found"

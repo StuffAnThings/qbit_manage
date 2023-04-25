@@ -96,8 +96,6 @@ class Config:
             self.data["cat_change"] = self.data.pop("cat_change")
         if "tracker" in self.data:
             self.data["tracker"] = self.data.pop("tracker")
-        elif "tags" in self.data:
-            self.data["tracker"] = self.data.pop("tags")
         else:
             self.data["tracker"] = {}
         if "nohardlinks" in self.data:
@@ -521,6 +519,7 @@ class Config:
                     for name in files
                 ]
                 location_files = sorted(location_files)
+                logger.trace(f"location_files: {location_files}")
                 if location_files:
                     body = []
                     logger.separator(f"Emptying {location} (Files > {empty_after_x_days} days)", space=True, border=True)
@@ -529,9 +528,16 @@ class Config:
                         folder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                         if folder != prevfolder:
                             body += logger.separator(f"Searching: {folder}", space=False, border=False)
-                        fileStats = os.stat(file)
-                        filename = os.path.basename(file)
-                        last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
+                        try:
+                            fileStats = os.stat(file)
+                            filename = os.path.basename(file)
+                            last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
+                        except FileNotFoundError:
+                            ex = logger.print_line(
+                                f"{location} Warning - FileNotFound: No such file or directory: {file} ", "WARNING"
+                            )
+                            self.config.notify(ex, "Cleanup Dirs", False)
+                            continue
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
                         if empty_after_x_days <= days:
