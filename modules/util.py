@@ -307,19 +307,22 @@ def copy_files(src, dest):
 def remove_empty_directories(pathlib_root_dir, pattern):
     """Remove empty directories recursively."""
     pathlib_root_dir = Path(pathlib_root_dir)
-    # list all directories recursively and sort them by path,
-    # longest first
-    longest = sorted(
-        pathlib_root_dir.glob(pattern),
-        key=lambda p: len(str(p)),
-        reverse=True,
-    )
-    longest.append(pathlib_root_dir)
-    for pdir in longest:
-        try:
-            pdir.rmdir()  # remove directory if empty
-        except OSError:
-            continue  # catch and continue if non-empty
+    try:
+        # list all directories recursively and sort them by path,
+        # longest first
+        longest = sorted(
+            pathlib_root_dir.glob(pattern),
+            key=lambda p: len(str(p)),
+            reverse=True,
+        )
+        longest.append(pathlib_root_dir)  # delete the folder itself if it's empty
+        for pdir in longest:
+            try:
+                pdir.rmdir()  # remove directory if empty
+            except (FileNotFoundError, OSError):
+                continue  # catch and continue if non-empty, folders within could already be deleted if run in parallel
+    except FileNotFoundError:
+        pass  # if this is being run in parallel, pathlib_root_dir could already be deleted
 
 
 def nohardlink(file, notify):
