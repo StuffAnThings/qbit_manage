@@ -72,7 +72,7 @@ class CrossSeed:
                     logger.print_line(f"Found {t_name} in {dir_cs} but original torrent is not complete.", self.config.loglevel)
                     logger.print_line("Not adding to qBittorrent", self.config.loglevel)
             else:
-                error = f"{t_name} not found in torrents. Cross-seed Torrent not added to qBittorrent."
+                error = f"{tr_name} not found in torrents. Cross-seed Torrent not added to qBittorrent."
                 if self.config.dry_run:
                     logger.print_line(error, self.config.loglevel)
                 else:
