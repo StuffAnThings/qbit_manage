@@ -377,16 +377,12 @@ def start():
     try:
         cfg = Config(default_dir, args)
         qbit_manager = cfg.qbt
-
     except Exception as ex:
-        if "Qbittorrent Error" in ex.args[0]:
-            logger.print_line(ex, "CRITICAL")
-            logger.print_line("Exiting scheduled Run.", "CRITICAL")
-            finished_run()
-            return None
-        else:
-            logger.stacktrace()
-            logger.print_line(ex, "CRITICAL")
+        logger.stacktrace()
+        logger.print_line(ex, "CRITICAL")
+        logger.print_line("Exiting scheduled Run.", "CRITICAL")
+        finished_run()
+        return None
 
     if qbit_manager:
         # Set Category
