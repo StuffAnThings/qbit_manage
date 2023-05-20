@@ -356,6 +356,9 @@ class CheckHardLinks:
         check_for_hl = True
         if os.path.isfile(file):
             logger.trace(f"Checking file: {file}")
+            logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+            logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
+            logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
             # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
             if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
                 check_for_hl = False
@@ -379,8 +382,10 @@ class CheckHardLinks:
                     file_size = os.stat(files).st_size
                     file_no_hardlinks = os.stat(files).st_nlink
                     logger.trace(f"Checking file: {file}")
+                    logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
                     logger.trace(f"Checking file size: {file_size}")
                     logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+                    logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
                     if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
                         largest_file_size * threshold
                     ):
