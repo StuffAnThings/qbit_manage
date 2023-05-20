@@ -20,8 +20,6 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
-        global _config
-        _config = self.config
         self.pool = Pool(processes=max(cpu_count() - 1, 1), initializer=init_pool, initargs=(self.config,))
         self.rem_orphaned()
         self.cleanup_pool()
