@@ -356,10 +356,13 @@ class CheckHardLinks:
         check_for_hl = True
         try:
             if os.path.isfile(file):
+                if os.path.islink(file):
+                    logger.warning(f"Symlink found in {file}, unable to determine hardlinks. Skipping...")
+                    return False
                 logger.trace(f"Checking file: {file}")
                 logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
                 logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
-                logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
                 if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
                     check_for_hl = False
@@ -380,6 +383,9 @@ class CheckHardLinks:
                     logger.trace(f"Largest file: {sorted_files[0]}")
                     logger.trace(f"Largest file size: {largest_file_size}")
                     for files in sorted_files:
+                        if os.path.islink(files):
+                            logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
+                            continue
                         file_size = os.stat(files).st_size
                         file_no_hardlinks = os.stat(files).st_nlink
                         logger.trace(f"Checking file: {file}")
@@ -392,10 +398,10 @@ class CheckHardLinks:
                         ):
                             check_for_hl = False
         except PermissionError as perm:
-            logger.warning(f"{perm} : file {file} has permission issues.")
+            logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
             return False
         except FileNotFoundError as file_not_found_error:
-            logger.warning(f"{file_not_found_error} : File {file} not found.")
+            logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
             return False
         except Exception as ex:
             logger.stacktrace()
