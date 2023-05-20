@@ -354,42 +354,53 @@ class CheckHardLinks:
         This fixes the bug in #192
         """
         check_for_hl = True
-        if os.path.isfile(file):
-            logger.trace(f"Checking file: {file}")
-            logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
-            logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
-            logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
-            # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
-            if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
-                check_for_hl = False
-        else:
-            sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
-            logger.trace(f"Folder: {file}")
-            logger.trace(f"Files Sorted by size: {sorted_files}")
-            threshold = 0.5
-            if not sorted_files:
-                msg = (
-                    f"Nohardlink Error: Unable to open the folder {file}. "
-                    "Please make sure folder exists and qbit_manage has access to this directory."
-                )
-                notify(msg, "nohardlink")
-                logger.warning(msg)
+        try:
+            if os.path.isfile(file):
+                logger.trace(f"Checking file: {file}")
+                logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
+                logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
+                if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
+                    check_for_hl = False
             else:
-                largest_file_size = os.stat(sorted_files[0]).st_size
-                logger.trace(f"Largest file: {sorted_files[0]}")
-                logger.trace(f"Largest file size: {largest_file_size}")
-                for files in sorted_files:
-                    file_size = os.stat(files).st_size
-                    file_no_hardlinks = os.stat(files).st_nlink
-                    logger.trace(f"Checking file: {file}")
-                    logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
-                    logger.trace(f"Checking file size: {file_size}")
-                    logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                    logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
-                    if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
-                        largest_file_size * threshold
-                    ):
-                        check_for_hl = False
+                sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+                logger.trace(f"Folder: {file}")
+                logger.trace(f"Files Sorted by size: {sorted_files}")
+                threshold = 0.5
+                if not sorted_files:
+                    msg = (
+                        f"Nohardlink Error: Unable to open the folder {file}. "
+                        "Please make sure folder exists and qbit_manage has access to this directory."
+                    )
+                    notify(msg, "nohardlink")
+                    logger.warning(msg)
+                else:
+                    largest_file_size = os.stat(sorted_files[0]).st_size
+                    logger.trace(f"Largest file: {sorted_files[0]}")
+                    logger.trace(f"Largest file size: {largest_file_size}")
+                    for files in sorted_files:
+                        file_size = os.stat(files).st_size
+                        file_no_hardlinks = os.stat(files).st_nlink
+                        logger.trace(f"Checking file: {file}")
+                        logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                        logger.trace(f"Checking file size: {file_size}")
+                        logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+                        logger.tract(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                        if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
+                            largest_file_size * threshold
+                        ):
+                            check_for_hl = False
+        except PermissionError as perm:
+            logger.warning(f"{perm} : file {file} has permission issues.")
+            return False
+        except FileNotFoundError as file_not_found_error:
+            logger.warning(f"{file_not_found_error} : File {file} not found.")
+            return False
+        except Exception as ex:
+            logger.stacktrace()
+            logger.error(ex)
+            return False
         return check_for_hl
 
 
