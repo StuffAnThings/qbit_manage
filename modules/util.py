@@ -325,44 +325,78 @@ def remove_empty_directories(pathlib_root_dir, pattern):
         pass  # if this is being run in parallel, pathlib_root_dir could already be deleted
 
 
-def nohardlink(file, notify):
+class CheckHardLinks:
     """
-    Check if there are any hard links
-    Will check if there are any hard links if it passes a file or folder
-    If a folder is passed, it will take the largest file in that folder and only check for hardlinks
-    of the remaining files where the file is greater size a percentage of the largest file
-    This fixes the bug in #192
+    Class to check for hardlinks
     """
-    check_for_hl = True
-    if os.path.isfile(file):
-        logger.trace(f"Checking file: {file}")
-        if os.stat(file).st_nlink > 1:
-            check_for_hl = False
-    else:
-        sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
-        logger.trace(f"Folder: {file}")
-        logger.trace(f"Files Sorted by size: {sorted_files}")
-        threshold = 0.5
-        if not sorted_files:
-            msg = (
-                f"Nohardlink Error: Unable to open the folder {file}. "
-                "Please make sure folder exists and qbit_manage has access to this directory."
-            )
-            notify(msg, "nohardlink")
-            logger.warning(msg)
+
+    def __init__(self, root_dir, remote_dir):
+        self.root_dir = root_dir
+        self.remote_dir = remote_dir
+        self.root_files = set(get_root_files(self.root_dir, self.remote_dir))
+        self.get_inode_count()
+
+    def get_inode_count(self):
+        self.inode_count = {}
+        for file in self.root_files:
+            inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            if inode_no in self.inode_count:
+                self.inode_count[inode_no] += 1
+            else:
+                self.inode_count[inode_no] = 1
+
+    def nohardlink(self, file, notify):
+        """
+        Check if there are any hard links
+        Will check if there are any hard links if it passes a file or folder
+        If a folder is passed, it will take the largest file in that folder and only check for hardlinks
+        of the remaining files where the file is greater size a percentage of the largest file
+        This fixes the bug in #192
+        """
+        check_for_hl = True
+        if os.path.isfile(file):
+            logger.trace(f"Checking file: {file}")
+            # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
+            if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
+                check_for_hl = False
         else:
-            largest_file_size = os.stat(sorted_files[0]).st_size
-            logger.trace(f"Largest file: {sorted_files[0]}")
-            logger.trace(f"Largest file size: {largest_file_size}")
-            for files in sorted_files:
-                file_size = os.stat(files).st_size
-                file_no_hardlinks = os.stat(files).st_nlink
-                logger.trace(f"Checking file: {file}")
-                logger.trace(f"Checking file size: {file_size}")
-                logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
-                    check_for_hl = False
-    return check_for_hl
+            sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+            logger.trace(f"Folder: {file}")
+            logger.trace(f"Files Sorted by size: {sorted_files}")
+            threshold = 0.5
+            if not sorted_files:
+                msg = (
+                    f"Nohardlink Error: Unable to open the folder {file}. "
+                    "Please make sure folder exists and qbit_manage has access to this directory."
+                )
+                notify(msg, "nohardlink")
+                logger.warning(msg)
+            else:
+                largest_file_size = os.stat(sorted_files[0]).st_size
+                logger.trace(f"Largest file: {sorted_files[0]}")
+                logger.trace(f"Largest file size: {largest_file_size}")
+                for files in sorted_files:
+                    file_size = os.stat(files).st_size
+                    file_no_hardlinks = os.stat(files).st_nlink
+                    logger.trace(f"Checking file: {file}")
+                    logger.trace(f"Checking file size: {file_size}")
+                    logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+                    if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
+                        largest_file_size * threshold
+                    ):
+                        check_for_hl = False
+        return check_for_hl
+
+
+def get_root_files(root_dir, remote_dir, exclude_dir=None):
+    local_exclude_dir = exclude_dir.replace(remote_dir, root_dir) if exclude_dir and remote_dir != root_dir else exclude_dir
+    root_files = [
+        os.path.join(path.replace(remote_dir, root_dir) if remote_dir != root_dir else path, name)
+        for path, subdirs, files in os.walk(remote_dir if remote_dir != root_dir else root_dir)
+        for name in files
+        if not local_exclude_dir or local_exclude_dir not in path
+    ]
+    return root_files
 
 
 def load_json(file):

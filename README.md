@@ -16,7 +16,7 @@ This is a program used to manage your qBittorrent instance such as:
 * Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state. **\*Note: cross-seed now allows for torrent injections directly to qBit, making this feature obsolete.\***
 * Recheck paused torrents sorted by lowest size and resume if completed
 * Remove orphaned files from your root directory that are not referenced by qBittorrent
-* Tag any torrents that have no hard links and allows optional cleanup to delete these torrents and contents based on maximum ratio and/or time seeded
+* Tag any torrents that have no hard links outisde the root folder and allows optional cleanup to delete these torrents and contents based on maximum ratio and/or time seeded
 * RecycleBin function to move files into a RecycleBin folder instead of deleting the data directly when deleting a torrent
 * Built-in scheduler to run the script every x minutes. (Can use `--run` command to run without the scheduler)
 * Webhook notifications with [Notifiarr](https://notifiarr.com/) and [Apprise API](https://github.com/caronc/apprise-api) integration

@@ -36,21 +36,7 @@ class RemoveOrphaned:
         orphaned_files = []
         excluded_orphan_files = []
 
-        if self.remote_dir != self.root_dir:
-            local_orphaned_dir = self.orphaned_dir.replace(self.remote_dir, self.root_dir)
-            root_files = [
-                os.path.join(path.replace(self.remote_dir, self.root_dir), name)
-                for path, subdirs, files in os.walk(self.remote_dir)
-                for name in files
-                if local_orphaned_dir not in path
-            ]
-        else:
-            root_files = [
-                os.path.join(path, name)
-                for path, subdirs, files in os.walk(self.root_dir)
-                for name in files
-                if self.orphaned_dir not in path
-            ]
+        root_files = util.get_root_files(self.remote_dir, self.root_dir, self.orphaned_dir)
 
         # Get an updated list of torrents
         logger.print_line("Locating orphan files", self.config.loglevel)
