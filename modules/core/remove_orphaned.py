@@ -7,7 +7,6 @@ from multiprocessing import Pool
 from modules import util
 
 logger = util.logger
-_config = None
 
 
 class RemoveOrphaned:
@@ -21,9 +20,7 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
-        global _config
-        _config = self.config
-        self.pool = Pool(processes=max(cpu_count() - 1, 1))
+        self.pool = Pool(processes=max(cpu_count() - 1, 1), initializer=init_pool, initargs=(self.config,))
         self.rem_orphaned()
         self.cleanup_pool()
 
@@ -104,6 +101,11 @@ class RemoveOrphaned:
     def cleanup_pool(self):
         self.pool.close()
         self.pool.join()
+
+
+def init_pool(conf):
+    global _config
+    _config = conf
 
 
 def get_full_path_of_torrent_files(torrent_files, save_path):
