@@ -39,7 +39,7 @@ class CrossSeed:
                 dest = os.path.join(self.qbt.torrentinfo[t_name]["save_path"], "")
                 src = os.path.join(dir_cs, file)
                 dir_cs_out = os.path.join(dir_cs, "qbit_manage_added", file)
-                category = self.qbt.get_category(dest)
+                category = self.qbt.torrentinfo[t_name].get("Category", self.qbt.get_category(dest))
                 # Only add cross-seed torrent if original torrent is complete
                 if self.qbt.torrentinfo[t_name]["is_complete"]:
                     categories.append(category)
