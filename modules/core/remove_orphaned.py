@@ -7,7 +7,6 @@ from multiprocessing import Pool
 from modules import util
 
 logger = util.logger
-_config = None
 
 
 class RemoveOrphaned:
@@ -23,7 +22,7 @@ class RemoveOrphaned:
 
         global _config
         _config = self.config
-        self.pool = Pool(processes=max(cpu_count() - 1, 1))
+        self.pool = Pool(processes=max(cpu_count() - 1, 1), initializer=init_pool, initargs=(self.config,))
         self.rem_orphaned()
         self.cleanup_pool()
 
@@ -106,6 +105,10 @@ class RemoveOrphaned:
         self.pool.join()
 
 
+def init_pool(conf):
+    global _config
+    _config = conf
+
 def get_full_path_of_torrent_files(torrent_files, save_path):
     fullpath_torrent_files = []
     for file in torrent_files:
@@ -114,7 +117,6 @@ def get_full_path_of_torrent_files(torrent_files, save_path):
         fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
         fullpath_torrent_files.append(fullpath)
     return fullpath_torrent_files
-
 
 def move_orphan(file):
     src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
