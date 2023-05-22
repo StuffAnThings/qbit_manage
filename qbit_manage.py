@@ -393,6 +393,12 @@ def start():
         if cfg.commands["tag_update"]:
             stats["tagged"] += Tags(qbit_manager).stats
 
+        # Set Cross Seed
+        if cfg.commands["cross_seed"]:
+            cross_seed = CrossSeed(qbit_manager)
+            stats["added"] += cross_seed.stats_added
+            stats["tagged"] += cross_seed.stats_tagged
+
         # Remove Unregistered Torrents and tag errors
         if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
             rem_unreg = RemoveUnregistered(qbit_manager)
@@ -402,12 +408,6 @@ def start():
             stats["tagged_tracker_error"] += rem_unreg.stats_tagged
             stats["untagged_tracker_error"] += rem_unreg.stats_untagged
             stats["tagged"] += rem_unreg.stats_tagged
-
-        # Set Cross Seed
-        if cfg.commands["cross_seed"]:
-            cross_seed = CrossSeed(qbit_manager)
-            stats["added"] += cross_seed.stats_added
-            stats["tagged"] += cross_seed.stats_tagged
 
         # Recheck Torrents
         if cfg.commands["recheck"]:

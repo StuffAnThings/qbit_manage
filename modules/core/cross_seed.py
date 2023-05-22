@@ -2,6 +2,7 @@ import os
 from collections import Counter
 
 from modules import util
+from modules.torrent_hash_generator import TorrentHashGenerator
 
 logger = util.logger
 
@@ -67,7 +68,23 @@ class CrossSeed:
                         self.client.torrents.add(
                             torrent_files=src, save_path=dest, category=category, tags="cross-seed", is_paused=True
                         )
-                        util.move_files(src, dir_cs_out)
+                        self.qbt.torrentinfo[t_name]["count"] += 1
+                        try:
+                            torrent_hash_generator = TorrentHashGenerator(src)
+                            torrent_hash = torrent_hash_generator.generate_torrent_hash()
+                            util.move_files(src, dir_cs_out)
+                        except Exception as e:
+                            logger.warning(f"Unable to generate torrent hash from cross-seed {t_name}: {e}")
+                        try:
+                            if torrent_hash:
+                                torrent_info = self.qbt.get_torrents({"torrent_hashes": torrent_hash})
+                        except Exception as e:
+                            logger.warning(f"Unable to find hash {torrent_hash} in qbt: {e}")
+                        if torrent_info:
+                            torrent = torrent_info[0]
+                            self.qbt.torrentvalid.append(torrent)
+                            self.qbt.torrentinfo[t_name]["torrents"].append(torrent)
+                            self.qbt.torrent_list.append(torrent)
                 else:
                     logger.print_line(f"Found {t_name} in {dir_cs} but original torrent is not complete.", self.config.loglevel)
                     logger.print_line("Not adding to qBittorrent", self.config.loglevel)

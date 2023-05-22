@@ -1,3 +1,4 @@
+bencodepy==0.9.5
 flake8==6.0.0
 pre-commit==3.3.2
 qbittorrent-api==2023.4.47

@@ -2,6 +2,7 @@
 - pre-commit updated to 3.3.3
 - requests updated to 2.30.0
 - ruamel.yaml updated to 0.17.26
+- Adds new dependency bencodepy to generate hash for cross-seed
 
 # Bug Fixes
 - Changes HardLink Logic (Thanks to @ColinHebert for the suggestion) Fixes #291
@@ -10,5 +11,7 @@
 - Fixes Remove Orphan crashing when multiprocessing (Thanks to @buthed010203 #289)
 - Fixes Remove Orphan from crashing in Windows (Fixes #275)
 - Fixes #292
+- Fixes #201
+- Fixes #279
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.2...v3.6.3
