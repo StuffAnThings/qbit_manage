@@ -1,8 +1,7 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 from itertools import repeat
-from multiprocessing import cpu_count
-from multiprocessing import Pool
 
 from modules import util
 
@@ -20,9 +19,10 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
-        self.pool = Pool(processes=max(cpu_count() - 1, 1), initializer=init_pool, initargs=(self.config,))
+        max_workers = max(os.cpu_count() - 1, 1)
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.rem_orphaned()
-        self.cleanup_pool()
+        self.executor.shutdown()
 
     def rem_orphaned(self):
         """Remove orphaned files from remote directory"""
@@ -47,7 +47,7 @@ class RemoveOrphaned:
         torrent_files.extend(
             [
                 fullpath
-                for fullpathlist in self.pool.starmap(get_full_path_of_torrent_files, torrent_files_and_save_path)
+                for fullpathlist in self.executor.map(get_full_path_of_torrent_files, torrent_files_and_save_path)
                 for fullpath in fullpathlist
                 if fullpath not in torrent_files
             ]
@@ -91,24 +91,22 @@ class RemoveOrphaned:
             self.config.send_notifications(attr)
             # Delete empty directories after moving orphan files
             if not self.config.dry_run:
-                orphaned_parent_path = set(self.pool.map(move_orphan, orphaned_files))
+                orphaned_parent_path = set(self.executor.map(self.move_orphan, orphaned_files))
                 logger.print_line("Removing newly empty directories", self.config.loglevel)
-                self.pool.starmap(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
+                self.executor.map(util.remove_empty_directories, zip(orphaned_parent_path, repeat("**/*")))
 
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
 
-    def cleanup_pool(self):
-        self.pool.close()
-        self.pool.join()
+    def move_orphan(self, file):
+        src = file.replace(self.root_dir, self.remote_dir)
+        dest = os.path.join(self.orphaned_dir, file.replace(self.root_dir, ""))
+        util.move_files(src, dest, True)
+        return os.path.dirname(file).replace(self.root_dir, self.remote_dir)
 
 
-def init_pool(conf):
-    global _config
-    _config = conf
-
-
-def get_full_path_of_torrent_files(torrent_files, save_path):
+def get_full_path_of_torrent_files(torrent_files_and_save_path):
+    torrent_files, save_path = torrent_files_and_save_path
     fullpath_torrent_files = []
     for file in torrent_files:
         fullpath = os.path.join(save_path, file)
@@ -116,10 +114,3 @@ def get_full_path_of_torrent_files(torrent_files, save_path):
         fullpath = fullpath.replace(r"/", "\\") if ":\\" in fullpath else fullpath
         fullpath_torrent_files.append(fullpath)
     return fullpath_torrent_files
-
-
-def move_orphan(file):
-    src = file.replace(_config.root_dir, _config.remote_dir)  # Could be optimized to only run when root != remote
-    dest = os.path.join(_config.orphaned_dir, file.replace(_config.root_dir, ""))
-    util.move_files(src, dest, True)
-    return os.path.dirname(file).replace(_config.root_dir, _config.remote_dir)  # Another candidate for micro optimizing
