@@ -30,6 +30,7 @@ COMMANDS = [
     "tag_nohardlinks",
     "skip_cleanup",
     "dry_run",
+    "api"
 ]
 
 
@@ -89,6 +90,7 @@ class Config:
         if "qbt" in self.data:
             self.data["qbt"] = self.data.pop("qbt")
         self.data["settings"] = self.data.pop("settings") if "settings" in self.data else {}
+        self.data["api"] = self.data.pop("api") if "api" in self.data else {}
         if "directory" in self.data:
             self.data["directory"] = self.data.pop("directory")
         self.data["cat"] = self.data.pop("cat") if "cat" in self.data else {}
@@ -455,6 +457,12 @@ class Config:
             self.orphaned["exclude_patterns"].append(exclude_recycle) if exclude_recycle not in self.orphaned[
                 "exclude_patterns"
             ] else self.orphaned["exclude_patterns"]
+
+        # Add API TODO: I don't know what half of these params do. Also, add env vars and cli params
+        self.api = {}
+        self.api["add_torrent_webhook"] = self.util.check_for_attribute(self.data, "add_torrent_webhook", parent="api", var_type="bool")
+        self.api["host"] = self.util.check_for_attribute(self.data, "host", parent="api")
+        self.api["port"] = self.util.check_for_attribute(self.data, "port", parent="api", var_type="int")
 
         # Connect to Qbittorrent
         self.qbt = None

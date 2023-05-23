@@ -4,19 +4,26 @@ logger = util.logger
 
 
 class Tags:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, torrents_to_tag=None, silent=False):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
 
-        self.tags()
+        level = logger._logger.level
+        logger
+        if silent:
+            logger._logger.setLevel("WARN")
+        self.tags(self.qbt.torrent_list if torrents_to_tag is None else torrents_to_tag)
+        if silent:
+            logger._logger.setLevel(level)
 
-    def tags(self):
+    def tags(self, torrent_list):
         """Update tags for torrents"""
         ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
         logger.separator("Updating Tags", space=False, border=False)
-        for torrent in self.qbt.torrent_list:
+
+        for torrent in torrent_list:
             check_tags = util.get_list(torrent.tags)
             if torrent.tags == "" or (len([trk for trk in check_tags if trk not in ignore_tags]) == 0):
                 tracker = self.qbt.get_tags(torrent.trackers)

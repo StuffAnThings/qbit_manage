@@ -15,12 +15,17 @@ commands:
   rem_orphaned: False
   tag_nohardlinks: False
   skip_cleanup: False
+  api: False
 
 qbt:
   # qBittorrent parameters
   host: "localhost:8080"
   user: "username"
   pass: "password"
+
+api:
+  host: 127.0.0.1
+  port: 2469
 
 settings:
   force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
