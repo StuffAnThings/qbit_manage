@@ -1,7 +1,6 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
-from itertools import repeat
 
 from modules import util
 
