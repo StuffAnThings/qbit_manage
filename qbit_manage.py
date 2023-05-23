@@ -6,9 +6,11 @@ import os
 import platform
 import sys
 import time
-from datetime import datetime, timedelta
-from typing_extensions import Annotated
+from datetime import datetime
+from datetime import timedelta
 from threading import Thread
+
+from typing_extensions import Annotated
 
 try:
     import schedule
@@ -347,6 +349,7 @@ def start_fastapi(cfg):
     app = FastAPI()
 
     if cfg.api["add_torrent_webhook"]:
+
         @app.post("/webhook")
         def hook(id: Annotated[str, Form()]):  # This would probably be fine as an async function but I'm not risking it.
             torrent = cfg.qbt.get_torrents({"torrent_hashes": id})
@@ -428,8 +431,10 @@ def start():
 
     if qbit_manager:
         # Setup API  TODO: Validate the host and port?
-        if cfg.commands["api"] and cfg.api["host"] and cfg.api["port"]:  # TODO: This should absolutely not run more than once per config file.
-            Thread(target = lambda: start_fastapi(cfg)).start()  # TODO: Additionally, in the case of multiple config files, it should probably check for port conflicts
+        # TODO: This should absolutely not run more than once per config file.
+        if cfg.commands["api"] and cfg.api["host"] and cfg.api["port"]:
+            # TODO: Additionally, in the case of multiple config files, it should probably check for port conflicts
+            Thread(target=lambda: start_fastapi(cfg)).start()
 
         # Set Category
         if cfg.commands["cat_update"]:

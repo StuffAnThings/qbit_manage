@@ -30,7 +30,7 @@ COMMANDS = [
     "tag_nohardlinks",
     "skip_cleanup",
     "dry_run",
-    "api"
+    "api",
 ]
 
 
@@ -460,7 +460,9 @@ class Config:
 
         # Add API TODO: I don't know what half of these params do. Also, add env vars and cli params
         self.api = {}
-        self.api["add_torrent_webhook"] = self.util.check_for_attribute(self.data, "add_torrent_webhook", parent="api", var_type="bool")
+        self.api["add_torrent_webhook"] = self.util.check_for_attribute(
+            self.data, "add_torrent_webhook", parent="api", var_type="bool"
+        )
         self.api["host"] = self.util.check_for_attribute(self.data, "host", parent="api")
         self.api["port"] = self.util.check_for_attribute(self.data, "port", parent="api", var_type="int")
 
