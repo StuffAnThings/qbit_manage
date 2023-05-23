@@ -7,6 +7,7 @@ import signal
 import time
 from pathlib import Path
 
+import requests
 import ruamel.yaml
 
 logger = logging.getLogger("qBit Manage")
@@ -69,6 +70,64 @@ class TorrentMessages:
         "BAD GATEWAY",
         "TRACKER UNAVAILABLE",
     ]
+
+
+def guess_branch(version, env_version, git_branch):
+    if git_branch:
+        return git_branch
+    elif env_version == "develop":
+        return env_version
+    elif version[2] > 0:
+        dev_version = get_develop()
+        if version[1] != dev_version[1] or version[2] <= dev_version[2]:
+            return "develop"
+    else:
+        return "master"
+
+
+def current_version(version, branch=None):
+    if branch == "develop":
+        return get_develop()
+    elif version[2] > 0:
+        new_version = get_develop()
+        if version[1] != new_version[1] or new_version[2] >= version[2]:
+            return new_version
+    else:
+        return get_master()
+
+
+develop_version = None
+
+
+def get_develop():
+    global develop_version
+    if develop_version is None:
+        develop_version = get_version("develop")
+    return develop_version
+
+
+master_version = None
+
+
+def get_master():
+    global master_version
+    if master_version is None:
+        master_version = get_version("master")
+    return master_version
+
+
+def get_version(level):
+    try:
+        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/{level}/VERSION"
+        return parse_version(requests.get(url).content.decode().strip(), text=level)
+    except requests.exceptions.ConnectionError:
+        return "Unknown", "Unknown", 0
+
+
+def parse_version(version, text="develop"):
+    version = version.replace("develop", text)
+    split_version = version.split(f"-{text}")
+    return version, split_version[0], int(split_version[1]) if len(split_version) > 1 else 0
 
 
 class check:
