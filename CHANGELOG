@@ -1,6 +1,6 @@
 # Requirements Updated
 - pre-commit updated to 3.3.3
-- requests updated to 2.30.0
+- requests updated to 2.31.0
 - ruamel.yaml updated to 0.17.26
 - Adds new dependency bencodepy to generate hash for cross-seed
 - Adds new dependency GitPython for checking git branches
@@ -10,6 +10,7 @@
 - Additional error checking (Fixes #282)
 - Fixes #287 (Thanks to @buthed010203 #290)
 - Fixes Remove Orphan crashing when multiprocessing (Thanks to @buthed010203 #289)
+- Speed optimization for Remove Orphan (Thanks to @buthed010203 #299)
 - Fixes Remove Orphan from crashing in Windows (Fixes #275)
 - Fixes #292
 - Fixes #201
