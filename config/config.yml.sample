@@ -136,7 +136,7 @@ tracker:
     tag: other
 
 nohardlinks:
-  # Tag Movies/Series that are not hard linked
+  # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
   movies-completed:

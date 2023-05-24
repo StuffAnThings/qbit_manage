@@ -3,6 +3,7 @@
 import argparse
 import glob
 import os
+import platform
 import sys
 import time
 from datetime import datetime
@@ -166,16 +167,23 @@ parser.add_argument("-w", "--width", dest="width", help="Screen Width (Default: 
 args = parser.parse_args()
 
 
+static_envs = []
+test_value = None
+
+
 def get_arg(env_str, default, arg_bool=False, arg_int=False):
-    """Get argument from environment variable or command line argument."""
+    global test_value
     env_vars = [env_str] if not isinstance(env_str, list) else env_str
     final_value = None
+    static_envs.extend(env_vars)
     for env_var in env_vars:
         env_value = os.environ.get(env_var)
+        if env_var == "BRANCH_NAME":
+            test_value = env_value
         if env_value is not None:
             final_value = env_value
             break
-    if final_value is not None:
+    if final_value or (arg_int and final_value == 0):
         if arg_bool:
             if final_value is True or final_value is False:
                 return final_value
@@ -184,13 +192,28 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
             else:
                 return False
         elif arg_int:
-            return int(final_value)
+            try:
+                return int(final_value)
+            except ValueError:
+                return default
         else:
             return str(final_value)
     else:
         return default
 
 
+try:
+    from git import Repo, InvalidGitRepositoryError
+
+    try:
+        git_branch = Repo(path=".").head.ref.name  # noqa
+    except InvalidGitRepositoryError:
+        git_branch = None
+except ImportError:
+    git_branch = None
+
+env_version = get_arg("BRANCH_NAME", "master")
+is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.min)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
@@ -306,13 +329,15 @@ def my_except_hook(exctype, value, tbi):
 
 sys.excepthook = my_except_hook
 
-version = "Unknown"
+version = ("Unknown", "Unknown", 0)
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
     for line in handle.readlines():
         line = line.strip()
         if len(line) > 0:
-            version = line
+            version = util.parse_version(line)
             break
+branch = util.guess_branch(version, env_version, git_branch)
+version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
 
 
 def start_loop():
@@ -377,16 +402,12 @@ def start():
     try:
         cfg = Config(default_dir, args)
         qbit_manager = cfg.qbt
-
     except Exception as ex:
-        if "Qbittorrent Error" in ex.args[0]:
-            logger.print_line(ex, "CRITICAL")
-            logger.print_line("Exiting scheduled Run.", "CRITICAL")
-            finished_run()
-            return None
-        else:
-            logger.stacktrace()
-            logger.print_line(ex, "CRITICAL")
+        logger.stacktrace()
+        logger.print_line(ex, "CRITICAL")
+        logger.print_line("Exiting scheduled Run.", "CRITICAL")
+        finished_run()
+        return None
 
     if qbit_manager:
         # Set Category
@@ -397,6 +418,12 @@ def start():
         if cfg.commands["tag_update"]:
             stats["tagged"] += Tags(qbit_manager).stats
 
+        # Set Cross Seed
+        if cfg.commands["cross_seed"]:
+            cross_seed = CrossSeed(qbit_manager)
+            stats["added"] += cross_seed.stats_added
+            stats["tagged"] += cross_seed.stats_tagged
+
         # Remove Unregistered Torrents and tag errors
         if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
             rem_unreg = RemoveUnregistered(qbit_manager)
@@ -406,12 +433,6 @@ def start():
             stats["tagged_tracker_error"] += rem_unreg.stats_tagged
             stats["untagged_tracker_error"] += rem_unreg.stats_untagged
             stats["tagged"] += rem_unreg.stats_tagged
-
-        # Set Cross Seed
-        if cfg.commands["cross_seed"]:
-            cross_seed = CrossSeed(qbit_manager)
-            stats["added"] += cross_seed.stats_added
-            stats["tagged"] += cross_seed.stats_tagged
 
         # Recheck Torrents
         if cfg.commands["recheck"]:
@@ -525,8 +546,17 @@ if __name__ == "__main__":
     logger.info_center(r"  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
     logger.info_center("     | |         ______                            __/ |     ")  # noqa: W605
     logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
-    logger.info(f"    Version: {version}")
-
+    system_ver = "Docker" if is_docker else f"Python {platform.python_version()}"
+    logger.info(f"    Version: {version[0]} ({system_ver}){f' (Git: {git_branch})' if git_branch else ''}")
+    latest_version = util.current_version(version, branch=branch)
+    new_version = (
+        latest_version[0]
+        if latest_version and (version[1] != latest_version[1] or (version[2] and version[2] < latest_version[2]))
+        else None
+    )
+    if new_version:
+        logger.info(f"    Newest Version: {new_version}")
+    logger.info(f"    Platform: {platform.platform()}")
     logger.separator(loglevel="DEBUG")
     logger.debug(f"    --run (QBT_RUN): {run}")
     logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")

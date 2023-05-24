@@ -110,27 +110,28 @@ class Config:
             self.data["notifiarr"] = self.data.pop("notifiarr")
         if "webhooks" in self.data:
             temp = self.data.pop("webhooks")
-            if "function" not in temp or ("function" in temp and temp["function"] is None):
-                temp["function"] = {}
+            if temp is not None:
+                if "function" not in temp or ("function" in temp and temp["function"] is None):
+                    temp["function"] = {}
 
-            def hooks(attr):
-                if attr in temp:
-                    items = temp.pop(attr)
-                    if items:
-                        temp["function"][attr] = items
-                if attr not in temp["function"]:
-                    temp["function"][attr] = {}
-                    temp["function"][attr] = None
+                def hooks(attr):
+                    if attr in temp:
+                        items = temp.pop(attr)
+                        if items:
+                            temp["function"][attr] = items
+                    if attr not in temp["function"]:
+                        temp["function"][attr] = {}
+                        temp["function"][attr] = None
 
-            hooks("cross_seed")
-            hooks("recheck")
-            hooks("cat_update")
-            hooks("tag_update")
-            hooks("rem_unregistered")
-            hooks("rem_orphaned")
-            hooks("tag_nohardlinks")
-            hooks("cleanup_dirs")
-            self.data["webhooks"] = temp
+                hooks("cross_seed")
+                hooks("recheck")
+                hooks("cat_update")
+                hooks("tag_update")
+                hooks("rem_unregistered")
+                hooks("rem_orphaned")
+                hooks("tag_nohardlinks")
+                hooks("cleanup_dirs")
+                self.data["webhooks"] = temp
         if "bhd" in self.data:
             self.data["bhd"] = self.data.pop("bhd")
         self.dry_run = self.commands["dry_run"]

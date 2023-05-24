@@ -26,4 +26,4 @@ Please delete options that are not relevant.
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have added or updated the docstring for new or existing methods
-- [ ] I have added tests when applicable
+- [ ] I have modified this PR to merge to the develop branch

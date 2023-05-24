@@ -7,6 +7,7 @@ import signal
 import time
 from pathlib import Path
 
+import requests
 import ruamel.yaml
 
 logger = logging.getLogger("qBit Manage")
@@ -69,6 +70,64 @@ class TorrentMessages:
         "BAD GATEWAY",
         "TRACKER UNAVAILABLE",
     ]
+
+
+def guess_branch(version, env_version, git_branch):
+    if git_branch:
+        return git_branch
+    elif env_version == "develop":
+        return env_version
+    elif version[2] > 0:
+        dev_version = get_develop()
+        if version[1] != dev_version[1] or version[2] <= dev_version[2]:
+            return "develop"
+    else:
+        return "master"
+
+
+def current_version(version, branch=None):
+    if branch == "develop":
+        return get_develop()
+    elif version[2] > 0:
+        new_version = get_develop()
+        if version[1] != new_version[1] or new_version[2] >= version[2]:
+            return new_version
+    else:
+        return get_master()
+
+
+develop_version = None
+
+
+def get_develop():
+    global develop_version
+    if develop_version is None:
+        develop_version = get_version("develop")
+    return develop_version
+
+
+master_version = None
+
+
+def get_master():
+    global master_version
+    if master_version is None:
+        master_version = get_version("master")
+    return master_version
+
+
+def get_version(level):
+    try:
+        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/{level}/VERSION"
+        return parse_version(requests.get(url).content.decode().strip(), text=level)
+    except requests.exceptions.ConnectionError:
+        return "Unknown", "Unknown", 0
+
+
+def parse_version(version, text="develop"):
+    version = version.replace("develop", text)
+    split_version = version.split(f"-{text}")
+    return version, split_version[0], int(split_version[1]) if len(split_version) > 1 else 0
 
 
 class check:
@@ -307,59 +366,118 @@ def copy_files(src, dest):
 def remove_empty_directories(pathlib_root_dir, pattern):
     """Remove empty directories recursively."""
     pathlib_root_dir = Path(pathlib_root_dir)
-    # list all directories recursively and sort them by path,
-    # longest first
-    longest = sorted(
-        pathlib_root_dir.glob(pattern),
-        key=lambda p: len(str(p)),
-        reverse=True,
-    )
-    longest.append(pathlib_root_dir)
-    for pdir in longest:
+    try:
+        # list all directories recursively and sort them by path,
+        # longest first
+        longest = sorted(
+            pathlib_root_dir.glob(pattern),
+            key=lambda p: len(str(p)),
+            reverse=True,
+        )
+        longest.append(pathlib_root_dir)  # delete the folder itself if it's empty
+        for pdir in longest:
+            try:
+                pdir.rmdir()  # remove directory if empty
+            except (FileNotFoundError, OSError):
+                continue  # catch and continue if non-empty, folders within could already be deleted if run in parallel
+    except FileNotFoundError:
+        pass  # if this is being run in parallel, pathlib_root_dir could already be deleted
+
+
+class CheckHardLinks:
+    """
+    Class to check for hardlinks
+    """
+
+    def __init__(self, root_dir, remote_dir):
+        self.root_dir = root_dir
+        self.remote_dir = remote_dir
+        self.root_files = set(get_root_files(self.root_dir, self.remote_dir))
+        self.get_inode_count()
+
+    def get_inode_count(self):
+        self.inode_count = {}
+        for file in self.root_files:
+            inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            if inode_no in self.inode_count:
+                self.inode_count[inode_no] += 1
+            else:
+                self.inode_count[inode_no] = 1
+
+    def nohardlink(self, file, notify):
+        """
+        Check if there are any hard links
+        Will check if there are any hard links if it passes a file or folder
+        If a folder is passed, it will take the largest file in that folder and only check for hardlinks
+        of the remaining files where the file is greater size a percentage of the largest file
+        This fixes the bug in #192
+        """
+        check_for_hl = True
         try:
-            pdir.rmdir()  # remove directory if empty
-        except OSError:
-            continue  # catch and continue if non-empty
-
-
-def nohardlink(file, notify):
-    """
-    Check if there are any hard links
-    Will check if there are any hard links if it passes a file or folder
-    If a folder is passed, it will take the largest file in that folder and only check for hardlinks
-    of the remaining files where the file is greater size a percentage of the largest file
-    This fixes the bug in #192
-    """
-    check_for_hl = True
-    if os.path.isfile(file):
-        logger.trace(f"Checking file: {file}")
-        if os.stat(file).st_nlink > 1:
-            check_for_hl = False
-    else:
-        sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
-        logger.trace(f"Folder: {file}")
-        logger.trace(f"Files Sorted by size: {sorted_files}")
-        threshold = 0.5
-        if not sorted_files:
-            msg = (
-                f"Nohardlink Error: Unable to open the folder {file}. "
-                "Please make sure folder exists and qbit_manage has access to this directory."
-            )
-            notify(msg, "nohardlink")
-            logger.warning(msg)
-        else:
-            largest_file_size = os.stat(sorted_files[0]).st_size
-            logger.trace(f"Largest file: {sorted_files[0]}")
-            logger.trace(f"Largest file size: {largest_file_size}")
-            for files in sorted_files:
-                file_size = os.stat(files).st_size
-                file_no_hardlinks = os.stat(files).st_nlink
+            if os.path.isfile(file):
+                if os.path.islink(file):
+                    logger.warning(f"Symlink found in {file}, unable to determine hardlinks. Skipping...")
+                    return False
                 logger.trace(f"Checking file: {file}")
-                logger.trace(f"Checking file size: {file_size}")
-                logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                if file_no_hardlinks > 1 and file_size >= (largest_file_size * threshold):
+                logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
+                logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
+                if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
                     check_for_hl = False
-    return check_for_hl
+            else:
+                sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+                logger.trace(f"Folder: {file}")
+                logger.trace(f"Files Sorted by size: {sorted_files}")
+                threshold = 0.5
+                if not sorted_files:
+                    msg = (
+                        f"Nohardlink Error: Unable to open the folder {file}. "
+                        "Please make sure folder exists and qbit_manage has access to this directory."
+                    )
+                    notify(msg, "nohardlink")
+                    logger.warning(msg)
+                else:
+                    largest_file_size = os.stat(sorted_files[0]).st_size
+                    logger.trace(f"Largest file: {sorted_files[0]}")
+                    logger.trace(f"Largest file size: {largest_file_size}")
+                    for files in sorted_files:
+                        if os.path.islink(files):
+                            logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
+                            continue
+                        file_size = os.stat(files).st_size
+                        file_no_hardlinks = os.stat(files).st_nlink
+                        logger.trace(f"Checking file: {file}")
+                        logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                        logger.trace(f"Checking file size: {file_size}")
+                        logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
+                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                        if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
+                            largest_file_size * threshold
+                        ):
+                            check_for_hl = False
+        except PermissionError as perm:
+            logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+            return False
+        except FileNotFoundError as file_not_found_error:
+            logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
+            return False
+        except Exception as ex:
+            logger.stacktrace()
+            logger.error(ex)
+            return False
+        return check_for_hl
+
+
+def get_root_files(root_dir, remote_dir, exclude_dir=None):
+    local_exclude_dir = exclude_dir.replace(remote_dir, root_dir) if exclude_dir and remote_dir != root_dir else exclude_dir
+    root_files = [
+        os.path.join(path.replace(remote_dir, root_dir) if remote_dir != root_dir else path, name)
+        for path, subdirs, files in os.walk(remote_dir if remote_dir != root_dir else root_dir)
+        for name in files
+        if not local_exclude_dir or local_exclude_dir not in path
+    ]
+    return root_files
 
 
 def load_json(file):

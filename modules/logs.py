@@ -17,7 +17,7 @@ WARN = WARNING
 DRYRUN = 25
 INFO = 20
 DEBUG = 10
-TRACE = 5
+TRACE = 0
 
 
 def fmt_filter(record):
@@ -72,17 +72,19 @@ class MyLogger:
         """Get handler for log file"""
         max_bytes = 1024 * 1024 * 2
         _handler = RotatingFileHandler(log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=count, encoding="utf-8")
-        self._formatter(_handler)
+        self._formatter(handler=_handler)
         # if os.path.isfile(log_file):
         #     _handler.doRollover()
         return _handler
 
-    def _formatter(self, handler, border=True):
+    def _formatter(self, handler=None, border=True, log_only=False, space=False):
         """Format log message"""
-        text = f"| %(message)-{self.screen_width - 2}s |" if border else f"%(message)-{self.screen_width - 2}s"
-        if isinstance(handler, RotatingFileHandler):
-            text = f"[%(asctime)s] %(filename)-27s %(levelname)-10s {text}"
-        handler.setFormatter(logging.Formatter(text))
+        console = f"| %(message)-{self.screen_width - 2}s |" if border else f"%(message)-{self.screen_width - 2}s"
+        file = f"{' '*65}" if space else "[%(asctime)s] %(filename)-27s %(levelname)-10s "
+        handlers = [handler] if handler else self._logger.handlers
+        for h in handlers:
+            if not log_only or isinstance(h, RotatingFileHandler):
+                h.setFormatter(logging.Formatter(f"{file if isinstance(h, RotatingFileHandler) else ''}{console}"))
 
     def add_main_handler(self):
         """Add main handler to logger"""
@@ -233,18 +235,15 @@ class MyLogger:
 
     def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False, stacklevel=1):
         """Log"""
+        log_only = False
         if self.spacing > 0:
             self.exorcise()
         if "\n" in msg:
             for i, line in enumerate(msg.split("\n")):
                 self._log(level, line, args, exc_info=exc_info, extra=extra, stack_info=stack_info, stacklevel=stacklevel)
                 if i == 0:
-                    for handler in self._logger.handlers:
-                        if isinstance(handler, RotatingFileHandler):
-                            handler.setFormatter(logging.Formatter(" " * 65 + "| %(message)s"))
-            for handler in self._logger.handlers:
-                if isinstance(handler, RotatingFileHandler):
-                    handler.setFormatter(logging.Formatter("[%(asctime)s] %(filename)-27s %(levelname)-10s | %(message)s"))
+                    self._formatter(log_only=True, space=True)
+            log_only = True
         else:
             for secret in sorted(self.secrets, reverse=True):
                 if secret in msg:
@@ -266,6 +265,8 @@ class MyLogger:
                     exc_info = sys.exc_info()
             record = self._logger.makeRecord(self._logger.name, level, func, lno, msg, args, exc_info, func, extra, sinfo)
             self._logger.handle(record)
+        if log_only:
+            self._formatter()
 
     def find_caller(self, stack_info=False, stacklevel=1):
         """Find caller"""
