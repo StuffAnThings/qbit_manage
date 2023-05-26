@@ -398,7 +398,18 @@ class CheckHardLinks:
     def get_inode_count(self):
         self.inode_count = {}
         for file in self.root_files:
-            inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            try:
+                inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            except PermissionError as perm:
+                logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+                continue
+            except FileNotFoundError as file_not_found_error:
+                logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
+                continue
+            except Exception as ex:
+                logger.stacktrace()
+                logger.error(ex)
+                continue
             if inode_no in self.inode_count:
                 self.inode_count[inode_no] += 1
             else:
