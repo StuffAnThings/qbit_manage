@@ -48,19 +48,22 @@ class Qbt:
                     f"Qbittorrent Error: qbit_manage is only compatible with {self.MIN_SUPPORTED_VERSION} or higher. "
                     f"You are currently on {self.current_version}."
                     + "\n"
-                    + f"Please upgrade to your Qbittorrent version to {self.MIN_SUPPORTED_VERSION} or higher to use qbit_manage."
+                    + f"Please upgrade your qBittorrent version to {self.MIN_SUPPORTED_VERSION} or higher to use qbit_manage."
                 )
             elif not Version.is_app_version_supported(self.current_version):
                 ex = (
                     f"Qbittorrent Error: qbit_manage is only compatible with {self.SUPPORTED_VERSION} or lower. "
                     f"You are currently on {self.current_version}."
                     + "\n"
-                    + f"Please downgrade to your Qbittorrent version to {self.SUPPORTED_VERSION} to use qbit_manage."
+                    + f"Please downgrade your qBittorrent version to {self.SUPPORTED_VERSION} to use qbit_manage."
                 )
             if ex:
                 self.config.notify(ex, "Qbittorrent")
                 logger.print_line(ex, "CRITICAL")
-                sys.exit(0)
+                if self.config.commands["skip_qb_version_check"]:
+                    logger.print_line("Continuing because qBittorrent version check is bypassed... Please do not ask for support!")
+                else:
+                    sys.exit(0)
             else:
                 logger.info("Qbt Connection Successful")
         except LoginFailed as exc:
