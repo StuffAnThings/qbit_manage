@@ -155,7 +155,8 @@ parser.add_argument(
     dest="skip_qb_version_check",
     action="store_true",
     default=False,
-    # help="Bypass qBittorrent/libtorrent version compatibility check. You run the risk of undesirable behavior and will receive no support.",
+    # help="Bypass qBittorrent/libtorrent version compatibility check. "
+    # "You run the risk of undesirable behavior and will receive no support.",
     help=argparse.SUPPRESS,
 )
 parser.add_argument(
