@@ -150,6 +150,16 @@ parser.add_argument(
     help="Use this to skip cleaning up Recycle Bin/Orphaned directory.",
 )
 parser.add_argument(
+    "-svc",
+    "--skip-qb-version-check",
+    dest="skip_qb_version_check",
+    action="store_true",
+    default=False,
+    # help="Bypass qBittorrent/libtorrent version compatibility check. "
+    # "You run the risk of undesirable behavior and will receive no support.",
+    help=argparse.SUPPRESS,
+)
+parser.add_argument(
     "-dr",
     "--dry-run",
     dest="dry_run",
@@ -228,6 +238,7 @@ tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
 skip_cleanup = get_arg("QBT_SKIP_CLEANUP", args.skip_cleanup, arg_bool=True)
+skip_qb_version_check = get_arg("QBT_SKIP_QB_VERSION_CHECK", args.skip_qb_version_check, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
 divider = get_arg("QBT_DIVIDER", args.divider)
@@ -275,6 +286,7 @@ for v in [
     "rem_orphaned",
     "tag_nohardlinks",
     "skip_cleanup",
+    "skip_qb_version_check",
     "dry_run",
     "log_level",
     "divider",
@@ -572,6 +584,7 @@ if __name__ == "__main__":
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
     logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {skip_cleanup}")
+    logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {skip_qb_version_check}")
     logger.debug(f"    --dry-run (QBT_DRY_RUN): {dry_run}")
     logger.debug(f"    --log-level (QBT_LOG_LEVEL): {log_level}")
     logger.debug(f"    --divider (QBT_DIVIDER): {divider}")
