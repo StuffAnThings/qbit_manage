@@ -61,7 +61,9 @@ class Qbt:
                 self.config.notify(ex, "Qbittorrent")
                 logger.print_line(ex, "CRITICAL")
                 if self.config.commands["skip_qb_version_check"]:
-                    logger.print_line("Continuing because qBittorrent version check is bypassed... Please do not ask for support!")
+                    logger.print_line(
+                        "Continuing because qBittorrent version check is bypassed... Please do not ask for support!"
+                    )
                 else:
                     sys.exit(0)
             else:
