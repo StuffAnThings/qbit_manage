@@ -17,7 +17,7 @@ WARN = WARNING
 DRYRUN = 25
 INFO = 20
 DEBUG = 10
-TRACE = 0
+TRACE = 1
 
 
 def fmt_filter(record):
