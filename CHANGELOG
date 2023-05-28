@@ -1,20 +1,8 @@
 # Requirements Updated
-- pre-commit updated to 3.3.3
-- requests updated to 2.31.0
-- ruamel.yaml updated to 0.17.26
-- Adds new dependency bencodepy to generate hash for cross-seed
-- Adds new dependency GitPython for checking git branches
+- Updates ruamel.yaml to 0.17.27
 
 # Bug Fixes
-- Changes HardLink Logic (Thanks to @ColinHebert for the suggestion) Fixes #291
-- Additional error checking (Fixes #282)
-- Fixes #287 (Thanks to @buthed010203 #290)
-- Fixes Remove Orphan crashing when multiprocessing (Thanks to @buthed010203 #289)
-- Speed optimization for Remove Orphan (Thanks to @buthed010203 #299)
-- Fixes Remove Orphan from crashing in Windows (Fixes #275)
-- Fixes #292
-- Fixes #201
-- Fixes #279
-- Updates Dockerfile to debloat and move to Python 3.11
+- Fixes #302
+- Adds a way to bypass qbt version check (unsupported - Thanks to @ftc2 #307)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.2...v3.6.3
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.3...v3.6.4
