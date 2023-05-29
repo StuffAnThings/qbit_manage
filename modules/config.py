@@ -29,6 +29,7 @@ COMMANDS = [
     "rem_orphaned",
     "tag_nohardlinks",
     "skip_cleanup",
+    "skip_qb_version_check",
     "dry_run",
     "api",
 ]
@@ -83,6 +84,7 @@ class Config:
                 logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
                 logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
                 logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
+                logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {self.commands['skip_qb_version_check']}")
                 logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
         else:
             self.commands = args

@@ -153,7 +153,31 @@ class check:
         save=True,
         make_dirs=False,
     ):
-        """Check for attribute in config."""
+        """
+        Check for attribute in config.
+
+        Args:
+            data (dict): The configuration data to search.
+            attribute (str): The name of the attribute key to search for.
+            parent (str, optional): The name of the top level attribute to search under. Defaults to None.
+            subparent (str, optional): The name of the second level attribute to search under. Defaults to None.
+            test_list (dict, optional): A dictionary of valid values for the attribute. Defaults to None.
+            default (any, optional): The default value to use if the attribute is not found. Defaults to None.
+            do_print (bool, optional): Whether to print warning messages. Defaults to True.
+            default_is_none (bool, optional): Whether to treat a None value as a valid default. Defaults to False.
+            req_default (bool, optional): Whether to raise an error if no default value is provided. Defaults to False.
+            var_type (str, optional): The expected type of the attribute value. Defaults to "str".
+            min_int (int, optional): The minimum value for an integer attribute. Defaults to 0.
+            throw (bool, optional): Whether to raise an error if the attribute value is invalid. Defaults to False.
+            save (bool, optional): Whether to save the default value to the config if it is used. Defaults to True.
+            make_dirs (bool, optional): Whether to create directories for path attributes if they do not exist. Defaults to False.
+
+        Returns:
+            any: The value of the attribute, or the default value if it is not found.
+
+        Raises:
+            Failed: If the attribute value is invalid or a required default value is missing.
+        """
         endline = ""
         if parent is not None:
             if subparent is not None:
@@ -398,7 +422,18 @@ class CheckHardLinks:
     def get_inode_count(self):
         self.inode_count = {}
         for file in self.root_files:
-            inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            try:
+                inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+            except PermissionError as perm:
+                logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+                continue
+            except FileNotFoundError as file_not_found_error:
+                logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
+                continue
+            except Exception as ex:
+                logger.stacktrace()
+                logger.error(ex)
+                continue
             if inode_no in self.inode_count:
                 self.inode_count[inode_no] += 1
             else:
