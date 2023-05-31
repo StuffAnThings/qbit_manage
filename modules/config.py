@@ -322,9 +322,9 @@ class Config:
             for group in sorted_share_limits:
                 self.share_limits[group] = {}
                 self.share_limits[group]["priority"] = sorted_share_limits[group]["priority"]
-                self.share_limits[group]["tags"] = self.util.check_for_attribute(
+                self.share_limits[group]["include_all_tags"] = self.util.check_for_attribute(
                     self.data,
-                    "tags",
+                    "include_all_tags",
                     parent="share_limits",
                     subparent=group,
                     var_type="list",
@@ -332,9 +332,29 @@ class Config:
                     do_print=False,
                     save=False,
                 )
-                self.share_limits[group]["exclude_tags"] = self.util.check_for_attribute(
+                self.share_limits[group]["include_any_tags"] = self.util.check_for_attribute(
                     self.data,
-                    "exclude_tags",
+                    "include_any_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["exclude_all_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "exclude_all_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["exclude_any_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "exclude_any_tags",
                     parent="share_limits",
                     subparent=group,
                     var_type="list",

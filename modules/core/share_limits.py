@@ -244,20 +244,33 @@ class ShareLimits:
     def get_share_limit_group(self, tags, category):
         """Get the share limit group based on the tags and category of the torrent"""
         for group_name, group_config in self.share_limits_config.items():
-            check_tags = self.check_tags(tags, group_config["tags"], group_config["exclude_tags"])
+            check_tags = self.check_tags(
+                tags=tags,
+                include_all_tags=group_config["include_all_tags"],
+                include_any_tags=group_config["include_any_tags"],
+                exclude_all_tags=group_config["exclude_all_tags"],
+                exclude_any_tags=group_config["exclude_any_tags"],
+            )
             check_category = self.check_category(category, group_config["categories"])
 
             if check_tags and check_category:
                 return group_name
         return None
 
-    def check_tags(self, tags, include_tags, exclude_tags):
-        """Check if the torrent has the required tags and does not have the excluded tags"""
-        if include_tags:
-            if not set(include_tags).issubset(tags):
+    def check_tags(self, tags, include_all_tags=set(), include_any_tags=set(), exclude_all_tags=set(), exclude_any_tags=set()):
+        """Check if the torrent has the required tags"""
+        tags_set = set(tags)
+        if include_all_tags:
+            if not set(include_all_tags).issubset(tags_set):
                 return False
-        if exclude_tags:
-            if set(exclude_tags).intersection(tags):
+        if include_any_tags:
+            if not set(include_any_tags).intersection(tags_set):
+                return False
+        if exclude_all_tags:
+            if set(exclude_all_tags).issubset(tags_set):
+                return False
+        if exclude_any_tags:
+            if set(exclude_any_tags).intersection(tags_set):
                 return False
         return True
 

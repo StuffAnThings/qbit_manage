@@ -146,12 +146,23 @@ share_limits:
   noHL:
     # <MANDATORY> priority: <int/float> # This is the priority of your grouping. The lower the number the higher the priority
     priority: 1
-    # <OPTIONAL> tags: <list> # Filter the group based on one or more tags. Multiple tags are checked with an AND condition
-    tags:
+    # <OPTIONAL> include_all_tags: <list> # Filter the group based on one or more tags. Multiple include_all_tags are checked with an AND condition
+    # All tags defined here must be present in the torrent for it to be included in this group
+    include_all_tags:
       - noHL
-    # <OPTIONAL> exclude_tags: <list> # Filter by excluding one or more tags. Multiple exclude_tags are checked with an OR condition
+    # <OPTIONAL> include_any_tags: <list> # Filter the group based on one or more tags. Multiple include_any_tags are checked with an OR condition
+    # Any tags defined here must be present in the torrent for it to be included in this group
+    include_any_tags:
+      - noHL
+    # <OPTIONAL> exclude_all_tags: <list> # Filter by excluding one or more tags. Multiple exclude_all_tags are checked with an AND condition
     # This is useful to combine with the category filter to exclude one or more tags from an entire category
-    exclude_tags:
+    # All tags defined here must be present in the torrent for it to be excluded in this group
+    exclude_all_tags:
+      - Beyond-HD
+    # <OPTIONAL> exclude_any_tags: <list> # Filter by excluding one or more tags. Multiple exclude_any_tags are checked with an OR condition
+    # This is useful to combine with the category filter to exclude one or more tags from an entire category
+    # Any tags defined here must be present in the torrent for it to be excluded in this group
+    exclude_any_tags:
       - Beyond-HD
     # <OPTIONAL> categories: <list> # Filter by excluding one or more categories. Multiple categories are checked with an OR condition
     # Since one torrent can only be associated with a single category, multiple categories are checked with an OR condition
