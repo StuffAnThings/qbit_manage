@@ -260,22 +260,22 @@ class Config:
 
         # nohardlinks
         self.nohardlinks = None
-        if "nohardlinks" in self.data and self.commands["tag_nohardlinks"]:
+        if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
                     self.nohardlinks[cat_str] = {}
-                    exclude_tags = cat[cat_str].get("exclude_tags", None)
+                    exclude_tags = cat[cat_str].get("exclude_tags", [])
                     if isinstance(exclude_tags, str):
                         exclude_tags = [exclude_tags]
                     self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
                 elif isinstance(cat, str):
                     self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = None
+                    self.nohardlinks[cat]["exclude_tags"] = []
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks attribute max_ratio not found"
+                err = "Config Error: nohardlinks must be a list of categories"
                 self.notify(err, "Config")
                 raise Failed(err)
 
