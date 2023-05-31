@@ -1,7 +1,6 @@
 """Qbittorrent Module"""
 import os
 import sys
-from datetime import timedelta
 
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
@@ -25,7 +24,7 @@ class Qbt:
 
     SUPPORTED_VERSION = Version.latest_supported_app_version()
     MIN_SUPPORTED_VERSION = "v4.3.0"
-    TORRENT_DICT_COMMANDS = ["recheck", "cross_seed", "rem_unregistered", "tag_tracker_error", "tag_nohardlinks"]
+    TORRENT_DICT_COMMANDS = ["recheck", "cross_seed", "rem_unregistered", "tag_tracker_error", "tag_nohardlinks", "share_limits"]
 
     def __init__(self, config, params):
         self.config = config
@@ -202,142 +201,11 @@ class Qbt:
         """Get torrents from qBittorrent"""
         return self.client.torrents.info(**params)
 
-    def set_tags_and_limits(
-        self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, restore=False, do_print=True
-    ):
-        """Set tags and limits for a torrent"""
-        body = []
-        if limit_upload_speed:
-            if limit_upload_speed != -1:
-                msg = logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
-        if max_ratio or max_seeding_time:
-            if (max_ratio == -2 and max_seeding_time == -2) and not restore:
-                msg = logger.insert_space("Share Limit: Use Global Share Limit", 4)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
-            elif (max_ratio == -1 and max_seeding_time == -1) and not restore:
-                msg = logger.insert_space("Share Limit: Set No Share Limit", 4)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
-            else:
-                if max_ratio != torrent.max_ratio and (not max_seeding_time or max_seeding_time < 0):
-                    msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4)
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
-                elif max_seeding_time != torrent.max_seeding_time and (not max_ratio or max_ratio < 0):
-                    msg = logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4)
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
-                elif max_ratio != torrent.max_ratio or max_seeding_time != torrent.max_seeding_time:
-                    msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min", 4)
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
-        # Update Torrents
-        if not self.config.dry_run:
-            if tags:
-                torrent.add_tags(tags)
-            if limit_upload_speed:
-                if limit_upload_speed == -1:
-                    torrent.set_upload_limit(-1)
-                else:
-                    torrent.set_upload_limit(limit_upload_speed * 1024)
-            if not max_ratio:
-                max_ratio = torrent.max_ratio
-            if not max_seeding_time:
-                max_seeding_time = torrent.max_seeding_time
-            if "MinSeedTimeNotReached" in torrent.tags:
-                return []
-            torrent.set_share_limits(max_ratio, max_seeding_time)
-        return body
-
-    def has_reached_seed_limit(self, torrent, max_ratio, max_seeding_time, min_seeding_time, resume_torrent, tracker):
-        """Check if torrent has reached seed limit"""
-        body = ""
-
-        def _has_reached_min_seeding_time_limit():
-            print_log = []
-            if torrent.seeding_time >= min_seeding_time * 60:
-                if "MinSeedTimeNotReached" in torrent.tags:
-                    torrent.remove_tags(tags="MinSeedTimeNotReached")
-                return True
-            else:
-                print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
-                print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
-                print_log += logger.print_line(
-                    logger.insert_space(
-                        f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <= "
-                        f"{timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue seeding.",
-                        8,
-                    ),
-                    self.config.loglevel,
-                )
-                print_log += logger.print_line(logger.insert_space("Adding Tag: MinSeedTimeNotReached", 8), self.config.loglevel)
-                if not self.config.dry_run:
-                    torrent.add_tags("MinSeedTimeNotReached")
-                    torrent.set_share_limits(-1, -1)
-                    if resume_torrent:
-                        torrent.resume()
-            return False
-
-        def _has_reached_seeding_time_limit():
-            nonlocal body
-            seeding_time_limit = None
-            if not max_seeding_time:
-                return False
-            if max_seeding_time >= 0:
-                seeding_time_limit = max_seeding_time
-            elif max_seeding_time == -2 and self.global_max_seeding_time_enabled:
-                seeding_time_limit = self.global_max_seeding_time
-            else:
-                return False
-            if seeding_time_limit:
-                if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
-                    body += logger.insert_space(
-                        f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
-                        f"{timedelta(minutes=seeding_time_limit)}",
-                        8,
-                    )
-                    return True
-            return False
-
-        if max_ratio:
-            if max_ratio >= 0:
-                if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
-                    body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)
-                    return body
-            elif max_ratio == -2 and self.global_max_ratio_enabled and _has_reached_min_seeding_time_limit():
-                if torrent.ratio >= self.global_max_ratio:
-                    body += logger.insert_space(
-                        f"Ratio vs Global Max Ratio: {torrent.ratio:.2f} >= {self.global_max_ratio:.2f}", 8
-                    )
-                    return body
-        if _has_reached_seeding_time_limit():
-            return body
-        return False
-
     def get_tags(self, trackers):
         """Get tags from config file based on keyword"""
         urls = [x.url for x in trackers if x.url.startswith("http")]
         tracker = {}
         tracker["tag"] = None
-        tracker["max_ratio"] = None
-        tracker["min_seeding_time"] = None
-        tracker["max_seeding_time"] = None
-        tracker["limit_upload_speed"] = None
         tracker["notifiarr"] = None
         tracker["url"] = None
         tracker_other_tag = self.config.util.check_for_attribute(
@@ -376,76 +244,6 @@ class Qbt:
                             self.config.data["tracker"][tag_url]["tag"] = [tag_url]
                         if isinstance(tracker["tag"], str):
                             tracker["tag"] = [tracker["tag"]]
-                        is_max_ratio_defined = self.config.data["tracker"].get("max_ratio")
-                        is_max_seeding_time_defined = self.config.data["tracker"].get("max_seeding_time")
-                        if is_max_ratio_defined or is_max_seeding_time_defined:
-                            tracker["max_ratio"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "max_ratio",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="float",
-                                min_int=-2,
-                                do_print=False,
-                                default=-1,
-                                save=False,
-                            )
-                            tracker["max_seeding_time"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "max_seeding_time",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="int",
-                                min_int=-2,
-                                do_print=False,
-                                default=-1,
-                                save=False,
-                            )
-                        else:
-                            tracker["max_ratio"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "max_ratio",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="float",
-                                min_int=-2,
-                                do_print=False,
-                                default_is_none=True,
-                                save=False,
-                            )
-                            tracker["max_seeding_time"] = self.config.util.check_for_attribute(
-                                self.config.data,
-                                "max_seeding_time",
-                                parent="tracker",
-                                subparent=tag_url,
-                                var_type="int",
-                                min_int=-2,
-                                do_print=False,
-                                default_is_none=True,
-                                save=False,
-                            )
-                        tracker["min_seeding_time"] = self.config.util.check_for_attribute(
-                            self.config.data,
-                            "min_seeding_time",
-                            parent="tracker",
-                            subparent=tag_url,
-                            var_type="int",
-                            min_int=0,
-                            do_print=False,
-                            default=0,
-                            save=False,
-                        )
-                        tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
-                            self.config.data,
-                            "limit_upload_speed",
-                            parent="tracker",
-                            subparent=tag_url,
-                            var_type="int",
-                            min_int=-1,
-                            do_print=False,
-                            default=0,
-                            save=False,
-                        )
                         tracker["notifiarr"] = self.config.util.check_for_attribute(
                             self.config.data,
                             "notifiarr",
@@ -458,50 +256,6 @@ class Qbt:
                         return tracker
             if tracker_other_tag:
                 tracker["tag"] = tracker_other_tag
-                tracker["max_ratio"] = self.config.util.check_for_attribute(
-                    self.config.data,
-                    "max_ratio",
-                    parent="tracker",
-                    subparent="other",
-                    var_type="float",
-                    min_int=-2,
-                    do_print=False,
-                    default=-1,
-                    save=False,
-                )
-                tracker["min_seeding_time"] = self.config.util.check_for_attribute(
-                    self.config.data,
-                    "min_seeding_time",
-                    parent="tracker",
-                    subparent="other",
-                    var_type="int",
-                    min_int=0,
-                    do_print=False,
-                    default=-1,
-                    save=False,
-                )
-                tracker["max_seeding_time"] = self.config.util.check_for_attribute(
-                    self.config.data,
-                    "max_seeding_time",
-                    parent="tracker",
-                    subparent="other",
-                    var_type="int",
-                    min_int=-2,
-                    do_print=False,
-                    default=-1,
-                    save=False,
-                )
-                tracker["limit_upload_speed"] = self.config.util.check_for_attribute(
-                    self.config.data,
-                    "limit_upload_speed",
-                    parent="tracker",
-                    subparent="other",
-                    var_type="int",
-                    min_int=-1,
-                    do_print=False,
-                    default=0,
-                    save=False,
-                )
                 tracker["notifiarr"] = self.config.util.check_for_attribute(
                     self.config.data,
                     "notifiarr",

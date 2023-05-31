@@ -1,8 +1,16 @@
 # Requirements Updated
-- Updates ruamel.yaml to 0.17.27
+- Updates ruamel.yaml to 0.17.30
+- Updates qbitorrent-api to 2023.5.48
+
+# New Features
+- Adds new command `share_limits`, `--share-limits` , `QBT_SHARE_LIMITS=True` to update share limits based on tags/categories specified per group (Closes #88, Closes #306, Closes #259, Closes #308, Closes #137)
+- Adds new command `skip_qb_version_check`, `--skip-qb-version-check`, `QBT_SKIP_QB_VERSION_CHECK` to bypass qbitorrent compatibility check (unsupported - Thanks to @ftc2 #307)
+# Breaking Changes
+- `tag_nohardlinks` only updates/removes `noHL` tag. It does not modify or cleanup share_limits anymore.
+- `tag_update` only adds tracker tags to torrent. It does not modify or cleanup share_limits anymore.
+- Please remove any references to share_limits from your configuration in the tracker/nohardlinks section
 
 # Bug Fixes
 - Fixes #302
-- Adds a way to bypass qbt version check (unsupported - Thanks to @ftc2 #307)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.3...v3.6.4
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.3...v3.7.0

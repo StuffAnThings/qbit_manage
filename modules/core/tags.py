@@ -9,6 +9,7 @@ class Tags:
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
+        self.share_limits_suffix_tag = qbit_manager.config.share_limits_suffix_tag  # suffix tag for share limits
 
         self.tags()
 
@@ -17,7 +18,8 @@ class Tags:
         ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:
-            check_tags = util.get_list(torrent.tags)
+            check_tags = [tag for tag in util.get_list(torrent.tags) if self.share_limits_suffix_tag not in tag]
+
             if torrent.tags == "" or (len([trk for trk in check_tags if trk not in ignore_tags]) == 0):
                 tracker = self.qbt.get_tags(torrent.trackers)
                 if tracker["tag"]:
@@ -29,15 +31,8 @@ class Tags:
                         self.config.loglevel,
                     )
                     body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
-                    body.extend(
-                        self.qbt.set_tags_and_limits(
-                            torrent,
-                            tracker["max_ratio"],
-                            tracker["max_seeding_time"],
-                            tracker["limit_upload_speed"],
-                            tracker["tag"],
-                        )
-                    )
+                    if not self.config.dry_run:
+                        torrent.add_tags(tracker["tag"])
                     category = self.qbt.get_category(torrent.save_path) if torrent.category == "" else torrent.category
                     attr = {
                         "function": "tag_update",
@@ -48,9 +43,6 @@ class Tags:
                         "torrent_tag": ", ".join(tracker["tag"]),
                         "torrent_tracker": tracker["url"],
                         "notifiarr_indexer": tracker["notifiarr"],
-                        "torrent_max_ratio": tracker["max_ratio"],
-                        "torrent_max_seeding_time": tracker["max_seeding_time"],
-                        "torrent_limit_upload_speed": tracker["limit_upload_speed"],
                     }
                     self.config.send_notifications(attr)
         if self.stats >= 1:
