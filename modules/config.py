@@ -263,105 +263,16 @@ class Config:
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"]:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
-                if cat in list(self.data["cat"].keys()):
-                    is_max_ratio_defined = self.data["nohardlinks"][cat].get("max_ratio")
-                    is_max_seeding_time_defined = self.data["nohardlinks"][cat].get("max_seeding_time")
+                if isinstance(cat, dict):
+                    cat_str = list(cat.keys())[0]
+                    self.nohardlinks[cat_str] = {}
+                    exclude_tags = cat[cat_str].get("exclude_tags", None)
+                    if isinstance(exclude_tags, str):
+                        exclude_tags = [exclude_tags]
+                    self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
+                elif isinstance(cat, str):
                     self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = self.util.check_for_attribute(
-                        self.data,
-                        "exclude_tags",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="list",
-                        default_is_none=True,
-                        do_print=False,
-                    )
-                    self.nohardlinks[cat]["cleanup"] = self.util.check_for_attribute(
-                        self.data, "cleanup", parent="nohardlinks", subparent=cat, var_type="bool", default=False, do_print=False
-                    )
-                    if is_max_ratio_defined or is_max_seeding_time_defined:
-                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_ratio",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="float",
-                            min_int=-2,
-                            do_print=False,
-                            default=-1,
-                            save=False,
-                        )
-                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_seeding_time",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="int",
-                            min_int=-2,
-                            do_print=False,
-                            default=-1,
-                            save=False,
-                        )
-                    else:
-                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_ratio",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="float",
-                            min_int=-2,
-                            do_print=False,
-                            default_is_none=True,
-                            save=False,
-                        )
-                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_seeding_time",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="int",
-                            min_int=-2,
-                            do_print=False,
-                            default_is_none=True,
-                            save=False,
-                        )
-                    self.nohardlinks[cat]["min_seeding_time"] = self.util.check_for_attribute(
-                        self.data,
-                        "min_seeding_time",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="int",
-                        min_int=0,
-                        do_print=False,
-                        default=0,
-                        save=False,
-                    )
-                    self.nohardlinks[cat]["limit_upload_speed"] = self.util.check_for_attribute(
-                        self.data,
-                        "limit_upload_speed",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="int",
-                        min_int=-1,
-                        do_print=False,
-                        default=-1,
-                        save=False,
-                    )
-                    self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
-                        self.data,
-                        "resume_torrent_after_untagging_noHL",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="bool",
-                        default=True,
-                        do_print=False,
-                        save=False,
-                    )
-                else:
-                    err = f"Config Error: Category {cat} is defined under nohardlinks attribute "
-                    "but is not defined in the cat attribute."
-                    self.notify(err, "Config")
-                    raise Failed(err)
+                    self.nohardlinks[cat]["exclude_tags"] = None
         else:
             if self.commands["tag_nohardlinks"]:
                 err = "Config Error: nohardlinks attribute max_ratio not found"

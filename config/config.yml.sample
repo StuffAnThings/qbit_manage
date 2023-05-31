@@ -126,18 +126,20 @@ nohardlinks:
   # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
-  movies-completed:
-    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-    exclude_tags:
-      - Beyond-HD
-      - AnimeBytes
-      - MaM
+  - movies-completed-4k
+  - series-completed-4k
+  - movies-completed:
+      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+      exclude_tags:
+        - Beyond-HD
+        - AnimeBytes
+        - MaM
   # Can have additional categories set with separate ratio/seeding times defined.
-  series-completed:
-    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-    exclude_tags:
-      - Beyond-HD
-      - BroadcasTheNet
+  - series-completed:
+      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+      exclude_tags:
+        - Beyond-HD
+        - BroadcasTheNet
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping
