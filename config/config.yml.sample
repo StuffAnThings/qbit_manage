@@ -25,8 +25,8 @@ qbt:
   pass: "password"
 
 settings:
-  force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
-  tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
+  force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
+  tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   share_limits_suffix_tag: share_limit # Will add this suffix to the grouping separated by '.' to the tag of any torrents with share limits.
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
@@ -63,7 +63,6 @@ cat_change:
   Radarr-UHD.cross-seed: movies-uhd
   movies-hd.cross-seed: movies-hd
   movies-uhd.cross-seed: movies-uhd
-
 
 tracker:
   # Mandatory
@@ -141,23 +140,23 @@ nohardlinks:
       - BroadcasTheNet
 
 share_limits:
-# Control how torrent share limits are set depending on the priority of your grouping
-# This variable is mandatory and is a text defining the name of your grouping. This can be any string you want
+  # Control how torrent share limits are set depending on the priority of your grouping
+  # This variable is mandatory and is a text defining the name of your grouping. This can be any string you want
   noHL:
     # <MANDATORY> priority: <int/float> # This is the priority of your grouping. The lower the number the higher the priority
     priority: 1
     # <OPTIONAL> tags: <list> # Filter the group based on one or more tags. Multiple tags are checked with an AND condition
     tags:
-    - noHL
+      - noHL
     # <OPTIONAL> exclude_tags: <list> # Filter by excluding one or more tags. Multiple exclude_tags are checked with an AND condition
     # This is useful to combine with the category filter to exclude one or more tags from an entire category
     exclude_tags:
-    - Beyond-HD
+      - Beyond-HD
     # <OPTIONAL> categories: <list> # Filter by excluding one or more categories. Multiple exclude_tags are checked with an OR condition
     # Since one torrent can only be associated with a single category, multiple categories are checked with an OR condition
     categories:
-    - RadarrComplete
-    - SonarrComplete
+      - RadarrComplete
+      - SonarrComplete
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
     # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the group.
     max_ratio: 5.0
@@ -184,7 +183,7 @@ share_limits:
   PTP:
     priority: 3
     tags:
-    - PassThePopcorn
+      - PassThePopcorn
     max_ratio: 2.0
     max_seeding_time: 130000
     cleanup: false
@@ -225,7 +224,7 @@ orphaned:
     - "**/@eaDir"
     - "/data/torrents/temp/**"
     - "**/*.!qB"
-    - '**/_unpackerred'
+    - "**/_unpackerred"
 
 apprise:
   # Apprise integration with webhooks
