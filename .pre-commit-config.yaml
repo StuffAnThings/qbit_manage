@@ -27,7 +27,7 @@ repos:
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.9.0
+    rev: 1.10.0
     hooks:
       - id: yamlfix
         exclude: ^.github/
