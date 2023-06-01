@@ -51,7 +51,8 @@ class ShareLimits:
                     "torrent_min_seeding_time": group_config["min_seeding_time"],
                     "torrent_limit_upload_speed": group_config["limit_upload_speed"],
                 }
-                self.config.send_notifications(attr)
+                if len(self.torrents_updated) > 0:
+                    self.config.send_notifications(attr)
                 if group_config["cleanup"] and len(self.tdel_dict) > 0:
                     self.cleanup_torrents_for_group(group_name, group_config["priority"])
 
@@ -162,7 +163,7 @@ class ShareLimits:
             check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
             # Treat upload limit as -1 if it is set to 0 (unlimited)
-            torrent_upload_limit = -1 if torrent.up_limit == 0 else torrent.up_limit
+            torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
             if group_config["limit_upload_speed"] == 0:
                 group_config["limit_upload_speed"] = -1
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
@@ -183,31 +184,32 @@ class ShareLimits:
                     )
                     logger.trace(
                         "Config Limit Upload Speed vs Torrent Limit Upload Speed: "
-                        f"{group_config['limit_upload_speed']} vs {torrent.up_limit}"
+                        f"{group_config['limit_upload_speed']} vs {torrent_upload_limit}"
                     )
                     if self.group_tag:
                         logger.print_line(logger.insert_space(f"Added Tag: {self.group_tag}", 8), self.config.loglevel)
                     self.tag_and_update_share_limits_for_torrent(torrent, group_config)
                     self.stats_tagged += 1
                     self.torrents_updated.append(t_name)
-                # Cleanup torrents if the torrent meets the criteria for deletion and cleanup is enabled
-                if group_config["cleanup"]:
-                    tor_reached_seed_limit = self.has_reached_seed_limit(
-                        torrent=torrent,
-                        max_ratio=group_config["max_ratio"],
-                        max_seeding_time=group_config["max_seeding_time"],
-                        min_seeding_time=group_config["min_seeding_time"],
-                        resume_torrent=group_config["resume_torrent_after_change"],
-                        tracker=tracker["url"],
-                    )
-                    if tor_reached_seed_limit:
-                        if t_hash not in self.tdel_dict:
-                            self.tdel_dict[t_hash] = {}
-                        self.tdel_dict[t_hash]["torrent"] = torrent
-                        self.tdel_dict[t_hash]["content_path"] = torrent["content_path"].replace(self.root_dir, self.remote_dir)
-                        self.tdel_dict[t_hash]["body"] = tor_reached_seed_limit
             else:
                 self.share_limits_config[group_name]["torrents"].remove(torrent)
+
+            # Cleanup torrents if the torrent meets the criteria for deletion and cleanup is enabled
+            if group_config["cleanup"]:
+                tor_reached_seed_limit = self.has_reached_seed_limit(
+                    torrent=torrent,
+                    max_ratio=group_config["max_ratio"],
+                    max_seeding_time=group_config["max_seeding_time"],
+                    min_seeding_time=group_config["min_seeding_time"],
+                    resume_torrent=group_config["resume_torrent_after_change"],
+                    tracker=tracker["url"],
+                )
+                if tor_reached_seed_limit:
+                    if t_hash not in self.tdel_dict:
+                        self.tdel_dict[t_hash] = {}
+                    self.tdel_dict[t_hash]["torrent"] = torrent
+                    self.tdel_dict[t_hash]["content_path"] = torrent["content_path"].replace(self.root_dir, self.remote_dir)
+                    self.tdel_dict[t_hash]["body"] = tor_reached_seed_limit
             self.torrent_hash_checked.append(t_hash)
 
     def tag_and_update_share_limits_for_torrent(self, torrent, group_config):
@@ -216,7 +218,7 @@ class ShareLimits:
         tags = util.get_list(torrent.tags)
         for tag in tags:
             if self.share_limits_suffix_tag in tag:
-                tags.remove(tag)
+                torrent.remove_tags(tag)
 
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
         self.set_tags_and_limits(
