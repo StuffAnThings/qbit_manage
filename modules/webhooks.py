@@ -9,6 +9,8 @@ from modules.util import Failed
 
 logger = util.logger
 
+GROUP_NOTIFICATION_LIMIT = 10
+
 
 class Webhooks:
     """Class to handle webhooks."""

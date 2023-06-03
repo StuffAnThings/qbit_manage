@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 from modules import util
+from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
 
@@ -63,7 +64,7 @@ class ShareLimits:
             space=False,
             border=False,
         )
-        group_notifications = len(self.tdel_dict) > 10
+        group_notifications = len(self.tdel_dict) > GROUP_NOTIFICATION_LIMIT
         t_deleted = set()
         t_deleted_and_contents = set()
         for torrent_hash, torrent_dict in self.tdel_dict.items():
