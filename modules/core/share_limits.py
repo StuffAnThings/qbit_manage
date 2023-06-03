@@ -45,7 +45,7 @@ class ShareLimits:
                     "title": f"Updating Share Limits for {group_name}. Priority {group_config['priority']}",
                     "body": f"Updated {len(self.torrents_updated)} torrents.",
                     "grouping": group_name,
-                    "torrent_list": self.torrents_updated,
+                    "torrents": self.torrents_updated,
                     "torrent_tag": self.group_tag,
                     "torrent_max_ratio": group_config["max_ratio"],
                     "torrent_max_seeding_time": group_config["max_seeding_time"],
@@ -88,9 +88,9 @@ class ShareLimits:
                     "function": "cleanup_share_limits",
                     "title": "Share limit removal",
                     "grouping": group_name,
-                    "torrent_name": t_name,
+                    "torrents": [t_name],
                     "torrent_category": torrent.category,
-                    "cleanup": "True",
+                    "cleanup": True,
                     "torrent_tracker": tracker["url"],
                     "notifiarr_indexer": tracker["notifiarr"],
                 }
@@ -135,8 +135,11 @@ class ShareLimits:
                     "title": "Share limit removal - Deleted .torrent but NOT content files.",
                     "body": f"Deleted {self.stats_deleted} .torrents but NOT content files.",
                     "grouping": group_name,
-                    "torrent_list": list(t_deleted),
+                    "torrents": list(t_deleted),
+                    "torrent_category": None,
                     "cleanup": True,
+                    "torrent_tracker": None,
+                    "notifiarr_indexer": None,
                     "torrents_deleted_and_contents": False,
                 }
                 self.config.send_notifications(attr)
@@ -146,8 +149,11 @@ class ShareLimits:
                     "title": "Share limit removal - Deleted .torrent AND content files.",
                     "body": f"Deleted {self.stats_deleted_contents} .torrents AND content files.",
                     "grouping": group_name,
-                    "torrent_list": list(t_deleted_and_contents),
+                    "torrents": list(t_deleted_and_contents),
+                    "torrent_category": None,
                     "cleanup": True,
+                    "torrent_tracker": None,
+                    "notifiarr_indexer": None,
                     "torrents_deleted_and_contents": True,
                 }
                 self.config.send_notifications(attr)
