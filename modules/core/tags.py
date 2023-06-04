@@ -1,5 +1,4 @@
 from modules import util
-from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
 
@@ -15,7 +14,7 @@ class Tags:
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
         self.tags()
-        self.notify()
+        self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
 
     def tags(self):
         """Update tags for torrents"""
@@ -57,51 +56,3 @@ class Tags:
             )
         else:
             logger.print_line("No new torrents to tag.", self.config.loglevel)
-
-    def notify(self):
-        """Send notifications"""
-
-        def group_notifications_by_tag(self):
-            group_attr = {}
-            """Group notifications by tag"""
-            for attr in self.notify_attr:
-                tag = attr["torrent_tag"]
-                if tag not in group_attr:
-                    group_attr[tag] = {
-                        "torrent_tag": tag,
-                        "body": attr["body"],
-                        "torrents": [attr["torrents"][0]],
-                        "torrent_category": attr["torrent_category"],
-                        "torrent_tracker": attr["torrent_tracker"],
-                        "notifiarr_indexer": attr["notifiarr_indexer"],
-                    }
-                else:
-                    group_attr[tag]["torrents"].append(attr["torrents"][0])
-            return group_attr
-
-        if len(self.torrents_updated) > GROUP_NOTIFICATION_LIMIT:
-            logger.trace(
-                f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications by tag.",
-            )
-            group_attr = group_notifications_by_tag(self)
-            for tag in group_attr:
-                num_torrents_updated = len(group_attr[tag]["torrents"])
-                only_one_torrent_updated = num_torrents_updated == 1
-
-                attr = {
-                    "function": "tag_update",
-                    "title": f"Updating Tags for {tag}",
-                    "body": group_attr[tag]["body"]
-                    if only_one_torrent_updated
-                    else f"Updated {num_torrents_updated} "
-                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with tag '{tag}'",
-                    "torrents": group_attr[tag]["torrents"],
-                    "torrent_category": group_attr[tag]["torrent_category"] if only_one_torrent_updated else None,
-                    "torrent_tag": tag,
-                    "torrent_tracker": group_attr[tag]["torrent_tracker"],
-                    "notifiarr_indexer": group_attr[tag]["notifiarr_indexer"],
-                }
-                self.config.send_notifications(attr)
-        else:
-            for attr in self.notify_attr:
-                self.config.send_notifications(attr)

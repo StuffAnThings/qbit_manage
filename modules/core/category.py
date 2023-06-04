@@ -1,7 +1,6 @@
 from qbittorrentapi import Conflict409Error
 
 from modules import util
-from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
 
@@ -16,7 +15,7 @@ class Category:
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
         self.category()
-        self.notify()
+        self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
@@ -81,51 +80,3 @@ class Category:
         self.notify_attr.append(attr)
         self.torrents_updated.append(t_name)
         self.stats += 1
-
-    def notify(self):
-        """Send notifications"""
-
-        def group_notifications_by_category(self):
-            group_attr = {}
-            """Group notifications by category"""
-            for attr in self.notify_attr:
-                category = attr["torrent_category"]
-                if category not in group_attr:
-                    group_attr[category] = {
-                        "torrent_category": category,
-                        "body": attr["body"],
-                        "torrents": [attr["torrents"][0]],
-                        "torrent_tag": attr["torrent_tag"],
-                        "torrent_tracker": attr["torrent_tracker"],
-                        "notifiarr_indexer": attr["notifiarr_indexer"],
-                    }
-                else:
-                    group_attr[category]["torrents"].append(attr["torrents"][0])
-            return group_attr
-
-        if len(self.torrents_updated) > GROUP_NOTIFICATION_LIMIT:
-            logger.trace(
-                f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications by category.",
-            )
-            group_attr = group_notifications_by_category(self)
-            for category in group_attr:
-                num_torrents_updated = len(group_attr[category]["torrents"])
-                only_one_torrent_updated = num_torrents_updated == 1
-
-                attr = {
-                    "function": "cat_update",
-                    "title": f"Updating Category for {category}",
-                    "body": group_attr[category]["body"]
-                    if only_one_torrent_updated
-                    else f"Updated {num_torrents_updated} "
-                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with category '{category}'",
-                    "torrents": group_attr[category]["torrents"],
-                    "torrent_category": category,
-                    "torrent_tag": group_attr[category]["torrent_tag"] if only_one_torrent_updated else None,
-                    "torrent_tracker": group_attr[category]["torrent_tracker"] if only_one_torrent_updated else None,
-                    "notifiarr_indexer": group_attr[category]["notifiarr_indexer"] if only_one_torrent_updated else None,
-                }
-                self.config.send_notifications(attr)
-        else:
-            for attr in self.notify_attr:
-                self.config.send_notifications(attr)
