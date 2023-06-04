@@ -211,10 +211,6 @@ class Webhooks:
                     attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
                     attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
 
-                for extra_attr in payload:
-                    if extra_attr not in attr:
-                        attr[extra_attr] = payload[extra_attr]
-
                 self.config.send_notifications(attr)
         else:
             for attr in payload:
@@ -227,16 +223,7 @@ def group_notifications_by_key(payload, key):
     for attr in payload:
         group = attr[key]
         if group not in group_attr:
-            group_attr[group] = {
-                "function": attr.get("function"),
-                "title": attr.get("title"),
-                "body": attr.get("body"),
-                "torrent_category": attr.get("torrent_category"),
-                "torrent_tag": attr.get("torrent_tag"),
-                "torrents": [attr.get("torrents", [None])[0]],
-                "torrent_tracker": attr.get("torrent_tracker"),
-                "notifiarr_indexer": attr.get("notifiarr_indexer"),
-            }
+            group_attr[group] = attr
         else:
             group_attr[group]["torrents"].append(attr.get("torrents", [None])[0])
     return group_attr
