@@ -195,14 +195,18 @@ class Webhooks:
                 }
                 if group_by == "category":
                     attr["torrent_category"] = group
-                    attr["torrent_tag"] = group_attr[group]["torrent_tag"] if only_one_torrent_updated else None
-                    attr["torrent_tracker"] = group_attr[group]["torrent_tracker"] if only_one_torrent_updated else None
-                    attr["notifiarr_indexer"] = group_attr[group]["notifiarr_indexer"] if only_one_torrent_updated else None
+                    attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker") if only_one_torrent_updated else None
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer") if only_one_torrent_updated else None
                 elif group_by == "tag":
                     attr["torrent_tag"] = group
-                    attr["torrent_category"] = group_attr[group]["torrent_category"] if only_one_torrent_updated else None
-                    attr["torrent_tracker"] = group_attr[group]["torrent_tracker"]
-                    attr["notifiarr_indexer"] = group_attr[group]["notifiarr_indexer"]
+                    attr["torrent_category"] = group_attr[group].get("torrent_category") if only_one_torrent_updated else None
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker")
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
+
+                for extra_attr in payload:
+                    if extra_attr not in attr:
+                        attr[extra_attr] = payload[extra_attr]
 
                 self.config.send_notifications(attr)
         else:
@@ -217,15 +221,15 @@ def group_notifications_by_key(payload, key):
         group = attr[key]
         if group not in group_attr:
             group_attr[group] = {
-                "function": attr["function"],
-                "title": attr["title"],
-                "body": attr["body"],
-                "torrent_category": attr["torrent_category"],
-                "torrent_tag": attr["torrent_tag"],
-                "torrents": [attr["torrents"][0]],
-                "torrent_tracker": attr["torrent_tracker"],
-                "notifiarr_indexer": attr["notifiarr_indexer"],
+                "function": attr.get("function"),
+                "title": attr.get("title"),
+                "body": attr.get("body"),
+                "torrent_category": attr.get("torrent_category"),
+                "torrent_tag": attr.get("torrent_tag"),
+                "torrents": [attr.get("torrents", [None])[0]],
+                "torrent_tracker": attr.get("torrent_tracker"),
+                "notifiarr_indexer": attr.get("notifiarr_indexer"),
             }
         else:
-            group_attr[group]["torrents"].append(attr["torrents"][0])
+            group_attr[group]["torrents"].append(attr.get("torrents", [None])[0])
     return group_attr
