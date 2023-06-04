@@ -15,6 +15,9 @@ if [[ $current_version != *"develop"* ]]; then
   exit 0
 fi
 
+# Get the version number from the HEAD commit
+current_version=$(git show HEAD:VERSION 2>/dev/null)
+
 # Extract the version number after "develop"
 version_number=$(echo "$current_version" | grep -oP '(?<=develop)\d+')
 

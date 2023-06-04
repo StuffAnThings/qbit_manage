@@ -16,7 +16,16 @@ class TagNoHardLinks:
         self.nohardlinks = qbit_manager.config.nohardlinks
         self.nohardlinks_tag = qbit_manager.config.nohardlinks_tag
 
+        self.torrents_updated_tagged = []  # List of torrents updated
+        self.notify_attr_tagged = []  # List of single torrent attributes to send to notifiarr
+
+        self.torrents_updated_untagged = []  # List of torrents updated
+        self.notify_attr_untagged = []  # List of single torrent attributes to send to notifiarr
+
         self.tag_nohardlinks()
+
+        self.config.webhooks_factory.notify(self.torrents_updated_tagged, self.notify_attr_tagged, group_by="tag")
+        self.config.webhooks_factory.notify(self.torrents_updated_untagged, self.notify_attr_untagged, group_by="tag")
 
     def add_tag_no_hl(self, torrent, tracker, category):
         """Add tag nohardlinks_tag to torrents with no hardlinks"""
@@ -40,7 +49,8 @@ class TagNoHardLinks:
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        self.config.send_notifications(attr)
+        self.torrents_updated_tagged.append(torrent.name)
+        self.notify_attr_tagged.append(attr)
 
     def check_previous_nohardlinks_tagged_torrents(self, has_nohardlinks, torrent, tracker, category):
         """
@@ -69,7 +79,8 @@ class TagNoHardLinks:
                 "torrent_tracker": tracker["url"],
                 "notifiarr_indexer": tracker["notifiarr"],
             }
-            self.config.send_notifications(attr)
+            self.torrents_updated_untagged.append(torrent.name)
+            self.notify_attr_untagged.append(attr)
 
     def tag_nohardlinks(self):
         """Tag torrents with no hardlinks"""
