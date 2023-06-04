@@ -51,3 +51,11 @@ repos:
     hooks:
       - id: flake8
         args: [--config=.flake8]
+  - repo: local
+    hooks:
+      - id: increase-version
+        name: Increase version if branch contains "develop"
+        entry: ./scripts/pre-commit/increase_version.sh
+        language: script
+        pass_filenames: false
+        stages: [commit]
