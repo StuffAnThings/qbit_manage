@@ -13,6 +13,7 @@ class Tags:
         self.share_limits_suffix_tag = qbit_manager.config.share_limits_suffix_tag  # suffix tag for share limits
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
+
         self.tags()
         self.notify()
 
@@ -78,7 +79,7 @@ class Tags:
 
         if len(self.torrents_updated) > GROUP_NOTIFICATION_LIMIT:
             logger.trace(
-                f"Number of tags > {GROUP_NOTIFICATION_LIMIT}, grouping notifications by tag.",
+                f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications by tag.",
             )
             group_attr = group_notifications_by_tag(self)
             for tag in group_attr:
