@@ -1,5 +1,13 @@
 #!/bin/bash
 
+staged_changes=$(git diff-index --cached HEAD | wc -l | awk '{print $1}')
+
+# Check if there are any changes staged for commit
+if [ "$staged_changes" -eq 0 ]; then
+  echo "There are no changes staged for commit. Skipping version update."
+  exit 0
+fi
+
 # Check if the VERSION file is staged for modification
 if git diff --cached --name-only | grep -q "VERSION"; then
   echo "The VERSION file is already modified. Skipping version update."
