@@ -327,18 +327,18 @@ class Qbt:
             # Create recycle bin if not exists
             torrent_path = os.path.join(recycle_path, "torrents")
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
-
+            torrent_name = info["torrents"][0]
             os.makedirs(recycle_path, exist_ok=True)
             if self.config.recyclebin["save_torrents"]:
                 if os.path.isdir(torrent_path) is False:
                     os.makedirs(torrent_path)
                 if os.path.isdir(torrents_json_path) is False:
                     os.makedirs(torrents_json_path)
-                torrent_json_file = os.path.join(torrents_json_path, f"{info['torrent_name']}.json")
+                torrent_json_file = os.path.join(torrents_json_path, f"{torrent_name}.json")
                 torrent_json = util.load_json(torrent_json_file)
                 if not torrent_json:
                     logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
-                    torrent_json["torrent_name"] = info["torrent_name"]
+                    torrent_json["torrent_name"] = torrent_name
                     torrent_json["category"] = info["torrent_category"]
                 else:
                     logger.info(f"Adding {info['torrent_tracker']} to existing {os.path.basename(torrent_json_file)}")
