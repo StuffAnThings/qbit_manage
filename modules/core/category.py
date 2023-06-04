@@ -74,6 +74,7 @@ class Category:
             "body": "\n".join(body),
             "torrents": [t_name],
             "torrent_category": new_cat,
+            "torrent_tag": ", ".join(tracker["tag"]),
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
@@ -92,7 +93,11 @@ class Category:
                 if category not in group_attr:
                     group_attr[category] = {
                         "torrent_category": category,
+                        "body": attr["body"],
                         "torrents": [attr["torrents"][0]],
+                        "torrent_tag": attr["torrent_tag"],
+                        "torrent_tracker": attr["torrent_tracker"],
+                        "notifiarr_indexer": attr["notifiarr_indexer"],
                     }
                 else:
                     group_attr[category]["torrents"].append(attr["torrents"][0])
@@ -104,15 +109,21 @@ class Category:
             )
             group_attr = group_notifications_by_category(self)
             for category in group_attr:
+                num_torrents_updated = len(group_attr[category]["torrents"])
+                only_one_torrent_updated = num_torrents_updated == 1
+
                 attr = {
                     "function": "cat_update",
                     "title": f"Updating Category for {category}",
-                    "body": f"Updated {len(group_attr[category]['torrents'])} "
-                    f"{'torrents' if len(group_attr[category]['torrents']) > 1 else 'torrent'} with category '{category}'",
+                    "body": group_attr[category]["body"]
+                    if only_one_torrent_updated
+                    else f"Updated {num_torrents_updated} "
+                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with category '{category}'",
                     "torrents": group_attr[category]["torrents"],
                     "torrent_category": category,
-                    "torrent_tracker": None,
-                    "notifiarr_indexer": None,
+                    "torrent_tag": group_attr[category]["torrent_tag"] if only_one_torrent_updated else None,
+                    "torrent_tracker": group_attr[category]["torrent_tracker"] if only_one_torrent_updated else None,
+                    "notifiarr_indexer": group_attr[category]["notifiarr_indexer"] if only_one_torrent_updated else None,
                 }
                 self.config.send_notifications(attr)
         else:

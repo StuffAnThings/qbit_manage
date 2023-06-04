@@ -69,7 +69,9 @@ class Tags:
                 if tag not in group_attr:
                     group_attr[tag] = {
                         "torrent_tag": tag,
+                        "body": attr["body"],
                         "torrents": [attr["torrents"][0]],
+                        "torrent_category": attr["torrent_category"],
                         "torrent_tracker": attr["torrent_tracker"],
                         "notifiarr_indexer": attr["notifiarr_indexer"],
                     }
@@ -83,13 +85,18 @@ class Tags:
             )
             group_attr = group_notifications_by_tag(self)
             for tag in group_attr:
+                num_torrents_updated = len(group_attr[tag]["torrents"])
+                only_one_torrent_updated = num_torrents_updated == 1
+
                 attr = {
                     "function": "tag_update",
                     "title": f"Updating Tags for {tag}",
-                    "body": f"Updated {len(group_attr[tag]['torrents'])} "
-                    f"{'torrents' if len(group_attr[tag]['torrents']) > 1 else 'torrent'} with tag '{tag}'",
+                    "body": group_attr[tag]["body"]
+                    if only_one_torrent_updated
+                    else f"Updated {num_torrents_updated} "
+                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with tag '{tag}'",
                     "torrents": group_attr[tag]["torrents"],
-                    "torrent_category": None,
+                    "torrent_category": group_attr[tag]["torrent_category"] if only_one_torrent_updated else None,
                     "torrent_tag": tag,
                     "torrent_tracker": group_attr[tag]["torrent_tracker"],
                     "notifiarr_indexer": group_attr[tag]["notifiarr_indexer"],
