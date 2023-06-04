@@ -189,12 +189,13 @@ share_limits:
     add_group_to_tag: true
   cross-seed:
     priority: 2
-    tags: cross-seed
+    include_all_tags:
+      - cross-seed
     max_seeding_time: 10200
     cleanup: false
   PTP:
     priority: 3
-    tags:
+    include_all_tags:
       - PassThePopcorn
     max_ratio: 2.0
     max_seeding_time: 130000
