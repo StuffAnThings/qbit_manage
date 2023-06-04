@@ -408,6 +408,8 @@ def start():
         "untagged_tracker_error": 0,
         "tagged_noHL": 0,
         "untagged_noHL": 0,
+        "updated_share_limits": 0,
+        "cleaned_share_limits": 0,
     }
 
     def finished_run():
@@ -476,8 +478,10 @@ def start():
         if cfg.commands["share_limits"]:
             share_limits = ShareLimits(qbit_manager)
             stats["tagged"] += share_limits.stats_tagged
+            stats["updated_share_limits"] += share_limits.stats_tagged
             stats["deleted"] += share_limits.stats_deleted
             stats["deleted_contents"] += share_limits.stats_deleted_contents
+            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
 
         # Remove Orphaned Files
         if cfg.commands["rem_orphaned"]:
@@ -515,6 +519,10 @@ def start():
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
     if stats["untagged_noHL"] > 0:
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
+    if stats["updated_share_limits"] > 0:
+        stats_summary.append(f"Total Share Limits Updated: {stats['updated_share_limits']}")
+    if stats["cleaned_share_limits"] > 0:
+        stats_summary.append(f"Total Torrents Removed from Meeting Share Limits: {stats['cleaned_share_limits']}")
     if stats["recycle_emptied"] > 0:
         stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
     if stats["orphaned_emptied"] > 0:

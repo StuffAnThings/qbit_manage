@@ -141,6 +141,8 @@ class Webhooks:
                     "orphaned_files_found": stats["orphaned"],
                     "torrents_tagged_no_hardlinks": stats["tagged_noHL"],
                     "torrents_untagged_no_hardlinks": stats["untagged_noHL"],
+                    "torrents_updated_share_limits": stats["updated_share_limits"],
+                    "torrents_cleaned_share_limits": stats["cleaned_share_limits"],
                     "files_deleted_from_recyclebin": stats["recycle_emptied"],
                     "files_deleted_from_orphaned": stats["orphaned_emptied"],
                 },
