@@ -142,6 +142,8 @@ nohardlinks:
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping
+  # Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria.
+  # Each torrent can only be matched with one share limit group
   # This variable is mandatory and is a text defining the name of your grouping. This can be any string you want
   noHL:
     # <MANDATORY> priority: <int/float> # This is the priority of your grouping. The lower the number the higher the priority
@@ -170,13 +172,13 @@ share_limits:
       - RadarrComplete
       - SonarrComplete
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
-    # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the group.
+    # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0
     # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding.
-    # Delete this key from a category's config to use the tracker's configured max_seeding_time. Will default to -1 if not specified for the group.
+    # Will default to -1 (no limit) if not specified for the group.
     max_seeding_time: 129600
     # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
-    # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the group.
+    # Will default to 0 if not specified for the group.
     min_seeding_time: 43200
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
@@ -274,6 +276,7 @@ webhooks:
     tag_tracker_error: notifiarr
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
+    share_limits: notifiarr
     cleanup_dirs: notifiarr
 
 bhd:
