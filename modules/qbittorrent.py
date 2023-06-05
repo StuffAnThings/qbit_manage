@@ -57,16 +57,14 @@ class Qbt:
                     + f"Please downgrade your qBittorrent version to {self.SUPPORTED_VERSION} to use qbit_manage."
                 )
             if ex:
-                self.config.notify(ex, "Qbittorrent")
-                logger.print_line(ex, "CRITICAL")
                 if self.config.commands["skip_qb_version_check"]:
-                    logger.print_line(
-                        "Continuing because qBittorrent version check is bypassed... Please do not ask for support!"
-                    )
+                    ex += "\n[BYPASS]: Continuing because qBittorrent version check is bypassed... Please do not ask for support!"
+                    logger.print_line(ex, "WARN")
                 else:
+                    self.config.notify(ex, "Qbittorrent")
+                    logger.print_line(ex, "CRITICAL")
                     sys.exit(0)
-            else:
-                logger.info("Qbt Connection Successful")
+            logger.info("Qbt Connection Successful")
         except LoginFailed as exc:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(ex, "Qbittorrent")
