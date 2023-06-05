@@ -174,25 +174,29 @@ class ShareLimits:
             if group_config["limit_upload_speed"] == 0:
                 group_config["limit_upload_speed"] = -1
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
-            if (
-                check_max_ratio or check_max_seeding_time or check_limit_upload_speed
-            ) and t_hash not in self.torrent_hash_checked:
+            hash_not_prev_checked = t_hash not in self.torrent_hash_checked
+            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
+            logger.trace(f"Torrent Category: {torrent.category}")
+            logger.trace(f"Torrent Tags: {torrent.tags}")
+            logger.trace(f"Grouping: {group_name}")
+            logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.max_ratio}")
+            logger.trace(f"check_max_ratio: {check_max_ratio}")
+            logger.trace(
+                "Config Max Seeding Time vs Torrent Max Seeding Time: "
+                f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
+            )
+            logger.trace(f"check_max_seeding_time: {check_max_seeding_time}")
+            logger.trace(
+                "Config Limit Upload Speed vs Torrent Limit Upload Speed: "
+                f"{group_config['limit_upload_speed']} vs {torrent_upload_limit}"
+            )
+            logger.trace(f"check_limit_upload_speed: {check_limit_upload_speed}")
+            logger.trace(f"hash_not_prev_checked: {hash_not_prev_checked}")
+            if (check_max_ratio or check_max_seeding_time or check_limit_upload_speed) and hash_not_prev_checked:
                 if "MinSeedTimeNotReached" not in torrent.tags:
                     self.group_tag = f"{group_name}{self.share_limits_suffix_tag}" if group_config["add_group_to_tag"] else None
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
-                    logger.trace(f"Torrent Category: {torrent.category}")
-                    logger.trace(f"Torrent Tags: {torrent.tags}")
-                    logger.trace(f"Grouping: {group_name}")
-                    logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.max_ratio}")
-                    logger.trace(
-                        "Config Max Seeding Time vs Torrent Max Seeding Time: "
-                        f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
-                    )
-                    logger.trace(
-                        "Config Limit Upload Speed vs Torrent Limit Upload Speed: "
-                        f"{group_config['limit_upload_speed']} vs {torrent_upload_limit}"
-                    )
                     if self.group_tag:
                         logger.print_line(logger.insert_space(f"Added Tag: {self.group_tag}", 8), self.config.loglevel)
                     self.tag_and_update_share_limits_for_torrent(torrent, group_config)
@@ -247,7 +251,7 @@ class ShareLimits:
             tags = util.get_list(torrent.tags)
             category = torrent.category or ""
             grouping = self.get_share_limit_group(tags, category)
-            logger.trace(f"Torrent: {torrent.name} [{torrent.hash}] - Share Limit Group: {grouping}")
+            logger.trace(f"Torrent: {torrent.name} [Hash: {torrent.hash}] - Share Limit Group: {grouping}")
             if grouping:
                 self.share_limits_config[grouping]["torrents"].append(torrent)
 
