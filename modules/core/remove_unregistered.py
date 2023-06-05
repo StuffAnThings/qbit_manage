@@ -209,7 +209,7 @@ class RemoveUnregistered:
             "torrents": [self.t_name],
             "torrent_category": self.t_cat,
             "torrent_status": msg,
-            "torrent_tag": tracker["tag"],
+            "torrent_tag": ", ".join(tracker["tag"]),
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }

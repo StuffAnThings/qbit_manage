@@ -247,6 +247,7 @@ class ShareLimits:
             tags = util.get_list(torrent.tags)
             category = torrent.category or ""
             grouping = self.get_share_limit_group(tags, category)
+            logger.trace(f"Torrent: {torrent.name} [{torrent.hash}] - Share Limit Group: {grouping}")
             if grouping:
                 self.share_limits_config[grouping]["torrents"].append(torrent)
 
