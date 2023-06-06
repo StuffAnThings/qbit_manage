@@ -202,8 +202,6 @@ class ShareLimits:
                     self.tag_and_update_share_limits_for_torrent(torrent, group_config)
                     self.stats_tagged += 1
                     self.torrents_updated.append(t_name)
-            else:
-                self.share_limits_config[group_name]["torrents"].remove(torrent)
 
             # Cleanup torrents if the torrent meets the criteria for deletion and cleanup is enabled
             if group_config["cleanup"]:
