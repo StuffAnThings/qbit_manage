@@ -11,8 +11,11 @@ class Category:
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
+        self.torrents_updated = []  # List of torrents updated
+        self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
         self.category()
+        self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
@@ -40,6 +43,7 @@ class Category:
     def update_cat(self, torrent, new_cat, cat_change):
         """Update category based on the torrent information"""
         tracker = self.qbt.get_tags(torrent.trackers)
+        t_name = torrent.name
         old_cat = torrent.category
         if not self.config.dry_run:
             try:
@@ -55,7 +59,7 @@ class Category:
                 self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
                 torrent.set_category(category=new_cat)
         body = []
-        body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+        body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
         if cat_change:
             body += logger.print_line(logger.insert_space(f"Old Category: {old_cat}", 3), self.config.loglevel)
             title = "Moving Categories"
@@ -67,10 +71,12 @@ class Category:
             "function": "cat_update",
             "title": title,
             "body": "\n".join(body),
-            "torrent_name": torrent.name,
+            "torrents": [t_name],
             "torrent_category": new_cat,
+            "torrent_tag": ", ".join(tracker["tag"]),
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        self.config.send_notifications(attr)
+        self.notify_attr.append(attr)
+        self.torrents_updated.append(t_name)
         self.stats += 1

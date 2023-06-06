@@ -14,6 +14,8 @@ commands:
   tag_tracker_error: False
   rem_orphaned: False
   tag_nohardlinks: False
+  share_limits: False
+  skip_qb_version_check: False
   skip_cleanup: False
 
 qbt:
@@ -23,9 +25,10 @@ qbt:
   pass: "password"
 
 settings:
-  force_auto_tmm: False  # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
-  tracker_error_tag: issue  # Will set the tag of any torrents that do not have a working tracker.
+  force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
+  tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
+  share_limits_suffix_tag: share_limit # Will add this suffix to the grouping separated by '.' to the tag of any torrents with share limits.
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
@@ -38,7 +41,7 @@ directory:
   # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
   # <OPTIONAL> recycle_bin var: </your/path/here/>   # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
   # <OPTIONAL> torrents_dir var: </your/path/here/>  # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
-
+  # <OPTIONAL> orphaned_dir var: </your/path/here/>  # Path of the the Orphaned Data folder. This is similar to RecycleBin, but only for orphaned data.
   cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
@@ -61,21 +64,12 @@ cat_change:
   movies-hd.cross-seed: movies-hd
   movies-uhd.cross-seed: movies-uhd
 
-
 tracker:
   # Mandatory
   # Tag Parameters
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
-  # <OPTIONAL> Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading. -2 means the global limit should be used, -1 means no limit.
-  #   max_ratio: 5.0
-  # <OPTIONAL> Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding. -2 means the global limit should be used, -1 means no limit.
-  #   max_seeding_time: 129600
-  # <OPTIONAL> Will ensure that noHL torrents from this tracker are not deleted by cleanup variable if torrent has not yet met the minimum seeding time (min).
-  #   min_seeding_time: 2000
-  # <OPTIONAL> Will limit the upload speed KiB/s (KiloBytes/second) (-1 means no limit)
-  #   limit_upload_speed: 150
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
   #   notifiarr: <notifiarr indexer>
   animebytes.tv:
@@ -86,10 +80,6 @@ tracker:
       - Avistaz
       - tag2
       - tag3
-    max_ratio: 5.0
-    max_seeding_time: 129600
-    min_seeding_time: 30400
-    limit_upload_speed: 150
     notifiarr: avistaz
   beyond-hd:
     tag: [Beyond-HD, tag2, tag3]
@@ -101,14 +91,11 @@ tracker:
     tag: CartoonChaos
   digitalcore:
     tag: DigitalCore
-    max_ratio: 5.0
     notifiarr: digitalcore
   gazellegames:
     tag: GGn
-    limit_upload_speed: 150
   hdts:
     tag: HDTorrents
-    max_seeding_time: 129600
   landof.tv:
     tag: BroadcasTheNet
     notifiarr: broadcasthenet
@@ -139,54 +126,88 @@ nohardlinks:
   # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
-  movies-completed:
-    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-    exclude_tags:
-      - Beyond-HD
-      - AnimeBytes
-      - MaM
-    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
-    cleanup: false
-    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
-    # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
-    max_ratio: 4.0
-    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding.
-    # Delete this key from a category's config to use the tracker's configured max_seeding_time. Will default to -1 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
-    max_seeding_time: 86400
-    # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
-    limit_upload_speed:
-    # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
-    # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
-    min_seeding_time: 43200
-    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
-    resume_torrent_after_untagging_noHL: false
+  - movies-completed-4k
+  - series-completed-4k
+  - movies-completed:
+      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+      exclude_tags:
+        - Beyond-HD
+        - AnimeBytes
+        - MaM
   # Can have additional categories set with separate ratio/seeding times defined.
-  series-completed:
-    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-    exclude_tags:
+  - series-completed:
+      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+      exclude_tags:
+        - Beyond-HD
+        - BroadcasTheNet
+
+share_limits:
+  # Control how torrent share limits are set depending on the priority of your grouping
+  # Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria.
+  # Each torrent can only be matched with one share limit group
+  # This variable is mandatory and is a text defining the name of your grouping. This can be any string you want
+  noHL:
+    # <MANDATORY> priority: <int/float> # This is the priority of your grouping. The lower the number the higher the priority
+    priority: 1
+    # <OPTIONAL> include_all_tags: <list> # Filter the group based on one or more tags. Multiple include_all_tags are checked with an AND condition
+    # All tags defined here must be present in the torrent for it to be included in this group
+    include_all_tags:
+      - noHL
+    # <OPTIONAL> include_any_tags: <list> # Filter the group based on one or more tags. Multiple include_any_tags are checked with an OR condition
+    # Any tags defined here must be present in the torrent for it to be included in this group
+    include_any_tags:
+      - noHL
+    # <OPTIONAL> exclude_all_tags: <list> # Filter by excluding one or more tags. Multiple exclude_all_tags are checked with an AND condition
+    # This is useful to combine with the category filter to exclude one or more tags from an entire category
+    # All tags defined here must be present in the torrent for it to be excluded in this group
+    exclude_all_tags:
       - Beyond-HD
-      - BroadcasTheNet
-    # <OPTIONAL> cleanup var: WARNING!! Setting this as true Will remove and delete contents of any torrents that have a noHL tag and meets share limits
-    cleanup: false
-    # <OPTIONAL> max_ratio var: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
-    # Delete this key from a category's config to use the tracker's configured max_ratio. Will default to -1 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
-    max_ratio: 4.0
-    # <OPTIONAL> max seeding time var: Will set the torrent Maximum seeding time (min) until torrent is stopped from seeding.
-    # Delete this key from a category's config to use the tracker's configured max_seeding_time. Will default to -1 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
-    max_seeding_time: 86400
-    # <OPTIONAL> Limit Upload Speed var: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
-    limit_upload_speed:
-    # <OPTIONAL> min seeding time var: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (min).
-    # Delete this key from a category's config to use the tracker's configured min_seeding_time. Will default to 0 if not specified for the category or tracker.
-    # Uses the larger value of the noHL Category or Tracker specific setting.
+    # <OPTIONAL> exclude_any_tags: <list> # Filter by excluding one or more tags. Multiple exclude_any_tags are checked with an OR condition
+    # This is useful to combine with the category filter to exclude one or more tags from an entire category
+    # Any tags defined here must be present in the torrent for it to be excluded in this group
+    exclude_any_tags:
+      - Beyond-HD
+    # <OPTIONAL> categories: <list> # Filter by excluding one or more categories. Multiple categories are checked with an OR condition
+    # Since one torrent can only be associated with a single category, multiple categories are checked with an OR condition
+    categories:
+      - RadarrComplete
+      - SonarrComplete
+    # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
+    # Will default to -1 (no limit) if not specified for the group.
+    max_ratio: 5.0
+    # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding.
+    # Will default to -1 (no limit) if not specified for the group.
+    max_seeding_time: 129600
+    # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
+    # Will default to 0 if not specified for the group.
     min_seeding_time: 43200
-    # <OPTIONAL> resume_torrent_after_untagging_noHL var: If a torrent was previously tagged as NoHL and now has hardlinks, this variable will resume your torrent after changing share limits
-    resume_torrent_after_untagging_noHL: false
+    # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
+    limit_upload_speed: 0
+    # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits
+    cleanup: false
+    # <OPTIONAL> resume_torrent_after_change <bool>: This variable will resume your torrent after changing share limits. Default is true
+    resume_torrent_after_change: true
+    # <OPTIONAL> add_group_to_tag <bool>: This adds your grouping as a tag with a suffix defined in settings . Default is true
+    # Example: A grouping defined as noHL will have a tag set to noHL.share_limit (if using the default suffix)
+    add_group_to_tag: true
+  cross-seed:
+    priority: 2
+    include_all_tags:
+      - cross-seed
+    max_seeding_time: 10200
+    cleanup: false
+  PTP:
+    priority: 3
+    include_all_tags:
+      - PassThePopcorn
+    max_ratio: 2.0
+    max_seeding_time: 130000
+    cleanup: false
+  default:
+    priority: 999
+    max_ratio: -1
+    max_seeding_time: -1
+    cleanup: false
 
 recyclebin:
   # Recycle Bin method of deletion will move files into the recycle bin (Located in /root_dir/.RecycleBin) instead of directly deleting them in qbit
@@ -219,7 +240,7 @@ orphaned:
     - "**/@eaDir"
     - "/data/torrents/temp/**"
     - "**/*.!qB"
-    - '**/_unpackerred'
+    - "**/_unpackerred"
 
 apprise:
   # Apprise integration with webhooks
@@ -256,6 +277,7 @@ webhooks:
     tag_tracker_error: notifiarr
     rem_orphaned: notifiarr
     tag_nohardlinks: notifiarr
+    share_limits: notifiarr
     cleanup_dirs: notifiarr
 
 bhd:

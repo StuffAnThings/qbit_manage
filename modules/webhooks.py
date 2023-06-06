@@ -9,6 +9,8 @@ from modules.util import Failed
 
 logger = util.logger
 
+GROUP_NOTIFICATION_LIMIT = 10
+
 
 class Webhooks:
     """Class to handle webhooks."""
@@ -139,6 +141,8 @@ class Webhooks:
                     "orphaned_files_found": stats["orphaned"],
                     "torrents_tagged_no_hardlinks": stats["tagged_noHL"],
                     "torrents_untagged_no_hardlinks": stats["untagged_noHL"],
+                    "torrents_updated_share_limits": stats["updated_share_limits"],
+                    "torrents_cleaned_share_limits": stats["cleaned_share_limits"],
                     "files_deleted_from_recyclebin": stats["recycle_emptied"],
                     "files_deleted_from_orphaned": stats["orphaned_emptied"],
                 },
@@ -163,3 +167,63 @@ class Webhooks:
         """Send a webhook to notify that a function has completed."""
         if self.function_webhooks:
             self._request(webhook, json)
+
+    def notify(self, torrents_updated=[], payload={}, group_by=""):
+        if len(torrents_updated) > GROUP_NOTIFICATION_LIMIT:
+            logger.trace(
+                f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications"
+                f"{f' by {group_by}' if group_by else ''}",
+            )
+            if group_by == "category":
+                group_attr = group_notifications_by_key(payload, "torrent_category")
+            elif group_by == "tag":
+                group_attr = group_notifications_by_key(payload, "torrent_tag")
+            elif group_by == "tracker":
+                group_attr = group_notifications_by_key(payload, "torrent_tracker")
+
+            # group notifications by grouping attribute
+            for group in group_attr:
+                num_torrents_updated = len(group_attr[group]["torrents"])
+                only_one_torrent_updated = num_torrents_updated == 1
+
+                attr = {
+                    "function": group_attr[group]["function"],
+                    "title": f"{group_attr[group]['title']} for {group}",
+                    "body": group_attr[group]["body"]
+                    if only_one_torrent_updated
+                    else f"Updated {num_torrents_updated} "
+                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with {group_by} '{group}'",
+                    "torrents": group_attr[group]["torrents"],
+                }
+                if group_by == "category":
+                    attr["torrent_category"] = group
+                    attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker") if only_one_torrent_updated else None
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer") if only_one_torrent_updated else None
+                elif group_by == "tag":
+                    attr["torrent_tag"] = group
+                    attr["torrent_category"] = group_attr[group].get("torrent_category") if only_one_torrent_updated else None
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker")
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
+                elif group_by == "tracker":
+                    attr["torrent_tracker"] = group
+                    attr["torrent_category"] = group_attr[group].get("torrent_category") if only_one_torrent_updated else None
+                    attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
+
+                self.config.send_notifications(attr)
+        else:
+            for attr in payload:
+                self.config.send_notifications(attr)
+
+
+def group_notifications_by_key(payload, key):
+    """Group notifications by key"""
+    group_attr = {}
+    for attr in payload:
+        group = attr[key]
+        if group not in group_attr:
+            group_attr[group] = attr
+        else:
+            group_attr[group]["torrents"].append(attr.get("torrents", [None])[0])
+    return group_attr

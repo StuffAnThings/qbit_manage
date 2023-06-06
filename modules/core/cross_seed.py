@@ -15,6 +15,9 @@ class CrossSeed:
         self.stats_added = 0
         self.stats_tagged = 0
 
+        self.torrents_updated = []  # List of torrents added by cross-seed
+        self.notify_attr = []  # List of single torrent attributes to send to notifiarr
+
         self.cross_seed()
 
     def cross_seed(self):
@@ -56,13 +59,14 @@ class CrossSeed:
                         "function": "cross_seed",
                         "title": "Adding New Cross-Seed Torrent",
                         "body": "\n".join(body),
-                        "torrent_name": t_name,
+                        "torrents": [t_name],
                         "torrent_category": category,
                         "torrent_save_path": dest,
                         "torrent_tag": "cross-seed",
                         "torrent_tracker": t_tracker,
                     }
-                    self.config.send_notifications(attr)
+                    self.notify_attr.append(attr)
+                    self.torrents_updated.append(t_name)
                     self.stats_added += 1
                     if not self.config.dry_run:
                         self.client.torrents.add(
@@ -95,6 +99,10 @@ class CrossSeed:
                 else:
                     logger.print_line(error, "WARNING")
                 self.config.notify(error, "cross-seed", False)
+
+        self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
+        self.torrents_updated = []
+        self.notify_attr = []
         # Tag missing cross-seed torrents tags
         for torrent in self.qbt.torrent_list:
             t_name = torrent.name
@@ -113,15 +121,16 @@ class CrossSeed:
                     "function": "tag_cross_seed",
                     "title": "Tagging Cross-Seed Torrent",
                     "body": body,
-                    "torrent_name": t_name,
+                    "torrents": [t_name],
                     "torrent_category": t_cat,
                     "torrent_tag": "cross-seed",
                     "torrent_tracker": tracker,
                 }
-                self.config.send_notifications(attr)
+                self.notify_attr.append(attr)
+                self.torrents_updated.append(t_name)
                 if not self.config.dry_run:
                     torrent.add_tags(tags="cross-seed")
-
+        self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
         numcategory = Counter(categories)
         for cat in numcategory:
             if numcategory[cat] > 0:

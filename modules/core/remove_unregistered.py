@@ -39,8 +39,12 @@ class RemoveUnregistered:
 
     def remove_previous_errors(self):
         """Removes any previous torrents that were tagged as an error but are now working."""
+        torrents_updated = []
+        notify_attr = []
+
         for torrent in self.qbt.torrentvalid:
             check_tags = util.get_list(torrent.tags)
+            t_name = torrent.name
             # Remove any error torrents Tags that are no longer unreachable.
             if self.tag_error in check_tags:
                 tracker = self.qbt.get_tags(torrent.trackers)
@@ -49,7 +53,7 @@ class RemoveUnregistered:
                 body += logger.print_line(
                     f"Previous Tagged {self.tag_error} torrent currently has a working tracker.", self.config.loglevel
                 )
-                body += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f"Removed Tag: {self.tag_error}", 4), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                 if not self.config.dry_run:
@@ -58,13 +62,16 @@ class RemoveUnregistered:
                     "function": "untag_tracker_error",
                     "title": "Untagging Tracker Error Torrent",
                     "body": "\n".join(body),
-                    "torrent_name": torrent.name,
+                    "torrents": [t_name],
                     "torrent_category": torrent.category,
                     "torrent_tag": self.tag_error,
                     "torrent_tracker": tracker["url"],
                     "notifiarr_indexer": tracker["notifiarr"],
                 }
-                self.config.send_notifications(attr)
+                torrents_updated.append(t_name)
+                notify_attr.append(attr)
+
+        self.config.webhooks_factory.notify(torrents_updated, notify_attr, group_by="tag")
 
     def check_for_unregistered_torrents_using_bhd_api(self, tracker, msg_up, torrent_hash):
         """
@@ -82,6 +89,12 @@ class RemoveUnregistered:
         return False
 
     def process_torrent_issues(self):
+        """Process torrent issues."""
+        self.torrents_updated_issue = []  # List of torrents updated
+        self.notify_attr_issue = []  # List of single torrent attributes to send to notifiarr
+        self.torrents_updated_unreg = []  # List of torrents updated
+        self.notify_attr_unreg = []  # List of single torrent attributes to send to notifiarr
+
         for torrent in self.qbt.torrentissue:
             self.t_name = torrent.name
             self.t_cat = self.qbt.torrentinfo[self.t_name]["Category"]
@@ -97,7 +110,10 @@ class RemoveUnregistered:
                         if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
                             # Tag any error torrents
                             if self.cfg_tag_error and self.tag_error not in check_tags:
-                                self.tag_tracker_error(msg, tracker, torrent)
+                                if not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS) and not list_in_text(
+                                    msg_up, TorrentMessages.UNREGISTERED_MSGS
+                                ):
+                                    self.tag_tracker_error(msg, tracker, torrent)
                             # Check for unregistered torrents
                             if self.cfg_rem_unregistered:
                                 if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
@@ -121,6 +137,10 @@ class RemoveUnregistered:
         """Remove torrents with unregistered trackers."""
         self.remove_previous_errors()
         self.process_torrent_issues()
+
+        self.config.webhooks_factory.notify(self.torrents_updated_issue, self.notify_attr_issue, group_by="tag")
+        self.config.webhooks_factory.notify(self.torrents_updated_unreg, self.notify_attr_unreg, group_by="tag")
+
         if self.cfg_rem_unregistered:
             if self.stats_deleted >= 1 or self.stats_deleted_contents >= 1:
                 if self.stats_deleted >= 1:
@@ -165,14 +185,15 @@ class RemoveUnregistered:
             "function": "tag_tracker_error",
             "title": "Tag Tracker Error Torrents",
             "body": tor_error,
-            "torrent_name": self.t_name,
+            "torrents": [self.t_name],
             "torrent_category": self.t_cat,
             "torrent_tag": self.tag_error,
             "torrent_status": msg,
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        self.config.send_notifications(attr)
+        self.torrents_updated_issue.append(self.t_name)
+        self.notify_attr_issue.append(attr)
         if not self.config.dry_run:
             torrent.add_tags(tags=self.tag_error)
 
@@ -185,9 +206,10 @@ class RemoveUnregistered:
         attr = {
             "function": "rem_unregistered",
             "title": "Removing Unregistered Torrents",
-            "torrent_name": self.t_name,
+            "torrents": [self.t_name],
             "torrent_category": self.t_cat,
             "torrent_status": msg,
+            "torrent_tag": ", ".join(tracker["tag"]),
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
@@ -212,5 +234,6 @@ class RemoveUnregistered:
             body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel)
             self.stats_deleted_contents += 1
         attr["body"] = "\n".join(body)
-        self.config.send_notifications(attr)
+        self.torrents_updated_unreg.append(self.t_name)
+        self.notify_attr_unreg.append(attr)
         self.qbt.torrentinfo[self.t_name]["count"] -= 1

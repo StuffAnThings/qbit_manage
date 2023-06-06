@@ -142,6 +142,16 @@ parser.add_argument(
     "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.",
 )
 parser.add_argument(
+    "-sl",
+    "--share-limits",
+    dest="share_limits",
+    action="store_true",
+    default=False,
+    help="Use this to help apply and manage your torrent share limits based on your tags/categories."
+    "This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well."
+    "Share limits are applied in the order of priority specified.",
+)
+parser.add_argument(
     "-sc",
     "--skip-cleanup",
     dest="skip_cleanup",
@@ -237,6 +247,7 @@ rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bo
 tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
+share_limits = get_arg("QBT_SHARE_LIMITS", args.share_limits, arg_bool=True)
 skip_cleanup = get_arg("QBT_SKIP_CLEANUP", args.skip_cleanup, arg_bool=True)
 skip_qb_version_check = get_arg("QBT_SKIP_QB_VERSION_CHECK", args.skip_qb_version_check, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
@@ -285,6 +296,7 @@ for v in [
     "tag_tracker_error",
     "rem_orphaned",
     "tag_nohardlinks",
+    "share_limits",
     "skip_cleanup",
     "skip_qb_version_check",
     "dry_run",
@@ -329,6 +341,7 @@ from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
 from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
+from modules.core.share_limits import ShareLimits  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -395,6 +408,8 @@ def start():
         "untagged_tracker_error": 0,
         "tagged_noHL": 0,
         "untagged_noHL": 0,
+        "updated_share_limits": 0,
+        "cleaned_share_limits": 0,
     }
 
     def finished_run():
@@ -458,8 +473,15 @@ def start():
             stats["tagged"] += no_hardlinks.stats_tagged
             stats["tagged_noHL"] += no_hardlinks.stats_tagged
             stats["untagged_noHL"] += no_hardlinks.stats_untagged
-            stats["deleted"] += no_hardlinks.stats_deleted
-            stats["deleted_contents"] += no_hardlinks.stats_deleted_contents
+
+        # Set Share Limits
+        if cfg.commands["share_limits"]:
+            share_limits = ShareLimits(qbit_manager)
+            stats["tagged"] += share_limits.stats_tagged
+            stats["updated_share_limits"] += share_limits.stats_tagged
+            stats["deleted"] += share_limits.stats_deleted
+            stats["deleted_contents"] += share_limits.stats_deleted_contents
+            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
 
         # Remove Orphaned Files
         if cfg.commands["rem_orphaned"]:
@@ -497,6 +519,10 @@ def start():
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
     if stats["untagged_noHL"] > 0:
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
+    if stats["updated_share_limits"] > 0:
+        stats_summary.append(f"Total Share Limits Updated: {stats['updated_share_limits']}")
+    if stats["cleaned_share_limits"] > 0:
+        stats_summary.append(f"Total Torrents Removed from Meeting Share Limits: {stats['cleaned_share_limits']}")
     if stats["recycle_emptied"] > 0:
         stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
     if stats["orphaned_emptied"] > 0:
@@ -583,6 +609,7 @@ if __name__ == "__main__":
     logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
+    logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {share_limits}")
     logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {skip_cleanup}")
     logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {skip_qb_version_check}")
     logger.debug(f"    --dry-run (QBT_DRY_RUN): {dry_run}")
