@@ -1,16 +1,23 @@
 # Requirements Updated
-- Updates ruamel.yaml to 0.17.30
+- Updates ruamel.yaml to 0.17.31
 - Updates qbitorrent-api to 2023.5.48
+- Separate out dev requirements into requirements-dev.txt
+# Breaking Changes
+- `tag_nohardlinks` only updates/removes `noHL` tag. **It does not modify or cleanup share_limits anymore.**
+- `tag_update` only adds tracker tags to torrent. **It does not modify or cleanup share_limits anymore.**
+- Please remove any references to share_limits from your configuration in the tracker/nohardlinks section
+- Migration guide can be followed here: [V4 Migration Guide](https://github.com/StuffAnThings/qbit_manage/wiki/v4-Migration-Guide)
+- Webhook payloads changed (See [webhooks](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#webhooks) for updated payload)
 
 # New Features
 - Adds new command `share_limits`, `--share-limits` , `QBT_SHARE_LIMITS=True` to update share limits based on tags/categories specified per group (Closes #88, Closes #306, Closes #259, Closes #308, Closes #137)
+- See [Config Setup - share_limits](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share_limits) for more details
 - Adds new command `skip_qb_version_check`, `--skip-qb-version-check`, `QBT_SKIP_QB_VERSION_CHECK` to bypass qbitorrent compatibility check (unsupported - Thanks to @ftc2 #307)
-# Breaking Changes
-- `tag_nohardlinks` only updates/removes `noHL` tag. It does not modify or cleanup share_limits anymore.
-- `tag_update` only adds tracker tags to torrent. It does not modify or cleanup share_limits anymore.
-- Please remove any references to share_limits from your configuration in the tracker/nohardlinks section
-
+- Updates to webhook notifications to group notifications when a function updates more than 10 Torrents.
+- Adds new webhooks for `share_limits`
+- Adds rate limit to webhook notifications (1 msg/sec)
 # Bug Fixes
 - Fixes #302
+- Fixes #317
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.3...v3.7.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.4...v4.0.0
