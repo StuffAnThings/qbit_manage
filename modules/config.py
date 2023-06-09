@@ -100,7 +100,12 @@ class Config:
         if "cat_change" in self.data:
             self.data["cat_change"] = self.data.pop("cat_change")
         if "tracker" in self.data:
-            self.data["tracker"] = self.data.pop("tracker")
+            trackers = self.data.pop("tracker")
+            self.data["tracker"] = {}
+            # Splits tracker urls at pipes, useful for trackers with multiple announce urls
+            for tracker_urls, data in trackers.items():
+                for tracker_url in tracker_urls.split("|"):
+                    self.data["tracker"][tracker_url] = data
         else:
             self.data["tracker"] = {}
         if "nohardlinks" in self.data:
