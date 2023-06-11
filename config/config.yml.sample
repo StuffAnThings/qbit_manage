@@ -28,7 +28,7 @@ settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
   tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
-  share_limits_suffix_tag: share_limit # Will add this suffix to the grouping separated by '.' to the tag of any torrents with share limits.
+  share_limits_tag: share_limit # Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue

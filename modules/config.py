@@ -146,6 +146,8 @@ class Config:
         self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
+        share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "share_limits")
+
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(
                 self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False
@@ -154,19 +156,22 @@ class Config:
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
-            "share_limits_suffix_tag": self.util.check_for_attribute(
-                self.data, "share_limits_suffix_tag", parent="settings", default="share_limit"
+            "share_limits_tag": self.util.check_for_attribute(
+                self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
-        self.share_limits_suffix_tag = "." + self.settings["share_limits_suffix_tag"]
+        self.share_limits_tag = self.settings["share_limits_tag"]
 
         default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
             self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
         )
+        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        if "share_limits_suffix_tag" in self.data["settings"]:
+            self.util.overwrite_attributes(self.settings, "settings")
 
         default_function = {
             "cross_seed": None,

@@ -1,11 +1,23 @@
 # Requirements Updated
 
-# Breaking Changes
-
 # New Features
 - cross-seed will move torrent to an error folder if it fails to inject torrent
 
 # Bug Fixes
+- Fixes #329 (Updates missing share_limits tag even when share_limits are satisfied)
 
+# Enhancements
+- Logic for `share_limits_suffix_tag` changed to become a prefix tag instead along with adding the priority of the group. The reason for this change is so it's easier to see the share limit groups togethered in qbitorrent ordered by priority.
+    - `share_limits_suffix_tag` key is now `share_limits_tag`
+    - No config changes are required as the qbm will automatically change the previous `share_limits_suffix_tag` key to `share_limits_tag`
+
+Example based on config.sample:
+
+| old tag (v4.0.0)     | new tag (v4.0.1) |
+| ----------- | ----------- |
+| noHL.share_limits      | share_limits_1.noHL       |
+| cross-seed.share_limits   | share_limits_2.cross-seed        |
+| PTP.share_limits   | share_limits_3.PTP        |
+| default.share_limits   | share_limits_999.default        |
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.0...v4.0.1
