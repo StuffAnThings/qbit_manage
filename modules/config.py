@@ -105,7 +105,7 @@ class Config:
             # Splits tracker urls at pipes, useful for trackers with multiple announce urls
             for tracker_urls, data in trackers.items():
                 for tracker_url in tracker_urls.split("|"):
-                    self.data["tracker"][tracker_url] = data
+                    self.data["tracker"][tracker_url.strip()] = data
         else:
             self.data["tracker"] = {}
         if "nohardlinks" in self.data:

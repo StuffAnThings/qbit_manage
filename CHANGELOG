@@ -2,6 +2,7 @@
 
 # New Features
 - cross-seed will move torrent to an error folder if it fails to inject torrent
+- Define multiple announce urls for one tracker (#328 Thanks to @buthed010203 for the PR)
 
 # Bug Fixes
 - Fixes #329 (Updates missing share_limits tag even when share_limits are satisfied)
