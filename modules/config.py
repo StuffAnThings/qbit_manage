@@ -308,7 +308,7 @@ class Config:
                     else:
                         priority = max(priorities) + 1
                         logger.warning(
-                            f"Priority not defined for the grouping '{key}' in share_limits. " f"Setting priority to {priority}"
+                            f"Priority not defined for the grouping '{key}' in share_limits. Setting priority to {priority}"
                         )
                         value["priority"] = self.util.check_for_attribute(
                             self.data,
@@ -543,14 +543,18 @@ class Config:
         )
         if self.commands["rem_orphaned"]:
             exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_orphaned) if exclude_orphaned not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_orphaned)
+                if exclude_orphaned not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
         if self.recyclebin["enabled"]:
             exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_recycle) if exclude_recycle not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_recycle)
+                if exclude_recycle not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
 
         # Connect to Qbittorrent
         self.qbt = None
@@ -640,8 +644,10 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
-                                f"{filename} from {folder} (Last modified {round(days)} days ago).",
+                                (
+                                    f"{'Did not delete' if self.dry_run else 'Deleted'} "
+                                    f"{filename} from {folder} (Last modified {round(days)} days ago)."
+                                ),
                                 self.loglevel,
                             )
                             files += [str(filename)]
@@ -654,8 +660,10 @@ class Config:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
-                            f"({util.human_readable_size(size_bytes)}) from the {location}.",
+                            (
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
+                                f"({util.human_readable_size(size_bytes)}) from the {location}."
+                            ),
                             self.loglevel,
                         )
                         attr = {
