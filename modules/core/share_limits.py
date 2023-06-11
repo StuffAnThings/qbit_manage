@@ -438,6 +438,7 @@ class ShareLimits:
     def delete_share_limits_suffix_tag(self):
         """ "Delete Share Limits Suffix Tag from version 4.0.0"""
         tags = self.client.torrent_tags.tags
+        old_share_limits_tag = self.share_limits_tag[1:] if self.share_limits_tag.startswith("~") else self.share_limits_tag
         for tag in tags:
-            if tag.endswith(f".{self.share_limits_tag}"):
+            if tag.endswith(f".{old_share_limits_tag}"):
                 self.client.torrent_tags.delete_tags(tag)

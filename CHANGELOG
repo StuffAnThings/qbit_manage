@@ -10,14 +10,15 @@
 - Logic for `share_limits_suffix_tag` changed to become a prefix tag instead along with adding the priority of the group. The reason for this change is so it's easier to see the share limit groups togethered in qbitorrent ordered by priority.
     - `share_limits_suffix_tag` key is now `share_limits_tag`
     - No config changes are required as the qbm will automatically change the previous `share_limits_suffix_tag` key to `share_limits_tag`
+    - Changes the default value of  `share_limits_tag` to `~share_limit`. The `~` is used to sort the `share_limits_tag` in the qbt webUI to the bottom for less clutter
 
 Example based on config.sample:
 
 | old tag (v4.0.0)     | new tag (v4.0.1) |
 | ----------- | ----------- |
-| noHL.share_limits      | share_limits_1.noHL       |
-| cross-seed.share_limits   | share_limits_2.cross-seed        |
-| PTP.share_limits   | share_limits_3.PTP        |
-| default.share_limits   | share_limits_999.default        |
+| noHL.share_limit      | ~share_limit_1.noHL       |
+| cross-seed.share_limit   | ~share_limit_2.cross-seed        |
+| PTP.share_limit   | ~share_limit_3.PTP        |
+| default.share_limit   | ~share_limit_999.default        |
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.0...v4.0.1

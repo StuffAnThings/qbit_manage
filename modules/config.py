@@ -146,7 +146,10 @@ class Config:
         self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
-        share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "share_limits")
+        share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "~share_limit")
+        # Convert previous share_limits_suffix_tag to new default share_limits_tag
+        if share_limits_tag == "share_limit":
+            share_limits_tag = "~share_limit"
 
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(
