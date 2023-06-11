@@ -167,7 +167,7 @@ share_limits:
     # Any tags defined here must be present in the torrent for it to be excluded in this group
     exclude_any_tags:
       - Beyond-HD
-    # <OPTIONAL> categories: <list> # Filter by excluding one or more categories. Multiple categories are checked with an OR condition
+    # <OPTIONAL> categories: <list> # Filter by including one or more categories. Multiple categories are checked with an OR condition
     # Since one torrent can only be associated with a single category, multiple categories are checked with an OR condition
     categories:
       - RadarrComplete
