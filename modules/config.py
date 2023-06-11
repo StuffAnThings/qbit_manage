@@ -151,6 +151,11 @@ class Config:
         self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
+        share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "~share_limit")
+        # Convert previous share_limits_suffix_tag to new default share_limits_tag
+        if share_limits_tag == "share_limit":
+            share_limits_tag = "~share_limit"
+
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(
                 self.data, "force_auto_tmm", parent="settings", var_type="bool", default=False
@@ -159,19 +164,22 @@ class Config:
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
-            "share_limits_suffix_tag": self.util.check_for_attribute(
-                self.data, "share_limits_suffix_tag", parent="settings", default="share_limit"
+            "share_limits_tag": self.util.check_for_attribute(
+                self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
-        self.share_limits_suffix_tag = "." + self.settings["share_limits_suffix_tag"]
+        self.share_limits_tag = self.settings["share_limits_tag"]
 
         default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
             self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
         )
+        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        if "share_limits_suffix_tag" in self.data["settings"]:
+            self.util.overwrite_attributes(self.settings, "settings")
 
         default_function = {
             "cross_seed": None,
@@ -308,7 +316,7 @@ class Config:
                     else:
                         priority = max(priorities) + 1
                         logger.warning(
-                            f"Priority not defined for the grouping '{key}' in share_limits. " f"Setting priority to {priority}"
+                            f"Priority not defined for the grouping '{key}' in share_limits. Setting priority to {priority}"
                         )
                         value["priority"] = self.util.check_for_attribute(
                             self.data,
@@ -543,14 +551,18 @@ class Config:
         )
         if self.commands["rem_orphaned"]:
             exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_orphaned) if exclude_orphaned not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_orphaned)
+                if exclude_orphaned not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
         if self.recyclebin["enabled"]:
             exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_recycle) if exclude_recycle not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_recycle)
+                if exclude_recycle not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
 
         # Connect to Qbittorrent
         self.qbt = None
@@ -640,8 +652,10 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
-                                f"{filename} from {folder} (Last modified {round(days)} days ago).",
+                                (
+                                    f"{'Did not delete' if self.dry_run else 'Deleted'} "
+                                    f"{filename} from {folder} (Last modified {round(days)} days ago)."
+                                ),
                                 self.loglevel,
                             )
                             files += [str(filename)]
@@ -654,8 +668,10 @@ class Config:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
-                            f"({util.human_readable_size(size_bytes)}) from the {location}.",
+                            (
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
+                                f"({util.human_readable_size(size_bytes)}) from the {location}."
+                            ),
                             self.loglevel,
                         )
                         attr = {

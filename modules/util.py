@@ -136,6 +136,13 @@ class check:
     def __init__(self, config):
         self.config = config
 
+    def overwrite_attributes(self, data, attribute):
+        """Overwrite attributes in config."""
+        yaml = YAML(self.config.config_path)
+        if data is not None and attribute in yaml.data:
+            yaml.data[attribute] = data
+            yaml.save()
+
     def check_for_attribute(
         self,
         data,

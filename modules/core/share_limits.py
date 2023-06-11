@@ -24,10 +24,11 @@ class ShareLimits:
         self.share_limits_config = qbit_manager.config.share_limits  # configuration of share limits
         self.torrents_updated = []  # list of torrents that have been updated
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
-        self.share_limits_suffix_tag = qbit_manager.config.share_limits_suffix_tag  # suffix tag for share limits
+        self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
         self.group_tag = None  # tag for the share limit group
 
         self.update_share_limits()
+        self.delete_share_limits_suffix_tag()
 
     def update_share_limits(self):
         """Updates share limits for torrents based on grouping"""
@@ -166,6 +167,9 @@ class ShareLimits:
         for torrent in torrents:
             t_name = torrent.name
             t_hash = torrent.hash
+            self.group_tag = (
+                f"{self.share_limits_tag}_{group_config['priority']}.{group_name}" if group_config["add_group_to_tag"] else None
+            )
             tracker = self.qbt.get_tags(torrent.trackers)
             check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
@@ -175,6 +179,7 @@ class ShareLimits:
                 group_config["limit_upload_speed"] = -1
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
+            share_limits_not_yet_tagged = True if self.group_tag and self.group_tag not in torrent.tags else False
             logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
@@ -192,9 +197,11 @@ class ShareLimits:
             )
             logger.trace(f"check_limit_upload_speed: {check_limit_upload_speed}")
             logger.trace(f"hash_not_prev_checked: {hash_not_prev_checked}")
-            if (check_max_ratio or check_max_seeding_time or check_limit_upload_speed) and hash_not_prev_checked:
+            logger.trace(f"share_limits_not_yet_tagged: {share_limits_not_yet_tagged}")
+            if (
+                check_max_ratio or check_max_seeding_time or check_limit_upload_speed or share_limits_not_yet_tagged
+            ) and hash_not_prev_checked:
                 if "MinSeedTimeNotReached" not in torrent.tags:
-                    self.group_tag = f"{group_name}{self.share_limits_suffix_tag}" if group_config["add_group_to_tag"] else None
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if self.group_tag:
@@ -226,7 +233,7 @@ class ShareLimits:
         # Remove previous share_limits tag
         tags = util.get_list(torrent.tags)
         for tag in tags:
-            if self.share_limits_suffix_tag in tag:
+            if self.share_limits_tag in tag:
                 torrent.remove_tags(tag)
 
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
@@ -371,8 +378,11 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <= "
-                            f"{timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue seeding.",
+                            (
+                                f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
+                                f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
+                                " seeding."
+                            ),
                             8,
                         ),
                         self.config.loglevel,
@@ -401,8 +411,10 @@ class ShareLimits:
             if seeding_time_limit:
                 if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
-                        f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
-                        f"{timedelta(minutes=seeding_time_limit)}",
+                        (
+                            f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
+                            f"{timedelta(minutes=seeding_time_limit)}"
+                        ),
                         8,
                     )
                     return True
@@ -422,3 +434,11 @@ class ShareLimits:
         if _has_reached_seeding_time_limit():
             return body
         return False
+
+    def delete_share_limits_suffix_tag(self):
+        """ "Delete Share Limits Suffix Tag from version 4.0.0"""
+        tags = self.client.torrent_tags.tags
+        old_share_limits_tag = self.share_limits_tag[1:] if self.share_limits_tag.startswith("~") else self.share_limits_tag
+        for tag in tags:
+            if tag.endswith(f".{old_share_limits_tag}"):
+                self.client.torrent_tags.delete_tags(tag)
