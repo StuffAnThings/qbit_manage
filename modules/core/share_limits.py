@@ -347,14 +347,15 @@ class ShareLimits:
         if not self.config.dry_run:
             if tags and tags not in torrent.tags:
                 torrent.add_tags(tags)
-            if limit_upload_speed is not None:
+            torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
+            if limit_upload_speed is not None and limit_upload_speed != torrent_upload_limit:
                 if limit_upload_speed == -1:
                     torrent.set_upload_limit(-1)
                 else:
                     torrent.set_upload_limit(limit_upload_speed * 1024)
-            if max_ratio is not None:
+            if max_ratio is None:
                 max_ratio = torrent.max_ratio
-            if max_seeding_time is not None:
+            if max_seeding_time is None:
                 max_seeding_time = torrent.max_seeding_time
             if "MinSeedTimeNotReached" in torrent.tags:
                 return []
