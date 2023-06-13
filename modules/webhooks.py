@@ -171,8 +171,10 @@ class Webhooks:
     def notify(self, torrents_updated=[], payload={}, group_by=""):
         if len(torrents_updated) > GROUP_NOTIFICATION_LIMIT:
             logger.trace(
-                f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications"
-                f"{f' by {group_by}' if group_by else ''}",
+                (
+                    f"Number of torrents updated > {GROUP_NOTIFICATION_LIMIT}, grouping notifications"
+                    f"{f' by {group_by}' if group_by else ''}"
+                ),
             )
             if group_by == "category":
                 group_attr = group_notifications_by_key(payload, "torrent_category")
@@ -189,10 +191,14 @@ class Webhooks:
                 attr = {
                     "function": group_attr[group]["function"],
                     "title": f"{group_attr[group]['title']} for {group}",
-                    "body": group_attr[group]["body"]
-                    if only_one_torrent_updated
-                    else f"Updated {num_torrents_updated} "
-                    f"{'torrent' if only_one_torrent_updated else 'torrents'} with {group_by} '{group}'",
+                    "body": (
+                        group_attr[group]["body"]
+                        if only_one_torrent_updated
+                        else (
+                            f"Updated {num_torrents_updated} "
+                            f"{'torrent' if only_one_torrent_updated else 'torrents'} with {group_by} '{group}'"
+                        )
+                    ),
                     "torrents": group_attr[group]["torrents"],
                 }
                 if group_by == "category":

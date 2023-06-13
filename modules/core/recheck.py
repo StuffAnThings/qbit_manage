@@ -64,8 +64,10 @@ class ReCheck:
                             )
                             logger.debug(
                                 logger.insert_space(
-                                    f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
-                                    f"{timedelta(minutes=torrent.max_seeding_time)}",
+                                    (
+                                        f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
+                                        f"{timedelta(minutes=torrent.max_seeding_time)}"
+                                    ),
                                     4,
                                 )
                             )
@@ -85,7 +87,7 @@ class ReCheck:
                             ):
                                 self.stats_resumed += 1
                                 body = logger.print_line(
-                                    f"{'Not Resuming' if self.config.dry_run else 'Resuming'} [{tracker['tag']}] - " f"{t_name}",
+                                    f"{'Not Resuming' if self.config.dry_run else 'Resuming'} [{tracker['tag']}] - {t_name}",
                                     self.config.loglevel,
                                 )
                                 attr = {

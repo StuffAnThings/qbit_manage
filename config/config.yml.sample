@@ -28,7 +28,7 @@ settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
   tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
-  share_limits_suffix_tag: share_limit # Will add this suffix to the grouping separated by '.' to the tag of any torrents with share limits.
+  share_limits_tag: ~share_limit # Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
@@ -67,7 +67,7 @@ cat_change:
 tracker:
   # Mandatory
   # Tag Parameters
-  # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url
+  # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url. You can define multiple tracker urls by splitting with `|` delimiter
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
@@ -107,13 +107,10 @@ tracker:
   privatehd:
     tag: PrivateHD
     notifiarr:
-  tleechreload:
-    tag: TorrentLeech
-    notifiarr: torrentleech
   torrentdb:
     tag: TorrentDB
     notifiarr: torrentdb
-  torrentleech:
+  torrentleech|tleechreload:
     tag: TorrentLeech
     notifiarr: torrentleech
   tv-vault:

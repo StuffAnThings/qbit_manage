@@ -184,8 +184,8 @@ def main():
         print(
             f"--- Torrent ages are below threshold of '{MIN_TORRENT_AGE} days'\n"
             f"--- Torrent seed ratios are below threshold of '{MIN_TORRENT_SHARE_RATIO}'\n"
-            f"--- Torrents have multiple hard links\n"
-            f"--- No torrents exists!"
+            "--- Torrents have multiple hard links\n"
+            "--- No torrents exists!"
         )
 
     quit_program(0)
