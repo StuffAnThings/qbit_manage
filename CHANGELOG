@@ -1,11 +1,12 @@
 # Requirements Updated
-
+- qbitorrent-api updated to 2023.6.49
 # New Features
 - cross-seed will move torrent to an error folder if it fails to inject torrent
 - Define multiple announce urls for one tracker (#328 Thanks to @buthed010203 for the PR)
 
 # Bug Fixes
 - Fixes #329 (Updates missing share_limits tag even when share_limits are satisfied)
+- Fixes #327 (Zero value share limits not being applied correctly)
 
 # Enhancements
 - Logic for `share_limits_suffix_tag` changed to become a prefix tag instead along with adding the priority of the group. The reason for this change is so it's easier to see the share limit groups togethered in qbitorrent ordered by priority.

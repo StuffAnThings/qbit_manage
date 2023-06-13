@@ -231,10 +231,11 @@ class ShareLimits:
     def tag_and_update_share_limits_for_torrent(self, torrent, group_config):
         """Removes previous share limits tag, updates tag and share limits for a torrent, and resumes the torrent"""
         # Remove previous share_limits tag
-        tags = util.get_list(torrent.tags)
-        for tag in tags:
-            if self.share_limits_tag in tag:
-                torrent.remove_tags(tag)
+        if not self.config.dry_run:
+            tags = util.get_list(torrent.tags)
+            for tag in tags:
+                if self.share_limits_tag in tag:
+                    torrent.remove_tags(tag)
 
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
         self.set_tags_and_limits(
@@ -300,39 +301,37 @@ class ShareLimits:
                 return False
         return True
 
-    def set_tags_and_limits(
-        self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, restore=False, do_print=True
-    ):
+    def set_tags_and_limits(self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, do_print=True):
         """Set tags and limits for a torrent"""
         body = []
-        if limit_upload_speed:
+        if limit_upload_speed is not None:
             if limit_upload_speed != -1:
                 msg = logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1)
                 if do_print:
                     body += logger.print_line(msg, self.config.loglevel)
                 else:
                     body.append(msg)
-        if max_ratio or max_seeding_time:
-            if (max_ratio == -2 and max_seeding_time == -2) and not restore:
+        if max_ratio is not None or max_seeding_time is not None:
+            if max_ratio == -2 and max_seeding_time == -2:
                 msg = logger.insert_space("Share Limit: Use Global Share Limit", 4)
                 if do_print:
                     body += logger.print_line(msg, self.config.loglevel)
                 else:
                     body.append(msg)
-            elif (max_ratio == -1 and max_seeding_time == -1) and not restore:
+            elif max_ratio == -1 and max_seeding_time == -1:
                 msg = logger.insert_space("Share Limit: Set No Share Limit", 4)
                 if do_print:
                     body += logger.print_line(msg, self.config.loglevel)
                 else:
                     body.append(msg)
             else:
-                if max_ratio != torrent.max_ratio and (not max_seeding_time or max_seeding_time < 0):
+                if max_ratio != torrent.max_ratio and (max_seeding_time is None or max_seeding_time < 0):
                     msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4)
                     if do_print:
                         body += logger.print_line(msg, self.config.loglevel)
                     else:
                         body.append(msg)
-                elif max_seeding_time != torrent.max_seeding_time and (not max_ratio or max_ratio < 0):
+                elif max_seeding_time != torrent.max_seeding_time and (max_ratio is None or max_ratio < 0):
                     msg = logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4)
                     if do_print:
                         body += logger.print_line(msg, self.config.loglevel)
@@ -348,14 +347,14 @@ class ShareLimits:
         if not self.config.dry_run:
             if tags and tags not in torrent.tags:
                 torrent.add_tags(tags)
-            if limit_upload_speed:
+            if limit_upload_speed is not None:
                 if limit_upload_speed == -1:
                     torrent.set_upload_limit(-1)
                 else:
                     torrent.set_upload_limit(limit_upload_speed * 1024)
-            if not max_ratio:
+            if max_ratio is not None:
                 max_ratio = torrent.max_ratio
-            if not max_seeding_time:
+            if max_seeding_time is not None:
                 max_seeding_time = torrent.max_seeding_time
             if "MinSeedTimeNotReached" in torrent.tags:
                 return []
@@ -370,7 +369,8 @@ class ShareLimits:
             print_log = []
             if torrent.seeding_time >= min_seeding_time * 60:
                 if "MinSeedTimeNotReached" in torrent.tags:
-                    torrent.remove_tags(tags="MinSeedTimeNotReached")
+                    if not self.config.dry_run:
+                        torrent.remove_tags(tags="MinSeedTimeNotReached")
                 return True
             else:
                 if "MinSeedTimeNotReached" not in torrent.tags:
@@ -400,7 +400,7 @@ class ShareLimits:
         def _has_reached_seeding_time_limit():
             nonlocal body
             seeding_time_limit = None
-            if not max_seeding_time:
+            if max_seeding_time is None:
                 return False
             if max_seeding_time >= 0:
                 seeding_time_limit = max_seeding_time
@@ -420,7 +420,7 @@ class ShareLimits:
                     return True
             return False
 
-        if max_ratio:
+        if max_ratio is not None:
             if max_ratio >= 0:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)

@@ -55,8 +55,7 @@ class TagNoHardLinks:
     def check_previous_nohardlinks_tagged_torrents(self, has_nohardlinks, torrent, tracker, category):
         """
         Checks for any previous torrents that were tagged with the nohardlinks tag and have since had hardlinks added.
-        If any are found, the nohardlinks tag is removed from the torrent and the tracker or global share limits are restored.
-        If the torrent is complete and the option to resume after untagging is enabled, the torrent is resumed.
+        If any are found, the nohardlinks tag is removed
         """
         if not (has_nohardlinks) and (self.nohardlinks_tag in torrent.tags):
             self.stats_untagged += 1
