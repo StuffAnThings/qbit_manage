@@ -30,8 +30,10 @@ setup(
     # repository. For example: MIT
     license="MIT",
     # Short description of your library
-    description="This tool will help manage tedious tasks in qBittorrent and automate them. "
-    "Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more.",
+    description=(
+        "This tool will help manage tedious tasks in qBittorrent and automate them. "
+        "Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
+    ),
     # Long description of your library
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -55,14 +55,13 @@ class TagNoHardLinks:
     def check_previous_nohardlinks_tagged_torrents(self, has_nohardlinks, torrent, tracker, category):
         """
         Checks for any previous torrents that were tagged with the nohardlinks tag and have since had hardlinks added.
-        If any are found, the nohardlinks tag is removed from the torrent and the tracker or global share limits are restored.
-        If the torrent is complete and the option to resume after untagging is enabled, the torrent is resumed.
+        If any are found, the nohardlinks tag is removed
         """
         if not (has_nohardlinks) and (self.nohardlinks_tag in torrent.tags):
             self.stats_untagged += 1
             body = []
             body += logger.print_line(
-                f"Previous Tagged {self.nohardlinks_tag} " f"Torrent Name: {torrent.name} has hardlinks found now.",
+                f"Previous Tagged {self.nohardlinks_tag} Torrent Name: {torrent.name} has hardlinks found now.",
                 self.config.loglevel,
             )
             body += logger.print_line(logger.insert_space(f"Removed Tag: {self.nohardlinks_tag}", 6), self.config.loglevel)
@@ -121,16 +120,20 @@ class TagNoHardLinks:
                 self.check_previous_nohardlinks_tagged_torrents(has_nohardlinks, torrent, tracker, category)
         if self.stats_tagged >= 1:
             logger.print_line(
-                f"{'Did not Tag' if self.config.dry_run else 'Added Tag'} for {self.stats_tagged} "
-                f".torrent{'s.' if self.stats_tagged > 1 else '.'}",
+                (
+                    f"{'Did not Tag' if self.config.dry_run else 'Added Tag'} for {self.stats_tagged} "
+                    f".torrent{'s.' if self.stats_tagged > 1 else '.'}"
+                ),
                 self.config.loglevel,
             )
         else:
             logger.print_line("No torrents to tag with no hardlinks.", self.config.loglevel)
         if self.stats_untagged >= 1:
             logger.print_line(
-                f"{'Did not delete' if self.config.dry_run else 'Deleted'} "
-                f"{self.nohardlinks_tag} tags for {self.stats_untagged} "
-                f".torrent{'s.' if self.stats_untagged > 1 else '.'}",
+                (
+                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} "
+                    f"{self.nohardlinks_tag} tags for {self.stats_untagged} "
+                    f".torrent{'s.' if self.stats_untagged > 1 else '.'}"
+                ),
                 self.config.loglevel,
             )
