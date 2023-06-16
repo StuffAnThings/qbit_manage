@@ -61,8 +61,10 @@ parser.add_argument(
     action="store",
     default="config.yml",
     type=str,
-    help="This is used if you want to use a different name for your config.yml or if you want to load multiple"
-    "config files using *. Example: tv.yml or config*.yml",
+    help=(
+        "This is used if you want to use a different name for your config.yml or if you want to load multiple"
+        "config files using *. Example: tv.yml or config*.yml"
+    ),
 )
 parser.add_argument(
     "-lf",
@@ -103,8 +105,10 @@ parser.add_argument(
     dest="tag_update",
     action="store_true",
     default=False,
-    help="Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag."
-    " (Only adds tags to untagged torrents)",
+    help=(
+        "Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag."
+        " (Only adds tags to untagged torrents)"
+    ),
 )
 parser.add_argument(
     "-ru",
@@ -136,10 +140,12 @@ parser.add_argument(
     dest="tag_nohardlinks",
     action="store_true",
     default=False,
-    help="Use this to tag any torrents that do not have any hard links associated with any of the files. "
-    "This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. "
-    "When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. "
-    "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.",
+    help=(
+        "Use this to tag any torrents that do not have any hard links associated with any of the files. "
+        "This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. "
+        "When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. "
+        "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder."
+    ),
 )
 parser.add_argument(
     "-sl",
@@ -147,9 +153,11 @@ parser.add_argument(
     dest="share_limits",
     action="store_true",
     default=False,
-    help="Use this to help apply and manage your torrent share limits based on your tags/categories."
-    "This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well."
-    "Share limits are applied in the order of priority specified.",
+    help=(
+        "Use this to help apply and manage your torrent share limits based on your tags/categories."
+        "This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well."
+        "Share limits are applied in the order of priority specified."
+    ),
 )
 parser.add_argument(
     "-sc",
@@ -422,7 +430,9 @@ def start():
         next_run = nxt_run["next_run"]
         body = logger.separator(
             f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace("\n\n", "\n").rstrip()
+            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace(
+                "\n\n", "\n"
+            ).rstrip()
         )[0]
         return next_run, body
 

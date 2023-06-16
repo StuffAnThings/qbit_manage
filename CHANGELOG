@@ -1,23 +1,26 @@
 # Requirements Updated
-- Updates ruamel.yaml to 0.17.31
-- Updates qbitorrent-api to 2023.5.48
-- Separate out dev requirements into requirements-dev.txt
-# Breaking Changes
-- `tag_nohardlinks` only updates/removes `noHL` tag. **It does not modify or cleanup share_limits anymore.**
-- `tag_update` only adds tracker tags to torrent. **It does not modify or cleanup share_limits anymore.**
-- Please remove any references to share_limits from your configuration in the tracker/nohardlinks section
-- Migration guide can be followed here: [V4 Migration Guide](https://github.com/StuffAnThings/qbit_manage/wiki/v4-Migration-Guide)
-- Webhook payloads changed (See [webhooks](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#webhooks) for updated payload)
-
+- qbitorrent-api updated to 2023.6.49
 # New Features
-- Adds new command `share_limits`, `--share-limits` , `QBT_SHARE_LIMITS=True` to update share limits based on tags/categories specified per group (Closes #88, Closes #306, Closes #259, Closes #308, Closes #137)
-- See [Config Setup - share_limits](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share_limits) for more details
-- Adds new command `skip_qb_version_check`, `--skip-qb-version-check`, `QBT_SKIP_QB_VERSION_CHECK` to bypass qbitorrent compatibility check (unsupported - Thanks to @ftc2 #307)
-- Updates to webhook notifications to group notifications when a function updates more than 10 Torrents.
-- Adds new webhooks for `share_limits`
-- Adds rate limit to webhook notifications (1 msg/sec)
-# Bug Fixes
-- Fixes #302
-- Fixes #317
+- cross-seed will move torrent to an error folder if it fails to inject torrent
+- Define multiple announce urls for one tracker (#328 Thanks to @buthed010203 for the PR)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.4...v4.0.0
+# Bug Fixes
+- Fixes #329 (Updates missing share_limits tag even when share_limits are satisfied)
+- Fixes #327 (Zero value share limits not being applied correctly)
+
+# Enhancements
+- Logic for `share_limits_suffix_tag` changed to become a prefix tag instead along with adding the priority of the group. The reason for this change is so it's easier to see the share limit groups togethered in qbitorrent ordered by priority.
+    - `share_limits_suffix_tag` key is now `share_limits_tag`
+    - No config changes are required as the qbm will automatically change the previous `share_limits_suffix_tag` key to `share_limits_tag`
+    - Changes the default value of  `share_limits_tag` to `~share_limit`. The `~` is used to sort the `share_limits_tag` in the qbt webUI to the bottom for less clutter
+
+Example based on config.sample:
+
+| old tag (v4.0.0)     | new tag (v4.0.1) |
+| ----------- | ----------- |
+| noHL.share_limit      | ~share_limit_1.noHL       |
+| cross-seed.share_limit   | ~share_limit_2.cross-seed        |
+| PTP.share_limit   | ~share_limit_3.PTP        |
+| default.share_limit   | ~share_limit_999.default        |
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.0...v4.0.1
