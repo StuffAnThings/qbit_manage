@@ -108,12 +108,6 @@ class RemoveUnregistered:
                         msg_up = trk.msg.upper()
                         msg = trk.msg
                         if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
-                            # Tag any error torrents
-                            if self.cfg_tag_error and self.tag_error not in check_tags:
-                                if not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS) and not list_in_text(
-                                    msg_up, TorrentMessages.UNREGISTERED_MSGS
-                                ):
-                                    self.tag_tracker_error(msg, tracker, torrent)
                             # Check for unregistered torrents
                             if self.cfg_rem_unregistered:
                                 if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
@@ -125,6 +119,9 @@ class RemoveUnregistered:
                                     if self.check_for_unregistered_torrents_using_bhd_api(tracker, msg_up, torrent.hash):
                                         self.del_unregistered(msg, tracker, torrent)
                                         break
+                            # Tag any error torrents
+                            if self.cfg_tag_error and self.tag_error not in check_tags:
+                                self.tag_tracker_error(msg, tracker, torrent)
 
             except NotFound404Error:
                 continue
