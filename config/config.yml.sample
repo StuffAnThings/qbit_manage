@@ -184,8 +184,8 @@ share_limits:
     cleanup: false
     # <OPTIONAL> resume_torrent_after_change <bool>: This variable will resume your torrent after changing share limits. Default is true
     resume_torrent_after_change: true
-    # <OPTIONAL> add_group_to_tag <bool>: This adds your grouping as a tag with a suffix defined in settings . Default is true
-    # Example: A grouping defined as noHL will have a tag set to noHL.share_limit (if using the default suffix)
+    # <OPTIONAL> add_group_to_tag <bool>: This adds your grouping as a tag with a prefix defined in settings . Default is true
+    # Example: A grouping defined as noHL will have a tag set to ~share_limit.noHL (if using the default prefix)
     add_group_to_tag: true
   cross-seed:
     priority: 2
