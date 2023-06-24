@@ -41,7 +41,7 @@ class Qbt:
                 username=self.username,
                 password=self.password,
                 VERIFY_WEBUI_CERTIFICATE=False,
-                REQUESTS_ARGS={"timeout": (30, 30)},
+                REQUESTS_ARGS={"timeout": (45, 60)},
             )
             self.client.auth_log_in()
             self.current_version = self.client.app.version
