@@ -34,14 +34,14 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [d.strip() for d in str(data).split(",")]
 
 
-def is_tag_in_torrent(tag, torrent_tags, exact=True):
+def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
     """Check if tag is in torrent_tags"""
     tags = get_list(torrent_tags)
     if exact:
-        return tag in tags
+        return check_tag in tags
     else:
         for t in tags:
-            if tag in t:
+            if check_tag in t:
                 return t
     return False
 
