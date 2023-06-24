@@ -27,16 +27,16 @@ repos:
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.10.0
+    rev: 1.11.0
     hooks:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.9.0
+    rev: v3.10.0
     hooks:
       - id: reorder-python-imports
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.6.0
+    rev: v3.7.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
