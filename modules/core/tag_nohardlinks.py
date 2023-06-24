@@ -57,7 +57,7 @@ class TagNoHardLinks:
         Checks for any previous torrents that were tagged with the nohardlinks tag and have since had hardlinks added.
         If any are found, the nohardlinks tag is removed
         """
-        if not (has_nohardlinks) and (self.nohardlinks_tag in torrent.tags):
+        if not (has_nohardlinks) and (util.is_tag_in_torrent(self.nohardlinks_tag, torrent.tags)):
             self.stats_untagged += 1
             body = []
             body += logger.print_line(
@@ -102,7 +102,7 @@ class TagNoHardLinks:
                 has_nohardlinks = check_hardlinks.nohardlink(
                     torrent["content_path"].replace(self.root_dir, self.remote_dir), self.config.notify
                 )
-                if any(tag in torrent.tags for tag in nohardlinks[category]["exclude_tags"]):
+                if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in nohardlinks[category]["exclude_tags"]):
                     # Skip to the next torrent if we find any torrents that are in the exclude tag
                     continue
                 else:
@@ -111,7 +111,7 @@ class TagNoHardLinks:
                     if has_nohardlinks:
                         tracker = self.qbt.get_tags(torrent.trackers)
                         # Will only tag new torrents that don't have nohardlinks_tag tag
-                        if self.nohardlinks_tag not in torrent.tags:
+                        if not util.is_tag_in_torrent(self.nohardlinks_tag, torrent.tags):
                             self.add_tag_no_hl(
                                 torrent=torrent,
                                 tracker=tracker,

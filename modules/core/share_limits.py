@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 
 from modules import util
+from modules.util import is_tag_in_torrent
 from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
@@ -179,7 +180,9 @@ class ShareLimits:
                 group_config["limit_upload_speed"] = -1
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
-            share_limits_not_yet_tagged = True if self.group_tag and self.group_tag not in torrent.tags else False
+            share_limits_not_yet_tagged = (
+                True if self.group_tag and not is_tag_in_torrent(self.group_tag, torrent.tags) else False
+            )
             logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
@@ -201,7 +204,7 @@ class ShareLimits:
             if (
                 check_max_ratio or check_max_seeding_time or check_limit_upload_speed or share_limits_not_yet_tagged
             ) and hash_not_prev_checked:
-                if "MinSeedTimeNotReached" not in torrent.tags:
+                if not is_tag_in_torrent("MinSeedTimeNotReached", torrent.tags):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if self.group_tag:
@@ -232,10 +235,9 @@ class ShareLimits:
         """Removes previous share limits tag, updates tag and share limits for a torrent, and resumes the torrent"""
         # Remove previous share_limits tag
         if not self.config.dry_run:
-            tags = util.get_list(torrent.tags)
-            for tag in tags:
-                if self.share_limits_tag in tag:
-                    torrent.remove_tags(tag)
+            tag = is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)
+            if tag:
+                torrent.remove_tags(tag)
 
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
         self.set_tags_and_limits(
@@ -345,7 +347,7 @@ class ShareLimits:
                         body.append(msg)
         # Update Torrents
         if not self.config.dry_run:
-            if tags and tags not in torrent.tags:
+            if tags and not is_tag_in_torrent(tags, torrent.tags):
                 torrent.add_tags(tags)
             torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
             if limit_upload_speed is not None and limit_upload_speed != torrent_upload_limit:
@@ -357,7 +359,7 @@ class ShareLimits:
                 max_ratio = torrent.max_ratio
             if max_seeding_time is None:
                 max_seeding_time = torrent.max_seeding_time
-            if "MinSeedTimeNotReached" in torrent.tags:
+            if is_tag_in_torrent("MinSeedTimeNotReached", torrent.tags):
                 return []
             torrent.set_share_limits(max_ratio, max_seeding_time)
         return body
@@ -369,12 +371,12 @@ class ShareLimits:
         def _has_reached_min_seeding_time_limit():
             print_log = []
             if torrent.seeding_time >= min_seeding_time * 60:
-                if "MinSeedTimeNotReached" in torrent.tags:
+                if is_tag_in_torrent("MinSeedTimeNotReached", torrent.tags):
                     if not self.config.dry_run:
                         torrent.remove_tags(tags="MinSeedTimeNotReached")
                 return True
             else:
-                if "MinSeedTimeNotReached" not in torrent.tags:
+                if not is_tag_in_torrent("MinSeedTimeNotReached", torrent.tags):
                     print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
