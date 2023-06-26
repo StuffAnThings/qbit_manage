@@ -237,7 +237,7 @@ orphaned:
     - "**/@eaDir"
     - "/data/torrents/temp/**"
     - "**/*.!qB"
-    - "**/_unpackerred"
+    - "**/*_unpackerred"
 
 apprise:
   # Apprise integration with webhooks
