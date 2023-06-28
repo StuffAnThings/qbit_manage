@@ -1,26 +1,13 @@
 # Requirements Updated
-- qbitorrent-api updated to 2023.6.49
+- qbitorrent-api updated to 2023.6.50
+- ruamel.yaml updated to 0.17.32
 # New Features
-- cross-seed will move torrent to an error folder if it fails to inject torrent
-- Define multiple announce urls for one tracker (#328 Thanks to @buthed010203 for the PR)
+- Adds min_num_seeds condition to share_limits (Closes [#321](https://github.com/StuffAnThings/qbit_manage/issues/321))
 
 # Bug Fixes
-- Fixes #329 (Updates missing share_limits tag even when share_limits are satisfied)
-- Fixes #327 (Zero value share limits not being applied correctly)
+Fixes [#333](https://github.com/StuffAnThings/qbit_manage/issues/333)
+Fixes [#340](https://github.com/StuffAnThings/qbit_manage/issues/340)
+Fixes [#343](https://github.com/StuffAnThings/qbit_manage/issues/343)
+Fixes bug when checking tags in torrents
 
-# Enhancements
-- Logic for `share_limits_suffix_tag` changed to become a prefix tag instead along with adding the priority of the group. The reason for this change is so it's easier to see the share limit groups togethered in qbitorrent ordered by priority.
-    - `share_limits_suffix_tag` key is now `share_limits_tag`
-    - No config changes are required as the qbm will automatically change the previous `share_limits_suffix_tag` key to `share_limits_tag`
-    - Changes the default value of  `share_limits_tag` to `~share_limit`. The `~` is used to sort the `share_limits_tag` in the qbt webUI to the bottom for less clutter
-
-Example based on config.sample:
-
-| old tag (v4.0.0)     | new tag (v4.0.1) |
-| ----------- | ----------- |
-| noHL.share_limit      | ~share_limit_1.noHL       |
-| cross-seed.share_limit   | ~share_limit_2.cross-seed        |
-| PTP.share_limit   | ~share_limit_3.PTP        |
-| default.share_limit   | ~share_limit_999.default        |
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.0...v4.0.1
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.1...v4.0.2

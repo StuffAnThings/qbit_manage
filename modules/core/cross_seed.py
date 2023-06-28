@@ -112,7 +112,7 @@ class CrossSeed:
             t_name = torrent.name
             t_cat = torrent.category
             if (
-                "cross-seed" not in torrent.tags
+                not util.is_tag_in_torrent("cross-seed", torrent.tags)
                 and self.qbt.torrentinfo[t_name]["count"] > 1
                 and self.qbt.torrentinfo[t_name]["first_hash"] != torrent.hash
             ):

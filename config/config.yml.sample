@@ -176,6 +176,7 @@ share_limits:
     # Will default to -1 (no limit) if not specified for the group.
     max_seeding_time: 129600
     # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
+    # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_seeding_time: 43200
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
@@ -187,6 +188,10 @@ share_limits:
     # <OPTIONAL> add_group_to_tag <bool>: This adds your grouping as a tag with a prefix defined in settings . Default is true
     # Example: A grouping defined as noHL will have a tag set to ~share_limit.noHL (if using the default prefix)
     add_group_to_tag: true
+    # <OPTIONAL> min_num_seeds <int>: This will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here.
+    # If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.
+    # Will default to 0 if not specified for the group.
+    min_num_seeds: 0
   cross-seed:
     priority: 2
     include_all_tags:
@@ -237,7 +242,7 @@ orphaned:
     - "**/@eaDir"
     - "/data/torrents/temp/**"
     - "**/*.!qB"
-    - "**/_unpackerred"
+    - "**/*_unpackerred"
 
 apprise:
   # Apprise integration with webhooks

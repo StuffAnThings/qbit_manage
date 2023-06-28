@@ -36,7 +36,13 @@ class Qbt:
         logger.debug(f"Host: {self.host}, Username: {self.username}, Password: {self.password}")
         ex = ""
         try:
-            self.client = Client(host=self.host, username=self.username, password=self.password, VERIFY_WEBUI_CERTIFICATE=False)
+            self.client = Client(
+                host=self.host,
+                username=self.username,
+                password=self.password,
+                VERIFY_WEBUI_CERTIFICATE=False,
+                REQUESTS_ARGS={"timeout": (45, 60)},
+            )
             self.client.auth_log_in()
             self.current_version = self.client.app.version
             logger.debug(f"qBittorrent: {self.current_version}")

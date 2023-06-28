@@ -370,6 +370,8 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = util.parse_version(line)
             break
 branch = util.guess_branch(version, env_version, git_branch)
+if branch is None:
+    branch = "Unknown"
 version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
 
 
