@@ -383,7 +383,8 @@ def start_fastapi(cfg):
     app = FastAPI()
 
     if cfg.api["webhook_tag_update"] or cfg.api["webhook_share_limits"]:
-        # TODO: Should a lock be applied to the entire app to prevent possible concurrent modification of various things used throughout?
+        # TODO: Should a lock be applied to the entire app to prevent possible
+        #  concurrent modification of various things used throughout?
         @app.post("/webhook")
         def hook(torrent_id: Annotated[str, Form(alias="id")]):
             torrent = cfg.qbt.get_torrents({"torrent_hashes": torrent_id, "limit": 1})
