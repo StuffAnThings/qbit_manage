@@ -35,7 +35,9 @@ class ShareLimits:
         self.silent = silent
         if silent:
             logger._logger.setLevel("WARN")
-        self.update_share_limits(self.qbt.get_torrents({"status_filter": "completed"}) if torrents_to_tag is None else torrents_to_tag)
+        self.update_share_limits(
+            self.qbt.get_torrents({"status_filter": "completed"}) if torrents_to_tag is None else torrents_to_tag
+        )
         self.delete_share_limits_suffix_tag()
         if silent:
             logger._logger.setLevel(level)

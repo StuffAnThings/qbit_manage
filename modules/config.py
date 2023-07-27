@@ -580,9 +580,11 @@ class Config:
         # Add API TODO: I don't know what half of these params do. Also, add env vars and cli params
         self.api = {
             "webhook_tag_update": self.util.check_for_attribute(self.data, "webhook_tag_update", parent="api", var_type="bool"),
-            "webhook_share_limits": self.util.check_for_attribute(self.data, "webhook_share_limits", parent="api", var_type="bool"),
+            "webhook_share_limits": self.util.check_for_attribute(
+                self.data, "webhook_share_limits", parent="api", var_type="bool"
+            ),
             "host": self.util.check_for_attribute(self.data, "host", parent="api"),
-            "port": self.util.check_for_attribute(self.data, "port", parent="api", var_type="int")
+            "port": self.util.check_for_attribute(self.data, "port", parent="api", var_type="int"),
         }
 
         # Connect to Qbittorrent

@@ -54,8 +54,7 @@ class RemoveUnregistered:
                     f"Previous Tagged {self.tag_error} torrent currently has a working tracker.", self.config.loglevel
                 )
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                body += logger.print_line(logger.insert_space(f"Removed Tag: {self.tag_error}", 4),
-                                          self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Removed Tag: {self.tag_error}", 4), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                 if not self.config.dry_run:
                     torrent.remove_tags(tags=self.tag_error)
@@ -79,9 +78,9 @@ class RemoveUnregistered:
         Checks if a torrent is unregistered using the BHD API if the tracker is BHD.
         """
         if (
-                "tracker.beyond-hd.me" in tracker["url"]
-                and self.config.beyond_hd is not None
-                and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
+            "tracker.beyond-hd.me" in tracker["url"]
+            and self.config.beyond_hd is not None
+            and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
         ):
             json = {"info_hash": torrent_hash}
             response = self.config.beyond_hd.search(json)
@@ -114,10 +113,10 @@ class RemoveUnregistered:
                         if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
                             # Check for unregistered torrents
                             if unregistered_everywhere:
-                                if ((not list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
-                                     or list_in_text(msg_up, TorrentMessages.IGNORE_MSGS))
-                                        and not self.check_for_unregistered_torrents_using_bhd_api(tracker, msg_up,
-                                                                                                   torrent.hash)):
+                                if (
+                                    not list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
+                                    or list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
+                                ) and not self.check_for_unregistered_torrents_using_bhd_api(tracker, msg_up, torrent.hash):
                                     unregistered_everywhere = False
                         else:
                             no_trackers_working = False
@@ -230,22 +229,19 @@ class RemoveUnregistered:
                 attr["torrents_deleted_and_contents"] = False
                 if not self.config.dry_run:
                     self.qbt.tor_delete_recycle(torrent, attr)
-                body += logger.print_line(logger.insert_space("Deleted .torrent but NOT content files.", 8),
-                                          self.config.loglevel)
+                body += logger.print_line(logger.insert_space("Deleted .torrent but NOT content files.", 8), self.config.loglevel)
                 self.stats_deleted += 1
             else:
                 attr["torrents_deleted_and_contents"] = True
                 if not self.config.dry_run:
                     self.qbt.tor_delete_recycle(torrent, attr)
-                body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8),
-                                          self.config.loglevel)
+                body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel)
                 self.stats_deleted_contents += 1
         else:
             attr["torrents_deleted_and_contents"] = True
             if not self.config.dry_run:
                 self.qbt.tor_delete_recycle(torrent, attr)
-            body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8),
-                                      self.config.loglevel)
+            body += logger.print_line(logger.insert_space("Deleted .torrent AND content files.", 8), self.config.loglevel)
             self.stats_deleted_contents += 1
         attr["body"] = "\n".join(body)
         self.torrents_updated_unreg.append(self.t_name)
