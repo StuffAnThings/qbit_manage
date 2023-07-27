@@ -1,8 +1,13 @@
 # Requirements Updated
-- Updates ruamel.yaml to 0.17.27
+- qbitorrent-api updated to 2023.6.50
+- ruamel.yaml updated to 0.17.32
+# New Features
+- Adds min_num_seeds condition to share_limits (Closes [#321](https://github.com/StuffAnThings/qbit_manage/issues/321))
 
 # Bug Fixes
-- Fixes #302
-- Adds a way to bypass qbt version check (unsupported - Thanks to @ftc2 #307)
+Fixes [#333](https://github.com/StuffAnThings/qbit_manage/issues/333)
+Fixes [#340](https://github.com/StuffAnThings/qbit_manage/issues/340)
+Fixes [#343](https://github.com/StuffAnThings/qbit_manage/issues/343)
+Fixes bug when checking tags in torrents
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v3.6.3...v3.6.4
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.1...v4.0.2

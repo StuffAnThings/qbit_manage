@@ -10,13 +10,12 @@ from datetime import datetime
 from datetime import timedelta
 from threading import Thread
 
-from typing_extensions import Annotated
-
 try:
     import schedule
-    from modules.logs import MyLogger
-    from fastapi import Form, FastAPI, HTTPException
     import uvicorn
+    from fastapi import Form, FastAPI, HTTPException
+    from modules.logs import MyLogger
+    from typing_extensions import Annotated
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(0)
@@ -66,8 +65,10 @@ parser.add_argument(
     action="store",
     default="config.yml",
     type=str,
-    help="This is used if you want to use a different name for your config.yml or if you want to load multiple"
-    "config files using *. Example: tv.yml or config*.yml",
+    help=(
+        "This is used if you want to use a different name for your config.yml or if you want to load multiple"
+        "config files using *. Example: tv.yml or config*.yml"
+    ),
 )
 parser.add_argument(
     "-lf",
@@ -108,8 +109,10 @@ parser.add_argument(
     dest="tag_update",
     action="store_true",
     default=False,
-    help="Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag."
-    " (Only adds tags to untagged torrents)",
+    help=(
+        "Use this if you would like to update your tags and/or set seed goals/limit upload speed by tag."
+        " (Only adds tags to untagged torrents)"
+    ),
 )
 parser.add_argument(
     "-ru",
@@ -141,10 +144,24 @@ parser.add_argument(
     dest="tag_nohardlinks",
     action="store_true",
     default=False,
-    help="Use this to tag any torrents that do not have any hard links associated with any of the files. "
-    "This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. "
-    "When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. "
-    "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder.",
+    help=(
+        "Use this to tag any torrents that do not have any hard links associated with any of the files. "
+        "This is useful for those that use Sonarr/Radarr which hard link your media files with the torrents for seeding. "
+        "When files get upgraded they no longer become linked with your media therefore will be tagged with a new tag noHL. "
+        "You can then safely delete/remove these torrents to free up any extra space that is not being used by your media folder."
+    ),
+)
+parser.add_argument(
+    "-sl",
+    "--share-limits",
+    dest="share_limits",
+    action="store_true",
+    default=False,
+    help=(
+        "Use this to help apply and manage your torrent share limits based on your tags/categories."
+        "This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well."
+        "Share limits are applied in the order of priority specified."
+    ),
 )
 parser.add_argument(
     "-sc",
@@ -242,6 +259,7 @@ rem_unregistered = get_arg("QBT_REM_UNREGISTERED", args.rem_unregistered, arg_bo
 tag_tracker_error = get_arg("QBT_TAG_TRACKER_ERROR", args.tag_tracker_error, arg_bool=True)
 rem_orphaned = get_arg("QBT_REM_ORPHANED", args.rem_orphaned, arg_bool=True)
 tag_nohardlinks = get_arg("QBT_TAG_NOHARDLINKS", args.tag_nohardlinks, arg_bool=True)
+share_limits = get_arg("QBT_SHARE_LIMITS", args.share_limits, arg_bool=True)
 skip_cleanup = get_arg("QBT_SKIP_CLEANUP", args.skip_cleanup, arg_bool=True)
 skip_qb_version_check = get_arg("QBT_SKIP_QB_VERSION_CHECK", args.skip_qb_version_check, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
@@ -290,6 +308,7 @@ for v in [
     "tag_tracker_error",
     "rem_orphaned",
     "tag_nohardlinks",
+    "share_limits",
     "skip_cleanup",
     "skip_qb_version_check",
     "dry_run",
@@ -334,6 +353,7 @@ from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
 from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
+from modules.core.share_limits import ShareLimits  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -354,20 +374,38 @@ with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) a
             version = util.parse_version(line)
             break
 branch = util.guess_branch(version, env_version, git_branch)
+if branch is None:
+    branch = "Unknown"
 version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
 
 
 def start_fastapi(cfg):
     app = FastAPI()
 
-    if cfg.api["add_torrent_webhook"]:
-
+    if cfg.api["webhook_tag_update"] or cfg.api["webhook_share_limits"]:
+        # TODO: Should a lock be applied to the entire app to prevent possible concurrent modification of various things used throughout?
         @app.post("/webhook")
-        def hook(id: Annotated[str, Form()]):  # This would probably be fine as an async function but I'm not risking it.
-            torrent = cfg.qbt.get_torrents({"torrent_hashes": id})
+        def hook(torrent_id: Annotated[str, Form(alias="id")]):
+            torrent = cfg.qbt.get_torrents({"torrent_hashes": torrent_id, "limit": 1})
             if not torrent:
-                raise HTTPException(status_code=404, detail=f"Did not find any torrent with id: {id}")
-            Tags(cfg.qbt, torrents_to_tag=torrent, silent=True)
+                raise HTTPException(status_code=404, detail=f"Did not find any torrent with id: {torrent_id}")
+            # If the torrent needs to be moved over the network upon finishing, this may run before it updates status
+            # We don't use !is_complete here as this can be set to run on add as well and that would lock up
+            # TODO: Is this even needed? Does any of the code care if the torrent is complete?
+            sleeps = 1
+            while torrent[0].state_enum.value == "moving":
+                torrent[0].sync_local()
+                sleeps += 1
+                time.sleep(1)  # No reason for busy waiting here as this isn't time-critical
+
+            if cfg.api["webhook_tag_update"]:  # TODO: We probably want to record the stats from the actions here right?
+                Tags(cfg.qbt, torrents_to_tag=torrent, silent=True)
+            # TODO: Setting to allow this on incomplete torrents
+            if cfg.api["webhook_share_limits"] and torrent[0].state_enum.is_complete:
+                # Similar issue to what the while loop above solves, if we don't sleep we get num_completed = 0 somehow
+                time.sleep(sleeps)  # This sleep is just however the status update took + 1 second to be safe
+                torrent[0].sync_local()  # Gets the updated tags and seed counts from the api
+                ShareLimits(cfg.qbt, torrents_to_tag=torrent, silent=True)
 
     uvicorn.run(app, host=cfg.api["host"], port=cfg.api["port"], log_level="warning")
 
@@ -415,6 +453,8 @@ def start():
         "untagged_tracker_error": 0,
         "tagged_noHL": 0,
         "untagged_noHL": 0,
+        "updated_share_limits": 0,
+        "cleaned_share_limits": 0,
     }
 
     def finished_run():
@@ -427,7 +467,9 @@ def start():
         next_run = nxt_run["next_run"]
         body = logger.separator(
             f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace("\n\n", "\n").rstrip()
+            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace(
+                "\n\n", "\n"
+            ).rstrip()
         )[0]
         return next_run, body
 
@@ -484,8 +526,15 @@ def start():
             stats["tagged"] += no_hardlinks.stats_tagged
             stats["tagged_noHL"] += no_hardlinks.stats_tagged
             stats["untagged_noHL"] += no_hardlinks.stats_untagged
-            stats["deleted"] += no_hardlinks.stats_deleted
-            stats["deleted_contents"] += no_hardlinks.stats_deleted_contents
+
+        # Set Share Limits
+        if cfg.commands["share_limits"]:
+            share_limits = ShareLimits(qbit_manager)
+            stats["tagged"] += share_limits.stats_tagged
+            stats["updated_share_limits"] += share_limits.stats_tagged
+            stats["deleted"] += share_limits.stats_deleted
+            stats["deleted_contents"] += share_limits.stats_deleted_contents
+            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
 
         # Remove Orphaned Files
         if cfg.commands["rem_orphaned"]:
@@ -523,6 +572,10 @@ def start():
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
     if stats["untagged_noHL"] > 0:
         stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
+    if stats["updated_share_limits"] > 0:
+        stats_summary.append(f"Total Share Limits Updated: {stats['updated_share_limits']}")
+    if stats["cleaned_share_limits"] > 0:
+        stats_summary.append(f"Total Torrents Removed from Meeting Share Limits: {stats['cleaned_share_limits']}")
     if stats["recycle_emptied"] > 0:
         stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
     if stats["orphaned_emptied"] > 0:
@@ -609,6 +662,7 @@ if __name__ == "__main__":
     logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
     logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
     logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
+    logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {share_limits}")
     logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {skip_cleanup}")
     logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {skip_qb_version_check}")
     logger.debug(f"    --dry-run (QBT_DRY_RUN): {dry_run}")

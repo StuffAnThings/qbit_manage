@@ -27,16 +27,16 @@ repos:
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.9.0
+    rev: 1.11.0
     hooks:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.9.0
+    rev: v3.10.0
     hooks:
       - id: reorder-python-imports
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.4.0
+    rev: v3.7.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
@@ -45,9 +45,17 @@ repos:
     hooks:
       - id: black
         language_version: python3
-        args: [--line-length, '130']
+        args: [--line-length, '130', --preview]
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
         args: [--config=.flake8]
+  - repo: local
+    hooks:
+      - id: increase-version
+        name: Increase version if branch contains "develop"
+        entry: ./scripts/pre-commit/increase_version.sh
+        language: script
+        pass_filenames: false
+        stages: [commit]

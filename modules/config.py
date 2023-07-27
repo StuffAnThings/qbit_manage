@@ -3,6 +3,7 @@ import os
 import re
 import stat
 import time
+from collections import OrderedDict
 
 import requests
 from retrying import retry
@@ -28,6 +29,7 @@ COMMANDS = [
     "tag_tracker_error",
     "rem_orphaned",
     "tag_nohardlinks",
+    "share_limits",
     "skip_cleanup",
     "skip_qb_version_check",
     "dry_run",
@@ -83,6 +85,7 @@ class Config:
                 logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
                 logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
                 logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
+                logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {self.commands['share_limits']}")
                 logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
                 logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {self.commands['skip_qb_version_check']}")
                 logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
@@ -99,7 +102,12 @@ class Config:
         if "cat_change" in self.data:
             self.data["cat_change"] = self.data.pop("cat_change")
         if "tracker" in self.data:
-            self.data["tracker"] = self.data.pop("tracker")
+            trackers = self.data.pop("tracker")
+            self.data["tracker"] = {}
+            # Splits tracker urls at pipes, useful for trackers with multiple announce urls
+            for tracker_urls, data in trackers.items():
+                for tracker_url in tracker_urls.split("|"):
+                    self.data["tracker"][tracker_url.strip()] = data
         else:
             self.data["tracker"] = {}
         if "nohardlinks" in self.data:
@@ -138,9 +146,17 @@ class Config:
                 self.data["webhooks"] = temp
         if "bhd" in self.data:
             self.data["bhd"] = self.data.pop("bhd")
+        if "share_limits" in self.data:
+            self.data["share_limits"] = self.data.pop("share_limits")
+
         self.dry_run = self.commands["dry_run"]
         self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
+
+        share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "~share_limit")
+        # Convert previous share_limits_suffix_tag to new default share_limits_tag
+        if share_limits_tag == "share_limit":
+            share_limits_tag = "~share_limit"
 
         self.settings = {
             "force_auto_tmm": self.util.check_for_attribute(
@@ -150,15 +166,22 @@ class Config:
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
+            "share_limits_tag": self.util.check_for_attribute(
+                self.data, "share_limits_tag", parent="settings", default=share_limits_tag
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
+        self.share_limits_tag = self.settings["share_limits_tag"]
 
         default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
             self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
         )
+        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        if "share_limits_suffix_tag" in self.data["settings"]:
+            self.util.overwrite_attributes(self.settings, "settings")
 
         default_function = {
             "cross_seed": None,
@@ -169,6 +192,7 @@ class Config:
             "tag_tracker_error": None,
             "rem_orphaned": None,
             "tag_nohardlinks": None,
+            "share_limits": None,
             "cleanup_dirs": None,
         }
 
@@ -251,111 +275,200 @@ class Config:
 
         # nohardlinks
         self.nohardlinks = None
-        if "nohardlinks" in self.data and self.commands["tag_nohardlinks"]:
+        if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
-                if cat in list(self.data["cat"].keys()):
-                    is_max_ratio_defined = self.data["nohardlinks"][cat].get("max_ratio")
-                    is_max_seeding_time_defined = self.data["nohardlinks"][cat].get("max_seeding_time")
+                if isinstance(cat, dict):
+                    cat_str = list(cat.keys())[0]
+                    self.nohardlinks[cat_str] = {}
+                    exclude_tags = cat[cat_str].get("exclude_tags", [])
+                    if isinstance(exclude_tags, str):
+                        exclude_tags = [exclude_tags]
+                    self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
+                elif isinstance(cat, str):
                     self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = self.util.check_for_attribute(
-                        self.data,
-                        "exclude_tags",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="list",
-                        default_is_none=True,
-                        do_print=False,
-                    )
-                    self.nohardlinks[cat]["cleanup"] = self.util.check_for_attribute(
-                        self.data, "cleanup", parent="nohardlinks", subparent=cat, var_type="bool", default=False, do_print=False
-                    )
-                    if is_max_ratio_defined or is_max_seeding_time_defined:
-                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_ratio",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="float",
-                            min_int=-2,
-                            do_print=False,
-                            default=-1,
-                            save=False,
-                        )
-                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_seeding_time",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="int",
-                            min_int=-2,
-                            do_print=False,
-                            default=-1,
-                            save=False,
-                        )
-                    else:
-                        self.nohardlinks[cat]["max_ratio"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_ratio",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="float",
-                            min_int=-2,
-                            do_print=False,
-                            default_is_none=True,
-                            save=False,
-                        )
-                        self.nohardlinks[cat]["max_seeding_time"] = self.util.check_for_attribute(
-                            self.data,
-                            "max_seeding_time",
-                            parent="nohardlinks",
-                            subparent=cat,
-                            var_type="int",
-                            min_int=-2,
-                            do_print=False,
-                            default_is_none=True,
-                            save=False,
-                        )
-                    self.nohardlinks[cat]["min_seeding_time"] = self.util.check_for_attribute(
-                        self.data,
-                        "min_seeding_time",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="int",
-                        min_int=0,
-                        do_print=False,
-                        default=0,
-                        save=False,
-                    )
-                    self.nohardlinks[cat]["limit_upload_speed"] = self.util.check_for_attribute(
-                        self.data,
-                        "limit_upload_speed",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="int",
-                        min_int=-1,
-                        do_print=False,
-                        default=0,
-                        save=False,
-                    )
-                    self.nohardlinks[cat]["resume_torrent_after_untagging_noHL"] = self.util.check_for_attribute(
-                        self.data,
-                        "resume_torrent_after_untagging_noHL",
-                        parent="nohardlinks",
-                        subparent=cat,
-                        var_type="bool",
-                        default=True,
-                        do_print=False,
-                        save=False,
-                    )
-                else:
-                    err = f"Config Error: Category {cat} is defined under nohardlinks attribute "
-                    "but is not defined in the cat attribute."
-                    self.notify(err, "Config")
-                    raise Failed(err)
+                    self.nohardlinks[cat]["exclude_tags"] = []
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks attribute max_ratio not found"
+                err = "Config Error: nohardlinks must be a list of categories"
+                self.notify(err, "Config")
+                raise Failed(err)
+
+        # share limits
+        self.share_limits = None
+        if "share_limits" in self.data and self.commands["share_limits"]:
+
+            def _sort_share_limits(share_limits):
+                sorted_limits = sorted(
+                    share_limits.items(), key=lambda x: x[1].get("priority", float("inf")) if x[1] is not None else float("inf")
+                )
+                priorities = set()
+                for key, value in sorted_limits:
+                    if value is None:
+                        value = {}
+                    if "priority" in value:
+                        priority = value["priority"]
+                        if priority in priorities:
+                            err = (
+                                f"Config Error: Duplicate priority '{priority}' found in share_limits "
+                                f"for the grouping '{key}'. Priority must be a unique value and greater than or equal to 1"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                    else:
+                        priority = max(priorities) + 1
+                        logger.warning(
+                            f"Priority not defined for the grouping '{key}' in share_limits. Setting priority to {priority}"
+                        )
+                        value["priority"] = self.util.check_for_attribute(
+                            self.data,
+                            "priority",
+                            parent="share_limits",
+                            subparent=key,
+                            var_type="float",
+                            default=priority,
+                            save=True,
+                        )
+                    priorities.add(priority)
+                return OrderedDict(sorted_limits)
+
+            self.share_limits = OrderedDict()
+            sorted_share_limits = _sort_share_limits(self.data["share_limits"])
+            for group in sorted_share_limits:
+                self.share_limits[group] = {}
+                self.share_limits[group]["priority"] = sorted_share_limits[group]["priority"]
+                self.share_limits[group]["include_all_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "include_all_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["include_any_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "include_any_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["exclude_all_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "exclude_all_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["exclude_any_tags"] = self.util.check_for_attribute(
+                    self.data,
+                    "exclude_any_tags",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["categories"] = self.util.check_for_attribute(
+                    self.data,
+                    "categories",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="list",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["cleanup"] = self.util.check_for_attribute(
+                    self.data, "cleanup", parent="share_limits", subparent=group, var_type="bool", default=False, do_print=False
+                )
+                self.share_limits[group]["max_ratio"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_ratio",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="float",
+                    min_int=-2,
+                    default=-1,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_seeding_time",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=-2,
+                    default=-1,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["min_seeding_time"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_seeding_time",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["limit_upload_speed"] = self.util.check_for_attribute(
+                    self.data,
+                    "limit_upload_speed",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=-1,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["min_num_seeds"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_num_seeds",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["resume_torrent_after_change"] = self.util.check_for_attribute(
+                    self.data,
+                    "resume_torrent_after_change",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["add_group_to_tag"] = self.util.check_for_attribute(
+                    self.data,
+                    "add_group_to_tag",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["torrents"] = []
+        else:
+            if self.commands["share_limits"]:
+                err = "Config Error: share_limits. No valid grouping found."
                 self.notify(err, "Config")
                 raise Failed(err)
 
@@ -451,22 +564,26 @@ class Config:
         )
         if self.commands["rem_orphaned"]:
             exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_orphaned) if exclude_orphaned not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_orphaned)
+                if exclude_orphaned not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
         if self.recyclebin["enabled"]:
             exclude_recycle = f"**{os.sep}{os.path.basename(self.recycle_dir.rstrip(os.sep))}{os.sep}*"
-            self.orphaned["exclude_patterns"].append(exclude_recycle) if exclude_recycle not in self.orphaned[
-                "exclude_patterns"
-            ] else self.orphaned["exclude_patterns"]
+            (
+                self.orphaned["exclude_patterns"].append(exclude_recycle)
+                if exclude_recycle not in self.orphaned["exclude_patterns"]
+                else self.orphaned["exclude_patterns"]
+            )
 
         # Add API TODO: I don't know what half of these params do. Also, add env vars and cli params
-        self.api = {}
-        self.api["add_torrent_webhook"] = self.util.check_for_attribute(
-            self.data, "add_torrent_webhook", parent="api", var_type="bool"
-        )
-        self.api["host"] = self.util.check_for_attribute(self.data, "host", parent="api")
-        self.api["port"] = self.util.check_for_attribute(self.data, "port", parent="api", var_type="int")
+        self.api = {
+            "webhook_tag_update": self.util.check_for_attribute(self.data, "webhook_tag_update", parent="api", var_type="bool"),
+            "webhook_share_limits": self.util.check_for_attribute(self.data, "webhook_share_limits", parent="api", var_type="bool"),
+            "host": self.util.check_for_attribute(self.data, "host", parent="api"),
+            "port": self.util.check_for_attribute(self.data, "port", parent="api", var_type="int")
+        }
 
         # Connect to Qbittorrent
         self.qbt = None
@@ -556,8 +673,10 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
-                                f"{filename} from {folder} (Last modified {round(days)} days ago).",
+                                (
+                                    f"{'Did not delete' if self.dry_run else 'Deleted'} "
+                                    f"{filename} from {folder} (Last modified {round(days)} days ago)."
+                                ),
                                 self.loglevel,
                             )
                             files += [str(filename)]
@@ -570,8 +689,10 @@ class Config:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
-                            f"({util.human_readable_size(size_bytes)}) from the {location}.",
+                            (
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
+                                f"({util.human_readable_size(size_bytes)}) from the {location}."
+                            ),
                             self.loglevel,
                         )
                         attr = {

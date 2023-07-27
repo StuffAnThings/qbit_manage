@@ -31,7 +31,7 @@ class RemoveOrphaned:
         orphaned_files = []
         excluded_orphan_files = []
 
-        root_files = self.executor.submit(util.get_root_files, self.remote_dir, self.root_dir, self.orphaned_dir)
+        root_files = self.executor.submit(util.get_root_files, self.root_dir, self.remote_dir, self.orphaned_dir)
 
         # Get an updated list of torrents
         logger.print_line("Locating orphan files", self.config.loglevel)
@@ -67,8 +67,10 @@ class RemoveOrphaned:
             logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
             body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
             body += logger.print_line(
-                f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
-                f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}",
+                (
+                    f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
+                    f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}"
+                ),
                 self.config.loglevel,
             )
 

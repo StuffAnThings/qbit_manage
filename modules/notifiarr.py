@@ -1,3 +1,4 @@
+import time
 from json import JSONDecodeError
 
 from modules import util
@@ -36,4 +37,6 @@ class Notifiarr:
     def notification(self, json):
         """Send notification to Notifiarr"""
         params = {"qbit_client": self.config.data["qbt"]["host"], "instance": self.instance}
-        return self.config.get(f"{self.url}notification/qbitManage/", json=json, headers=self.header, params=params)
+        response = self.config.get(f"{self.url}notification/qbitManage/", json=json, headers=self.header, params=params)
+        time.sleep(1)  # Pause for 1 second before sending the next request
+        return response

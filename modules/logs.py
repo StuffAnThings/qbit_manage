@@ -68,9 +68,9 @@ class MyLogger:
         """Clear saved errors"""
         self.saved_errors = []
 
-    def _get_handler(self, log_file, count=3):
+    def _get_handler(self, log_file, count=5):
         """Get handler for log file"""
-        max_bytes = 1024 * 1024 * 2
+        max_bytes = 1024 * 1024 * 10
         _handler = RotatingFileHandler(log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=count, encoding="utf-8")
         self._formatter(handler=_handler)
         # if os.path.isfile(log_file):
@@ -88,7 +88,7 @@ class MyLogger:
 
     def add_main_handler(self):
         """Add main handler to logger"""
-        self.main_handler = self._get_handler(self.main_log, count=9)
+        self.main_handler = self._get_handler(self.main_log, count=19)
         self.main_handler.addFilter(fmt_filter)
         self._logger.addHandler(self.main_handler)
 

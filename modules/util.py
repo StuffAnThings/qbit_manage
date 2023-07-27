@@ -34,6 +34,18 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [d.strip() for d in str(data).split(",")]
 
 
+def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
+    """Check if tag is in torrent_tags"""
+    tags = get_list(torrent_tags)
+    if exact:
+        return check_tag in tags
+    else:
+        for t in tags:
+            if check_tag in t:
+                return t
+    return False
+
+
 class TorrentMessages:
     """Contains list of messages to check against a status of a torrent"""
 
@@ -135,6 +147,13 @@ class check:
 
     def __init__(self, config):
         self.config = config
+
+    def overwrite_attributes(self, data, attribute):
+        """Overwrite attributes in config."""
+        yaml = YAML(self.config.config_path)
+        if data is not None and attribute in yaml.data:
+            yaml.data[attribute] = data
+            yaml.save()
 
     def check_for_attribute(
         self,
