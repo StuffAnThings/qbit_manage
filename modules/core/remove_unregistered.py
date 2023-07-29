@@ -109,7 +109,7 @@ class RemoveUnregistered:
                     if trk.url.startswith("http") or trk.url.startswith("udp://"):
                         tracker = self.qbt.get_tags([trk])
                         msg_up = trk.msg.upper()
-                        msgs += trk.msg
+                        msgs.append(trk.msg)
                         if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
                             # Check for unregistered torrents
                             if unregistered_everywhere:
