@@ -2,7 +2,6 @@
 import os
 import sys
 
-from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
@@ -74,15 +73,10 @@ class Qbt:
         except LoginFailed as exc:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(ex, "Qbittorrent")
-            raise Failed(ex) from exc
-        except APIConnectionError as exc:
-            ex = "Qbittorrent Error: Unable to connect to the client."
-            self.config.notify(ex, "Qbittorrent")
-            raise Failed(ex) from exc
+            raise Failed(exc) from exc
         except Exception as exc:
-            ex = "Qbittorrent Error: Unable to connect to the client."
-            self.config.notify(ex, "Qbittorrent")
-            raise Failed(ex) from exc
+            self.config.notify(exc, "Qbittorrent")
+            raise Failed(exc) from exc
         logger.separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({"sort": "added_on"})
 
