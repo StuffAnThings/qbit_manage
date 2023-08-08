@@ -64,10 +64,8 @@ class ReCheck:
                             )
                             logger.debug(
                                 logger.insert_space(
-                                    (
-                                        f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
-                                        f"{timedelta(minutes=torrent.max_seeding_time)}"
-                                    ),
+                                    f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
+                                    f"{timedelta(minutes=torrent.max_seeding_time)}",
                                     4,
                                 )
                             )
