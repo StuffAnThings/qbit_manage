@@ -391,11 +391,9 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            (
-                                f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
-                                f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
-                                " seeding."
-                            ),
+                            f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
+                            f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
+                            " seeding.",
                             8,
                         ),
                         self.config.loglevel,
@@ -423,11 +421,9 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            (
-                                f"Min number of seeds not met: Total Seeds ({torrent.num_complete}) <"
-                                f"min_num_seeds({min_num_seeds}). Removing Share Limits so qBittorrent can continue"
-                                " seeding."
-                            ),
+                            f"Min number of seeds not met: Total Seeds ({torrent.num_complete}) <"
+                            f"min_num_seeds({min_num_seeds}). Removing Share Limits so qBittorrent can continue"
+                            " seeding.",
                             8,
                         ),
                         self.config.loglevel,
@@ -456,10 +452,8 @@ class ShareLimits:
             if seeding_time_limit:
                 if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
-                        (
-                            f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
-                            f"{timedelta(minutes=seeding_time_limit)}"
-                        ),
+                        f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
+                        f"{timedelta(minutes=seeding_time_limit)}",
                         8,
                     )
                     return True
