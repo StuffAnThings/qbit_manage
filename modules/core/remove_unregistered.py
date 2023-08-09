@@ -125,10 +125,10 @@ class RemoveUnregistered:
 
                 # Remove torrents when no tracker has this torrent
                 if unregistered_everywhere:
-                    self.del_unregistered(" | ".join(msgs), " | ".join(torrent.trackers), torrent)
+                    self.del_unregistered(" | ".join(msgs), self.qbt.get_tags(torrent.trackers), torrent)
                 # Tag torrents when all trackers have issues
                 elif no_trackers_working:
-                    self.tag_tracker_error(" | ".join(msgs), " | ".join(torrent.trackers), torrent)
+                    self.tag_tracker_error(" | ".join(msgs), self.qbt.get_tags(torrent.trackers), torrent)
 
             except NotFound404Error:
                 continue
