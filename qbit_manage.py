@@ -536,6 +536,8 @@ def start():
             stats["deleted"] += share_limits.stats_deleted
             stats["deleted_contents"] += share_limits.stats_deleted_contents
             stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
+            if share_limits.stats_deleted_contents > 0:
+                time.sleep(3)  # For some reason remove orphaned will try (and fail) to remove the files we just deleted if we don't sleep here
 
         # Remove Orphaned Files
         if cfg.commands["rem_orphaned"]:
