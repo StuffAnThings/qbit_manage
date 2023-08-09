@@ -149,28 +149,22 @@ class RemoveUnregistered:
             if self.stats_deleted >= 1 or self.stats_deleted_contents >= 1:
                 if self.stats_deleted >= 1:
                     logger.print_line(
-                        (
-                            f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.stats_deleted} "
-                            f".torrent{'s' if self.stats_deleted > 1 else ''} but not content files."
-                        ),
+                        f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.stats_deleted} "
+                        f".torrent{'s' if self.stats_deleted > 1 else ''} but not content files.",
                         self.config.loglevel,
                     )
                 if self.stats_deleted_contents >= 1:
                     logger.print_line(
-                        (
-                            f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.stats_deleted_contents} "
-                            f".torrent{'s' if self.stats_deleted_contents > 1 else ''} AND content files."
-                        ),
+                        f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.stats_deleted_contents} "
+                        f".torrent{'s' if self.stats_deleted_contents > 1 else ''} AND content files.",
                         self.config.loglevel,
                     )
             else:
                 logger.print_line("No unregistered torrents found.", self.config.loglevel)
         if self.stats_untagged >= 1:
             logger.print_line(
-                (
-                    f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.tag_error} tags for {self.stats_untagged} "
-                    f".torrent{'s.' if self.stats_untagged > 1 else '.'}"
-                ),
+                f"{'Did not delete' if self.config.dry_run else 'Deleted'} {self.tag_error} tags for {self.stats_untagged} "
+                f".torrent{'s.' if self.stats_untagged > 1 else '.'}",
                 self.config.loglevel,
             )
         if self.stats_tagged >= 1:

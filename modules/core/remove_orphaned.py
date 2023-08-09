@@ -67,10 +67,8 @@ class RemoveOrphaned:
             logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
             body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
             body += logger.print_line(
-                (
-                    f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
-                    f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}"
-                ),
+                f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
+                f"to {self.orphaned_dir.replace(self.remote_dir,self.root_dir)}",
                 self.config.loglevel,
             )
 

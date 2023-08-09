@@ -384,7 +384,18 @@ def move_files(src, dest, mod=False):
         shutil.move(src, dest)
     except PermissionError as perm:
         logger.warning(f"{perm} : Copying files instead.")
-        shutil.copyfile(src, dest)
+        try:
+            shutil.copyfile(src, dest)
+        except Exception as ex:
+            logger.stacktrace()
+            logger.error(ex)
+            return to_delete
+        if os.path.isfile(src):
+            logger.warning(f"Removing original file: {src}")
+            try:
+                os.remove(src)
+            except OSError as e:
+                logger.warning(f"Error: {e.filename} - {e.strerror}.")
         to_delete = True
     except FileNotFoundError as file:
         logger.warning(f"{file} : source: {src} -> destination: {dest}")

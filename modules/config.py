@@ -675,10 +675,8 @@ class Config:
                         if empty_after_x_days <= days:
                             num_del += 1
                             body += logger.print_line(
-                                (
-                                    f"{'Did not delete' if self.dry_run else 'Deleted'} "
-                                    f"{filename} from {folder} (Last modified {round(days)} days ago)."
-                                ),
+                                f"{'Did not delete' if self.dry_run else 'Deleted'} "
+                                f"{filename} from {folder} (Last modified {round(days)} days ago).",
                                 self.loglevel,
                             )
                             files += [str(filename)]
@@ -691,10 +689,8 @@ class Config:
                             for path in location_path_list:
                                 util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
-                            (
-                                f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
-                                f"({util.human_readable_size(size_bytes)}) from the {location}."
-                            ),
+                            f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
+                            f"({util.human_readable_size(size_bytes)}) from the {location}.",
                             self.loglevel,
                         )
                         attr = {
