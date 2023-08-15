@@ -55,6 +55,7 @@ class ShareLimits:
                     "torrent_max_ratio": group_config["max_ratio"],
                     "torrent_max_seeding_time": group_config["max_seeding_time"],
                     "torrent_min_seeding_time": group_config["min_seeding_time"],
+                    "torrent_min_num_seeds": group_config["min_num_seeds"],
                     "torrent_limit_upload_speed": group_config["limit_upload_speed"],
                 }
                 if len(self.torrents_updated) > 0:
@@ -196,6 +197,7 @@ class ShareLimits:
                 "Config Max Seeding Time vs Torrent Max Seeding Time: "
                 f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
             )
+            logger.trace(f"Config Min Num Seeds vs Torrent Num Seeds: {group_config['min_num_seeds']} vs {torrent.num_complete}")
             logger.trace(f"check_max_seeding_time: {check_max_seeding_time}")
             logger.trace(
                 "Config Limit Upload Speed vs Torrent Limit Upload Speed: "
@@ -218,17 +220,17 @@ class ShareLimits:
                     self.stats_tagged += 1
                     self.torrents_updated.append(t_name)
 
+            tor_reached_seed_limit = self.has_reached_seed_limit(
+                torrent=torrent,
+                max_ratio=group_config["max_ratio"],
+                max_seeding_time=group_config["max_seeding_time"],
+                min_seeding_time=group_config["min_seeding_time"],
+                min_num_seeds=group_config["min_num_seeds"],
+                resume_torrent=group_config["resume_torrent_after_change"],
+                tracker=tracker["url"],
+            )
             # Cleanup torrents if the torrent meets the criteria for deletion and cleanup is enabled
             if group_config["cleanup"]:
-                tor_reached_seed_limit = self.has_reached_seed_limit(
-                    torrent=torrent,
-                    max_ratio=group_config["max_ratio"],
-                    max_seeding_time=group_config["max_seeding_time"],
-                    min_seeding_time=group_config["min_seeding_time"],
-                    min_num_seeds=group_config["min_num_seeds"],
-                    resume_torrent=group_config["resume_torrent_after_change"],
-                    tracker=tracker["url"],
-                )
                 if tor_reached_seed_limit:
                     if t_hash not in self.tdel_dict:
                         self.tdel_dict[t_hash] = {}
@@ -391,11 +393,9 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            (
-                                f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
-                                f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
-                                " seeding."
-                            ),
+                            f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
+                            f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
+                            " seeding.",
                             8,
                         ),
                         self.config.loglevel,
@@ -423,11 +423,9 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            (
-                                f"Min number of seeds not met: Total Seeds ({torrent.num_complete}) <"
-                                f"min_num_seeds({min_num_seeds}). Removing Share Limits so qBittorrent can continue"
-                                " seeding."
-                            ),
+                            f"Min number of seeds not met: Total Seeds ({torrent.num_complete}) < "
+                            f"min_num_seeds({min_num_seeds}). Removing Share Limits so qBittorrent can continue"
+                            " seeding.",
                             8,
                         ),
                         self.config.loglevel,
@@ -456,10 +454,8 @@ class ShareLimits:
             if seeding_time_limit:
                 if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
-                        (
-                            f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
-                            f"{timedelta(minutes=seeding_time_limit)}"
-                        ),
+                        f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
+                        f"{timedelta(minutes=seeding_time_limit)}",
                         8,
                     )
                     return True

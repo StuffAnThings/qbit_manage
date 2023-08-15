@@ -384,7 +384,18 @@ def move_files(src, dest, mod=False):
         shutil.move(src, dest)
     except PermissionError as perm:
         logger.warning(f"{perm} : Copying files instead.")
-        shutil.copyfile(src, dest)
+        try:
+            shutil.copyfile(src, dest)
+        except Exception as ex:
+            logger.stacktrace()
+            logger.error(ex)
+            return to_delete
+        if os.path.isfile(src):
+            logger.warning(f"Removing original file: {src}")
+            try:
+                os.remove(src)
+            except OSError as e:
+                logger.warning(f"Error: {e.filename} - {e.strerror}.")
         to_delete = True
     except FileNotFoundError as file:
         logger.warning(f"{file} : source: {src} -> destination: {dest}")
@@ -501,12 +512,12 @@ class CheckHardLinks:
                             continue
                         file_size = os.stat(files).st_size
                         file_no_hardlinks = os.stat(files).st_nlink
-                        logger.trace(f"Checking file: {file}")
-                        logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                        logger.trace(f"Checking file: {files}")
+                        logger.trace(f"Checking file inum: {os.stat(files).st_ino}")
                         logger.trace(f"Checking file size: {file_size}")
                         logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
-                        if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
+                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
+                        if file_no_hardlinks - self.inode_count.get(os.stat(files).st_ino, 1) > 0 and file_size >= (
                             largest_file_size * threshold
                         ):
                             check_for_hl = False

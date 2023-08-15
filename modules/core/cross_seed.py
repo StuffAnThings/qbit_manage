@@ -128,7 +128,7 @@ class CrossSeed:
                     "torrents": [t_name],
                     "torrent_category": t_cat,
                     "torrent_tag": "cross-seed",
-                    "torrent_tracker": tracker,
+                    "torrent_tracker": tracker["url"],
                 }
                 self.notify_attr.append(attr)
                 self.torrents_updated.append(t_name)

@@ -46,7 +46,7 @@ class ReCheck:
                                 "title": "Resuming Torrent",
                                 "body": body,
                                 "torrents": [t_name],
-                                "torrent_tag": tracker["tag"],
+                                "torrent_tag": ", ".join(tracker["tag"]),
                                 "torrent_category": t_category,
                                 "torrent_tracker": tracker["url"],
                                 "notifiarr_indexer": tracker["notifiarr"],
@@ -64,10 +64,8 @@ class ReCheck:
                             )
                             logger.debug(
                                 logger.insert_space(
-                                    (
-                                        f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
-                                        f"{timedelta(minutes=torrent.max_seeding_time)}"
-                                    ),
+                                    f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
+                                    f"{timedelta(minutes=torrent.max_seeding_time)}",
                                     4,
                                 )
                             )
@@ -95,7 +93,7 @@ class ReCheck:
                                     "title": "Resuming Torrent",
                                     "body": body,
                                     "torrents": [t_name],
-                                    "torrent_tag": tracker["tag"],
+                                    "torrent_tag": ", ".join(tracker["tag"]),
                                     "torrent_category": t_category,
                                     "torrent_tracker": tracker["url"],
                                     "notifiarr_indexer": tracker["notifiarr"],
@@ -120,7 +118,7 @@ class ReCheck:
                             "title": "Rechecking Torrent",
                             "body": body,
                             "torrents": [t_name],
-                            "torrent_tag": tracker["tag"],
+                            "torrent_tag": ", ".join(tracker["tag"]),
                             "torrent_category": t_category,
                             "torrent_tracker": tracker["url"],
                             "notifiarr_indexer": tracker["notifiarr"],
