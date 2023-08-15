@@ -512,12 +512,12 @@ class CheckHardLinks:
                             continue
                         file_size = os.stat(files).st_size
                         file_no_hardlinks = os.stat(files).st_nlink
-                        logger.trace(f"Checking file: {file}")
-                        logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
+                        logger.trace(f"Checking file: {files}")
+                        logger.trace(f"Checking file inum: {os.stat(files).st_ino}")
                         logger.trace(f"Checking file size: {file_size}")
                         logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
-                        if file_no_hardlinks - self.inode_count.get(os.stat(file).st_ino, 1) > 0 and file_size >= (
+                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
+                        if file_no_hardlinks - self.inode_count.get(os.stat(files).st_ino, 1) > 0 and file_size >= (
                             largest_file_size * threshold
                         ):
                             check_for_hl = False
