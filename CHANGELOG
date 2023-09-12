@@ -1,12 +1,9 @@
 # Requirements Updated
-- qbitorrent-api updated to 2023.7.52
+- qbitorrent-api updated to 2023.9.53
+- GitPython updated to 3.1.35
 
 # Bug Fixes
-- Fixes a few webhook bugs with Notifiarr
-- Fixes [#355](https://github.com/StuffAnThings/qbit_manage/issues/355)
-- Fixes [#356](https://github.com/StuffAnThings/qbit_manage/issues/356)
-- Fixes [#363](https://github.com/StuffAnThings/qbit_manage/issues/363)
-- Fixes [#370](https://github.com/StuffAnThings/qbit_manage/issues/370)
+- Fixes [#377](https://github.com/StuffAnThings/qbit_manage/issues/377)
 
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.2...v4.0.3
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.3...v4.0.4
