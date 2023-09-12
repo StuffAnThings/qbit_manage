@@ -656,7 +656,7 @@ class Config:
                             ex = logger.print_line(
                                 f"{location} Warning - FileNotFound: No such file or directory: {file} ", "WARNING"
                             )
-                            self.config.notify(ex, "Cleanup Dirs", False)
+                            self.notify(ex, "Cleanup Dirs", False)
                             continue
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
