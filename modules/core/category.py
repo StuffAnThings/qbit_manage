@@ -14,8 +14,11 @@ class Category:
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
+        self.uncategorized_mapping = "Uncategorized"
+        
         self.category()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
+
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
@@ -23,6 +26,9 @@ class Category:
         torrent_list = self.qbt.get_torrents({"category": "", "status_filter": "completed"})
         for torrent in torrent_list:
             new_cat = self.qbt.get_category(torrent.save_path)
+            if new_cat == self.uncategorized_mapping:
+                logger.print_line(f"{torrent.name} remains uncategorized.", self.config.loglevel)
+                continue
             self.update_cat(torrent, new_cat, False)
 
         # Change categories
