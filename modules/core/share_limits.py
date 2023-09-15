@@ -468,16 +468,13 @@ class ShareLimits:
                         ),
                         self.config.loglevel,
                     )
-                    print_log += logger.print_line(
-                        logger.insert_space(f"Adding Tag: {LAST_ACTIVE_TAG}", 8), self.config.loglevel
-                    )
+                    print_log += logger.print_line(logger.insert_space(f"Adding Tag: {LAST_ACTIVE_TAG}", 8), self.config.loglevel)
                     if not self.config.dry_run:
                         torrent.add_tags(LAST_ACTIVE_TAG)
                         torrent.set_share_limits(-1, -1)
                         if resume_torrent:
                             torrent.resume()
             return False
-
 
         def _has_reached_seeding_time_limit():
             nonlocal body
