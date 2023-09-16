@@ -22,7 +22,7 @@ class Category:
         logger.separator("Updating Categories", space=False, border=False)
         torrent_list = self.qbt.get_torrents({"category": "", "status_filter": "completed"})
         for torrent in torrent_list:
-            new_cat = self.qbt.get_category(torrent.save_path)
+            new_cat = self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path)
             self.update_cat(torrent, new_cat, False)
 
         # Change categories
@@ -39,6 +39,10 @@ class Category:
             )
         else:
             logger.print_line("No new torrents to categorize.", self.config.loglevel)
+
+    def get_tracker_cat(self, torrent):
+        tracker = self.qbt.get_tags(torrent.trackers)
+        return tracker["cat"]
 
     def update_cat(self, torrent, new_cat, cat_change):
         """Update category based on the torrent information"""

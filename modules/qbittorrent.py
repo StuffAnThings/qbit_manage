@@ -204,6 +204,7 @@ class Qbt:
         urls = [x.url for x in trackers if x.url.startswith("http")]
         tracker = {}
         tracker["tag"] = None
+        tracker["cat"] = None
         tracker["notifiarr"] = None
         tracker["url"] = None
         tracker_other_tag = self.config.util.check_for_attribute(
@@ -237,6 +238,15 @@ class Qbt:
                                 logger.debug(e)
                         tracker["tag"] = self.config.util.check_for_attribute(
                             self.config.data, "tag", parent="tracker", subparent=tag_url, default=tag_url, var_type="list"
+                        )
+                        tracker["cat"] = self.config.util.check_for_attribute(
+                            self.config.data,
+                            "cat", parent="tracker",
+                            subparent=tag_url,
+                            default_is_none=True,
+                            var_type="str",
+                            save=False,
+                            do_print=False
                         )
                         if tracker["tag"] == [tag_url]:
                             self.config.data["tracker"][tag_url]["tag"] = [tag_url]
