@@ -291,7 +291,7 @@ class ShareLimits:
 
             filtered_torrents = filter(lambda x: filter_condition(x), sorted_torrents)
             non_filtered_torrents = filter(lambda x: not filter_condition(x), sorted_torrents)
-            all_torrents = list(filtered_torrents) + list(non_filtered_torrents)
+            all_torrents = list(non_filtered_torrents) + list(filtered_torrents)
 
             return all_torrents[-n_torrents_to_remove:]
         else:
