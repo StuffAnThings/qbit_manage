@@ -250,7 +250,10 @@ class ShareLimits:
 
         n_torrents_to_remove = n_torrents - max_seeding_torrents_allowed
         if n_torrents_to_remove > 0:
-            logger.print_line(f"=> Updating share limits for {n_torrents_to_remove} torrent{'s' if n_torrents_to_remove > 1 else ''}.", self.config.loglevel)
+            logger.print_line(
+                f"=> Updating share limits for {n_torrents_to_remove} torrent{'s' if n_torrents_to_remove > 1 else ''}.",
+                self.config.loglevel,
+            )
 
             max_seeding_torrents_options = group_config["max_seeding_torrents_options"]
 
@@ -264,7 +267,10 @@ class ShareLimits:
 
             logger.print_line("Priority share limits update for torrents meeting the following criteria:", self.config.loglevel)
 
-            logger.print_line(logger.insert_space(f"- {sort_by.title().replace('_', ' ')}: {'high' if sort_asc else 'low'}", 3), self.config.loglevel)
+            logger.print_line(
+                logger.insert_space(f"- {sort_by.title().replace('_', ' ')}: {'high' if sort_asc else 'low'}", 3),
+                self.config.loglevel,
+            )
             sorted_torrents = sorted(torrents, key=lambda torrent: torrent[sort_by], reverse=not sort_asc)
 
             min_size = max_seeding_torrents_options["min_size"]
@@ -276,11 +282,13 @@ class ShareLimits:
 
             def mb_to_oct(mb):
                 return mb * 1024 * 1024
+
             min_size = mb_to_oct(min_size)
             max_size = mb_to_oct(max_size)
 
             def filter_condition(torrent):
                 return min_size <= torrent["size"] < max_size
+
             filtered_torrents = filter(lambda x: filter_condition(x), sorted_torrents)
             non_filtered_torrents = filter(lambda x: not filter_condition(x), sorted_torrents)
             all_torrents = list(filtered_torrents) + list(non_filtered_torrents)
