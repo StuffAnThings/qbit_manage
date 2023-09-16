@@ -169,6 +169,10 @@ class ShareLimits:
         logger.separator(
             f"Updating Share Limits for [Group {group_name}] [Priority {group_config['priority']}]", space=False, border=False
         )
+
+        if group_config["max_seeding_torrents"] > 0:
+            torrents = self.filter_torrents_based_on_max_seeding_torrents_options(torrents, group_config)
+
         for torrent in torrents:
             t_name = torrent.name
             t_hash = torrent.hash
@@ -238,6 +242,53 @@ class ShareLimits:
                     self.tdel_dict[t_hash]["content_path"] = torrent["content_path"].replace(self.root_dir, self.remote_dir)
                     self.tdel_dict[t_hash]["body"] = tor_reached_seed_limit
             self.torrent_hash_checked.append(t_hash)
+
+    def filter_torrents_based_on_max_seeding_torrents_options(self, torrents, group_config):
+        max_seeding_torrents_allowed = group_config["max_seeding_torrents"]
+        n_torrents = len(torrents)
+        logger.print_line(f"{n_torrents} seeding out of {max_seeding_torrents_allowed} allowed.", self.config.loglevel)
+
+        n_torrents_to_remove = n_torrents - max_seeding_torrents_allowed
+        if n_torrents_to_remove > 0:
+            logger.print_line(f"=> Updating share limits for {n_torrents_to_remove} torrent{'s' if n_torrents_to_remove > 1 else ''}.", self.config.loglevel)
+
+            max_seeding_torrents_options = group_config["max_seeding_torrents_options"]
+
+            sort_by = max_seeding_torrents_options["sort_by"]
+            sort_asc = max_seeding_torrents_options["sort_asc"]
+            allowed_sort_by = ["ratio", "seeding_time", "last_activity", "size"]
+            default_sort_by = "last_activity"
+            if sort_by not in allowed_sort_by:
+                logger.print_line(f"Invalid sort_by option: {sort_by}. Defaulting to {default_sort_by}.", self.config.loglevel)
+                sort_by = default_sort_by
+
+            logger.print_line("Priority share limits update for torrents meeting the following criteria:", self.config.loglevel)
+
+            logger.print_line(logger.insert_space(f"- {sort_by.title().replace('_', ' ')}: {'high' if sort_asc else 'low'}", 3), self.config.loglevel)
+            sorted_torrents = sorted(torrents, key=lambda torrent: torrent[sort_by], reverse=not sort_asc)
+
+            min_size = max_seeding_torrents_options["min_size"]
+            max_size = max_seeding_torrents_options["max_size"]
+            if min_size > max_size:
+                min_size, max_size = max_size, min_size
+            logger.print_line(logger.insert_space(f"- Min size: {min_size} MB", 3), self.config.loglevel) if min_size else None
+            logger.print_line(logger.insert_space(f"- Max size: {max_size} MB", 3), self.config.loglevel) if max_size else None
+
+            def mb_to_oct(mb):
+                return mb * 1024 * 1024
+            min_size = mb_to_oct(min_size)
+            max_size = mb_to_oct(max_size)
+
+            def filter_condition(torrent):
+                return min_size <= torrent["size"] < max_size
+            filtered_torrents = filter(lambda x: filter_condition(x), sorted_torrents)
+            non_filtered_torrents = filter(lambda x: not filter_condition(x), sorted_torrents)
+            all_torrents = list(filtered_torrents) + list(non_filtered_torrents)
+
+            return all_torrents[-n_torrents_to_remove:]
+        else:
+            logger.print_line("=> No share limit updates needed.", self.config.loglevel)
+            return []
 
     def tag_and_update_share_limits_for_torrent(self, torrent, group_config):
         """Removes previous share limits tag, updates tag and share limits for a torrent, and resumes the torrent"""

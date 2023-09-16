@@ -34,6 +34,22 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [d.strip() for d in str(data).split(",")]
 
 
+def get_dict(data, lower=False, split=True):
+    """Return a dict from a string or dict."""
+    if data is None:
+        return None
+    elif isinstance(data, dict):
+        return data
+    elif isinstance(data, list):
+        return {d: None for d in data}
+    elif split is False:
+        return {str(data): None}
+    elif lower is True:
+        return {d.strip().lower(): None for d in str(data).split(",")}
+    else:
+        return {d.strip(): None for d in str(data).split(",")}
+
+
 def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
     """Check if tag is in torrent_tags"""
     tags = get_list(torrent_tags)
@@ -161,6 +177,7 @@ class check:
         attribute,
         parent=None,
         subparent=None,
+        subsubparent=None,
         test_list=None,
         default=None,
         do_print=True,
@@ -180,6 +197,7 @@ class check:
             attribute (str): The name of the attribute key to search for.
             parent (str, optional): The name of the top level attribute to search under. Defaults to None.
             subparent (str, optional): The name of the second level attribute to search under. Defaults to None.
+            subsubparent (str, optional): The name of the third level attribute to search under. Defaults to None.
             test_list (dict, optional): A dictionary of valid values for the attribute. Defaults to None.
             default (any, optional): The default value to use if the attribute is not found. Defaults to None.
             do_print (bool, optional): Whether to print warning messages. Defaults to True.
@@ -200,7 +218,13 @@ class check:
         endline = ""
         if parent is not None:
             if subparent is not None:
-                if data and parent in data and subparent in data[parent]:
+                if subsubparent is not None:
+                    if data and parent in data and subparent in data[parent] and subsubparent in data[parent][subparent]:
+                        data = data[parent][subparent][subsubparent]
+                    else:
+                        data = None
+                        do_print = False
+                elif data and parent in data and subparent in data[parent]:
                     data = data[parent][subparent]
                 else:
                     data = None
@@ -212,7 +236,9 @@ class check:
                     data = None
                     do_print = False
 
-        if subparent is not None:
+        if subsubparent is not None:
+            text = f"{parent}->{subparent}->{subsubparent} sub-attribute {attribute}"
+        elif subparent is not None:
             text = f"{parent}->{subparent} sub-attribute {attribute}"
         elif parent is None:
             text = f"{attribute} attribute"
@@ -223,14 +249,18 @@ class check:
             message = f"{text} not found"
             if parent and save is True:
                 yaml = YAML(self.config.config_path)
-                if subparent:
-                    endline = f"\n{subparent} sub-attribute {attribute} added to config"
+                if subsubparent:
                     if subparent not in yaml.data[parent] or not yaml.data[parent][subparent]:
+                        yaml.data[parent][subparent] = {subsubparent: {attribute: default}}
+                    elif subsubparent not in yaml.data[parent][subparent]:
+                        yaml.data[parent][subparent][subsubparent] = {attribute: default}
+                    else:
+                        yaml.data[parent][subparent][subsubparent][attribute] = default
+                elif subparent:
+                    if parent not in yaml.data or not yaml.data[parent]:
+                        yaml.data[parent] = {subparent: {attribute: default}}
+                    elif subparent not in yaml.data[parent]:
                         yaml.data[parent][subparent] = {attribute: default}
-                    elif attribute not in yaml.data[parent]:
-                        if isinstance(yaml.data[parent][subparent], str):
-                            yaml.data[parent][subparent] = {attribute: default}
-                        yaml.data[parent][subparent][attribute] = default
                     else:
                         endline = ""
                 else:
@@ -294,6 +324,8 @@ class check:
                     message = f"Path {os.path.abspath(data[attribute])} does not exist"
         elif var_type == "list":
             return get_list(data[attribute], split=False)
+        elif var_type == "dict":
+            return get_dict(data[attribute])
         elif var_type == "list_path":
             temp_list = [p for p in get_list(data[attribute], split=False) if os.path.exists(os.path.abspath(p))]
             if len(temp_list) > 0:
