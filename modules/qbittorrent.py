@@ -241,12 +241,13 @@ class Qbt:
                         )
                         tracker["cat"] = self.config.util.check_for_attribute(
                             self.config.data,
-                            "cat", parent="tracker",
+                            "cat",
+                            parent="tracker",
                             subparent=tag_url,
                             default_is_none=True,
                             var_type="str",
                             save=False,
-                            do_print=False
+                            do_print=False,
                         )
                         if tracker["tag"] == [tag_url]:
                             self.config.data["tracker"][tag_url]["tag"] = [tag_url]
