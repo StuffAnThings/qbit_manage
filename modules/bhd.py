@@ -29,11 +29,8 @@ class BeyondHD:
             logger.trace(response)
             response_json = response.json()
         except JSONDecodeError as err:
-            if "Expecting value" in err:
-                logger.debug(err)
-                return {}
-            elif response.status_code >= 400:
-                raise Failed(err) from err
+            logger.debug(err)
+            return {}
         if response.status_code >= 400:
             logger.debug(f"Response: {response_json}")
             raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
