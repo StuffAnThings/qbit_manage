@@ -84,7 +84,7 @@ class RemoveUnregistered:
         ):
             json = {"info_hash": torrent_hash}
             response = self.config.beyond_hd.search(json)
-            if response["total_results"] == 0:
+            if response.get("total_results") == 0:
                 return True
         return False
 
@@ -122,7 +122,6 @@ class RemoveUnregistered:
                             # Tag any error torrents
                             if self.cfg_tag_error and self.tag_error not in check_tags:
                                 self.tag_tracker_error(msg, tracker, torrent)
-
             except NotFound404Error:
                 continue
             except Exception as ex:
