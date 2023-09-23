@@ -13,7 +13,6 @@ class Category:
         self.stats = 0
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
-
         self.uncategorized_mapping = "Uncategorized"
 
         self.category()
