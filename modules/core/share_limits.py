@@ -213,8 +213,7 @@ class ShareLimits:
                 check_max_ratio or check_max_seeding_time or check_limit_upload_speed or share_limits_not_yet_tagged
             ) and hash_not_prev_checked:
                 if not is_tag_in_torrent(MIN_SEEDING_TIME_TAG, torrent.tags) and not is_tag_in_torrent(
-                    MIN_NUM_SEEDS_TAG, torrent.tags and not is_tag_in_torrent(LAST_ACTIVE_TAG, torrent.tags)
-                ):
+                    MIN_NUM_SEEDS_TAG, torrent.tags) and not is_tag_in_torrent(LAST_ACTIVE_TAG, torrent.tags):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if self.group_tag:
