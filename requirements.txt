@@ -4,4 +4,4 @@ qbittorrent-api==2023.9.53
 requests==2.31.0
 retrying==1.3.4
 ruamel.yaml==0.17.33
-schedule==1.2.0
+schedule==1.2.1
