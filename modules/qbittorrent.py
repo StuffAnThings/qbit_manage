@@ -68,7 +68,7 @@ class Qbt:
                 else:
                     self.config.notify(ex, "Qbittorrent")
                     logger.print_line(ex, "CRITICAL")
-                    sys.exit(0)
+                    sys.exit(1)
             logger.info("Qbt Connection Successful")
         except LoginFailed as exc:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
