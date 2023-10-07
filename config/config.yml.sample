@@ -70,6 +70,8 @@ tracker:
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url. You can define multiple tracker urls by splitting with `|` delimiter
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
+  # <OPTIONAL> Set the category based on tracker URL. This category option takes priority over the category defined by save directory
+  #   cat: <Category Name>
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
   #   notifiarr: <notifiarr indexer>
   animebytes.tv:
