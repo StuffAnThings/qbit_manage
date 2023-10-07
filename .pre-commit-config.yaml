@@ -32,11 +32,11 @@ repos:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.11.0
+    rev: v3.12.0
     hooks:
       - id: reorder-python-imports
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.13.0
+    rev: v3.14.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
