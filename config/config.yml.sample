@@ -38,7 +38,8 @@ directory:
   # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
   # root_dir var: </your/path/here/>  # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
   # <OPTIONAL> remote_dir var: </your/path/here/>  # Path of docker host mapping of root_dir.
-  # Must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
+  # remote_dir must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
+  # remote_dir should not be set if qbit_manage is running in a container
   # <OPTIONAL> recycle_bin var: </your/path/here/>   # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
   # <OPTIONAL> torrents_dir var: </your/path/here/>  # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
   # <OPTIONAL> orphaned_dir var: </your/path/here/>  # Path of the the Orphaned Data folder. This is similar to RecycleBin, but only for orphaned data.
@@ -70,6 +71,8 @@ tracker:
   # <Tracker URL Keyword>:    # <MANDATORY> This is the keyword in the tracker url. You can define multiple tracker urls by splitting with `|` delimiter
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
+  # <OPTIONAL> Set the category based on tracker URL. This category option takes priority over the category defined by save directory
+  #   cat: <Category Name>
   # <OPTIONAL> Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr
   #   notifiarr: <notifiarr indexer>
   animebytes.tv:
@@ -179,6 +182,10 @@ share_limits:
     # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_seeding_time: 43200
+    # <OPTIONAL> last_active <int>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
+    # If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding.
+    # Will default to 0 if not specified for the group.
+    last_active: 43200
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
     # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits
