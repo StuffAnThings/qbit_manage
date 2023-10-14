@@ -1,9 +1,19 @@
 # Requirements Updated
-- qbitorrent-api updated to 2023.9.53
-- GitPython updated to 3.1.35
+- GitPython==3.1.37
+- ruamel.yaml==0.17.35
+- schedule==1.2.1
+
+# New Features
+- Added a last_active flag for share_limits to resume torrents and avoid cleanup if there was activity in the last X minutes. (Closes #353)
+- New cat option in trackers/[tracker] to allow changing category based on tracker URL. (Closes #200)
+- Added new script to edit tracker urls (https://github.com/StuffAnThings/qbit_manage/commit/9290d2c958ea733d22cb3c98d30bab7037997f1d)
 
 # Bug Fixes
-- Fixes [#377](https://github.com/StuffAnThings/qbit_manage/issues/377)
+- Fixes [#388](https://github.com/StuffAnThings/qbit_manage/issues/388)
+- Fixes handling BHD API announce related issues
+- Special mapping to leave torrents uncategorized on cat-update (closes #395)
+- fix exit codes when program fails (#411)
 
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.4...v4.0.5
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.3...v4.0.4
+Special thanks to @estebanthi, @fabricionaweb for their contributions!
