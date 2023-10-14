@@ -71,6 +71,8 @@ class TorrentMessages:
         "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
         "COULD NOT PARSE BENCODED DATA",
         "STREAM TRUNCATED",
+        "GATEWAY TIMEOUT",  # BHD Gateway Timeout
+        "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
     ]
 
     EXCEPTIONS_MSGS = [

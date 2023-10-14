@@ -14,7 +14,7 @@ try:
     from modules.logs import MyLogger
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
-    sys.exit(0)
+    sys.exit(1)
 
 REQUIRED_VERSION = (3, 8, 1)
 REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
@@ -25,7 +25,7 @@ if current_version < (REQUIRED_VERSION):
         "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
         % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
     )
-    sys.exit(0)
+    sys.exit(1)
 
 parser = argparse.ArgumentParser("qBittorrent Manager.", description="A mix of scripts combined for managing qBittorrent.")
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
@@ -287,7 +287,7 @@ else:
         config_files = [os.path.split(x)[-1] for x in glob_configs]
     else:
         print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
-        sys.exit(0)
+        sys.exit(1)
 
 
 for v in [
@@ -325,14 +325,14 @@ try:
     sch = int(sch)
 except ValueError:
     print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
-    sys.exit(0)
+    sys.exit(1)
 
 # Check if StartupDelay parameter is a number
 try:
     startupDelay = int(startupDelay)
 except ValueError:
     print(f"startupDelay Error: startupDelay is not a number. Current value is set to '{startupDelay}'")
-    sys.exit(0)
+    sys.exit(1)
 
 
 logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False)

@@ -443,6 +443,17 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["last_active"] = self.util.check_for_attribute(
+                    self.data,
+                    "last_active",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["resume_torrent_after_change"] = self.util.check_for_attribute(
                     self.data,
                     "resume_torrent_after_change",
@@ -656,7 +667,7 @@ class Config:
                             ex = logger.print_line(
                                 f"{location} Warning - FileNotFound: No such file or directory: {file} ", "WARNING"
                             )
-                            self.config.notify(ex, "Cleanup Dirs", False)
+                            self.notify(ex, "Cleanup Dirs", False)
                             continue
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)

@@ -24,7 +24,7 @@ try:
     from qbittorrentapi import Client, LoginFailed, APIConnectionError
 except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
-    sys.exit(0)
+    sys.exit(1)
 
 current = datetime.now()
 timeoffset_from = (current - timedelta(days=days_from)).timestamp()
