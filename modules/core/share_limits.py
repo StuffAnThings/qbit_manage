@@ -485,8 +485,8 @@ class ShareLimits:
                 return False
             if max_seeding_time >= 0:
                 seeding_time_limit = max_seeding_time
-            elif max_seeding_time == -2 and self.global_max_seeding_time_enabled:
-                seeding_time_limit = self.global_max_seeding_time
+            elif max_seeding_time == -2 and self.qbt.global_max_seeding_time_enabled:
+                seeding_time_limit = self.qbt.global_max_seeding_time
             else:
                 return False
             if seeding_time_limit:
@@ -510,10 +510,10 @@ class ShareLimits:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)
                     return body
-            elif max_ratio == -2 and self.global_max_ratio_enabled and _has_reached_min_seeding_time_limit():
-                if torrent.ratio >= self.global_max_ratio:
+            elif max_ratio == -2 and self.qbt.global_max_ratio_enabled and _has_reached_min_seeding_time_limit():
+                if torrent.ratio >= self.qbt.global_max_ratio:
                     body += logger.insert_space(
-                        f"Ratio vs Global Max Ratio: {torrent.ratio:.2f} >= {self.global_max_ratio:.2f}", 8
+                        f"Ratio vs Global Max Ratio: {torrent.ratio:.2f} >= {self.qbt.global_max_ratio:.2f}", 8
                     )
                     return body
         if _has_reached_seeding_time_limit():
