@@ -650,6 +650,7 @@ class Config:
                     for name in files
                 ]
                 location_files = sorted(location_files)
+                location_files = list(set(location_files)) # remove duplicates
                 logger.trace(f"location_files: {location_files}")
                 if location_files:
                     body = []
