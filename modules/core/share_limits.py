@@ -452,7 +452,7 @@ class ShareLimits:
             print_log = []
             now = int(time())
             inactive_time_minutes = round((now - torrent.last_activity) / 60)
-            if inactive_time_minutes >= last_active * 60:
+            if inactive_time_minutes >= last_active:
                 if is_tag_in_torrent(LAST_ACTIVE_TAG, torrent.tags):
                     if not self.config.dry_run:
                         torrent.remove_tags(tags=LAST_ACTIVE_TAG)
@@ -463,7 +463,7 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            f"Min inactive time not met: {timedelta(seconds=inactive_time_minutes)} <="
+                            f"Min inactive time not met: {timedelta(minutes=inactive_time_minutes)} <="
                             f" {timedelta(minutes=last_active)}. Removing Share Limits so qBittorrent can continue"
                             " seeding.",
                             8,
