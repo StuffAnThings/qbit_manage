@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -16,8 +16,8 @@ repos:
         args: [--remove]
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
-  - repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v2.0.2
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.0.4
     hooks:
       - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
@@ -32,16 +32,16 @@ repos:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.10.0
+    rev: v3.12.0
     hooks:
       - id: reorder-python-imports
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.10.1
+    rev: v3.15.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 23.9.1
     hooks:
       - id: black
         language_version: python3

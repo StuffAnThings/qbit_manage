@@ -84,7 +84,7 @@ class RemoveUnregistered:
         ):
             json = {"info_hash": torrent_hash}
             response = self.config.beyond_hd.search(json)
-            if response["total_results"] == 0:
+            if response.get("total_results") == 0:
                 return True
         return False
 
