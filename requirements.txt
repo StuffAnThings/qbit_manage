@@ -1,5 +1,6 @@
 bencodepy==0.9.5
 GitPython==3.1.40
+pysocks==1.7.1
 qbittorrent-api==2023.10.54
 requests==2.31.0
 retrying==1.3.4
