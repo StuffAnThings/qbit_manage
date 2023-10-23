@@ -1,4 +1,5 @@
 """Module for BeyondHD (BHD) tracker."""
+
 from json import JSONDecodeError
 
 from modules import util

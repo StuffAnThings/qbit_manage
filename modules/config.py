@@ -1,4 +1,5 @@
 """Config class for qBittorrent-Manage"""
+
 import os
 import re
 import stat
