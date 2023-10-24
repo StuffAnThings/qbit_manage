@@ -36,5 +36,5 @@ if __name__ == "__main__":
             if OLD_TRACKER in x.url:
                 newurl = x.url.replace(OLD_TRACKER, NEW_TRACKER)
                 print(f"torrent name: {torrent.name}, original url: {x.url}, modified url: {newurl}\n")
-                torrent.remove_trackers(hash=(torrent.hash), urls=(x.url))
-                torrent.add_trackers(hash=(torrent.hash), urls=(newurl))
+                torrent.remove_trackers(torrent_hash=(torrent.hash), urls=(x.url))
+                torrent.add_trackers(torrent_hash=(torrent.hash), urls=(newurl))
