@@ -1,5 +1,4 @@
 """ Utility functions for qBit Manage. """
-
 import json
 import logging
 import os
