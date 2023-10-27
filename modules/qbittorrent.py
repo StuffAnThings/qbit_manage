@@ -1,5 +1,4 @@
 """Qbittorrent Module"""
-
 import os
 import sys
 

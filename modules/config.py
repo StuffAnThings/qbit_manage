@@ -1,5 +1,4 @@
 """Config class for qBittorrent-Manage"""
-
 import os
 import re
 import stat
@@ -650,6 +649,7 @@ class Config:
                     for path, subdirs, files in os.walk(r_path)
                     for name in files
                 ]
+                location_files = list(set(location_files))  # remove duplicates
                 location_files = sorted(location_files)
                 logger.trace(f"location_files: {location_files}")
                 if location_files:

@@ -432,9 +432,7 @@ def start():
         next_run = nxt_run["next_run"]
         body = logger.separator(
             f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace(
-                "\n\n", "\n"
-            ).rstrip()
+            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace("\n\n", "\n").rstrip()
         )[0]
         return next_run, body
 

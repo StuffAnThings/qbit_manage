@@ -1,5 +1,4 @@
 """Class to handle webhooks."""
-
 import time
 from json import JSONDecodeError
 
