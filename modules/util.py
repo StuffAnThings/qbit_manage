@@ -73,7 +73,7 @@ class TorrentMessages:
         "STREAM TRUNCATED",
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
-        "TORRENT HAS BEEN POSTPONED", # BHD Status
+        "TORRENT HAS BEEN POSTPONED",  # BHD Status
     ]
 
     EXCEPTIONS_MSGS = [
