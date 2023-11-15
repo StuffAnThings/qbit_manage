@@ -103,7 +103,7 @@ class RemoveUnregistered:
             check_tags = util.get_list(torrent.tags)
             try:
                 unregistered_everywhere = self.cfg_rem_unregistered
-                no_trackers_working = self.cfg_tag_error and self.tag_error not in check_tags
+                no_trackers_working = self.cfg_tag_error
                 msgs = []
                 for trk in torrent.trackers:
                     if trk.url.startswith("http") or trk.url.startswith("udp://"):
@@ -128,7 +128,7 @@ class RemoveUnregistered:
                 if unregistered_everywhere and no_trackers_working:
                     self.del_unregistered(" | ".join(msgs), self.qbt.get_tags(torrent.trackers), torrent)
                 # Tag torrents when all trackers have issues
-                elif no_trackers_working:
+                elif no_trackers_working and self.tag_error not in check_tags:
                     self.tag_tracker_error(" | ".join(msgs), self.qbt.get_tags(torrent.trackers), torrent)
 
             except NotFound404Error:
