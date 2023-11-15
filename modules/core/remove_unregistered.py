@@ -124,8 +124,8 @@ class RemoveUnregistered:
                             break
 
                 # Remove torrents when no tracker has this torrent
-                # If no_trackers_working, that means they're all updating now or haven't been contacted
-                if unregistered_everywhere and not no_trackers_working:
+                # If no_trackers_working is false, that means they're all updating now or haven't been contacted
+                if unregistered_everywhere and no_trackers_working:
                     self.del_unregistered(" | ".join(msgs), self.qbt.get_tags(torrent.trackers), torrent)
                 # Tag torrents when all trackers have issues
                 elif no_trackers_working:
