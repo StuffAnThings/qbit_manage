@@ -18,13 +18,6 @@ jobs:
         with:
           ref: develop
 
-      - name: Trigger Hotio Webhook
-        uses: joelwmale/webhook-action@master
-        with:
-          url: ${{ secrets.HOTIO_WEBHOOK_URL }}
-          headers: '{"Authorization": "Bearer ${{ secrets.HOTIO_WEBHOOK_SECRET }}"}'
-          body: '{ "application": "qbitmanage", "branch":  "nightly" }'
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -51,3 +44,10 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:develop
+
+      - name: Trigger Hotio Webhook
+        uses: joelwmale/webhook-action@master
+        with:
+          url: ${{ secrets.HOTIO_WEBHOOK_URL }}
+          headers: '{"Authorization": "Bearer ${{ secrets.HOTIO_WEBHOOK_SECRET }}"}'
+          body: '{ "application": "qbitmanage", "branch":  "nightly" }'
