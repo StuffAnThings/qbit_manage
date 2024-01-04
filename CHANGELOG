@@ -1,14 +1,10 @@
 # Requirements Updated
-- GitPython==3.1.40
-- qbittorrent-api==2023.10.54
-- ruamel.yaml==0.18.2
+- qbittorrent-api==2023.11.57
+- ruamel.yaml==0.18.5
 
 # Bug Fixes
-- Fixes #419
-- Remove duplicates when cleaning up directories (#422)
-- Fixes #426
-- Fixes #429
+- Fixes #388
+- Fixes #452
+- Fixes #437
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.5...v4.0.6
-
-Special thanks to @garypiner for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.6...v4.0.7

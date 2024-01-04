@@ -201,7 +201,7 @@ class Qbt:
 
     def get_tags(self, trackers):
         """Get tags from config file based on keyword"""
-        urls = [x.url for x in trackers if x.url.startswith("http")]
+        urls = [x.url for x in trackers if x.url.startswith(("http", "udp", "ws"))]
         tracker = {}
         tracker["tag"] = None
         tracker["cat"] = None
