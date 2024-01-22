@@ -4,19 +4,18 @@
 import os
 import sys
 import time
+import argparse
 from datetime import datetime
 from datetime import timedelta
 
-
-# --DEFINE VARIABLES--#
-# Set Number of Days to stop torrents between two offsets
-# days_from set to 0 will pause any torrents from todays date
-# days_to will be the upper limit of how far you want to pause torrents to
-days_from = 0
-days_to = 2
-qbt_host = "qbittorrent:8080"
-qbt_user = None
-qbt_pass = None
+parser = argparse.ArgumentParser(
+                    prog='Qbit Mover',
+                    description='Stop torrents and kick off Unraid mover process')
+parser.add_argument('--host', help='qbittorrent host including port', required=True)
+parser.add_argument('-u', "--user", help='qbittorrent user', default='admin')
+parser.add_argument('-p', "--password", help='qbittorrent password', default='adminadmin')
+parser.add_argument('--days_from', help='Set Number of Days to stop torrents between two offsets', type=int, default=0)
+parser.add_argument('--days_to', help='Set Number of Days to stop torrents between two offsets', type=int, default=2)
 # --DEFINE VARIABLES--#
 
 # --START SCRIPT--#
@@ -26,46 +25,56 @@ except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)
 
-current = datetime.now()
-timeoffset_from = (current - timedelta(days=days_from)).timestamp()
-timeoffset_to = (current - timedelta(days=days_to)).timestamp()
-
-if days_from > days_to:
-    raise ("Config Error: days_from must be set lower than days_to")
-
+def filter_torrents(torrent_list, timeoffset_from, timeoffset_to):
+    result = []
+    for torrent in torrent_list:
+        if torrent.added_on >= timeoffset_to and torrent.added_on <= timeoffset_from:
+            result.append(torrent)
+        elif torrent.added_on < timeoffset_to:
+            break
+    return result
 
 def stop_start_torrents(torrent_list, pause=True):
     for torrent in torrent_list:
-        if torrent.added_on >= timeoffset_to and torrent.added_on <= timeoffset_from:
-            if pause:
-                torrent.pause()
-            else:
-                torrent.resume()
+        if pause:
+            print(f'Pausing: {torrent.name} [{torrent.added_on}]')
+            torrent.pause()
         else:
-            if torrent.added_on >= timeoffset_to:
-                continue
-            else:
-                break
+            print(f'Resuming: {torrent.name} [{torrent.added_on}]')
+            torrent.resume()
 
 
 if __name__ == "__main__":
+    current = datetime.now()
+    args = parser.parse_args()
+
+    if args.days_from > args.days_to:
+        raise ("Config Error: days_from must be set lower than days_to")
+
     try:
-        client = Client(host=qbt_host, username=qbt_user, password=qbt_pass)
+        client = Client(host=args.host, username=args.user, password=args.password)
     except LoginFailed:
         raise ("Qbittorrent Error: Failed to login. Invalid username/password.")
     except APIConnectionError:
         raise ("Qbittorrent Error: Unable to connect to the client.")
     except Exception:
         raise ("Qbittorrent Error: Unable to connect to the client.")
+
+    timeoffset_from = current - timedelta(days=args.days_from)
+    timeoffset_to = current - timedelta(days=args.days_to)
     torrent_list = client.torrents.info(sort="added_on", reverse=True)
 
+    torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp())
+
     # Pause Torrents
-    print(f"Pausing torrents from {days_from} - {days_to} days ago")
-    stop_start_torrents(torrent_list, True)
+    print(f"Pausing torrents [{len(torrents)}] from {args.days_from} - {args.days_to} days ago")
+    stop_start_torrents(torrents, True)
     time.sleep(10)
     # Start mover
     print("Starting Mover")
+    # Or using mover tunning
+    # os.system('/usr/local/sbin/mover start')
     os.system("/usr/local/sbin/mover.old start")
     # Start Torrents
-    print(f"Resuming paused torrents from {days_from} - {days_to} days ago")
-    stop_start_torrents(torrent_list, False)
+    print(f"Resuming paused torrents [{len(torrents)}] from {args.days_from} - {args.days_to} days ago")
+    stop_start_torrents(torrents, False)
