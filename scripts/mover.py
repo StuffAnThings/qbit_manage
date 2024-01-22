@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 # This standalone script is used to pause torrents older than last x days,
 # run mover (in Unraid) and start torrents again once completed
+import argparse
 import os
 import sys
 import time
-import argparse
 from datetime import datetime
 from datetime import timedelta
 
-parser = argparse.ArgumentParser(
-                    prog='Qbit Mover',
-                    description='Stop torrents and kick off Unraid mover process')
-parser.add_argument('--host', help='qbittorrent host including port', required=True)
-parser.add_argument('-u', "--user", help='qbittorrent user', default='admin')
-parser.add_argument('-p', "--password", help='qbittorrent password', default='adminadmin')
-parser.add_argument('--days_from', help='Set Number of Days to stop torrents between two offsets', type=int, default=0)
-parser.add_argument('--days_to', help='Set Number of Days to stop torrents between two offsets', type=int, default=2)
+parser = argparse.ArgumentParser(prog="Qbit Mover", description="Stop torrents and kick off Unraid mover process")
+parser.add_argument("--host", help="qbittorrent host including port", required=True)
+parser.add_argument("-u", "--user", help="qbittorrent user", default="admin")
+parser.add_argument("-p", "--password", help="qbittorrent password", default="adminadmin")
+parser.add_argument("--days_from", help="Set Number of Days to stop torrents between two offsets", type=int, default=0)
+parser.add_argument("--days_to", help="Set Number of Days to stop torrents between two offsets", type=int, default=2)
 # --DEFINE VARIABLES--#
 
 # --START SCRIPT--#
@@ -24,6 +22,7 @@ try:
 except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)
+
 
 def filter_torrents(torrent_list, timeoffset_from, timeoffset_to):
     result = []
@@ -34,13 +33,14 @@ def filter_torrents(torrent_list, timeoffset_from, timeoffset_to):
             break
     return result
 
+
 def stop_start_torrents(torrent_list, pause=True):
     for torrent in torrent_list:
         if pause:
-            print(f'Pausing: {torrent.name} [{torrent.added_on}]')
+            print(f"Pausing: {torrent.name} [{torrent.added_on}]")
             torrent.pause()
         else:
-            print(f'Resuming: {torrent.name} [{torrent.added_on}]')
+            print(f"Resuming: {torrent.name} [{torrent.added_on}]")
             torrent.resume()
 
 
