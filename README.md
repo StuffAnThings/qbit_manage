@@ -11,7 +11,7 @@
 This is a program used to manage your qBittorrent instance such as:
 
 * Tag torrents based on tracker URLs
-* Update categories based on save directory
+* Change categories based on current category (`cat_change`)
 * Remove unregistered torrents (delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent)
 * Automatically add [cross-seed](https://github.com/mmgoodnow/cross-seed) torrents in paused state. **\*Note: cross-seed now allows for torrent injections directly to qBit, making this feature obsolete.\***
 * Recheck paused torrents sorted by lowest size and resume if completed
@@ -21,17 +21,21 @@ This is a program used to manage your qBittorrent instance such as:
 * RecycleBin function to move files into a RecycleBin folder instead of deleting the data directly when deleting a torrent
 * Built-in scheduler to run the script every x minutes. (Can use `--run` command to run without the scheduler)
 * Webhook notifications with [Notifiarr](https://notifiarr.com/) and [Apprise API](https://github.com/caronc/apprise-api) integration
+
 ## Getting Started
 
 Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for installation help
+
 1. Install qbit_manage either by installing Python 3.8.1+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.<br>
 2. Once installed, you have to [set up your Configuration](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) by create a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) filled with all your values to connect to your qBittorrent instance.
 3. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
+
 ## Usage
 To run the script in an interactive terminal with a list of possible commands run:
 ```bash
 python qbit_manage.py -h
 ```
+
 ## Support
 * If you have any questions or require support please join the [Notifiarr Discord](https://discord.com/invite/AURf8Yz) and post your question under the `qbit-manage` channel.
 * If you're getting an Error or have an Enhancement post in the [Issues](https://github.com/StuffAnThings/qbit_manage/issues/new).
