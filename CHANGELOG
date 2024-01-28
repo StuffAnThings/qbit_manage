@@ -1,10 +1,8 @@
 # Requirements Updated
-- qbittorrent-api==2023.11.57
-- ruamel.yaml==0.18.5
+- qbittorrent-api==2024.1.58
 
-# Bug Fixes
-- Fixes #388
-- Fixes #452
-- Fixes #437
+# Updates
+- Adds arguments for mover script (Adds #473)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.6...v4.0.7
+Special thanks to @NooNameR for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.7...v4.0.8
