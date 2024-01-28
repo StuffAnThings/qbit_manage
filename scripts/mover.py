@@ -67,7 +67,7 @@ if __name__ == "__main__":
     torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp())
 
     # Pause Torrents
-    print(f"Pausing torrents [{len(torrents)}] from {args.days_from} - {args.days_to} days ago")
+    print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, True)
     time.sleep(10)
     # Start mover
