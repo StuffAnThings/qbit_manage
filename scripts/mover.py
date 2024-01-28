@@ -76,5 +76,5 @@ if __name__ == "__main__":
     # os.system('/usr/local/sbin/mover start')
     os.system("/usr/local/sbin/mover.old start")
     # Start Torrents
-    print(f"Resuming paused torrents [{len(torrents)}] from {args.days_from} - {args.days_to} days ago")
+    print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, False)
