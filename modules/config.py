@@ -177,6 +177,67 @@ class Config:
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
             self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
         )
+        #
+        # EDIT Extra Settings added
+        #
+        self.extra_settings = {
+            "cat_handle_dl": self.util.check_for_attribute(
+                self.data, "cat_handle_dl", parent="extra_settings", var_type="bool", default=False
+            ),
+            "share_limit_handle_dl": self.util.check_for_attribute(
+                self.data, "share_limit_handle_dl", parent="extra_settings", var_type="bool", default=False
+            ),
+            "show_share_tag_priority": self.util.check_for_attribute(
+                self.data, "show_share_tag_priority", parent="extra_settings", var_type="bool", default=True
+            ),
+            "share_tag_in_group": self.util.check_for_attribute(
+                self.data, "share_tag_in_group", parent="extra_settings", var_type="bool", default=True
+            ),
+            "group_tag_suffix": self.util.check_for_attribute(
+                self.data, "group_tag_suffix", parent="extra_settings", default="~SG"
+            ),
+            "show_inactive_group": self.util.check_for_attribute(
+                self.data, "show_inactive_group", parent="extra_settings", var_type="bool", default=False
+            ),
+            "inactive_group_tag": self.util.check_for_attribute(
+                self.data, "inactive_group_tag", parent="extra_settings", default="inActivE"
+            ),
+            "show_min_seed_group": self.util.check_for_attribute(
+                self.data, "show_min_seed_group", parent="extra_settings", var_type="bool", default=True
+            ),
+            "min_seed_group_tag": self.util.check_for_attribute(
+                self.data, "min_seed_group_tag", parent="extra_settings", default="Low_SeeD's"
+            ),
+            "show_last_active_group": self.util.check_for_attribute(
+                self.data, "show_last_active_group", parent="extra_settings", var_type="bool", default=True
+            ),
+            "last_active_group_tag": self.util.check_for_attribute(
+                self.data, "last_active_group_tag", parent="extra_settings", default="ReActivateD"
+            ),
+            "show_min_seed_time_group": self.util.check_for_attribute(
+                self.data, "show_min_seed_time_group", parent="extra_settings", var_type="bool", default=True
+            ),
+            "min_seed_time_group_tag": self.util.check_for_attribute(
+                self.data, "min_seed_time_group_tag", parent="extra_settings", default="Need's_TimE"
+            ),
+        }
+
+        self.cat_handle_dl = self.extra_settings["cat_handle_dl"]
+        self.share_limit_handle_dl = self.extra_settings["share_limit_handle_dl"]
+        self.show_share_tag_priority = self.extra_settings["show_share_tag_priority"]
+        self.share_tag_in_group = self.extra_settings["share_tag_in_group"]
+        self.group_tag_suffix = self.extra_settings["group_tag_suffix"]
+        self.show_inactive_group = self.extra_settings["show_inactive_group"]
+        self.inactive_group_tag = self.extra_settings["inactive_group_tag"]
+        self.show_min_seed_group = self.extra_settings["show_min_seed_group"]
+        self.min_seed_group_tag = self.extra_settings["min_seed_group_tag"]
+        self.show_last_active_group = self.extra_settings["show_last_active_group"]
+        self.last_active_group_tag = self.extra_settings["last_active_group_tag"]
+        self.show_min_seed_time_group = self.extra_settings["show_min_seed_time_group"]
+        self.min_seed_time_group_tag = self.extra_settings["min_seed_time_group_tag"]
+        #
+        # EDIT End
+        #
         "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")

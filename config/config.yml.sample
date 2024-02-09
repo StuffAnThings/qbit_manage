@@ -50,6 +50,31 @@ directory:
   torrents_dir: "/qbittorrent/data/BT_backup"
   orphaned_dir: "/data/torrents/orphaned_data"
 
+extra_settings:
+# Allow categories to handle downloads.
+  cat_handle_dl: False
+# Allow share_limit_tags to handle downloads.
+  share_limit_handle_dl: False
+# Changes share_limits_tag from "~share_limit_999.GROUP" to "~share_limit.GROUP".
+  show_share_tag_priority: True
+# Keep share_limits_tag when moved to share_group
+  share_tag_in_group: True
+# Begins group_tag with suffix "~SG.group_name"
+  group_tag_suffix: ~share_group
+# Moves all qBm paused torrents to a group_tag, helpful to prevent unwanted cleanup.
+  show_inactive_group: False
+  inactive_group_tag: inActivE
+# Choose to add torrents set by share_limits into a group_tag to shorten run time or remove unwanted tags.
+# Whether true/false torrents will still be managed as per there share_limit settings incl. tags
+  show_min_seed_group: True
+  min_seed_group_tag: Low_SeeD's
+  ###
+  show_last_active_group: True
+  last_active_group_tag: ActivE
+  ###
+  show_min_seed_time_group: True
+  min_seed_time_group_tag: NeeD's_TimE
+
 cat:
   # Category & Path Parameters
   # <Category Name> : <save_path>  # Path of your save directory.
