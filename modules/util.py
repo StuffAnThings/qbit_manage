@@ -74,6 +74,7 @@ class TorrentMessages:
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
         "TORRENT HAS BEEN POSTPONED",  # BHD Status
+        "INVALID REQUEST TYPE: SERVER CANNOT PROCESS REQUEST.", # BHD Status
     ]
 
     EXCEPTIONS_MSGS = [
