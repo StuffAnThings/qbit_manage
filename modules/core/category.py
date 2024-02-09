@@ -20,7 +20,7 @@ class Category:
 
     def category(self):
         #
-        #EDIT filter for inComplete torrents
+        # EDIT filter for inComplete torrents
         #
         filter = "completed"
         if self.config.cat_handle_dl:
@@ -30,7 +30,7 @@ class Category:
         #
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
         logger.separator("Updating Categories", space=False, border=False)
-        torrent_list = self.qbt.get_torrents({"category": "", "status_filter": filter}) ### Filter added here ###
+        torrent_list = self.qbt.get_torrents({"category": "", "status_filter": filter})  # Filter added here ###
         for torrent in torrent_list:
             new_cat = self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path)
             if new_cat == self.uncategorized_mapping:

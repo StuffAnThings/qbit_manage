@@ -8,6 +8,7 @@ from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
 
+
 class ShareLimits:
     def __init__(self, qbit_manager):
         self.qbt = qbit_manager
@@ -26,14 +27,16 @@ class ShareLimits:
         self.torrents_updated = []  # list of torrents that have been updated
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
-        self.share_tag = None  # tag for the share limit group ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
+        self.share_tag = (
+            None  # tag for the share limit group ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
+        )
         #
         #  EDIT allows custom share_limit_group_tag
         #
-        self.min_seed_time_tag = (f"{self.config.group_tag_suffix}.{self.config.min_seed_time_group_tag}")
-        self.min_seeds_tag = (f"{self.config.group_tag_suffix}.{self.config.min_seed_group_tag}")
-        self.last_active_tag = (f"{self.config.group_tag_suffix}.{self.config.last_active_group_tag}")
-        self.inactive_tag = (f"{self.config.group_tag_suffix}.{self.config.inactive_group_tag}")
+        self.min_seed_time_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_time_group_tag}"
+        self.min_seeds_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_group_tag}"
+        self.last_active_tag = f"{self.config.group_tag_suffix}.{self.config.last_active_group_tag}"
+        self.inactive_tag = f"{self.config.group_tag_suffix}.{self.config.inactive_group_tag}"
         #
         # EDIT END
         #
@@ -42,7 +45,7 @@ class ShareLimits:
 
     def update_share_limits(self):
         #
-        #EDIT filter for inComplete torrents
+        # EDIT filter for inComplete torrents
         #
         filter = "completed"
         if self.config.share_limit_handle_dl:
@@ -52,7 +55,7 @@ class ShareLimits:
         #
         """Updates share limits for torrents based on grouping"""
         logger.separator("Updating Share Limits based on priority", space=False, border=False)
-        torrent_list = self.qbt.get_torrents({"status_filter": filter}) ### Filter added here ###
+        torrent_list = self.qbt.get_torrents({"status_filter": filter})  # Filter added here ###
         self.assign_torrents_to_group(torrent_list)
         for group_name, group_config in self.share_limits_config.items():
             torrents = group_config["torrents"]
@@ -190,12 +193,12 @@ class ShareLimits:
             t_hash = torrent.hash
             if self.config.show_share_tag_priority:
                 self.share_tag = (
-                    f"{self.share_limits_tag}_{group_config['priority']}.{group_name}" if group_config["add_group_to_tag"] else None
+                    f"{self.share_limits_tag}_{group_config['priority']}.{group_name}"
+                    if group_config["add_group_to_tag"]
+                    else None
                 )
             else:
-                self.share_tag = (
-                    f"{self.share_limits_tag}.{group_name}" if group_config["add_group_to_tag"] else None
-                )
+                self.share_tag = f"{self.share_limits_tag}.{group_name}" if group_config["add_group_to_tag"] else None
             tracker = self.qbt.get_tags(torrent.trackers)
             check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
@@ -230,11 +233,12 @@ class ShareLimits:
             if (
                 check_max_ratio or check_max_seeding_time or check_limit_upload_speed or share_limits_not_yet_tagged
             ) and hash_not_prev_checked:
-                if (not is_tag_in_torrent(self.min_seed_time_tag, torrent.tags)
+                if (
+                    not is_tag_in_torrent(self.min_seed_time_tag, torrent.tags)
                     and not is_tag_in_torrent(self.min_seeds_tag, torrent.tags)
                     and not is_tag_in_torrent(self.last_active_tag, torrent.tags)
-                    and not is_tag_in_torrent(self.inactive_tag, torrent.tags) ### EDIT Filter for inActivE torrents ###
-                    ):
+                    and not is_tag_in_torrent(self.inactive_tag, torrent.tags)  # EDIT Filter for inActivE torrents ###
+                ):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if self.share_tag and not is_tag_in_torrent(self.share_tag, torrent.tags):
@@ -257,11 +261,12 @@ class ShareLimits:
             # EDIT Filter for share_limit_tags if share_tag_in_group == FALSE
             #
             if not self.config.share_tag_in_group:
-                if (is_tag_in_torrent(self.min_seed_time_tag, torrent.tags)
+                if (
+                    is_tag_in_torrent(self.min_seed_time_tag, torrent.tags)
                     or is_tag_in_torrent(self.min_seeds_tag, torrent.tags)
                     or is_tag_in_torrent(self.last_active_tag, torrent.tags)
                     or is_tag_in_torrent(self.inactive_tag, torrent.tags)
-                    ):
+                ):
                     torrent.remove_tags(self.share_tag)
             elif self.config.share_tag_in_group:
                 if not is_tag_in_torrent(self.share_tag, torrent.tags):
@@ -425,7 +430,7 @@ class ShareLimits:
                 return []
             if is_tag_in_torrent(self.last_active_tag, torrent.tags):
                 return []
-            if is_tag_in_torrent(self.inactive_tag, torrent.tags): ### EDIT Filter for inActivE torrents ###
+            if is_tag_in_torrent(self.inactive_tag, torrent.tags):  # EDIT Filter for inActivE torrents ###
                 return []
             torrent.set_share_limits(ratio_limit=max_ratio, seeding_time_limit=max_seeding_time, inactive_seeding_time_limit=-2)
         return body
@@ -445,8 +450,10 @@ class ShareLimits:
                 return True
             else:
                 if not is_tag_in_torrent(self.min_seed_time_tag, torrent.tags):
-                    if self.config.show_min_seed_time_group: ### EDIT to add tag to share_group_tag ###
-                        print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                    if self.config.show_min_seed_time_group:  # EDIT to add tag to share_group_tag ###
+                        print_log += logger.print_line(
+                            logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel
+                        )
                         print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                         print_log += logger.print_line(
                             logger.insert_space(
@@ -462,9 +469,9 @@ class ShareLimits:
                             logger.insert_space(f"Adding Tag: {self.min_seed_time_tag}", 8), self.config.loglevel
                         )
                     if not self.config.dry_run:
-                        if self.config.show_min_seed_time_group: ### EDIT to add tag to share_group_tag ###
+                        if self.config.show_min_seed_time_group:  # EDIT to add tag to share_group_tag ###
                             torrent.add_tags(self.min_seed_time_tag)
-                        if not self.config.share_tag_in_group: ### EDIT catches missed torrents for share_tag_in_group ###
+                        if not self.config.share_tag_in_group:  # EDIT catches missed torrents for share_tag_in_group ###
                             torrent.remove_tags(self.share_tag)
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
                         if resume_torrent:
@@ -480,8 +487,10 @@ class ShareLimits:
                 return False
             else:
                 if not is_tag_in_torrent(self.min_seeds_tag, torrent.tags):
-                    if self.config.show_min_seed_group: ### EDIT to add tag to share_group_tag ###
-                        print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                    if self.config.show_min_seed_group:  # EDIT to add tag to share_group_tag ###
+                        print_log += logger.print_line(
+                            logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel
+                        )
                         print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                         print_log += logger.print_line(
                             logger.insert_space(
@@ -496,9 +505,9 @@ class ShareLimits:
                             logger.insert_space(f"Adding Tag: {self.min_seeds_tag}", 8), self.config.loglevel
                         )
                     if not self.config.dry_run:
-                        if self.config.show_min_seed_group: ### EDIT to add tag to share_group_tag ###
+                        if self.config.show_min_seed_group:  # EDIT to add tag to share_group_tag ###
                             torrent.add_tags(self.min_seeds_tag)
-                        if not self.config.share_tag_in_group: ### EDIT catches missed torrents for share_tag_in_group ###
+                        if not self.config.share_tag_in_group:  # EDIT catches missed torrents for share_tag_in_group ###
                             torrent.remove_tags(self.share_tag)
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
                         if resume_torrent:
@@ -516,8 +525,10 @@ class ShareLimits:
                 return True
             else:
                 if not is_tag_in_torrent(self.last_active_tag, torrent.tags):
-                    if self.config.show_last_active_group: ### EDIT to add tag to share_group_tag ###
-                        print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                    if self.config.show_last_active_group:  # EDIT to add tag to share_group_tag ###
+                        print_log += logger.print_line(
+                            logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel
+                        )
                         print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                         print_log += logger.print_line(
                             logger.insert_space(
@@ -528,11 +539,13 @@ class ShareLimits:
                             ),
                             self.config.loglevel,
                         )
-                        print_log += logger.print_line(logger.insert_space(f"Adding Tag: {self.last_active_tag}", 8), self.config.loglevel)
+                        print_log += logger.print_line(
+                            logger.insert_space(f"Adding Tag: {self.last_active_tag}", 8), self.config.loglevel
+                        )
                     if not self.config.dry_run:
-                        if self.config.show_last_active_group: ### EDIT to add tag to share_group_tag ###
+                        if self.config.show_last_active_group:  # EDIT to add tag to share_group_tag ###
                             torrent.add_tags(self.last_active_tag)
-                        if not self.config.share_tag_in_group: ### EDIT catches missed torrents for share_tag_in_group ###
+                        if not self.config.share_tag_in_group:  # EDIT catches missed torrents for share_tag_in_group ###
                             torrent.remove_tags(self.share_tag)
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
                         if resume_torrent:
@@ -559,28 +572,32 @@ class ShareLimits:
                     )
                     return True
             return False
+
         #
         # EDIT catches qBm paused torrents
         #
         no_body = False
+
         def _has_paused():
             if self.config.show_inactive_group:
                 print_log = []
                 if not is_tag_in_torrent(self.min_seed_time_tag, torrent.tags):
                     if not is_tag_in_torrent(self.min_seeds_tag, torrent.tags):
                         if not is_tag_in_torrent(self.last_active_tag, torrent.tags):
-                            if (torrent.max_ratio > 0
-                                or max_ratio > 0
-                                or torrent.max_seeding_time > 0
-                                or max_seeding_time > 0
-                                ):
+                            if torrent.max_ratio > 0 or max_ratio > 0 or torrent.max_seeding_time > 0 or max_seeding_time > 0:
                                 if torrent.ratio >= max_ratio or round(torrent.seeding_time / 60) >= max_seeding_time:
                                     if torrent.num_complete >= min_num_seeds:
                                         if not is_tag_in_torrent(self.inactive_tag, torrent.tags):
                                             if no_body:
-                                                print_log += logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
-                                                print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
-                                            print_log += logger.print_line(logger.insert_space(f"Adding tag: {self.inactive_tag}", 8), self.config.loglevel)
+                                                print_log += logger.print_line(
+                                                    logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel
+                                                )
+                                                print_log += logger.print_line(
+                                                    logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel
+                                                )
+                                            print_log += logger.print_line(
+                                                logger.insert_space(f"Adding tag: {self.inactive_tag}", 8), self.config.loglevel
+                                            )
                                             torrent.add_tags(self.inactive_tag)
                                             if not self.config.share_tag_in_group:
                                                 torrent.remove_tags(self.share_tag)
@@ -591,41 +608,42 @@ class ShareLimits:
             if is_tag_in_torrent(self.inactive_tag, torrent.tags):
                 torrent.remove_tags(self.inactive_tag)
             return False
+
         #
         # EDIT END
         #
         if min_num_seeds is not None:
             if _is_less_than_min_num_seeds():
-                if is_tag_in_torrent(self.inactive_tag, torrent.tags): ### EDIT catches qBm unpaused torrents ###
+                if is_tag_in_torrent(self.inactive_tag, torrent.tags):  # EDIT catches qBm unpaused torrents ###
                     torrent.remove_tags(self.inactive_tag)
                 return body
         if last_active is not None:
             if not _has_reached_last_active_time_limit():
-                if is_tag_in_torrent(self.inactive_tag, torrent.tags): ### EDIT catches qBm unpaused torrents ###
+                if is_tag_in_torrent(self.inactive_tag, torrent.tags):  # EDIT catches qBm unpaused torrents ###
                     torrent.remove_tags(self.inactive_tag)
                 return body
         if max_ratio is not None:
             if max_ratio >= 0:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)
-                    _has_paused() ### EDIT catches qBm paused torrents ###
+                    _has_paused()  # EDIT catches qBm paused torrents ###
                     return body
             elif max_ratio == -2 and self.qbt.global_max_ratio_enabled and _has_reached_min_seeding_time_limit():
                 if torrent.ratio >= self.qbt.global_max_ratio:
                     body += logger.insert_space(
                         f"Ratio vs Global Max Ratio: {torrent.ratio:.2f} >= {self.qbt.global_max_ratio:.2f}", 8
                     )
-                    if is_tag_in_torrent(self.inactive_tag, torrent.tags): ### EDIT catches qBm unpaused torrents ###
+                    if is_tag_in_torrent(self.inactive_tag, torrent.tags):  # EDIT catches qBm unpaused torrents ###
                         torrent.remove_tags(self.inactive_tag)
                     return body
         if _has_reached_seeding_time_limit():
-            _has_paused() ### EDIT catches qBm paused torrents ###
+            _has_paused()  # EDIT catches qBm paused torrents ###
             return body
         if not _has_reached_min_seeding_time_limit:
-            no_body = True ### EDIT catches qBm paused torrents without name/tracker ###
-            _has_paused() ### EDIT catches qBm paused torrents ###
+            no_body = True  # EDIT catches qBm paused torrents without name/tracker ###
+            _has_paused()  # EDIT catches qBm paused torrents ###
             return body
-        if is_tag_in_torrent(self.inactive_tag, torrent.tags): ### EDIT catches qBm unpaused torrents ###
+        if is_tag_in_torrent(self.inactive_tag, torrent.tags):  # EDIT catches qBm unpaused torrents ###
             torrent.remove_tags(self.inactive_tag)
             return body
         return False
