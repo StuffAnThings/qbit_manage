@@ -28,7 +28,7 @@ class ShareLimits:
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
         ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
-        self.share_tag = None # tag for the share limit group
+        self.share_tag = None  # tag for the share limit group
         #
         # EDIT config calls once instead of many
         #
@@ -272,14 +272,14 @@ class ShareLimits:
                         or is_tag_in_torrent(self.min_seeds_tag, torrent.tags)
                         or is_tag_in_torrent(self.last_active_tag, torrent.tags)
                         or is_tag_in_torrent(self.inactive_tag, torrent.tags)
-                        ):
+                    ):
                         torrent.remove_tags(self.share_tag)
             elif not is_tag_in_torrent(self.share_tag, torrent.tags):
-                    logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                    logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
-                    logger.print_line(logger.insert_space(f"Added Tag: {self.share_tag}", 8), self.config.loglevel)
-                    if not self.dry_run:
-                        torrent.add_tags(self.share_tag)
+                logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+                logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                logger.print_line(logger.insert_space(f"Added Tag: {self.share_tag}", 8), self.config.loglevel)
+                if not self.dry_run:
+                    torrent.add_tags(self.share_tag)
             #
             # EDIT END
             #
@@ -578,6 +578,7 @@ class ShareLimits:
                     )
                     return True
             return False
+
         #
         # EDIT catches qBm paused torrents
         #
@@ -616,6 +617,7 @@ class ShareLimits:
                 if is_tag_in_torrent(self.inactive_tag, torrent.tags):
                     torrent.remove_tags(self.inactive_tag)
             return False
+
         #
         # EDIT END
         #
