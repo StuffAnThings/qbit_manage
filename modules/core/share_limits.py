@@ -28,7 +28,7 @@ class ShareLimits:
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
         ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
-        self.share_tag = None # tag for the share limit group
+        self.share_tag = None  # tag for the share limit group
         #
         #  EDIT allows custom share_limit_group_tag
         #
