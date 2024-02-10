@@ -688,7 +688,8 @@ class Config:
                     if num_del > 0:
                         if not self.dry_run:
                             for path in location_path_list:
-                                util.remove_empty_directories(path, "**/*")
+                                if path != location_path:
+                                    util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",
