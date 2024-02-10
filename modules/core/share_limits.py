@@ -27,19 +27,13 @@ class ShareLimits:
         self.torrents_updated = []  # list of torrents that have been updated
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
-        self.share_tag = (
-            None  # tag for the share limit group ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
-        )
-        #
-        #  EDIT allows custom share_limit_group_tag
-        #
+        self.share_tag = None # tag for the share limit group
+        ### EDIT changed from group_tag to share_tag to prevent misunderstanding ###
         self.min_seed_time_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_time_group_tag}"
         self.min_seeds_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_group_tag}"
         self.last_active_tag = f"{self.config.group_tag_suffix}.{self.config.last_active_group_tag}"
         self.inactive_tag = f"{self.config.group_tag_suffix}.{self.config.inactive_group_tag}"
-        #
-        # EDIT END
-        #
+
         self.update_share_limits()
         self.delete_share_limits_suffix_tag()
 
