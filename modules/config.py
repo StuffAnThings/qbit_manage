@@ -1,4 +1,5 @@
 """Config class for qBittorrent-Manage"""
+
 import os
 import re
 import stat
@@ -13,9 +14,9 @@ from modules.apprise import Apprise
 from modules.bhd import BeyondHD
 from modules.notifiarr import Notifiarr
 from modules.qbittorrent import Qbt
-from modules.util import check
-from modules.util import Failed
 from modules.util import YAML
+from modules.util import Failed
+from modules.util import check
 from modules.webhooks import Webhooks
 
 logger = util.logger

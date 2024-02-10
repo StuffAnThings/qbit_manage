@@ -11,6 +11,7 @@ from datetime import timedelta
 
 try:
     import schedule
+
     from modules.logs import MyLogger
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
@@ -231,7 +232,8 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
 
 
 try:
-    from git import Repo, InvalidGitRepositoryError
+    from git import InvalidGitRepositoryError
+    from git import Repo
 
     try:
         git_branch = Repo(path=".").head.ref.name  # noqa
@@ -340,16 +342,16 @@ from modules import util  # noqa
 
 util.logger = logger
 from modules.config import Config  # noqa
-from modules.util import GracefulKiller  # noqa
-from modules.util import Failed  # noqa
 from modules.core.category import Category  # noqa
-from modules.core.tags import Tags  # noqa
-from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
-from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
+from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.share_limits import ShareLimits  # noqa
+from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
+from modules.core.tags import Tags  # noqa
+from modules.util import Failed  # noqa
+from modules.util import GracefulKiller  # noqa
 
 
 def my_except_hook(exctype, value, tbi):

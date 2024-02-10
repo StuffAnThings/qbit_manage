@@ -1,4 +1,5 @@
 """Qbittorrent Module"""
+
 import os
 import sys
 
@@ -10,8 +11,8 @@ from qbittorrentapi import Version
 
 from modules import util
 from modules.util import Failed
-from modules.util import list_in_text
 from modules.util import TorrentMessages
+from modules.util import list_in_text
 
 logger = util.logger
 
