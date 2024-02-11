@@ -55,7 +55,7 @@ extra_settings:
   share_limit_handle_dl: False  # Allow share_limit_tags to handle downloads.
   show_share_tag_priority: True  # Changes share_limits_tag from "~share_limit_999.GROUP" to "~share_limit.GROUP".
   share_tag_in_group: True  # Keep share_limits_tag when moved to share_group
-  group_tag_suffix: ~share_group  # Begins group_tag with suffix "~share_group.group_name"
+  group_tag_suffix: ~share_group  # Begins group_tag with suffix "~share_group.group_name", this can be an empty value.
 # Moves all qBm paused torrents to a group_tag, helpful to prevent unwanted cleanup.
   show_inactive_group: False
   inactive_group_tag: qBmPausedTorrents

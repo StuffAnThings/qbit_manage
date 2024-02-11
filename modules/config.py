@@ -182,7 +182,7 @@ class Config:
         #
         self.extra_settings = {
             "cat_handle_dl": self.util.check_for_attribute(
-                self.data, "cat_handle_dl", parent="extra_settings", var_type="bool", default=False
+                self.data, "cat_handle_dl", parent="extra_settings", var_type="bool", default=False,
             ),
             "share_limit_handle_dl": self.util.check_for_attribute(
                 self.data, "share_limit_handle_dl", parent="extra_settings", var_type="bool", default=False
@@ -194,31 +194,31 @@ class Config:
                 self.data, "share_tag_in_group", parent="extra_settings", var_type="bool", default=True
             ),
             "group_tag_suffix": self.util.check_for_attribute(
-                self.data, "group_tag_suffix", parent="extra_settings", default="~SG"
+                self.data, "group_tag_suffix", parent="extra_settings", default="~share_group", default_is_none=True
             ),
             "show_inactive_group": self.util.check_for_attribute(
                 self.data, "show_inactive_group", parent="extra_settings", var_type="bool", default=False
             ),
             "inactive_group_tag": self.util.check_for_attribute(
-                self.data, "inactive_group_tag", parent="extra_settings", default="inActivE"
+                self.data, "inactive_group_tag", parent="extra_settings", default="qBmPausedTorrents"
             ),
             "show_min_seed_group": self.util.check_for_attribute(
                 self.data, "show_min_seed_group", parent="extra_settings", var_type="bool", default=True
             ),
             "min_seed_group_tag": self.util.check_for_attribute(
-                self.data, "min_seed_group_tag", parent="extra_settings", default="Low_SeeD's"
+                self.data, "min_seed_group_tag", parent="extra_settings", default="MinSeedsNotMet"
             ),
             "show_last_active_group": self.util.check_for_attribute(
                 self.data, "show_last_active_group", parent="extra_settings", var_type="bool", default=True
             ),
             "last_active_group_tag": self.util.check_for_attribute(
-                self.data, "last_active_group_tag", parent="extra_settings", default="ReActivateD"
+                self.data, "last_active_group_tag", parent="extra_settings", default="LastActiveLimitNotReached"
             ),
             "show_min_seed_time_group": self.util.check_for_attribute(
                 self.data, "show_min_seed_time_group", parent="extra_settings", var_type="bool", default=True
             ),
             "min_seed_time_group_tag": self.util.check_for_attribute(
-                self.data, "min_seed_time_group_tag", parent="extra_settings", default="Need's_TimE"
+                self.data, "min_seed_time_group_tag", parent="extra_settings", default="MinSeedTimeNotReached"
             ),
         }
 
