@@ -115,6 +115,8 @@ class CrossSeed:
                 not util.is_tag_in_torrent("cross-seed", torrent.tags)
                 and self.qbt.torrentinfo[t_name]["count"] > 1
                 and self.qbt.torrentinfo[t_name]["first_hash"] != torrent.hash
+                and torrent.downloaded == 0
+                and torrent.seeding_time > 0
             ):
                 tracker = self.qbt.get_tags(torrent.trackers)
                 self.stats_tagged += 1
