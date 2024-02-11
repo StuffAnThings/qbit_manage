@@ -97,7 +97,7 @@ class RemoveUnregistered:
         self.notify_attr_unreg = []  # List of single torrent attributes to send to notifiarr
 
         for torrent in self.qbt.torrentissue:
-            self.t_name = torrent.name
+            self.t_name = remove_extension(torrent.name)
             self.t_cat = self.qbt.torrentinfo[self.t_name]["Category"]
             self.t_msg = self.qbt.torrentinfo[self.t_name]["msg"]
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]
@@ -210,7 +210,7 @@ class RemoveUnregistered:
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        if self.qbt.torrentinfo[remove_extension(self.t_name)]["count"] > 1:
+        if self.qbt.torrentinfo[self.t_name]["count"] > 1:
             # Checks if any of the original torrents are working
             if "" in self.t_msg or 2 in self.t_status:
                 attr["torrents_deleted_and_contents"] = False
@@ -233,4 +233,4 @@ class RemoveUnregistered:
         attr["body"] = "\n".join(body)
         self.torrents_updated_unreg.append(self.t_name)
         self.notify_attr_unreg.append(attr)
-        self.qbt.torrentinfo[remove_extension(self.t_name)]["count"] -= 1
+        self.qbt.torrentinfo[self.t_name]["count"] -= 1
