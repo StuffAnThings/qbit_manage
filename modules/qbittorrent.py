@@ -13,6 +13,7 @@ from modules import util
 from modules.util import Failed
 from modules.util import TorrentMessages
 from modules.util import list_in_text
+from modules.util import remove_extension
 
 logger = util.logger
 
@@ -135,7 +136,7 @@ class Qbt:
             if torrent.auto_tmm is False and settings["force_auto_tmm"] and torrent.category != "" and not self.config.dry_run:
                 torrent.set_auto_management(True)
             try:
-                torrent_name = torrent.name
+                torrent_name = remove_extension(torrent.name)
                 torrent_hash = torrent.hash
                 torrent_is_complete = torrent.state_enum.is_complete
                 save_path = torrent.save_path

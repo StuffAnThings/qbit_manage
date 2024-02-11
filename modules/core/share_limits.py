@@ -4,6 +4,7 @@ from time import time
 
 from modules import util
 from modules.util import is_tag_in_torrent
+from modules.util import remove_extension
 from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
 logger = util.logger
@@ -78,7 +79,7 @@ class ShareLimits:
         t_deleted_and_contents = set()
         for torrent_hash, torrent_dict in self.tdel_dict.items():
             torrent = torrent_dict["torrent"]
-            t_name = torrent.name
+            t_name = remove_extension(torrent.name)
             t_count = self.qbt.torrentinfo[t_name]["count"]
             t_msg = self.qbt.torrentinfo[t_name]["msg"]
             t_status = self.qbt.torrentinfo[t_name]["status"]

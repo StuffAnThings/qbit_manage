@@ -4,6 +4,7 @@ from qbittorrentapi import TrackerStatus
 from modules import util
 from modules.util import TorrentMessages
 from modules.util import list_in_text
+from modules.util import remove_extension
 
 logger = util.logger
 
@@ -209,7 +210,7 @@ class RemoveUnregistered:
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        if self.qbt.torrentinfo[self.t_name]["count"] > 1:
+        if self.qbt.torrentinfo[remove_extension(self.t_name)]["count"] > 1:
             # Checks if any of the original torrents are working
             if "" in self.t_msg or 2 in self.t_status:
                 attr["torrents_deleted_and_contents"] = False
@@ -232,4 +233,4 @@ class RemoveUnregistered:
         attr["body"] = "\n".join(body)
         self.torrents_updated_unreg.append(self.t_name)
         self.notify_attr_unreg.append(attr)
-        self.qbt.torrentinfo[self.t_name]["count"] -= 1
+        self.qbt.torrentinfo[remove_extension(self.t_name)]["count"] -= 1
