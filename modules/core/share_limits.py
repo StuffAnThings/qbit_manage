@@ -40,10 +40,26 @@ class ShareLimits:
         #
         #  EDIT allows custom share_limit_group_tag
         #
-        self.min_seed_time_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_time_group_tag}" if self.config.group_tag_suffix != None else self.config.min_seed_time_group_tag
-        self.min_seeds_tag = f"{self.config.group_tag_suffix}.{self.config.min_seed_group_tag}" if self.config.group_tag_suffix != None else self.config.min_seed_group_tag
-        self.last_active_tag = f"{self.config.group_tag_suffix}.{self.config.last_active_group_tag}" if self.config.group_tag_suffix != None else self.config.last_active_group_tag
-        self.inactive_tag = f"{self.config.group_tag_suffix}.{self.config.inactive_group_tag}" if self.config.group_tag_suffix != None else self.config.inactive_group_tag
+        self.min_seed_time_tag = (
+            f"{self.config.group_tag_suffix}.{self.config.min_seed_time_group_tag}"
+            if self.config.group_tag_suffix != None
+            else self.config.min_seed_time_group_tag
+        )
+        self.min_seeds_tag = (
+            f"{self.config.group_tag_suffix}.{self.config.min_seed_group_tag}"
+            if self.config.group_tag_suffix != None
+            else self.config.min_seed_group_tag
+        )
+        self.last_active_tag = (
+            f"{self.config.group_tag_suffix}.{self.config.last_active_group_tag}"
+            if self.config.group_tag_suffix != None
+            else self.config.last_active_group_tag
+        )
+        self.inactive_tag = (
+            f"{self.config.group_tag_suffix}.{self.config.inactive_group_tag}"
+            if self.config.group_tag_suffix != None
+            else self.config.inactive_group_tag
+        )
 
         self.update_share_limits()
         self.delete_share_limits_suffix_tag()

@@ -182,7 +182,11 @@ class Config:
         #
         self.extra_settings = {
             "cat_handle_dl": self.util.check_for_attribute(
-                self.data, "cat_handle_dl", parent="extra_settings", var_type="bool", default=False,
+                self.data,
+                "cat_handle_dl",
+                parent="extra_settings",
+                var_type="bool",
+                default=False,
             ),
             "share_limit_handle_dl": self.util.check_for_attribute(
                 self.data, "share_limit_handle_dl", parent="extra_settings", var_type="bool", default=False
