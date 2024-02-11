@@ -15,6 +15,7 @@ class CrossSeed:
         self.client = qbit_manager.client
         self.stats_added = 0
         self.stats_tagged = 0
+        self.cross_seed_tag = qbit_manager.config.cross_seed_tag
 
         self.torrents_updated = []  # List of torrents added by cross-seed
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
@@ -66,7 +67,7 @@ class CrossSeed:
                         "torrents": [t_name],
                         "torrent_category": category,
                         "torrent_save_path": dest,
-                        "torrent_tag": "cross-seed",
+                        "torrent_tag": self.cross_seed_tag,
                         "torrent_tracker": t_tracker,
                     }
                     self.notify_attr.append(attr)
@@ -74,7 +75,7 @@ class CrossSeed:
                     self.stats_added += 1
                     if not self.config.dry_run:
                         self.client.torrents.add(
-                            torrent_files=src, save_path=dest, category=category, tags="cross-seed", is_paused=True
+                            torrent_files=src, save_path=dest, category=category, tags=self.cross_seed_tag, is_paused=True
                         )
                         self.qbt.torrentinfo[t_name]["count"] += 1
                         try:
@@ -113,7 +114,7 @@ class CrossSeed:
             t_name = remove_extension(torrent.name)
             t_cat = torrent.category
             if (
-                not util.is_tag_in_torrent("cross-seed", torrent.tags)
+                not util.is_tag_in_torrent(self.cross_seed_tag, torrent.tags)
                 and self.qbt.torrentinfo[t_name]["count"] > 1
                 and self.qbt.torrentinfo[t_name]["first_hash"] != torrent.hash
                 and torrent.downloaded == 0
@@ -122,7 +123,8 @@ class CrossSeed:
                 tracker = self.qbt.get_tags(torrent.trackers)
                 self.stats_tagged += 1
                 body = logger.print_line(
-                    f"{'Not Adding' if self.config.dry_run else 'Adding'} 'cross-seed' tag to {t_name}", self.config.loglevel
+                    f"{'Not Adding' if self.config.dry_run else 'Adding'} '{self.cross_seed_tag}' tag to {t_name}",
+                    self.config.loglevel,
                 )
                 attr = {
                     "function": "tag_cross_seed",
@@ -130,13 +132,13 @@ class CrossSeed:
                     "body": body,
                     "torrents": [t_name],
                     "torrent_category": t_cat,
-                    "torrent_tag": "cross-seed",
+                    "torrent_tag": self.cross_seed_tag,
                     "torrent_tracker": tracker["url"],
                 }
                 self.notify_attr.append(attr)
                 self.torrents_updated.append(t_name)
                 if not self.config.dry_run:
-                    torrent.add_tags(tags="cross-seed")
+                    torrent.add_tags(tags=self.cross_seed_tag)
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
         numcategory = Counter(categories)
         for cat in numcategory:

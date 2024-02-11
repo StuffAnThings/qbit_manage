@@ -168,11 +168,13 @@ class Config:
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
+            "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.cross_seed_tag = self.settings["cross_seed_tag"]
 
         default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
