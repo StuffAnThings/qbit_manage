@@ -24,6 +24,7 @@ class ShareLimits:
         # meets the criteria for ratio limit/seed limit for deletion
         self.stats_deleted_contents = 0  # counter for the number of torrents that  \
         # meets the criteria for ratio limit/seed limit for deletion including contents \
+        self.status_filter = "completed" if self.config.settings["share_limits_filter_completed"] else "all"
 
         self.tdel_dict = {}  # dictionary to track the torrent names and content path that meet the deletion criteria
         self.root_dir = qbit_manager.config.root_dir  # root directory of torrents
@@ -40,7 +41,7 @@ class ShareLimits:
     def update_share_limits(self):
         """Updates share limits for torrents based on grouping"""
         logger.separator("Updating Share Limits based on priority", space=False, border=False)
-        torrent_list = self.qbt.get_torrents({"status_filter": "completed"})
+        torrent_list = self.qbt.get_torrents({"status_filter": self.status_filter})
         self.assign_torrents_to_group(torrent_list)
         for group_name, group_config in self.share_limits_config.items():
             torrents = group_config["torrents"]

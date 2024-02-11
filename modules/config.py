@@ -169,6 +169,15 @@ class Config:
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
             "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
+            "cat_filter_completed": self.util.check_for_attribute(
+                self.data, "cat_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "share_limits_filter_completed": self.util.check_for_attribute(
+                self.data, "share_limits_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
+                self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
