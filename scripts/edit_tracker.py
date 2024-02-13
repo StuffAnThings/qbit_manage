@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # This standalone script is used to edit tracker urls from one tracker to another.
 # Needs to have qbittorrent-api installed
 # pip3 install qbittorrent-api
