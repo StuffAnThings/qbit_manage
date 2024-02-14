@@ -4,7 +4,6 @@ from qbittorrentapi import TrackerStatus
 from modules import util
 from modules.util import TorrentMessages
 from modules.util import list_in_text
-from modules.util import remove_extension
 
 logger = util.logger
 
@@ -97,7 +96,7 @@ class RemoveUnregistered:
         self.notify_attr_unreg = []  # List of single torrent attributes to send to notifiarr
 
         for torrent in self.qbt.torrentissue:
-            self.t_name = remove_extension(torrent.name)
+            self.t_name = torrent.name
             self.t_cat = self.qbt.torrentinfo[self.t_name]["Category"]
             self.t_msg = self.qbt.torrentinfo[self.t_name]["msg"]
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]

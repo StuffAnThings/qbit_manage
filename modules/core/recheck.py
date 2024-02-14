@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from modules import util
-from modules.util import remove_extension
 
 logger = util.logger
 
@@ -106,7 +105,7 @@ class ReCheck:
                     # Recheck
                     elif (
                         torrent.progress == 0
-                        and self.qbt.torrentinfo[remove_extension(t_name)]["is_complete"]
+                        and self.qbt.torrentinfo[t_name]["is_complete"]
                         and not torrent.state_enum.is_checking
                     ):
                         self.stats_rechecked += 1

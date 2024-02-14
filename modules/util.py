@@ -14,63 +14,6 @@ import ruamel.yaml
 logger = logging.getLogger("qBit Manage")
 
 
-def remove_extension(filename):
-    video_extensions = [
-        ".3gp",
-        ".3g2",
-        ".asf",
-        ".avi",
-        ".divx",
-        ".flv",
-        ".m2ts",
-        ".m4v",
-        ".mkv",
-        ".mov",
-        ".mp2",
-        ".mp4",
-        ".mpe",
-        ".mpeg",
-        ".mpg",
-        ".mpv",
-        ".mts",
-        ".mxf",
-        ".ogg",
-        ".ogv",
-        ".qt",
-        ".rm",
-        ".rmvb",
-        ".ts",
-        ".vob",
-        ".webm",
-        ".wmv",
-    ]
-    audio_extensions = [
-        ".aac",
-        ".aiff",
-        ".ape",
-        ".au",
-        ".flac",
-        ".m4a",
-        ".m4b",
-        ".mka",
-        ".mp3",
-        ".ogg",
-        ".opus",
-        ".ra",
-        ".rm",
-        ".wav",
-        ".wma",
-    ]
-    all_extensions = video_extensions + audio_extensions
-    # Split the filename into base and extension parts
-    base, extension = os.path.splitext(filename)
-    # If there's an extension, return the base part
-    if extension in all_extensions:
-        return base
-    else:
-        return filename
-
-
 def get_list(data, lower=False, split=True, int_list=False):
     """Return a list from a string or list."""
     if data is None:

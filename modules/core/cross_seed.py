@@ -3,7 +3,6 @@ from collections import Counter
 
 from modules import util
 from modules.torrent_hash_generator import TorrentHashGenerator
-from modules.util import remove_extension
 
 logger = util.logger
 
@@ -111,7 +110,7 @@ class CrossSeed:
         self.notify_attr = []
         # Tag missing cross-seed torrents tags
         for torrent in self.qbt.torrent_list:
-            t_name = remove_extension(torrent.name)
+            t_name = torrent.name
             t_cat = torrent.category
             if (
                 not util.is_tag_in_torrent(self.cross_seed_tag, torrent.tags)
