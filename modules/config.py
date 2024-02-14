@@ -292,6 +292,8 @@ class Config:
                     cat_str = list(cat.keys())[0]
                     self.nohardlinks[cat_str] = {}
                     exclude_tags = cat[cat_str].get("exclude_tags", [])
+                    if exclude_tags is None:
+                        exclude_tags = []
                     if isinstance(exclude_tags, str):
                         exclude_tags = [exclude_tags]
                     self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
