@@ -71,13 +71,13 @@ class Qbt:
                     logger.print_line(ex, "CRITICAL")
                     sys.exit(1)
             logger.info("Qbt Connection Successful")
-        except LoginFailed as exc:
+        except LoginFailed:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(ex, "Qbittorrent")
-            raise Failed(exc) from exc
+            raise Failed(ex)
         except Exception as exc:
             self.config.notify(exc, "Qbittorrent")
-            raise Failed(exc) from exc
+            raise Failed(exc)
         logger.separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({"sort": "added_on"})
 
