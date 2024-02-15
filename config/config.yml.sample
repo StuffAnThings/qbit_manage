@@ -33,6 +33,10 @@ settings:
     - noHL
     - issue
     - cross-seed
+  cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
+  cat_filter_completed: True # Filters for completed torrents only when running cat_update command
+  share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
+  tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
