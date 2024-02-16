@@ -80,7 +80,6 @@ class ShareLimits:
         for torrent_hash, torrent_dict in self.tdel_dict.items():
             torrent = torrent_dict["torrent"]
             t_name = torrent.name
-            t_count = self.qbt.torrentinfo[t_name]["count"]
             t_msg = self.qbt.torrentinfo[t_name]["msg"]
             t_status = self.qbt.torrentinfo[t_name]["status"]
             # Double check that the content path is the same before we delete anything
@@ -106,7 +105,7 @@ class ShareLimits:
                 }
                 if os.path.exists(torrent["content_path"].replace(self.root_dir, self.remote_dir)):
                     # Checks if any of the original torrents are working
-                    if t_count > 1 and ("" in t_msg or 2 in t_status):
+                    if self.qbt.has_cross_seed(torrent) and ("" in t_msg or 2 in t_status):
                         self.stats_deleted += 1
                         attr["torrents_deleted_and_contents"] = False
                         t_deleted.add(t_name)
@@ -137,7 +136,6 @@ class ShareLimits:
                 attr["body"] = "\n".join(body)
                 if not group_notifications:
                     self.config.send_notifications(attr)
-                self.qbt.torrentinfo[t_name]["count"] -= 1
         if group_notifications:
             if t_deleted:
                 attr = {

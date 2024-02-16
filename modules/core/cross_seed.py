@@ -76,7 +76,6 @@ class CrossSeed:
                         self.client.torrents.add(
                             torrent_files=src, save_path=dest, category=category, tags=self.cross_seed_tag, is_paused=True
                         )
-                        self.qbt.torrentinfo[t_name]["count"] += 1
                         try:
                             torrent_hash_generator = TorrentHashGenerator(src)
                             torrent_hash = torrent_hash_generator.generate_torrent_hash()
@@ -90,6 +89,7 @@ class CrossSeed:
                             logger.warning(f"Unable to find hash {torrent_hash} in qbt: {e}")
                         if torrent_info:
                             torrent = torrent_info[0]
+                            self.qbt.add_torrent_files(torrent.hash, torrent.files)
                             self.qbt.torrentvalid.append(torrent)
                             self.qbt.torrentinfo[t_name]["torrents"].append(torrent)
                             self.qbt.torrent_list.append(torrent)
@@ -114,8 +114,7 @@ class CrossSeed:
             t_cat = torrent.category
             if (
                 not util.is_tag_in_torrent(self.cross_seed_tag, torrent.tags)
-                and self.qbt.torrentinfo[t_name]["count"] > 1
-                and self.qbt.torrentinfo[t_name]["first_hash"] != torrent.hash
+                and self.qbt.is_cross_seed(torrent)
                 and torrent.downloaded == 0
                 and torrent.seeding_time > 0
             ):
