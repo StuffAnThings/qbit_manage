@@ -29,10 +29,16 @@ settings:
   tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   share_limits_tag: ~share_limit # Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent
+  share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
+  share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
+  share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
     - cross-seed
+    - MinSeedTimeNotReached
+    - MinSeedsNotMet
+    - LastActiveLimitNotReached
   cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command

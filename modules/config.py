@@ -168,6 +168,15 @@ class Config:
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
+            "share_limits_min_seeding_time_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_seeding_time_tag", parent="settings", default="MinSeedTimeNotReached"
+            ),
+            "share_limits_min_num_seeds_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_num_seeds_tag", parent="settings", default="MinSeedsNotMet"
+            ),
+            "share_limits_last_active_tag": self.util.check_for_attribute(
+                self.data, "share_limits_last_active_tag", parent="settings", default="LastActiveLimitNotReached"
+            ),
             "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
             "cat_filter_completed": self.util.check_for_attribute(
                 self.data, "cat_filter_completed", parent="settings", var_type="bool", default=True
@@ -183,13 +192,23 @@ class Config:
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
+        self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
+        self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
         self.cross_seed_tag = self.settings["cross_seed_tag"]
 
-        default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
+        self.default_ignore_tags = [
+            self.nohardlinks_tag,
+            self.tracker_error_tag,
+            self.cross_seed_tag,
+            self.share_limits_min_seeding_time_tag,
+            self.share_limits_min_num_seeds_tag,
+            self.share_limits_last_active_tag,
+        ]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
-            self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
+            self.data, "ignoreTags_OnUpdate", parent="settings", default=self.default_ignore_tags, var_type="list"
         )
-        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")
 
