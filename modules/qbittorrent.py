@@ -380,6 +380,11 @@ class Qbt:
 
     def tor_delete_recycle(self, torrent, info):
         """Move torrent to recycle bin"""
+        try:
+            self.remove_torrent_files(torrent)
+        except ValueError:
+            logger.debug(f"Torrent {torrent.name} has already been removed from torrent files.")
+
         if self.config.recyclebin["enabled"]:
             tor_files = []
             try:
@@ -485,7 +490,3 @@ class Qbt:
                 self.torrent_list.remove(torrent)
         except ValueError:
             logger.debug(f"Torrent {torrent.name} has already been deleted from torrent list.")
-        try:
-            self.remove_torrent_files(torrent)
-        except ValueError:
-            logger.debug(f"Torrent {torrent.name} has already been removed from torrent files.")
