@@ -1,4 +1,5 @@
 """Config class for qBittorrent-Manage"""
+
 import os
 import re
 import stat
@@ -13,9 +14,9 @@ from modules.apprise import Apprise
 from modules.bhd import BeyondHD
 from modules.notifiarr import Notifiarr
 from modules.qbittorrent import Qbt
-from modules.util import check
-from modules.util import Failed
 from modules.util import YAML
+from modules.util import Failed
+from modules.util import check
 from modules.webhooks import Webhooks
 
 logger = util.logger
@@ -167,17 +168,47 @@ class Config:
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
+            "share_limits_min_seeding_time_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_seeding_time_tag", parent="settings", default="MinSeedTimeNotReached"
+            ),
+            "share_limits_min_num_seeds_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_num_seeds_tag", parent="settings", default="MinSeedsNotMet"
+            ),
+            "share_limits_last_active_tag": self.util.check_for_attribute(
+                self.data, "share_limits_last_active_tag", parent="settings", default="LastActiveLimitNotReached"
+            ),
+            "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
+            "cat_filter_completed": self.util.check_for_attribute(
+                self.data, "cat_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "share_limits_filter_completed": self.util.check_for_attribute(
+                self.data, "share_limits_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
+                self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
+        self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
+        self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
+        self.cross_seed_tag = self.settings["cross_seed_tag"]
 
-        default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
+        self.default_ignore_tags = [
+            self.nohardlinks_tag,
+            self.tracker_error_tag,
+            self.cross_seed_tag,
+            self.share_limits_min_seeding_time_tag,
+            self.share_limits_min_num_seeds_tag,
+            self.share_limits_last_active_tag,
+        ]
         self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
-            self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
+            self.data, "ignoreTags_OnUpdate", parent="settings", default=self.default_ignore_tags, var_type="list"
         )
-        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")
 
@@ -280,6 +311,8 @@ class Config:
                     cat_str = list(cat.keys())[0]
                     self.nohardlinks[cat_str] = {}
                     exclude_tags = cat[cat_str].get("exclude_tags", [])
+                    if exclude_tags is None:
+                        exclude_tags = []
                     if isinstance(exclude_tags, str):
                         exclude_tags = [exclude_tags]
                     self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
@@ -687,7 +720,8 @@ class Config:
                     if num_del > 0:
                         if not self.dry_run:
                             for path in location_path_list:
-                                util.remove_empty_directories(path, "**/*")
+                                if path != location_path:
+                                    util.remove_empty_directories(path, "**/*")
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",

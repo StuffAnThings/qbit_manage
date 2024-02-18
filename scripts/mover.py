@@ -18,7 +18,9 @@ parser.add_argument("--days_to", help="Set Number of Days to stop torrents betwe
 
 # --START SCRIPT--#
 try:
-    from qbittorrentapi import Client, LoginFailed, APIConnectionError
+    from qbittorrentapi import APIConnectionError
+    from qbittorrentapi import Client
+    from qbittorrentapi import LoginFailed
 except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)

@@ -1,4 +1,5 @@
 """ Utility functions for qBit Manage. """
+
 import json
 import logging
 import os
@@ -276,7 +277,7 @@ class check:
         elif var_type == "float":
             try:
                 data[attribute] = float(data[attribute])
-            except:
+            except Exception:
                 pass
             if isinstance(data[attribute], float) and data[attribute] >= min_int:
                 return data[attribute]

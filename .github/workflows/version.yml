@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: set lower case owner name
+        run: |
+          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+        env:
+          OWNER: '${{ github.repository_owner }}'
 
       - name: Check Out Repo
         uses: actions/checkout@v4
@@ -22,6 +27,13 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ env.OWNER_LC }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@master
@@ -44,8 +56,9 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
-
+          tags: |
+            ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
+            ghcr.io/${{ env.OWNER_LC }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
       - name: Create release
         id: create_release
         uses: softprops/action-gh-release@v1

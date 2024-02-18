@@ -22,6 +22,8 @@ class TagNoHardLinks:
         self.torrents_updated_untagged = []  # List of torrents updated
         self.notify_attr_untagged = []  # List of single torrent attributes to send to notifiarr
 
+        self.status_filter = "completed" if self.config.settings["tag_nohardlinks_filter_completed"] else "all"
+
         self.tag_nohardlinks()
 
         self.config.webhooks_factory.notify(self.torrents_updated_tagged, self.notify_attr_tagged, group_by="tag")
@@ -87,7 +89,7 @@ class TagNoHardLinks:
         nohardlinks = self.nohardlinks
         check_hardlinks = util.CheckHardLinks(self.root_dir, self.remote_dir)
         for category in nohardlinks:
-            torrent_list = self.qbt.get_torrents({"category": category, "status_filter": "completed"})
+            torrent_list = self.qbt.get_torrents({"category": category, "status_filter": self.status_filter})
             if len(torrent_list) == 0:
                 ex = (
                     "No torrents found in the category ("

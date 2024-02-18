@@ -1,7 +1,9 @@
 import os
-
 from distutils.core import setup
+
 from setuptools import find_packages
+
+from modules import __version__
 
 # User-friendly description from README.md
 current_directory = os.path.dirname(os.path.abspath(__file__))
@@ -11,20 +13,17 @@ try:
 except Exception:
     long_description = ""
 
-try:
-    with open(os.path.join(current_directory, "VERSION"), encoding="utf-8") as f:
-        version_no = f.read()
-except Exception:
-    version_no = ""
 
 setup(
     # Name of the package
     name="qbit_manage",
     # Packages to include into the distribution
     packages=find_packages("."),
+    package_data={"": ["../*"]},
+    include_package_data=True,
     # Start with a small number and increase it with
     # every change you make https://semver.org
-    version=version_no,
+    version=__version__,
     # Chose a license from here: https: //
     # help.github.com / articles / licensing - a -
     # repository. For example: MIT
