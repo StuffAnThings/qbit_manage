@@ -40,8 +40,8 @@ class CrossSeed:
             # Returned the dictionary of filtered item
             torrentdict_file = dict(filter(lambda item: tr_name in item[0], self.qbt.torrentinfo.items()))
             src = os.path.join(dir_cs, file)
-            dir_cs_out = os.path.join(dir_cs_out, file)
-            dir_cs_err = os.path.join(dir_cs_err, file)
+            file_cs_out = os.path.join(dir_cs_out, file)
+            file_cs_err = os.path.join(dir_cs_err, file)
             if torrentdict_file:
                 # Get the exact torrent match name from self.qbt.torrentinfo
                 t_name = next(iter(torrentdict_file))
@@ -79,7 +79,7 @@ class CrossSeed:
                         try:
                             torrent_hash_generator = TorrentHashGenerator(src)
                             torrent_hash = torrent_hash_generator.generate_torrent_hash()
-                            util.move_files(src, dir_cs_out)
+                            util.move_files(src, file_cs_out)
                         except Exception as e:
                             logger.warning(f"Unable to generate torrent hash from cross-seed {t_name}: {e}")
                         try:
@@ -101,7 +101,7 @@ class CrossSeed:
                     logger.print_line(error, self.config.loglevel)
                 else:
                     logger.print_line(error, "WARNING")
-                    util.move_files(src, dir_cs_err)
+                    util.move_files(src, file_cs_err)
                 self.config.notify(error, "cross-seed", False)
 
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
