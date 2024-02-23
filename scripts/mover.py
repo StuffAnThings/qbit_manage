@@ -12,8 +12,15 @@ parser = argparse.ArgumentParser(prog="Qbit Mover", description="Stop torrents a
 parser.add_argument("--host", help="qbittorrent host including port", required=True)
 parser.add_argument("-u", "--user", help="qbittorrent user", default="admin")
 parser.add_argument("-p", "--password", help="qbittorrent password", default="adminadmin")
-parser.add_argument("--cache-mount", "--cache_mount", help="Cache mount point in Unraid. Use this option ONLY if you follow TRaSH Guides folder structure.", default=None)
-parser.add_argument("--days-from", "--days_from", help="Set Number of Days to stop torrents between two offsets", type=int, default=0)
+parser.add_argument(
+    "--cache-mount",
+    "--cache_mount",
+    help="Cache mount point in Unraid. Use this option ONLY if you follow TRaSH Guides folder structure.",
+    default=None,
+)
+parser.add_argument(
+    "--days-from", "--days_from", help="Set Number of Days to stop torrents between two offsets", type=int, default=0
+)
 parser.add_argument("--days-to", "--days_to", help="Set Number of Days to stop torrents between two offsets", type=int, default=2)
 # --DEFINE VARIABLES--#
 
@@ -23,6 +30,7 @@ try:
 except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)
+
 
 def filter_torrents(torrent_list, timeoffset_from, timeoffset_to, cache_mount):
     result = []
@@ -34,9 +42,11 @@ def filter_torrents(torrent_list, timeoffset_from, timeoffset_to, cache_mount):
             break
     return result
 
+
 def exists_in_cache(cache_mount, content_path):
-    cache_path = os.path.join(cache_mount, content_path.lstrip('/'))
+    cache_path = os.path.join(cache_mount, content_path.lstrip("/"))
     return os.path.exists(cache_path)
+
 
 def stop_start_torrents(torrent_list, pause=True):
     for torrent in torrent_list:
