@@ -188,6 +188,8 @@ share_limits:
     last_active: 43200
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
+    # <OPTIONAL> Group Upload Speed <int>: Will limit the group's combined upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
+    group_upload_speed: 0
     # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits
     cleanup: false
     # <OPTIONAL> resume_torrent_after_change <bool>: This variable will resume your torrent after changing share limits. Default is true
