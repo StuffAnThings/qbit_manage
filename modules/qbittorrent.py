@@ -11,8 +11,8 @@ from qbittorrentapi import Version
 
 from modules import util
 from modules.util import Failed
-from modules.util import list_in_text
 from modules.util import TorrentMessages
+from modules.util import list_in_text
 
 logger = util.logger
 
@@ -71,15 +71,16 @@ class Qbt:
                     logger.print_line(ex, "CRITICAL")
                     sys.exit(1)
             logger.info("Qbt Connection Successful")
-        except LoginFailed as exc:
+        except LoginFailed:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(ex, "Qbittorrent")
-            raise Failed(exc) from exc
+            raise Failed(ex)
         except Exception as exc:
             self.config.notify(exc, "Qbittorrent")
-            raise Failed(exc) from exc
+            raise Failed(exc)
         logger.separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({"sort": "added_on"})
+        self.torrentfiles = {}  # a map of torrent files to track cross-seeds
 
         self.global_max_ratio_enabled = self.client.app.preferences.max_ratio_enabled
         self.global_max_ratio = self.client.app.preferences.max_ratio
@@ -97,12 +98,11 @@ class Qbt:
     def get_torrent_info(self):
         """
         Will create a 2D Dictionary with the torrent name as the key
-        self.torrentinfo = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'count':1, 'msg':'[]'...},
-                    'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}, 'count':2, 'msg':'[]'...}
+        self.torrentinfo = {'TorrentName1' : {'Category':'TV', 'save_path':'/data/torrents/TV', 'msg':'[]'...},
+                    'TorrentName2' : {'Category':'Movies', 'save_path':'/data/torrents/Movies'}, 'msg':'[]'...}
         List of dictionary key definitions
         Category = Returns category of the torrent (str)
         save_path = Returns the save path of the torrent (str)
-        count = Returns a count of the total number of torrents with the same name (int)
         msg = Returns a list of torrent messages by name (list of str)
         status = Returns the list of status numbers of the torrent by name
         (0: Tracker is disabled (used for DHT, PeX, and LSD),
@@ -112,8 +112,6 @@ class Qbt:
         4: Tracker has been contacted, but it is not working (or doesn't send proper replies)
         is_complete = Returns the state of torrent
                     (Returns True if at least one of the torrent with the State is categorized as Complete.)
-        first_hash = Returns the hash number of the original torrent (Assuming the torrent list is sorted by date added (Asc))
-            Takes in a number n, returns the square of n
         """
         self.torrentinfo = {}
         self.torrentissue = []  # list of unregistered torrent objects
@@ -141,23 +139,20 @@ class Qbt:
                 save_path = torrent.save_path
                 category = torrent.category
                 torrent_trackers = torrent.trackers
+                self.add_torrent_files(torrent_hash, torrent.files)
             except Exception as ex:
                 self.config.notify(ex, "Get Torrent Info", False)
                 logger.warning(ex)
             if torrent_name in self.torrentinfo:
                 t_obj_list.append(torrent)
-                t_count = self.torrentinfo[torrent_name]["count"] + 1
                 msg_list = self.torrentinfo[torrent_name]["msg"]
                 status_list = self.torrentinfo[torrent_name]["status"]
                 is_complete = True if self.torrentinfo[torrent_name]["is_complete"] is True else torrent_is_complete
-                first_hash = self.torrentinfo[torrent_name]["first_hash"]
             else:
                 t_obj_list = [torrent]
-                t_count = 1
                 msg_list = []
                 status_list = []
                 is_complete = torrent_is_complete
-                first_hash = torrent_hash
             for trk in torrent_trackers:
                 if trk.url.startswith("http"):
                     status = trk.status
@@ -188,13 +183,79 @@ class Qbt:
                 "torrents": t_obj_list,
                 "Category": category,
                 "save_path": save_path,
-                "count": t_count,
                 "msg": msg_list,
                 "status": status_list,
                 "is_complete": is_complete,
-                "first_hash": first_hash,
             }
             self.torrentinfo[torrent_name] = torrentattr
+
+    def add_torrent_files(self, torrent_hash, torrent_files):
+        """Process torrent files by adding the hash to the appropriate torrent_files list.
+        Example structure:
+        torrent_files = {
+            "folder1/file1.txt": {"original": torrent_hash1, "cross_seed": ["torrent_hash2", "torrent_hash3"]},
+            "folder1/file2.txt": {"original": torrent_hash1, "cross_seed": ["torrent_hash2"]},
+            "folder2/file1.txt": {"original": torrent_hash2, "cross_seed": []},
+        }
+        """
+        for file in torrent_files:
+            file_name = file.name
+            if file_name not in self.torrentfiles:
+                self.torrentfiles[file_name] = {"original": torrent_hash, "cross_seed": []}
+            else:
+                self.torrentfiles[file_name]["cross_seed"].append(torrent_hash)
+
+    def is_cross_seed(self, torrent):
+        """Check if the torrent is a cross seed if it has one or more files that are cross seeded."""
+        t_hash = torrent.hash
+        t_name = torrent.name
+        if torrent.downloaded != 0:
+            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] is not a cross seeded torrent. Download is > 0.")
+            return False
+        cross_seed = True
+        for file in torrent.files:
+            file_name = file.name
+            if self.torrentfiles[file_name]["original"] == t_hash or t_hash not in self.torrentfiles[file_name]["cross_seed"]:
+                logger.trace(f"File: [{file_name}] is found in Torrent: {t_name} [Hash: {t_hash}] as the original torrent")
+                cross_seed = False
+                break
+            elif self.torrentfiles[file_name]["original"] is None:
+                cross_seed = False
+                break
+        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'is' if cross_seed else 'is not'} a cross seed torrent.")
+        return cross_seed
+
+    def has_cross_seed(self, torrent):
+        """Check if the torrent has a cross seed"""
+        cross_seed = False
+        t_hash = torrent.hash
+        t_name = torrent.name
+        for file in torrent.files:
+            file_name = file.name
+            if len(self.torrentfiles[file_name]["cross_seed"]) > 0:
+                logger.trace(f"{file_name} has cross seeds: {self.torrentfiles[file_name]['cross_seed']}")
+                cross_seed = True
+                break
+        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'has' if cross_seed else 'has no'} cross seeds.")
+        return cross_seed
+
+    def remove_torrent_files(self, torrent):
+        """Update the torrent_files list after a torrent is deleted"""
+        torrent_hash = torrent.hash
+        for file in torrent.files:
+            file_name = file.name
+            if self.torrentfiles[file_name]["original"] == torrent_hash:
+                if len(self.torrentfiles[file_name]["cross_seed"]) > 0:
+                    self.torrentfiles[file_name]["original"] = self.torrentfiles[file_name]["cross_seed"].pop(0)
+                    logger.trace(f"Updated {file_name} original to {self.torrentfiles[file_name]['original']}")
+                else:
+                    self.torrentfiles[file_name]["original"] = None
+            else:
+                if torrent_hash in self.torrentfiles[file_name]["cross_seed"]:
+                    self.torrentfiles[file_name]["cross_seed"].remove(torrent_hash)
+                    logger.trace(f"Removed {torrent_hash} from {file_name} cross seeds")
+                    logger.trace(f"{file_name} original: {self.torrentfiles[file_name]['original']}")
+                    logger.trace(f"{file_name} cross seeds: {self.torrentfiles[file_name]['cross_seed']}")
 
     def get_torrents(self, params):
         """Get torrents from qBittorrent"""
@@ -319,6 +380,11 @@ class Qbt:
 
     def tor_delete_recycle(self, torrent, info):
         """Move torrent to recycle bin"""
+        try:
+            self.remove_torrent_files(torrent)
+        except ValueError:
+            logger.debug(f"Torrent {torrent.name} has already been removed from torrent files.")
+
         if self.config.recyclebin["enabled"]:
             tor_files = []
             try:

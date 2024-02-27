@@ -11,7 +11,6 @@ import time
 
 import qbittorrentapi
 
-
 """===Config==="""
 # qBittorrent WebUi Login
 qbt_login = {"host": "localhost", "port": 8080, "username": "???", "password": "???"}

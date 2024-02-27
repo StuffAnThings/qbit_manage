@@ -31,10 +31,12 @@ repos:
     hooks:
       - id: yamlfix
         exclude: ^.github/
-  - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.12.0
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: reorder-python-imports
+      - id: isort
+        name: isort (python)
+        args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.15.1
     hooks:
