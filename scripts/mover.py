@@ -15,7 +15,8 @@ parser.add_argument("-p", "--password", help="qbittorrent password", default="ad
 parser.add_argument(
     "--cache-mount",
     "--cache_mount",
-    help="Cache mount point in Unraid. This is used to additionally filter for only torrents that exists on the cache mount. Use this option ONLY if you follow TRaSH Guides folder structure.",
+    help="Cache mount point in Unraid. This is used to additionally filter for only torrents that exists on the cache mount."
+    "Use this option ONLY if you follow TRaSH Guides folder structure.",
     default=None,
 )
 parser.add_argument(
