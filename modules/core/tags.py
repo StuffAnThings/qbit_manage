@@ -10,6 +10,7 @@ class Tags:
         self.client = qbit_manager.client
         self.stats = 0
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # suffix tag for share limits
+        self.default_ignore_tags = qbit_manager.config.default_ignore_tags  # default ignore tags
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
@@ -19,6 +20,7 @@ class Tags:
     def tags(self):
         """Update tags for torrents"""
         ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
+        ignore_tags.extend(tag for tag in self.default_ignore_tags if tag not in ignore_tags)
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:
             check_tags = [tag for tag in util.get_list(torrent.tags) if self.share_limits_tag not in tag]
