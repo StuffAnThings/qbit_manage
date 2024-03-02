@@ -439,7 +439,7 @@ class Config:
                     subparent=group,
                     var_type="int",
                     min_int=-1,
-                    default=0,
+                    default_is_none=True,
                     do_print=False,
                     save=False,
                 )
