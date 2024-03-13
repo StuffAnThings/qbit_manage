@@ -174,7 +174,7 @@ class ShareLimits:
             f"Updating Share Limits for [Group {group_name}] [Priority {group_config['priority']}]", space=False, border=False
         )
         if group_config["group_upload_speed"] and group_config["limit_upload_speed"]:
-            logger.trace("Info: group_upload_speed and limit_upload_speed both specified, ignoring limit_upload_speed.")
+            logger.trace("Info: group_upload_speed and limit_upload_speed both specified, ignoring group_upload_speed.")
         for torrent in torrents:
             t_name = torrent.name
             t_hash = torrent.hash
@@ -188,13 +188,14 @@ class ShareLimits:
             torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
             if group_config["limit_upload_speed"] == 0:
                 group_config["limit_upload_speed"] = -1
-            group_up_limit = (
-                round(group_config["group_upload_speed"] / len(torrents)) if group_config["group_upload_speed"] else None
-            )
-            check_group_upload_speed = group_up_limit != torrent_upload_limit if group_config["group_upload_speed"] else None
-            check_limit_upload_speed = (
-                group_config["limit_upload_speed"] != torrent_upload_limit if not group_config["group_upload_speed"] else None
-            )
+            if group_config["group_upload_speed"]:
+                group_up_limit = (
+                    round(group_config["group_upload_speed"] / len(torrents))
+                )
+            else:
+                group_config["group_upload_speed"] = -1
+            check_group_upload_speed = group_up_limit != torrent_upload_limit
+            check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
             share_limits_not_yet_tagged = (
                 True if self.group_tag and not is_tag_in_torrent(self.group_tag, torrent.tags) else False
@@ -270,13 +271,12 @@ class ShareLimits:
             tag = is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)
             if tag:
                 torrent.remove_tags(tag)
-
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
         self.set_tags_and_limits(
             torrent=torrent,
             max_ratio=group_config["max_ratio"],
             max_seeding_time=group_config["max_seeding_time"],
-            limit_upload_speed=group_up_limit if group_config["group_upload_speed"] else group_config["limit_upload_speed"],
+            limit_upload_speed=group_config["limit_upload_speed"] if group_config["limit_upload_speed"] else group_up_limit,
             tags=self.group_tag,
         )
         # Resume torrent if it was paused now that the share limit has changed
