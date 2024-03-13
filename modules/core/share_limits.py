@@ -187,9 +187,7 @@ class ShareLimits:
             if group_config["limit_upload_speed"] == 0:
                 group_config["limit_upload_speed"] = -1
             if group_config["group_upload_speed"]:
-                group_up_limit = (
-                    round(group_config["group_upload_speed"] / len(torrents))
-                )
+                group_up_limit = round(group_config["group_upload_speed"] / len(torrents))
             else:
                 group_config["group_upload_speed"] = -1
             check_group_upload_speed = group_up_limit != torrent_upload_limit
