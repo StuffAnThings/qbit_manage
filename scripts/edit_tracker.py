@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # This standalone script is used to edit tracker urls from one tracker to another.
 # Needs to have qbittorrent-api installed
 # pip3 install qbittorrent-api
@@ -14,7 +14,9 @@ NEW_TRACKER = "https://blutopia.cc"  # This is the tracker you want to replace i
 # --START SCRIPT--#
 
 try:
-    from qbittorrentapi import Client, LoginFailed, APIConnectionError
+    from qbittorrentapi import APIConnectionError
+    from qbittorrentapi import Client
+    from qbittorrentapi import LoginFailed
 except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)

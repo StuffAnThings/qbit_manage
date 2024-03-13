@@ -29,10 +29,20 @@ settings:
   tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   share_limits_tag: ~share_limit # Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent
+  share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
+  share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
+  share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
   ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
     - noHL
     - issue
     - cross-seed
+    - MinSeedTimeNotReached
+    - MinSeedsNotMet
+    - LastActiveLimitNotReached
+  cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
+  cat_filter_completed: True # Filters for completed torrents only when running cat_update command
+  share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
+  tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
@@ -172,10 +182,10 @@ share_limits:
     categories:
       - RadarrComplete
       - SonarrComplete
-    # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading.
+    # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0
-    # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding.
+    # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_seeding_time: 129600
     # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
@@ -190,14 +200,14 @@ share_limits:
     limit_upload_speed: 0
     # <OPTIONAL> Group Upload Speed <int>: Will limit the group's combined upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     group_upload_speed: 0
-    # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits
+    # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits (max time OR max ratio)
     cleanup: false
     # <OPTIONAL> resume_torrent_after_change <bool>: This variable will resume your torrent after changing share limits. Default is true
     resume_torrent_after_change: true
     # <OPTIONAL> add_group_to_tag <bool>: This adds your grouping as a tag with a prefix defined in settings . Default is true
     # Example: A grouping defined as noHL will have a tag set to ~share_limit.noHL (if using the default prefix)
     add_group_to_tag: true
-    # <OPTIONAL> min_num_seeds <int>: This will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here.
+    # <OPTIONAL> min_num_seeds <int>: Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here.
     # If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_num_seeds: 0
