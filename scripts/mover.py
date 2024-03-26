@@ -92,34 +92,29 @@ if __name__ == "__main__":
     timeoffset_to = current - timedelta(days=args.days_to)
     torrent_list = client.torrents.info(sort="added_on", reverse=True)
 
-    torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
+    for torrent in filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount):
+        file_paths = set()
 
-    if not torrents:
-        print(f"Nothing to move within {args.days_from} - {args.days_to} days ago. Exiting...")
-        sys.exit(0)
+        print(f"Pausing: {torrent.name} [{torrent.added_on}]")
+        torrent.pause()
+        
+        content_path = cache_path(args.cache_mount, torrent.content_path)
+        
+        if os.path.isdir(content_path):
+            # If file_path is a directory, include all files within it
+            for root, _, files in os.walk(content_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    file_paths.add(os.path.join(root, file))
+                    file_paths.update(find_hardlinks(file_path, args.cache_mount))
+        else:
+            file_paths.add(content_path)
+            file_paths.update(find_hardlinks(content_path, args.cache_mount))
 
-    # Pause Torrents
-    print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
-    stop_start_torrents(torrents, True)
-    time.sleep(10)
-
-    file_paths = set()
-    for torrent in torrents:
-        file_path = cache_path(args.cache_mount, torrent.content_path)
-        file_paths.add(file_path)
-
-        for link in find_hardlinks(file_path, args.cache_mount):
-            file_paths.add(link)
-
-    folder = "/tmp/qbitmover"
-    os.makedirs(folder, exist_ok=True)
-
-    tmp_file = f"{folder}/movelist_{current.strftime('%Y-%m-%d_%H-%M-%S')}.list"
-    with open(tmp_file, "w") as file:
-        file.writelines(line + "\n" for line in file_paths)
-    # Start mover
-    print("Starting Mover")
-    os.system(f"cat {tmp_file} | /usr/local/sbin/move -d {int(args.debug)}")
-    # Start Torrents
-    print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
-    stop_start_torrents(torrents, False)
+        time.sleep(5)
+        print(f"Moving files for {torrent.name}.")
+        
+        os.system(f"echo {'\n'.join(file_paths)} | /usr/local/sbin/move -d {int(args.debug)}")
+                
+        print(f"Resuming: {torrent.name} [{torrent.added_on}]")
+        torrent.resume()
