@@ -91,12 +91,12 @@ if __name__ == "__main__":
     timeoffset_from = current - timedelta(days=args.days_from)
     timeoffset_to = current - timedelta(days=args.days_to)
     torrent_list = client.torrents.info(sort="added_on", reverse=True)
-    
+
     torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
-    
+
     print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrent_list)
-    
+
     file_paths = set()
     link_paths = set()
     dir_paths = set()
@@ -110,38 +110,38 @@ if __name__ == "__main__":
                 for file in files:
                     file_path = os.path.join(root, file)
                     file_paths.add(os.path.join(root, file))
-            
+
                 for dir in dirs:
                     directory_path = os.path.join(root, dir)
                     dir_paths.add(directory_path)
             dir_paths.add(content_path)
         else:
             file_paths.add(content_path)
-    
+
     for file_path in file_paths:
         for link in find_hardlinks(content_path, args.cache_mount):
             if link not in file_paths:
                 link_paths.add(link)
 
     time.sleep(10)
-    
+
     if file_paths:
         print(f"Moving files [{len(file_paths)}].")
-        
+
         files_string = "\n".join(file_paths)
         os.system(f"echo '{files_string}' | /usr/local/sbin/move -d {int(args.debug)}")
-        
+
     if link_paths:
         print(f"Moving file links [{len(link_paths)}].")
-        
+
         links_string = "\n".join(link_paths)
         os.system(f"echo '{links_string}' | /usr/local/sbin/move -d {int(args.debug)}")
-    
+
     if dir_paths:
         print(f"Moving directories [{len(dir_paths)}].")
-        
+
         dirs_string = "\n".join(dir_paths)
         os.system(f"echo '{dirs_string}' | /usr/local/sbin/move -d {int(args.debug)}")
-        
+
     print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, False)
