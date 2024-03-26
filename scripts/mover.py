@@ -39,7 +39,7 @@ def filter_torrents(torrent_list, timeoffset_from, timeoffset_to, cache_mount):
     result = []
     for torrent in torrent_list:
         if torrent.added_on >= timeoffset_to and torrent.added_on <= timeoffset_from:
-            if not cache_mount or os.path.exists(cache_path(cache_mount, torrent.content_path)):
+            if os.path.exists(cache_path(cache_mount, torrent.content_path)):
                 result.append(torrent)
         elif torrent.added_on < timeoffset_to:
             break
