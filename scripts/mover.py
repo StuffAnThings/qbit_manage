@@ -97,9 +97,9 @@ if __name__ == "__main__":
 
         print(f"Pausing: {torrent.name} [{torrent.added_on}]")
         torrent.pause()
-        
+
         content_path = cache_path(args.cache_mount, torrent.content_path)
-        
+
         if os.path.isdir(content_path):
             # If file_path is a directory, include all files within it
             for root, _, files in os.walk(content_path):
@@ -113,8 +113,8 @@ if __name__ == "__main__":
 
         time.sleep(5)
         print(f"Moving files for {torrent.name}.")
-        
+
         os.system(f"echo {'\n'.join(file_paths)} | /usr/local/sbin/move -d {int(args.debug)}")
-                
+
         print(f"Resuming: {torrent.name} [{torrent.added_on}]")
         torrent.resume()
