@@ -35,6 +35,7 @@ except ModuleNotFoundError:
     print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
     sys.exit(1)
 
+
 def filter_torrents(torrent_list, timeoffset_from, timeoffset_to, cache_mount):
     result = []
     for torrent in torrent_list:
@@ -45,8 +46,10 @@ def filter_torrents(torrent_list, timeoffset_from, timeoffset_to, cache_mount):
             break
     return result
 
+
 def cache_path(cache_mount, content_path):
     return os.path.join(cache_mount, content_path.lstrip("/"))
+
 
 def find_hardlinks(file_path, cache_mount):
     inode = os.stat(file_path).st_ino
@@ -58,6 +61,7 @@ def find_hardlinks(file_path, cache_mount):
                 hardlinks.add(candidate_path)
     return hardlinks
 
+
 def stop_start_torrents(torrent_list, pause=True):
     for torrent in torrent_list:
         if pause:
@@ -66,6 +70,7 @@ def stop_start_torrents(torrent_list, pause=True):
         else:
             print(f"Resuming: {torrent.name} [{torrent.added_on}]")
             torrent.resume()
+
 
 if __name__ == "__main__":
     current = datetime.now()
@@ -97,21 +102,21 @@ if __name__ == "__main__":
     print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, True)
     time.sleep(10)
-    
+
     file_paths = set()
     for torrent in torrents:
         file_path = cache_path(args.cache_mount, torrent.content_path)
         file_paths.add(file_path)
-        
+
         for link in find_hardlinks(file_path, args.cache_mount):
             file_paths.add(link)
-    
+
     folder = "/tmp/qbitmover"
     os.makedirs(folder, exist_ok=True)
-    
+
     tmp_file = f"{folder}/movelist_{current.strftime('%Y-%m-%d_%H-%M-%S')}.list"
     with open(tmp_file, "w") as file:
-         file.writelines(line + "\n" for line in file_paths)
+        file.writelines(line + "\n" for line in file_paths)
     # Start mover
     print("Starting Mover")
     os.system(f"cat {tmp_file} | /usr/local/sbin/move -d {int(args.debug)}")
