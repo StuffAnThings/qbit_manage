@@ -95,6 +95,7 @@ if __name__ == "__main__":
     torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
 
     print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
+    # Pause Torrents
     stop_start_torrents(torrent_list)
 
     file_paths = set()
@@ -144,4 +145,5 @@ if __name__ == "__main__":
         os.system(f"echo '{dirs_string}' | /usr/local/sbin/move -d {int(args.debug)}")
 
     print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
+    # Resume Torrents
     stop_start_torrents(torrents, False)
