@@ -17,7 +17,7 @@ parser.add_argument(
     "--cache_mount",
     help="Cache mount point in Unraid. This is used to additionally filter for only torrents that exists on the cache mount."
     "Use this option ONLY if you follow TRaSH Guides folder structure.",
-    default=None,
+    required=True,
 )
 parser.add_argument(
     "--days-from", "--days_from", help="Set Number of Days to stop torrents between two offsets", type=int, default=0
