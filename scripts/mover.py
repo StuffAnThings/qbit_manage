@@ -102,19 +102,24 @@ if __name__ == "__main__":
 
         if os.path.isdir(content_path):
             # If file_path is a directory, include all files within it
-            for root, _, files in os.walk(content_path):
+            for root, dirs, files in os.walk(content_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     file_paths.add(os.path.join(root, file))
                     file_paths.update(find_hardlinks(file_path, args.cache_mount))
+                for dir in dirs:
+                    directory_path = os.path.join(root, dir)
+                    file_paths.add(directory_path)
+            file_paths.add(content_path)
         else:
             file_paths.add(content_path)
             file_paths.update(find_hardlinks(content_path, args.cache_mount))
 
         time.sleep(5)
         print(f"Moving files for {torrent.name}.")
-
-        os.system(f"echo {'\n'.join(file_paths)} | /usr/local/sbin/move -d {int(args.debug)}")
+        
+        files_string = "\n".join(file_paths)
+        os.system(f"echo '{files_string}' | /usr/local/sbin/move")
 
         print(f"Resuming: {torrent.name} [{torrent.added_on}]")
         torrent.resume()
