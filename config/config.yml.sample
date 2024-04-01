@@ -190,6 +190,7 @@ share_limits:
     # Will default to -1 (no limit) if not specified for the group.
     max_seeding_time: 129600
     # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
+    # This should only be set if you are using this in conjunction with max_seeding_time and max_ratio. If you are not setting a max_ratio, then use max_seeding_time instead.
     # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_seeding_time: 43200
