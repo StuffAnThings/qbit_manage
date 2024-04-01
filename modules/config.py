@@ -522,6 +522,25 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                if (
+                    self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
+                ):
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
+                        f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
+                        f"min_seeding_time must be less than or equal to max_seeding_time."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if self.share_limits[group]["min_seeding_time"] > 0 and self.share_limits[group]["max_ratio"] <= 0:
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is set, "
+                        f"but max_ratio ({self.share_limits[group]['max_ratio']}) is not set for the grouping '{group}'.\n"
+                        f"max_ratio must be greater than 0 when min_seeding_time is set."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["share_limits"]:
                 err = "Config Error: share_limits. No valid grouping found."
