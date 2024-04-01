@@ -43,6 +43,7 @@ settings:
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
+  force_retag_all: false # Forces all torrents to be updated on every run (may cause performance issues). This does not remove any previous tags assigned
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/>  # Output directory of cross-seed

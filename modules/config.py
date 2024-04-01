@@ -187,6 +187,9 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
+            "force_retag_all": self.util.check_for_attribute(
+                self.data, "force_retag_all", parent="settings", var_type="bool", default=False
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
