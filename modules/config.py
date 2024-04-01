@@ -735,7 +735,7 @@ class Config:
                         if not self.dry_run:
                             for path in location_path_list:
                                 if path != location_path:
-                                    util.remove_empty_directories(path, "**/*")
+                                    util.remove_empty_directories(path, "**/*", self.qbt.get_category_save_paths())
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",
