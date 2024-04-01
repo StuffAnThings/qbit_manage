@@ -221,6 +221,21 @@ class ShareLimits:
             logger.trace(f"check_group_upload_speed: {check_group_upload_speed}")
             logger.trace(f"hash_not_prev_checked: {hash_not_prev_checked}")
             logger.trace(f"share_limits_not_yet_tagged: {share_limits_not_yet_tagged}")
+
+            tor_reached_seed_limit = self.has_reached_seed_limit(
+                torrent=torrent,
+                max_ratio=group_config["max_ratio"],
+                max_seeding_time=group_config["max_seeding_time"],
+                min_seeding_time=group_config["min_seeding_time"],
+                min_num_seeds=group_config["min_num_seeds"],
+                last_active=group_config["last_active"],
+                resume_torrent=group_config["resume_torrent_after_change"],
+                tracker=tracker["url"],
+            )
+
+            # Get updated torrent after checking if the torrent has reached seed limits
+            torrent = self.qbt.get_torrents({"torrent_hashes": t_hash})[0]
+
             if (
                 check_max_ratio
                 or check_max_seeding_time
@@ -241,16 +256,6 @@ class ShareLimits:
                     self.stats_tagged += 1
                     self.torrents_updated.append(t_name)
 
-            tor_reached_seed_limit = self.has_reached_seed_limit(
-                torrent=torrent,
-                max_ratio=group_config["max_ratio"],
-                max_seeding_time=group_config["max_seeding_time"],
-                min_seeding_time=group_config["min_seeding_time"],
-                min_num_seeds=group_config["min_num_seeds"],
-                last_active=group_config["last_active"],
-                resume_torrent=group_config["resume_torrent_after_change"],
-                tracker=tracker["url"],
-            )
             # Cleanup torrents if the torrent meets the criteria for deletion and cleanup is enabled
             if group_config["cleanup"]:
                 if tor_reached_seed_limit:
