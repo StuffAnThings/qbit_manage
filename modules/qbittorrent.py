@@ -33,7 +33,7 @@ class Qbt:
         self.password = params["password"]
         logger.secret(self.username)
         logger.secret(self.password)
-        logger.debug(f"Host: {self.host}, Username: {self.username}, Password: {self.password}")
+        logger.debug(f"Host: {self.host}")
         ex = ""
         try:
             self.client = Client(
