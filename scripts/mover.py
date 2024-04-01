@@ -16,13 +16,19 @@ parser.add_argument(
     "--cache-mount",
     "--cache_mount",
     help="Cache mount point in Unraid. This is used to additionally filter for only torrents that exists on the cache mount."
-    "Use this option ONLY if you follow TRaSH Guides folder structure.",
+    "Use this option ONLY if you follow TRaSH Guides folder structure. (For default cache drive set this to /mnt/cache)",
     default=None,
 )
 parser.add_argument(
     "--days-from", "--days_from", help="Set Number of Days to stop torrents between two offsets", type=int, default=0
 )
 parser.add_argument("--days-to", "--days_to", help="Set Number of Days to stop torrents between two offsets", type=int, default=2)
+parser.add_argument(
+    "--mover-old",
+    help="Use mover.old instead of mover. Useful if you're using the Mover Tuning Plugin",
+    action="store_true",
+    default=False,
+)
 # --DEFINE VARIABLES--#
 
 # --START SCRIPT--#
@@ -88,10 +94,12 @@ if __name__ == "__main__":
     stop_start_torrents(torrents, True)
     time.sleep(10)
     # Start mover
-    print("Starting Mover")
+    print(f"Starting {'mover.old' if args.mover_old else 'mover'} to move files older than {args.days_to} days to array disks.")
     # Or using mover tunning
-    # os.system('/usr/local/sbin/mover start')
-    os.system("/usr/local/sbin/mover.old start")
+    if args.mover_old:
+        os.system("/usr/local/sbin/mover.old start")
+    else:
+        os.system("/usr/local/sbin/mover start")
     # Start Torrents
     print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, False)
