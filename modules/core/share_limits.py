@@ -278,7 +278,7 @@ class ShareLimits:
             torrent=torrent,
             max_ratio=group_config["max_ratio"],
             max_seeding_time=group_config["max_seeding_time"],
-            limit_upload_speed=group_config["limit_upload_speed"] if group_config["limit_upload_speed"] else group_up_limit,
+            limit_upload_speed=group_config["limit_upload_speed"] if group_config["limit_upload_speed"] > 0 else group_up_limit,
             tags=self.group_tag,
         )
         # Resume torrent if it was paused now that the share limit has changed
