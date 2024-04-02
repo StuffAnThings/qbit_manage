@@ -189,7 +189,7 @@ class ShareLimits:
             if group_config["group_upload_speed"]:
                 group_up_limit = round(group_config["group_upload_speed"] / len(torrents))
             else:
-                group_up_limit = -1
+                group_up_limit = group_config["limit_upload_speed"]
             check_group_upload_speed = group_up_limit != torrent_upload_limit
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
@@ -516,7 +516,7 @@ class ShareLimits:
                 _remove_min_seeding_time_tag()
                 return False
             if seeding_time_limit:
-                if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
+                if _has_reached_min_seeding_time_limit() and (torrent.seeding_time >= seeding_time_limit * 60):
                     body += logger.insert_space(
                         f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
                         f"{timedelta(minutes=seeding_time_limit)}",
