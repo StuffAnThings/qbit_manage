@@ -170,6 +170,8 @@ class ShareLimits:
         logger.separator(
             f"Updating Share Limits for [Group {group_name}] [Priority {group_config['priority']}]", space=False, border=False
         )
+        group_upload_speed = group_config["limit_upload_speed"]
+
         for torrent in torrents:
             t_name = torrent.name
             t_hash = torrent.hash
@@ -181,16 +183,16 @@ class ShareLimits:
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
             # Treat upload limit as -1 if it is set to 0 (unlimited)
             torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
-            if group_config["limit_upload_speed"] == 0:
+            if group_config["limit_upload_speed"] <= 0:
                 group_config["limit_upload_speed"] = -1
             else:
                 if group_config["enable_group_upload_speed"]:
                     logger.trace(
                         "enable_group_upload_speed set to True.\n"
-                        f"Setting limit_upload_speed to {group_config['limit_upload_speed']} / {len(torrents)} = "
-                        f"{round(group_config['limit_upload_speed'] / len(torrents))} kB/s"
+                        f"Setting limit_upload_speed to {group_upload_speed} / {len(torrents)} = "
+                        f"{round(group_upload_speed / len(torrents))} kB/s"
                     )
-                    group_config["limit_upload_speed"] = round(group_config["limit_upload_speed"] / len(torrents))
+                    group_config["limit_upload_speed"] = round(group_upload_speed / len(torrents))
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
             share_limits_not_yet_tagged = (
