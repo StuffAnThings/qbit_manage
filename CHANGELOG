@@ -1,22 +1,17 @@
 # Requirements Updated
-- qbittorrent-api==2024.2.59
-- GitPython==3.1.42
-- ruamel.yaml==0.18.6
+- qbittorrent-api==2024.3.60
+- GitPython==3.1.43
 
 # New Features
-- Adds support for filtering more than just Completed torrents. Closes [#115](https://github.com/StuffAnThings/qbit_manage/issues/115)
-- Updates mover script (Add check if file is still on cache mount #493)
-- Adds support for ghcr.io container registry
-- Adds support for custom [share_limits/cross-seed tags](https://github.com/StuffAnThings/qbit_manage/commit/9f8be69a4f2680501d492a8c7148969ae5ac5b72#diff-e5794b6d2186004aa3ee69cd4dee7bbd48d8e0edd9f1da90d03393ec28cbf912) Closes [#457](https://github.com/StuffAnThings/qbit_manage/issues/457)
+- Added Group Uplaod Speed to share limits config to apply upload speed limits at a group level. Closes [#494](https://github.com/StuffAnThings/qbit_manage/issues/494)
+- Added Force Retag All in config settings to force retagging of all torrents. Closes [#513](https://github.com/StuffAnThings/qbit_manage/issues/513)
+- Added `--mover-old` command in mover script for users that use Mover Tuning Plugin
 
 
 # Bug Fixes
-- Fixes [#359](https://github.com/StuffAnThings/qbit_manage/issues/359)
-- Fixes [#479](https://github.com/StuffAnThings/qbit_manage/issues/479)
-- Fixes [#487](https://github.com/StuffAnThings/qbit_manage/issues/487)
-- Fixes [#488](https://github.com/StuffAnThings/qbit_manage/issues/488)
-- Fixes [#490](https://github.com/StuffAnThings/qbit_manage/issues/490)
-- Update script header so that env python3 is used.
+- Fixes [#501](https://github.com/StuffAnThings/qbit_manage/issues/501)
+- Adds additional error checking for invalid share limits defined in config
+- Minor bug fixes in share limits
 
-Special thanks to @NooNameR, @ShanaryS, @ext4xfs for their contributions!
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.8...v4.0.9
+Special thanks to @walkerp1 for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.9...v4.1.0
