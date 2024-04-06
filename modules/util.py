@@ -421,7 +421,7 @@ def copy_files(src, dest):
         logger.error(ex)
 
 
-def remove_empty_directories(pathlib_root_dir, pattern):
+def remove_empty_directories(pathlib_root_dir, pattern, excluded_paths=None):
     """Remove empty directories recursively."""
     pathlib_root_dir = Path(pathlib_root_dir)
     try:
@@ -435,6 +435,8 @@ def remove_empty_directories(pathlib_root_dir, pattern):
         longest.append(pathlib_root_dir)  # delete the folder itself if it's empty
         for pdir in longest:
             try:
+                if str(pdir) in excluded_paths:
+                    continue
                 pdir.rmdir()  # remove directory if empty
             except (FileNotFoundError, OSError):
                 continue  # catch and continue if non-empty, folders within could already be deleted if run in parallel

@@ -2,6 +2,7 @@
 
 import os
 import sys
+from functools import cache
 
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
@@ -33,7 +34,7 @@ class Qbt:
         self.password = params["password"]
         logger.secret(self.username)
         logger.secret(self.password)
-        logger.debug(f"Host: {self.host}, Username: {self.username}, Password: {self.password}")
+        logger.debug(f"Host: {self.host}")
         ex = ""
         try:
             self.client = Client(
@@ -357,6 +358,7 @@ class Qbt:
             logger.warning(e)
         return tracker
 
+    @cache
     def get_category(self, path):
         """Get category from config file based on path provided"""
         category = ""
@@ -377,6 +379,17 @@ class Qbt:
             self.config.notify(e, "Category", False)
             logger.warning(e)
         return category
+
+    @cache
+    def get_category_save_paths(self):
+        """Get all categories from qbitorrenta and return a list of save_paths"""
+        save_paths = set()
+        categories = self.client.torrent_categories.categories
+        for cat in categories:
+            save_path = categories[cat].savePath.replace(self.config.root_dir, self.config.remote_dir)
+            if save_path:
+                save_paths.add(save_path)
+        return list(save_paths)
 
     def tor_delete_recycle(self, torrent, info):
         """Move torrent to recycle bin"""
@@ -477,7 +490,7 @@ class Qbt:
                 # Delete torrent and files
                 torrent.delete(delete_files=to_delete)
                 # Remove any empty directories
-                util.remove_empty_directories(save_path, "**/*")
+                util.remove_empty_directories(save_path, "**/*", self.get_category_save_paths())
             else:
                 torrent.delete(delete_files=False)
         else:

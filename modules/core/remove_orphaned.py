@@ -85,7 +85,10 @@ class RemoveOrphaned:
             if not self.config.dry_run:
                 orphaned_parent_path = set(self.executor.map(self.move_orphan, orphaned_files))
                 logger.print_line("Removing newly empty directories", self.config.loglevel)
-                self.executor.map(lambda dir: util.remove_empty_directories(dir, "**/*"), orphaned_parent_path)
+                self.executor.map(
+                    lambda dir: util.remove_empty_directories(dir, "**/*", self.qbt.get_category_save_paths()),
+                    orphaned_parent_path,
+                )
 
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)

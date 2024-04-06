@@ -187,6 +187,9 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
+            "force_retag_all": self.util.check_for_attribute(
+                self.data, "force_retag_all", parent="settings", var_type="bool", default=False
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
@@ -465,6 +468,16 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["enable_group_upload_speed"] = self.util.check_for_attribute(
+                    self.data,
+                    "enable_group_upload_speed",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=False,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["min_num_seeds"] = self.util.check_for_attribute(
                     self.data,
                     "min_num_seeds",
@@ -508,6 +521,25 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                if (
+                    self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
+                ):
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
+                        f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
+                        f"min_seeding_time must be less than or equal to max_seeding_time."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if self.share_limits[group]["min_seeding_time"] > 0 and self.share_limits[group]["max_ratio"] <= 0:
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is set, "
+                        f"but max_ratio ({self.share_limits[group]['max_ratio']}) is not set for the grouping '{group}'.\n"
+                        f"max_ratio must be greater than 0 when min_seeding_time is set."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["share_limits"]:
                 err = "Config Error: share_limits. No valid grouping found."
@@ -721,7 +753,7 @@ class Config:
                         if not self.dry_run:
                             for path in location_path_list:
                                 if path != location_path:
-                                    util.remove_empty_directories(path, "**/*")
+                                    util.remove_empty_directories(path, "**/*", self.qbt.get_category_save_paths())
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",
