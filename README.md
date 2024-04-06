@@ -28,12 +28,12 @@ This is a program used to manage your qBittorrent instance such as:
 ### Master
 
 ![master - qbittorrent-api version](https://img.shields.io/badge/qbittorrent--api-2024.3.60-blue)
-![master - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent_v4.6.4-brightgreen)
+![master - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent-v4.6.4-brightgreen)
 
 ### Develop
 
 ![develop - qbittorrent-api version](https://img.shields.io/badge/qbittorrent--api-2024.3.60-blue)
-![develop - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent_v4.6.4-brightgreen)
+![develop - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent-v4.6.4-brightgreen)
 
 ## Getting Started
 
