@@ -1,8 +1,13 @@
 import json
 import re
+import subprocess
 import sys
 
-from qbittorrentapi import Version
+try:
+    from qbittorrentapi import Version
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "qbittorrent-api"])
+    from qbittorrentapi import Version
 
 # Check if a branch name was provided
 if len(sys.argv) != 2:
@@ -44,3 +49,4 @@ print("Writing updated versions to SUPPORTED_VERSIONS.json...")
 # Write the updated versions back to SUPPORTED_VERSIONS.json
 with open(versions_file_path, "w", encoding="utf-8") as file:
     json.dump(supported_versions, file, indent=4)
+    file.write("\n")

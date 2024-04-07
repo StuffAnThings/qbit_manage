@@ -61,3 +61,11 @@ repos:
         language: script
         pass_filenames: false
         stages: [commit]
+  - repo: local
+    hooks:
+      - id: update-readme-version
+        name: Update readme version
+        entry: ./scripts/pre-commit/update-readme-version.sh
+        language: script
+        pass_filenames: false
+        stages: [commit]
