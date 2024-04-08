@@ -1,8 +1,8 @@
 # Docker Installation
 
-A simple Dockerfile is available in this repo if you'd like to build it yourself. The official build is also available from dockerhub [here](https://hub.docker.com/r/bobokun/qbit_manage): <br>
-
-`docker run -it -v <PATH_TO_CONFIG>:/config:rw bobokun/qbit_manage`
+A simple Dockerfile is available in this repo if you'd like to build it yourself.
+The official build on github is available [here](https://ghcr.io/StuffAnThings/qbit_manage): <br>
+`docker run -it -v <PATH_TO_CONFIG>:/config:rw ghcr.io/stuffanthings/qbit_manage:latest`
 
 * The -v <PATH_TO_CONFIG>:/config:rw mounts the location you choose as a persistent volume to store your files.
   * Change <PATH_TO_CONFIG> to a folder where your config.yml and other files are.
@@ -52,7 +52,7 @@ version: "3.7"
 services:
   qbit_manage:
     container_name: qbit_manage
-    image: bobokun/qbit_manage
+    image: ghcr.io/stuffanthings/qbit_manage:latest
     volumes:
       - /mnt/user/appdata/qbit_manage/:/config:rw
       - /mnt/user/data/torrents/:/data/torrents:rw
