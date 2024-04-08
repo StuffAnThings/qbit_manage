@@ -1,4 +1,6 @@
-# <img src="qbm_logo.png" width="75"> qBit Manage
+# Qbittorrent Manage
+
+![qBit Manage](qbm_logo.png =75x)
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/StuffAnThings/qbit_manage?style=plastic)](https://github.com/StuffAnThings/qbit_manage/releases)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/StuffAnThings/qbit_manage/latest/develop?label=Commits%20in%20Develop&style=plastic)](https://github.com/StuffAnThings/qbit_manage/tree/develop)
@@ -27,29 +29,34 @@ This is a program used to manage your qBittorrent instance such as:
 
 ### Master
 
-![master - qbittorrent-api version](https://img.shields.io/badge/qbittorrent--api-2024.3.60-blue)
-![master - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent-v4.6.4-brightgreen)
+![master - qBittorrent version](https://img.shields.io/badge/dynamic/json?label=master%20-%20qBittorrent&query=master.qbit&url=https%3A%2F%2Fraw.githubusercontent.com%2FStuffAnThings%2Fqbit_manage%2Fdevelop%2FSUPPORTED_VERSIONS.json&color=brightgreen)
+
+![master - qbittorrent-api version](https://img.shields.io/badge/dynamic/json?label=master%20-%20qbittorrent-api&query=master.qbitapi&url=https%3A%2F%2Fraw.githubusercontent.com%2FStuffAnThings%2Fqbit_manage%2Fdevelop%2FSUPPORTED_VERSIONS.json&color=blue)
 
 ### Develop
 
-![develop - qbittorrent-api version](https://img.shields.io/badge/qbittorrent--api-2024.3.60-blue)
-![develop - Supported qBittorrent version](https://img.shields.io/badge/qBittorrent-v4.6.4-brightgreen)
+![develop - qBittorrent version](https://img.shields.io/badge/dynamic/json?label=develop%20-%20qBittorrent&query=develop.qbit&url=https%3A%2F%2Fraw.githubusercontent.com%2FStuffAnThings%2Fqbit_manage%2Fdevelop%2FSUPPORTED_VERSIONS.json&color=brightgreen)
+
+![develop - qbittorrent-api version](https://img.shields.io/badge/dynamic/json?label=develop%20-%20qbittorrent-api&query=develop.qbitapi&url=https%3A%2F%2Fraw.githubusercontent.com%2FStuffAnThings%2Fqbit_manage%2Fdevelop%2FSUPPORTED_VERSIONS.json&color=blue)
 
 ## Getting Started
 
 Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for installation help
 
-1. Install qbit_manage either by installing Python 3.8.1+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.<br>
-2. Once installed, you have to [set up your Configuration](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) by create a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) filled with all your values to connect to your qBittorrent instance.
-3. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
+1. Install qbit_manage either by installing Python 3.8.1+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.
+1. Once installed, you have to [set up your Configuration](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) by create a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) filled with all your values to connect to your qBittorrent instance.
+1. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
 
 ## Usage
+
 To run the script in an interactive terminal with a list of possible commands run:
+
 ```bash
 python qbit_manage.py -h
 ```
 
 ## Support
+
 * If you have any questions or require support please join the [Notifiarr Discord](https://discord.com/invite/AURf8Yz) and post your question under the `qbit-manage` channel.
 * If you're getting an Error or have an Enhancement post in the [Issues](https://github.com/StuffAnThings/qbit_manage/issues/new).
 * If you have a configuration question post in the [Discussions](https://github.com/StuffAnThings/qbit_manage/discussions/new).

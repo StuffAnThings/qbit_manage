@@ -1,17 +1,12 @@
-# Requirements Updated
-- qbittorrent-api==2024.3.60
-- GitPython==3.1.43
-
-# New Features
-- Added Group Uplaod Speed to share limits config to apply upload speed limits at a group level. Closes [#494](https://github.com/StuffAnThings/qbit_manage/issues/494)
-- Added Force Retag All in config settings to force retagging of all torrents. Closes [#513](https://github.com/StuffAnThings/qbit_manage/issues/513)
-- Added `--mover-old` command in mover script for users that use Mover Tuning Plugin
-
+# New Updates
+- Added docs to qbit-manage repo (under docs folder)
+- Bi-directional wiki sync
+- Automatically update supported version to README
+- Pre-commit hooks to update readme version
+- Dependabot to automatically update qbittorrent-api on master
 
 # Bug Fixes
-- Fixes [#501](https://github.com/StuffAnThings/qbit_manage/issues/501)
-- Adds additional error checking for invalid share limits defined in config
-- Minor bug fixes in share limits
+- fixes [#522](https://github.com/StuffAnThings/qbit_manage/issues/522)
 
-Special thanks to @walkerp1 for their contributions!
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.0.9...v4.1.0
+Special thanks to @bakerboy448 for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.0...v4.1.1

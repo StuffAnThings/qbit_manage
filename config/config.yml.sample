@@ -200,7 +200,7 @@ share_limits:
     last_active: 43200
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
-    # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents for the group.
+    # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents in the group.
     enable_group_upload_speed: false
     # <OPTIONAL> cleanup <bool>: WARNING!! Setting this as true Will remove and delete contents of any torrents that satisfies the share limits (max time OR max ratio)
     cleanup: false

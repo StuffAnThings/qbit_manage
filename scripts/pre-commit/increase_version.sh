@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Check if there are any changes staged for commit
 if [[ -z $(git diff --cached --name-only) ]]; then

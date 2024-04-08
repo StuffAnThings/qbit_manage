@@ -372,7 +372,8 @@ class ShareLimits:
                         body.append(msg)
         # Update Torrents
         if not self.config.dry_run:
-            torrent.add_tags(tags)
+            if tags:
+                torrent.add_tags(tags)
             torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
             if limit_upload_speed is not None and limit_upload_speed != torrent_upload_limit:
                 if limit_upload_speed == -1:
