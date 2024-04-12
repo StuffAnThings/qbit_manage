@@ -18,4 +18,4 @@ RUN echo "**** install system packages ****" \
 COPY . /app
 WORKDIR /app
 VOLUME /config
-ENTRYPOINT ["/sbin/tini", "-s", "python3", "qbit_manage.py", "--"]
+ENTRYPOINT ["/sbin/tini", "-s", "python3", "qbit_manage.py"]
