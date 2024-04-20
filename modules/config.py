@@ -578,6 +578,8 @@ class Config:
                     self.remote_dir = self.util.check_for_attribute(
                         self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
                     )
+            if not self.remote_dir:
+                self.remote_dir = self.root_dir
             if self.commands["cross_seed"]:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
