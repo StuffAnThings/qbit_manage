@@ -36,5 +36,5 @@ class BeyondHD:
             logger.debug(f"Response: {response_json}")
             raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
         if not response_json.get("success"):
-            raise Failed(f"BHD Error: {response_json.get('status_message','Issue receiving response from BHD API.')}")
+            raise Failed(f"BHD Error: {response_json.get('status_message', 'Issue receiving response from BHD API.')}")
         return response_json
