@@ -56,7 +56,6 @@ This section defines any settings defined in the configuration.
 | `cat_filter_completed` | When running `--cat-update` function, it will filter for completed torrents only. | <center>❌</center> |
 | `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | <center>❌</center> |
 | `tag_nohardlinks_filter_completed` | When running `--tag-nohardlinks` function, , it will filter for completed torrents only. | <center>❌</center> |
-| `force_retag_all` | When running --tag-update function, it will force all torrents to update their tags.  (May cause performance issues). **This does not remove any previous tags assigned** | <center>❌</center> |
 ## **directory:**
 
 ---

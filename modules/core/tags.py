@@ -13,7 +13,6 @@ class Tags:
         self.default_ignore_tags = qbit_manager.config.default_ignore_tags  # default ignore tags
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
-        self.force_retag = qbit_manager.config.settings["force_retag_all"]  # Force retag of all torrents
 
         self.tags()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
@@ -23,7 +22,7 @@ class Tags:
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-            if torrent.tags == "" or self.force_retag or not util.is_tag_in_torrent(tracker["tag"], torrent.tags):
+            if torrent.tags == "" or not util.is_tag_in_torrent(tracker["tag"], torrent.tags):
                 if tracker["tag"]:
                     t_name = torrent.name
                     self.stats += len(tracker["tag"])
