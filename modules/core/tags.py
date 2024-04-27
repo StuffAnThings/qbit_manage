@@ -20,14 +20,10 @@ class Tags:
 
     def tags(self):
         """Update tags for torrents"""
-        ignore_tags = self.config.settings["ignoreTags_OnUpdate"]
-        ignore_tags.extend(tag for tag in self.default_ignore_tags if tag not in ignore_tags)
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:
-            check_tags = [tag for tag in util.get_list(torrent.tags) if self.share_limits_tag not in tag]
-
-            if torrent.tags == "" or (len([trk for trk in check_tags if trk not in ignore_tags]) == 0) or self.force_retag:
-                tracker = self.qbt.get_tags(torrent.trackers)
+            tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
+            if torrent.tags == "" or self.force_retag or not util.is_tag_in_torrent(tracker["tag"], torrent.tags):
                 if tracker["tag"]:
                     t_name = torrent.name
                     self.stats += len(tracker["tag"])

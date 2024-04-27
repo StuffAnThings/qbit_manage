@@ -262,9 +262,14 @@ class Qbt:
         """Get torrents from qBittorrent"""
         return self.client.torrents.info(**params)
 
-    def get_tags(self, trackers):
+    def get_tracker_urls(self, trackers):
+        """Get tracker urls from torrent"""
+        return tuple(x.url for x in trackers if x.url.startswith(("http", "udp", "ws")))
+
+    @cache
+    def get_tags(self, urls):
         """Get tags from config file based on keyword"""
-        urls = [x.url for x in trackers if x.url.startswith(("http", "udp", "ws"))]
+        urls = list(urls)
         tracker = {}
         tracker["tag"] = None
         tracker["cat"] = None

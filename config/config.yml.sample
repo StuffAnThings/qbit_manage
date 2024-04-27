@@ -32,13 +32,6 @@ settings:
   share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
   share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
   share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
-  ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
-    - noHL
-    - issue
-    - cross-seed
-    - MinSeedTimeNotReached
-    - MinSeedsNotMet
-    - LastActiveLimitNotReached
   cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
@@ -97,6 +90,7 @@ tracker:
     notifiarr: avistaz
   beyond-hd:
     tag: [Beyond-HD, tag2, tag3]
+    cat: movies
     notifiarr: beyondhd
   blutopia:
     tag: Blutopia

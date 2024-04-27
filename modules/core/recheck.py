@@ -30,7 +30,7 @@ class ReCheck:
             torrent_list = self.qbt.get_torrents({"status_filter": "paused", "sort": "size"})
             if torrent_list:
                 for torrent in torrent_list:
-                    tracker = self.qbt.get_tags(torrent.trackers)
+                    tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                     t_name = torrent.name
                     t_category = torrent.category
                     # Resume torrent if completed

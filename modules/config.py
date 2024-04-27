@@ -208,9 +208,6 @@ class Config:
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
         ]
-        self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
-            self.data, "ignoreTags_OnUpdate", parent="settings", default=self.default_ignore_tags, var_type="list"
-        )
         # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")

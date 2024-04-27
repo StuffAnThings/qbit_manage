@@ -118,7 +118,7 @@ class CrossSeed:
                 and torrent.downloaded == 0
                 and torrent.seeding_time > 0
             ):
-                tracker = self.qbt.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 self.stats_tagged += 1
                 body = logger.print_line(
                     f"{'Not Adding' if self.config.dry_run else 'Adding'} '{self.cross_seed_tag}' tag to {t_name}",

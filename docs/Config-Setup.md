@@ -52,7 +52,6 @@ This section defines any settings defined in the configuration.
 | `share_limits_min_seeding_time_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)                         | <center>❌</center> |
 | `share_limits_min_num_seeds_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)                         | <center>❌</center> |
 | `share_limits_last_active_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)                         | <center>❌</center> |
-| `ignoreTags_OnUpdate` | When running `--tag-update` function, it will update torrent tags for a given torrent even if the torrent has one or more of the tags defined here. | <center>❌</center> |
 | `cross_seed_tag` | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag. | <center>❌</center> |
 | `cat_filter_completed` | When running `--cat-update` function, it will filter for completed torrents only. | <center>❌</center> |
 | `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | <center>❌</center> |
@@ -117,6 +116,7 @@ This section defines the tags used based upon the tracker's URL.<br>
 | Variable             | Definition                                                                                                                        | Default Values | Required           |
 | :------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------- | :----------------- |
 | `tag`                | The tracker tag or additional list of tags defined                                                                                | Tracker URL    | <center>✅</center> |
+| `cat`                | Set the category based on tracker URL. This category option takes priority over the category defined in [cat](#cat)               | None           | <center>❌</center> |
 | `notifiarr`          | Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr                | None           | <center>❌</center> |
 
 If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a key word from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.

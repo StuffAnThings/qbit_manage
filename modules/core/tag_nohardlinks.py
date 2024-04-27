@@ -100,7 +100,7 @@ class TagNoHardLinks:
                 logger.warning(ex)
                 continue
             for torrent in torrent_list:
-                tracker = self.qbt.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 has_nohardlinks = check_hardlinks.nohardlink(
                     torrent["content_path"].replace(self.root_dir, self.remote_dir), self.config.notify
                 )
@@ -111,7 +111,7 @@ class TagNoHardLinks:
                     # Checks for any hardlinks and not already tagged
                     # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
                     if has_nohardlinks:
-                        tracker = self.qbt.get_tags(torrent.trackers)
+                        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                         # Will only tag new torrents that don't have nohardlinks_tag tag
                         if not util.is_tag_in_torrent(self.nohardlinks_tag, torrent.tags):
                             self.add_tag_no_hl(

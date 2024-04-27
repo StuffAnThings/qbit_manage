@@ -83,7 +83,7 @@ class ShareLimits:
             t_status = self.qbt.torrentinfo[t_name]["status"]
             # Double check that the content path is the same before we delete anything
             if torrent["content_path"].replace(self.root_dir, self.remote_dir) == torrent_dict["content_path"]:
-                tracker = self.qbt.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
@@ -178,7 +178,7 @@ class ShareLimits:
             self.group_tag = (
                 f"{self.share_limits_tag}_{group_config['priority']}.{group_name}" if group_config["add_group_to_tag"] else None
             )
-            tracker = self.qbt.get_tags(torrent.trackers)
+            tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
             check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
             # Treat upload limit as -1 if it is set to 0 (unlimited)

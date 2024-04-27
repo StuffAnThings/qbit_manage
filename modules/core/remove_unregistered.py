@@ -47,7 +47,7 @@ class RemoveUnregistered:
             t_name = torrent.name
             # Remove any error torrents Tags that are no longer unreachable.
             if self.tag_error in check_tags:
-                tracker = self.qbt.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 self.stats_untagged += 1
                 body = []
                 body += logger.print_line(

@@ -46,12 +46,12 @@ class Category:
             logger.print_line("No new torrents to categorize.", self.config.loglevel)
 
     def get_tracker_cat(self, torrent):
-        tracker = self.qbt.get_tags(torrent.trackers)
+        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
         return tracker["cat"]
 
     def update_cat(self, torrent, new_cat, cat_change):
         """Update category based on the torrent information"""
-        tracker = self.qbt.get_tags(torrent.trackers)
+        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
         t_name = torrent.name
         old_cat = torrent.category
         if not self.config.dry_run:
