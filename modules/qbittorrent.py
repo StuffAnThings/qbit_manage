@@ -452,7 +452,7 @@ class Qbt:
                         if idx == 0:
                             backup_str += val
                         else:
-                            backup_str += f" and {val.replace(info_hash,'')}"
+                            backup_str += f" and {val.replace(info_hash, '')}"
                     backup_str += f" to {torrent_path}"
                     logger.info(backup_str)
                 torrent_json["tracker_torrent_files"] = tracker_torrent_files
@@ -474,7 +474,7 @@ class Qbt:
                 else:
                     logger.print_line("\n".join(tor_files), "DEBUG")
                 logger.debug(
-                    f"Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir,self.config.root_dir)}"
+                    f"Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir, self.config.root_dir)}"
                 )
 
                 # Move files from torrent contents to Recycle bin
