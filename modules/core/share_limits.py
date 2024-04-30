@@ -208,6 +208,16 @@ class ShareLimits:
                 "Config Max Seeding Time vs Torrent Max Seeding Time: "
                 f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
             )
+            logger.trace(
+                "Config Max Seeding Time vs Torrent Current Seeding Time: "
+                f"({group_config['max_seeding_time']} vs {torrent.seeding_time / 60}) "
+                f"{timedelta(minutes=group_config['max_seeding_time'])} vs {timedelta(seconds=torrent.seeding_time)}"
+            )
+            logger.trace(
+                "Config Min Seeding Time vs Torrent Current Seeding Time: "
+                f"({group_config['min_seeding_time']} vs {torrent.seeding_time / 60}) "
+                f"{timedelta(minutes=group_config['min_seeding_time'])} vs {timedelta(seconds=torrent.seeding_time)}"
+            )
             logger.trace(f"Config Min Num Seeds vs Torrent Num Seeds: {group_config['min_num_seeds']} vs {torrent.num_complete}")
             logger.trace(f"check_max_seeding_time: {check_max_seeding_time}")
             logger.trace(
