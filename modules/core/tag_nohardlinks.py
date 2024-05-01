@@ -102,7 +102,9 @@ class TagNoHardLinks:
             for torrent in torrent_list:
                 tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 has_nohardlinks = check_hardlinks.nohardlink(
-                    torrent["content_path"].replace(self.root_dir, self.remote_dir), self.config.notify
+                    torrent["content_path"].replace(self.root_dir, self.remote_dir),
+                    self.config.notify,
+                    nohardlinks[category]["ignore_root_dir"],
                 )
                 if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in nohardlinks[category]["exclude_tags"]):
                     # Skip to the next torrent if we find any torrents that are in the exclude tag
