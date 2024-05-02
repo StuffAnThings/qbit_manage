@@ -318,6 +318,8 @@ class Config:
                     "exclude_tags": cat[cat_str].get("exclude_tags", []),
                     "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
                 }
+                if self.nohardlinks[cat_str]["exclude_tags"] is None:
+                    self.nohardlinks[cat_str]["exclude_tags"] = []
                 if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
                     err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
                     self.notify(err, "Config")
