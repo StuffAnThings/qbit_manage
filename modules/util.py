@@ -514,8 +514,10 @@ class CheckHardLinks:
                 logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
                 logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
                 logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                logger.trace(f"ignore_root_dir: {ignore_root_dir}")
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
                 if has_hardlinks(self, file, ignore_root_dir):
+                    logger.trace(f"Hardlinks found in {file}.")
                     check_for_hl = False
             else:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
@@ -544,7 +546,9 @@ class CheckHardLinks:
                         logger.trace(f"Checking file size: {file_size}")
                         logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
                         logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
+                        logger.trace(f"ignore_root_dir: {ignore_root_dir}")
                         if has_hardlinks(self, files, ignore_root_dir) and file_size >= (largest_file_size * threshold):
+                            logger.trace(f"Hardlinks found in {files}.")
                             check_for_hl = False
         except PermissionError as perm:
             logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
