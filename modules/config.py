@@ -304,24 +304,24 @@ class Config:
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
+                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
+                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+                    continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
-                    self.nohardlinks[cat_str] = {}
-                    exclude_tags = cat[cat_str].get("exclude_tags", [])
-                    if exclude_tags is None:
-                        exclude_tags = []
-                    if isinstance(exclude_tags, str):
-                        exclude_tags = [exclude_tags]
-                    self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
-                    self.nohardlinks[cat_str]["ignore_root_dir"] = cat[cat_str].get("ignore_root_dir", True)
-                    if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
-                        err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
-                        self.notify(err, "Config")
-                        raise Failed(err)
                 elif isinstance(cat, str):
-                    self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = []
-                    self.nohardlinks[cat]["ignore_root_dir"] = True
+                    cat_str = cat
+                    cat = self.data["nohardlinks"]
+                if cat[cat_str] is None:
+                    cat[cat_str] = {}
+                self.nohardlinks[cat_str] = {
+                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
+                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                }
+                if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
+                    err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
                 err = "Config Error: nohardlinks must be a list of categories"
