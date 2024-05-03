@@ -2,6 +2,7 @@
 """qBittorrent Manager."""
 import argparse
 import glob
+import math
 import os
 import platform
 import sys
@@ -584,7 +585,7 @@ def calc_next_run(next_run_time):
     current = current_time.strftime("%I:%M %p")
     time_to_run_str = next_run_time.strftime("%Y-%m-%d %I:%M %p")
     delta_seconds = (next_run_time - current_time).total_seconds()
-    time_until = humanize.precisedelta(timedelta(seconds=delta_seconds), minimum_unit="minutes", format="%d")
+    time_until = humanize.precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
     next_run = {}
     if run is False:
         next_run["next_run"] = next_run_time
@@ -683,7 +684,7 @@ if __name__ == "__main__":
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
-                logger.info(f"    Next Run: {next_run['next_run_str']}")
+                logger.info(next_run["next_run_str"])
                 schedule.run_pending()
                 time.sleep(60)
             end()
