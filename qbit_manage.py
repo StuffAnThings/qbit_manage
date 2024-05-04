@@ -444,7 +444,6 @@ def start():
     def finished_run():
         """Handle the end of a run"""
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
-        global next_run_time
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
@@ -620,7 +619,6 @@ def schedule_every_x_minutes(min):
 
 
 if __name__ == "__main__":
-    global next_run_time
     killer = GracefulKiller()
     logger.add_main_handler()
     logger.separator()
@@ -688,7 +686,6 @@ if __name__ == "__main__":
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
-                sys.stdout.write(f"{next_run['next_run_str']}\n")
                 schedule.run_pending()
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
