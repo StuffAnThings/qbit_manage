@@ -296,7 +296,7 @@ class check:
                 try:
                     parsed_seconds = parse(data[attribute])
                     if parsed_seconds is not None:
-                        return parsed_seconds / 60
+                        return int(parsed_seconds / 60)
                     else:
                         message = f"Unable to parse {text}, must be a valid time format."
                         throw = True
