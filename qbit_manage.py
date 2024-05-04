@@ -675,6 +675,8 @@ if __name__ == "__main__":
             if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
                 logger.info(f"    Scheduled Mode: Running cron '{sch}'")
                 next_run_time = schedule_from_cron(sch)
+                next_run = calc_next_run(next_run_time)
+                logger.info(f"    {next_run['next_run_str']}")
             else:
                 delta = timedelta(minutes=sch)
                 logger.info(f"    Scheduled Mode: Running every {humanize.precisedelta(delta)}.")
@@ -686,7 +688,7 @@ if __name__ == "__main__":
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
-                print(next_run["next_run_str"])
+                sys.stdout.write(f"{next_run['next_run_str']}\n")
                 schedule.run_pending()
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
