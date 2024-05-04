@@ -51,7 +51,7 @@ parser.add_argument(
     type=str,
     help=(
         "Schedule to run every x minutes. (Default set to 1440 (1 day))."
-        "Can also customize schedule via cron syntax (See https://crontab.guru)",
+        "Can also customize schedule via cron syntax (See https://crontab.guru/examples.html)",
     ),
 )
 parser.add_argument(
@@ -444,14 +444,15 @@ def start():
     def finished_run():
         """Handle the end of a run"""
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
+        global next_run_time
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
-            next_run_time = schedule_from_cron(cron_expression=sch, get_only_next_run=True)
+            next_run_time = schedule_from_cron(sch)
         else:
             delta = timedelta(minutes=sch)
             logger.info(f"    Scheduled Mode: Running every {humanize.precisedelta(delta)}.")
-            next_run_time = schedule_every_x_minutes(min=sch, get_only_next_run=True)
+            next_run_time = schedule_every_x_minutes(sch)
         nxt_run = calc_next_run(next_run_time)
         next_run_str = nxt_run["next_run_str"]
         next_run = nxt_run["next_run"]
@@ -596,7 +597,8 @@ def calc_next_run(next_run_time):
     return next_run
 
 
-def schedule_from_cron(cron_expression, get_only_next_run=False):
+def schedule_from_cron(cron_expression):
+    schedule.clear()
     base_time = datetime.now()
     try:
         iter = croniter(cron_expression, base_time)
@@ -606,19 +608,19 @@ def schedule_from_cron(cron_expression, get_only_next_run=False):
         logger.stacktrace()
         sys.exit(1)
     delay = (next_run_time - base_time).total_seconds()
-    if not get_only_next_run:
-        schedule.every(delay).seconds.do(start_loop)
+    schedule.every(delay).seconds.do(start_loop)
     return next_run_time
 
 
-def schedule_every_x_minutes(min, get_only_next_run=False):
-    if not get_only_next_run:
-        schedule.every(min).minutes.do(start_loop)
+def schedule_every_x_minutes(min):
+    schedule.clear()
+    schedule.every(min).minutes.do(start_loop)
     next_run_time = datetime.now() + timedelta(minutes=min)
     return next_run_time
 
 
 if __name__ == "__main__":
+    global next_run_time
     killer = GracefulKiller()
     logger.add_main_handler()
     logger.separator()
@@ -672,11 +674,11 @@ if __name__ == "__main__":
         else:
             if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
                 logger.info(f"    Scheduled Mode: Running cron '{sch}'")
-                next_run_time = schedule_from_cron(cron_expression=sch, get_only_next_run=False)
+                next_run_time = schedule_from_cron(sch)
             else:
                 delta = timedelta(minutes=sch)
                 logger.info(f"    Scheduled Mode: Running every {humanize.precisedelta(delta)}.")
-                next_run_time = schedule_every_x_minutes(min=sch, get_only_next_run=False)
+                next_run_time = schedule_every_x_minutes(sch)
                 if startupDelay:
                     logger.info(f"    Startup Delay: Initial Run will start after {startupDelay} seconds")
                     time.sleep(startupDelay)
@@ -686,6 +688,7 @@ if __name__ == "__main__":
                 next_run = calc_next_run(next_run_time)
                 logger.info(next_run["next_run_str"])
                 schedule.run_pending()
+                logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
             end()
     except KeyboardInterrupt:
