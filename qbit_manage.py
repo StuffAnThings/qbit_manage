@@ -12,9 +12,9 @@ from datetime import timedelta
 from functools import cache
 
 try:
-    import humanize
     import schedule
     from croniter import croniter
+    from humanize import precisedelta
 
     from modules.logs import MyLogger
 except ModuleNotFoundError:
@@ -450,7 +450,7 @@ def start():
             next_run_time = schedule_from_cron(sch)
         else:
             delta = timedelta(minutes=sch)
-            logger.info(f"    Scheduled Mode: Running every {humanize.precisedelta(delta)}.")
+            logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
             next_run_time = schedule_every_x_minutes(sch)
         nxt_run = calc_next_run(next_run_time)
         next_run_str = nxt_run["next_run_str"]
@@ -585,7 +585,7 @@ def calc_next_run(next_run_time):
     current = current_time.strftime("%I:%M %p")
     time_to_run_str = next_run_time.strftime("%Y-%m-%d %I:%M %p")
     delta_seconds = (next_run_time - current_time).total_seconds()
-    time_until = humanize.precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
+    time_until = precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
     next_run = {}
     if run is False:
         next_run["next_run"] = next_run_time
@@ -677,7 +677,7 @@ if __name__ == "__main__":
                 logger.info(f"    {next_run['next_run_str']}")
             else:
                 delta = timedelta(minutes=sch)
-                logger.info(f"    Scheduled Mode: Running every {humanize.precisedelta(delta)}.")
+                logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
                 next_run_time = schedule_every_x_minutes(sch)
                 if startupDelay:
                     logger.info(f"    Startup Delay: Initial Run will start after {startupDelay} seconds")

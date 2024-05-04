@@ -10,6 +10,7 @@ from pathlib import Path
 
 import requests
 import ruamel.yaml
+from pytimeparse2 import parse
 
 logger = logging.getLogger("qBit Manage")
 
@@ -288,6 +289,20 @@ class check:
             else:
                 message = f"{text} must a float >= {float(min_int)}"
                 throw = True
+        elif var_type == "time_parse":
+            if isinstance(data[attribute], int) and data[attribute] >= min_int:
+                return data[attribute]
+            else:
+                try:
+                    parsed_seconds = parse(data[attribute])
+                    if parsed_seconds is not None:
+                        return parsed_seconds / 60
+                    else:
+                        message = f"Unable to parse {text}, must be a valid time format."
+                        throw = True
+                except Exception:
+                    message = f"Unable to parse {text}, must be a valid time format."
+                    throw = True
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")

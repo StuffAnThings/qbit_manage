@@ -183,18 +183,24 @@ share_limits:
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0
-    # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
+    # <OPTIONAL> max_seeding_time <str>: Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to -1 (no limit) if not specified for the group.
-    max_seeding_time: 129600
-    # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
+    max_seeding_time: 90d
+    # <OPTIONAL> min_seeding_time <str>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
     # This should only be set if you are using this in conjunction with max_seeding_time and max_ratio. If you are not setting a max_ratio, then use max_seeding_time instead.
     # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
-    min_seeding_time: 43200
-    # <OPTIONAL> last_active <int>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
+    min_seeding_time: 30d
+    # <OPTIONAL> last_active <str>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
     # If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
-    last_active: 43200
+    last_active: 30d
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
     # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents in the group.
@@ -214,14 +220,14 @@ share_limits:
     priority: 2
     include_all_tags:
       - cross-seed
-    max_seeding_time: 10200
+    max_seeding_time: 7d
     cleanup: false
   PTP:
     priority: 3
     include_all_tags:
       - PassThePopcorn
     max_ratio: 2.0
-    max_seeding_time: 130000
+    max_seeding_time: 90d
     cleanup: false
   default:
     priority: 999

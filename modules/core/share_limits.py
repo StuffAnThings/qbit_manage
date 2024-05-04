@@ -205,18 +205,18 @@ class ShareLimits:
             logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.max_ratio}")
             logger.trace(f"check_max_ratio: {check_max_ratio}")
             logger.trace(
-                "Config Max Seeding Time vs Torrent Max Seeding Time: "
+                "Config Max Seeding Time vs Torrent Max Seeding Time (minutes): "
                 f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
             )
             logger.trace(
-                "Config Max Seeding Time vs Torrent Current Seeding Time: "
+                "Config Max Seeding Time vs Torrent Current Seeding Time (minutes): "
                 f"({group_config['max_seeding_time']} vs {torrent.seeding_time / 60}) "
-                f"{timedelta(minutes=group_config['max_seeding_time'])} vs {timedelta(seconds=torrent.seeding_time)}"
+                f"{str(timedelta(minutes=group_config['max_seeding_time']))} vs {str(timedelta(seconds=torrent.seeding_time))}"
             )
             logger.trace(
-                "Config Min Seeding Time vs Torrent Current Seeding Time: "
+                "Config Min Seeding Time vs Torrent Current Seeding Time (minutes): "
                 f"({group_config['min_seeding_time']} vs {torrent.seeding_time / 60}) "
-                f"{timedelta(minutes=group_config['min_seeding_time'])} vs {timedelta(seconds=torrent.seeding_time)}"
+                f"{str(timedelta(minutes=group_config['min_seeding_time']))} vs {str(timedelta(seconds=torrent.seeding_time))}"
             )
             logger.trace(f"Config Min Num Seeds vs Torrent Num Seeds: {group_config['min_num_seeds']} vs {torrent.num_complete}")
             logger.trace(f"check_max_seeding_time: {check_max_seeding_time}")
@@ -369,13 +369,15 @@ class ShareLimits:
                     else:
                         body.append(msg)
                 elif max_seeding_time != torrent.max_seeding_time and (max_ratio is None or max_ratio < 0):
-                    msg = logger.insert_space(f"Share Limit: Max Seed Time = {max_seeding_time} min", 4)
+                    msg = logger.insert_space(f"Share Limit: Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4)
                     if do_print:
                         body += logger.print_line(msg, self.config.loglevel)
                     else:
                         body.append(msg)
                 elif max_ratio != torrent.max_ratio or max_seeding_time != torrent.max_seeding_time:
-                    msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {max_seeding_time} min", 4)
+                    msg = logger.insert_space(
+                        f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4
+                    )
                     if do_print:
                         body += logger.print_line(msg, self.config.loglevel)
                     else:
@@ -428,8 +430,8 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            f"Min seed time not met: {timedelta(seconds=torrent.seeding_time)} <="
-                            f" {timedelta(minutes=min_seeding_time)}. Removing Share Limits so qBittorrent can continue"
+                            f"Min seed time not met: {str(timedelta(seconds=torrent.seeding_time))} <="
+                            f" {str(timedelta(minutes=min_seeding_time))}. Removing Share Limits so qBittorrent can continue"
                             " seeding.",
                             8,
                         ),
@@ -494,8 +496,8 @@ class ShareLimits:
                     print_log += logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                     print_log += logger.print_line(
                         logger.insert_space(
-                            f"Min inactive time not met: {timedelta(minutes=inactive_time_minutes)} <="
-                            f" {timedelta(minutes=last_active)}. Removing Share Limits so qBittorrent can continue"
+                            f"Min inactive time not met: {str(timedelta(minutes=inactive_time_minutes))} <="
+                            f" {str(timedelta(minutes=last_active))}. Removing Share Limits so qBittorrent can continue"
                             " seeding.",
                             8,
                         ),
@@ -527,8 +529,8 @@ class ShareLimits:
             if seeding_time_limit:
                 if _has_reached_min_seeding_time_limit() and (torrent.seeding_time >= seeding_time_limit * 60):
                     body += logger.insert_space(
-                        f"Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} >= "
-                        f"{timedelta(minutes=seeding_time_limit)}",
+                        f"Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} >= "
+                        f"{str(timedelta(minutes=seeding_time_limit))}",
                         8,
                     )
                     return True
