@@ -686,7 +686,7 @@ if __name__ == "__main__":
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
-                logger.info(next_run["next_run_str"])
+                print(next_run["next_run_str"])
                 schedule.run_pending()
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
