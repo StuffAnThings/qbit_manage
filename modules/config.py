@@ -187,9 +187,6 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
-            "force_retag_all": self.util.check_for_attribute(
-                self.data, "force_retag_all", parent="settings", var_type="bool", default=False
-            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
@@ -208,9 +205,6 @@ class Config:
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
         ]
-        self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
-            self.data, "ignoreTags_OnUpdate", parent="settings", default=self.default_ignore_tags, var_type="list"
-        )
         # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")
@@ -310,18 +304,26 @@ class Config:
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
+                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
+                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+                    continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
-                    self.nohardlinks[cat_str] = {}
-                    exclude_tags = cat[cat_str].get("exclude_tags", [])
-                    if exclude_tags is None:
-                        exclude_tags = []
-                    if isinstance(exclude_tags, str):
-                        exclude_tags = [exclude_tags]
-                    self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
                 elif isinstance(cat, str):
-                    self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = []
+                    cat_str = cat
+                    cat = self.data["nohardlinks"]
+                if cat[cat_str] is None:
+                    cat[cat_str] = {}
+                self.nohardlinks[cat_str] = {
+                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
+                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                }
+                if self.nohardlinks[cat_str]["exclude_tags"] is None:
+                    self.nohardlinks[cat_str]["exclude_tags"] = []
+                if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
+                    err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
                 err = "Config Error: nohardlinks must be a list of categories"
@@ -440,7 +442,7 @@ class Config:
                     "max_seeding_time",
                     parent="share_limits",
                     subparent=group,
-                    var_type="int",
+                    var_type="time_parse",
                     min_int=-2,
                     default=-1,
                     do_print=False,
@@ -451,7 +453,7 @@ class Config:
                     "min_seeding_time",
                     parent="share_limits",
                     subparent=group,
-                    var_type="int",
+                    var_type="time_parse",
                     min_int=0,
                     default=0,
                     do_print=False,
@@ -494,7 +496,7 @@ class Config:
                     "last_active",
                     parent="share_limits",
                     subparent=group,
-                    var_type="int",
+                    var_type="time_parse",
                     min_int=0,
                     default=0,
                     do_print=False,

@@ -32,18 +32,10 @@ settings:
   share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
   share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
   share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
-  ignoreTags_OnUpdate: # When running tag-update function, it will update torrent tags for a given torrent even if the torrent has at least one or more of the tags defined here. Otherwise torrents will not be tagged if tags exist.
-    - noHL
-    - issue
-    - cross-seed
-    - MinSeedTimeNotReached
-    - MinSeedsNotMet
-    - LastActiveLimitNotReached
   cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
-  force_retag_all: false # Forces all torrents to be updated on every run (may cause performance issues). This does not remove any previous tags assigned
 directory:
   # Do not remove these
   # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
@@ -97,6 +89,7 @@ tracker:
     notifiarr: avistaz
   beyond-hd:
     tag: [Beyond-HD, tag2, tag3]
+    cat: movies
     notifiarr: beyondhd
   blutopia:
     tag: Blutopia
@@ -137,20 +130,24 @@ nohardlinks:
   # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
-  - movies-completed-4k
-  - series-completed-4k
-  - movies-completed:
-      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-      exclude_tags:
-        - Beyond-HD
-        - AnimeBytes
-        - MaM
+  movies-completed-4k:
+  series-completed-4k:
+  movies-completed:
+    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+    exclude_tags:
+      - Beyond-HD
+      - AnimeBytes
+      - MaM
+    # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir (Default True).
+    ignore_root_dir: true
   # Can have additional categories set with separate ratio/seeding times defined.
-  - series-completed:
-      # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-      exclude_tags:
-        - Beyond-HD
-        - BroadcasTheNet
+  series-completed:
+    # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
+    exclude_tags:
+      - Beyond-HD
+      - BroadcasTheNet
+    # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir (Default True).
+    ignore_root_dir: true
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping
@@ -186,18 +183,24 @@ share_limits:
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0
-    # <OPTIONAL> max_seeding_time <int>: Will set the torrent Maximum seeding time (minutes) until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
+    # <OPTIONAL> max_seeding_time <str>: Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to -1 (no limit) if not specified for the group.
-    max_seeding_time: 129600
-    # <OPTIONAL> min_seeding_time <int>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
+    max_seeding_time: 90d
+    # <OPTIONAL> min_seeding_time <str>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
     # This should only be set if you are using this in conjunction with max_seeding_time and max_ratio. If you are not setting a max_ratio, then use max_seeding_time instead.
     # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
-    min_seeding_time: 43200
-    # <OPTIONAL> last_active <int>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
+    min_seeding_time: 30d
+    # <OPTIONAL> last_active <str>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
     # If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
-    last_active: 43200
+    last_active: 30d
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
     # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents in the group.
@@ -217,14 +220,14 @@ share_limits:
     priority: 2
     include_all_tags:
       - cross-seed
-    max_seeding_time: 10200
+    max_seeding_time: 7d
     cleanup: false
   PTP:
     priority: 3
     include_all_tags:
       - PassThePopcorn
     max_ratio: 2.0
-    max_seeding_time: 130000
+    max_seeding_time: 90d
     cleanup: false
   default:
     priority: 999
