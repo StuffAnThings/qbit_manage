@@ -51,7 +51,7 @@ parser.add_argument(
     type=str,
     help=(
         "Schedule to run every x minutes. (Default set to 1440 (1 day))."
-        "Can also customize schedule via cron syntax (See https://crontab.guru/examples.html)",
+        "Can also customize schedule via cron syntax (See https://crontab.guru/examples.html)"
     ),
 )
 parser.add_argument(
