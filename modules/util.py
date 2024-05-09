@@ -63,6 +63,7 @@ class TorrentMessages:
         "RETITLED",
         "TRUNCATED",
         "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
+        "INFOHASH NOT FOUND.",
     ]
 
     IGNORE_MSGS = [
