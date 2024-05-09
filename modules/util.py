@@ -39,17 +39,14 @@ def get_list(data, lower=False, split=True, int_list=False):
 def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
     """Check if tag is in torrent_tags"""
     tags = get_list(torrent_tags)
-    if isinstance(check_tag, str):
-        if exact:
-            return check_tag in tags
-        else:
-            return any(check_tag in t for t in tags)
-    elif isinstance(check_tag, list):
-        if exact:
-            return all(tag in tags for tag in check_tag)
-        else:
-            return any(any(tag in t for t in tags) for tag in check_tag)
-    return False
+    if exact:
+        return check_tag in tags
+    else:
+        tags_to_remove = []
+        for tag in tags:
+            if check_tag in tag:
+                tags_to_remove.append(tag)
+        return tags_to_remove
 
 
 class TorrentMessages:

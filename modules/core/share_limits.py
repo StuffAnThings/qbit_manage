@@ -198,6 +198,7 @@ class ShareLimits:
             share_limits_not_yet_tagged = (
                 True if self.group_tag and not is_tag_in_torrent(self.group_tag, torrent.tags) else False
             )
+            check_multiple_share_limits_tag = len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 1
             logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
@@ -227,6 +228,9 @@ class ShareLimits:
             logger.trace(f"check_limit_upload_speed: {check_limit_upload_speed}")
             logger.trace(f"hash_not_prev_checked: {hash_not_prev_checked}")
             logger.trace(f"share_limits_not_yet_tagged: {share_limits_not_yet_tagged}")
+            logger.trace(
+                f"check_multiple_share_limits_tag: {is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)}"
+            )
 
             tor_reached_seed_limit = self.has_reached_seed_limit(
                 torrent=torrent,
@@ -241,13 +245,21 @@ class ShareLimits:
             # Get updated torrent after checking if the torrent has reached seed limits
             torrent = self.qbt.get_torrents({"torrent_hashes": t_hash})[0]
             if (
-                check_max_ratio or check_max_seeding_time or check_limit_upload_speed or share_limits_not_yet_tagged
+                check_max_ratio
+                or check_max_seeding_time
+                or check_limit_upload_speed
+                or share_limits_not_yet_tagged
+                or check_multiple_share_limits_tag
             ) and hash_not_prev_checked:
                 if (
-                    not is_tag_in_torrent(self.min_seeding_time_tag, torrent.tags)
-                    and not is_tag_in_torrent(self.min_num_seeds_tag, torrent.tags)
-                    and not is_tag_in_torrent(self.last_active_tag, torrent.tags)
-                ) or share_limits_not_yet_tagged:
+                    (
+                        not is_tag_in_torrent(self.min_seeding_time_tag, torrent.tags)
+                        and not is_tag_in_torrent(self.min_num_seeds_tag, torrent.tags)
+                        and not is_tag_in_torrent(self.last_active_tag, torrent.tags)
+                    )
+                    or share_limits_not_yet_tagged
+                    or check_multiple_share_limits_tag
+                ):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if self.group_tag:
