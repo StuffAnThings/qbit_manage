@@ -198,7 +198,9 @@ class ShareLimits:
             share_limits_not_yet_tagged = (
                 True if self.group_tag and not is_tag_in_torrent(self.group_tag, torrent.tags) else False
             )
-            check_multiple_share_limits_tag = len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 1
+            check_multiple_share_limits_tag = (
+                self.group_tag and len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 1
+            )
             logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
