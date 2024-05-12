@@ -358,44 +358,26 @@ class ShareLimits:
         if limit_upload_speed is not None:
             if limit_upload_speed != -1:
                 msg = logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 1)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
+                body.append(msg)
         if max_ratio is not None or max_seeding_time is not None:
             if max_ratio == -2 and max_seeding_time == -2:
                 msg = logger.insert_space("Share Limit: Use Global Share Limit", 4)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
+                body.append(msg)
             elif max_ratio == -1 and max_seeding_time == -1:
                 msg = logger.insert_space("Share Limit: Set No Share Limit", 4)
-                if do_print:
-                    body += logger.print_line(msg, self.config.loglevel)
-                else:
-                    body.append(msg)
+                body.append(msg)
             else:
                 if max_ratio != torrent.max_ratio and (max_seeding_time is None or max_seeding_time < 0):
                     msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4)
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
+                    body.append(msg)
                 elif max_seeding_time != torrent.max_seeding_time and (max_ratio is None or max_ratio < 0):
                     msg = logger.insert_space(f"Share Limit: Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4)
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
+                    body.append(msg)
                 elif max_ratio != torrent.max_ratio or max_seeding_time != torrent.max_seeding_time:
                     msg = logger.insert_space(
                         f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4
                     )
-                    if do_print:
-                        body += logger.print_line(msg, self.config.loglevel)
-                    else:
-                        body.append(msg)
+                    body.append(msg)
         # Update Torrents
         if not self.config.dry_run:
             if tags:
@@ -417,6 +399,7 @@ class ShareLimits:
             if is_tag_in_torrent(self.last_active_tag, torrent.tags):
                 return []
             torrent.set_share_limits(ratio_limit=max_ratio, seeding_time_limit=max_seeding_time, inactive_seeding_time_limit=-2)
+        [logger.print_line(msg, self.config.loglevel) for msg in body if do_print]
         return body
 
     def has_reached_seed_limit(
@@ -541,7 +524,7 @@ class ShareLimits:
                 _remove_min_seeding_time_tag()
                 return False
             if seeding_time_limit:
-                if _has_reached_min_seeding_time_limit() and (torrent.seeding_time >= seeding_time_limit * 60):
+                if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
                         f"Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} >= "
                         f"{str(timedelta(minutes=seeding_time_limit))}",
