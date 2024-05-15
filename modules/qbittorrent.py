@@ -403,17 +403,17 @@ class Qbt:
         except ValueError:
             logger.debug(f"Torrent {torrent.name} has already been removed from torrent files.")
 
-        if self.config.recyclebin["enabled"]:
-            tor_files = []
-            try:
-                info_hash = torrent.hash
-                save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
-                # Define torrent files/folders
-                for file in torrent.files:
-                    tor_files.append(os.path.join(save_path, file.name))
-            except NotFound404Error:
-                return
+        tor_files = []
+        try:
+            info_hash = torrent.hash
+            save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
+            # Define torrent files/folders
+            for file in torrent.files:
+                tor_files.append(os.path.join(save_path, file.name))
+        except NotFound404Error:
+            return
 
+        if self.config.recyclebin["enabled"]:
             if self.config.recyclebin["split_by_category"]:
                 recycle_path = os.path.join(save_path, os.path.basename(self.config.recycle_dir.rstrip(os.sep)))
             else:
@@ -504,6 +504,11 @@ class Qbt:
                 torrent.delete(delete_files=False)
         else:
             if info["torrents_deleted_and_contents"] is True:
+                for file in tor_files:
+                    # Add src file to orphan exclusion since sometimes deleting files are slow in certain environments
+                    exclude_file = file.replace(self.config.remote_dir, self.config.root_dir)
+                    if exclude_file not in self.config.orphaned["exclude_patterns"]:
+                        self.config.orphaned["exclude_patterns"].append(exclude_file)
                 torrent.delete(delete_files=True)
             else:
                 torrent.delete(delete_files=False)
