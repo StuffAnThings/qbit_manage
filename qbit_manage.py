@@ -1,20 +1,25 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """qBittorrent Manager."""
 import argparse
 import glob
+import math
 import os
 import platform
 import sys
 import time
 from datetime import datetime
 from datetime import timedelta
+from functools import cache
 
 try:
     import schedule
+    from croniter import croniter
+    from humanize import precisedelta
+
     from modules.logs import MyLogger
 except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
-    sys.exit(0)
+    sys.exit(1)
 
 REQUIRED_VERSION = (3, 8, 1)
 REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
@@ -25,7 +30,7 @@ if current_version < (REQUIRED_VERSION):
         "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
         % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
     )
-    sys.exit(0)
+    sys.exit(1)
 
 parser = argparse.ArgumentParser("qBittorrent Manager.", description="A mix of scripts combined for managing qBittorrent.")
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
@@ -41,10 +46,13 @@ parser.add_argument(
 parser.add_argument(
     "-sch",
     "--schedule",
-    dest="min",
+    dest="schedule",
     default="1440",
     type=str,
-    help="Schedule to run every x minutes. (Default set to 1440 (1 day))",
+    help=(
+        "Schedule to run every x minutes. (Default set to 1440 (1 day))."
+        "Can also customize schedule via cron syntax (See https://crontab.guru/examples.html)"
+    ),
 )
 parser.add_argument(
     "-sd",
@@ -230,8 +238,18 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
         return default
 
 
+@cache
+def is_valid_cron_syntax(cron_expression):
+    try:
+        croniter(str(cron_expression))
+        return True
+    except (ValueError, KeyError):
+        return False
+
+
 try:
-    from git import Repo, InvalidGitRepositoryError
+    from git import InvalidGitRepositoryError
+    from git import Repo
 
     try:
         git_branch = Repo(path=".").head.ref.name  # noqa
@@ -243,7 +261,7 @@ except ImportError:
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
-sch = get_arg("QBT_SCHEDULE", args.min)
+sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
 config_files = get_arg("QBT_CONFIG", args.configfiles)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
@@ -287,7 +305,7 @@ else:
         config_files = [os.path.split(x)[-1] for x in glob_configs]
     else:
         print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
-        sys.exit(0)
+        sys.exit(1)
 
 
 for v in [
@@ -324,15 +342,16 @@ if screen_width < 90 or screen_width > 300:
 try:
     sch = int(sch)
 except ValueError:
-    print(f"Schedule Error: Schedule is not a number. Current value is set to '{sch}'")
-    sys.exit(0)
+    if not is_valid_cron_syntax(sch):
+        print(f"Invalid Schedule: Please use a valid cron schedule or integer (minutes). Current value is set to '{sch}'")
+        sys.exit(1)
 
 # Check if StartupDelay parameter is a number
 try:
     startupDelay = int(startupDelay)
 except ValueError:
     print(f"startupDelay Error: startupDelay is not a number. Current value is set to '{startupDelay}'")
-    sys.exit(0)
+    sys.exit(1)
 
 
 logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False)
@@ -340,16 +359,16 @@ from modules import util  # noqa
 
 util.logger = logger
 from modules.config import Config  # noqa
-from modules.util import GracefulKiller  # noqa
-from modules.util import Failed  # noqa
 from modules.core.category import Category  # noqa
-from modules.core.tags import Tags  # noqa
-from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
-from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
+from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.share_limits import ShareLimits  # noqa
+from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
+from modules.core.tags import Tags  # noqa
+from modules.util import Failed  # noqa
+from modules.util import GracefulKiller  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -427,14 +446,18 @@ def start():
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
-        _, nxt_run = calc_next_run(sch, True)
+        if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
+            next_run_time = schedule_from_cron(sch)
+        else:
+            delta = timedelta(minutes=sch)
+            logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
+            next_run_time = schedule_every_x_minutes(sch)
+        nxt_run = calc_next_run(next_run_time)
         next_run_str = nxt_run["next_run_str"]
         next_run = nxt_run["next_run"]
         body = logger.separator(
-            f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary)>0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str)>0 else ''}".replace(
-                "\n\n", "\n"
-            ).rstrip()
+            f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary) > 0 else ''}"
+            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str) > 0 else ''}".replace("\n\n", "\n").rstrip()
         )[0]
         return next_run, body
 
@@ -556,32 +579,43 @@ def end():
     sys.exit(0)
 
 
-def calc_next_run(schd, write_out=False):
+def calc_next_run(next_run_time):
     """Calculates the next run time based on the schedule"""
-    current = datetime.now().strftime("%H:%M")
-    seconds = schd * 60
-    time_to_run = datetime.now() + timedelta(minutes=schd)
-    time_to_run_str = time_to_run.strftime("%H:%M")
-    new_seconds = (datetime.strptime(time_to_run_str, "%H:%M") - datetime.strptime(current, "%H:%M")).total_seconds()
-    time_until = ""
+    current_time = datetime.now()
+    current = current_time.strftime("%I:%M %p")
+    time_to_run_str = next_run_time.strftime("%Y-%m-%d %I:%M %p")
+    delta_seconds = (next_run_time - current_time).total_seconds()
+    time_until = precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
     next_run = {}
     if run is False:
-        next_run["next_run"] = time_to_run
-        if new_seconds < 0:
-            new_seconds += 86400
-        if (seconds is None or new_seconds < seconds) and new_seconds > 0:
-            seconds = new_seconds
-        if seconds is not None:
-            hours = int(seconds // 3600)
-            minutes = int((seconds % 3600) // 60)
-            time_until = f"{hours} Hour{'s' if hours > 1 else ''}{' and ' if minutes > 1 else ''}" if hours > 0 else ""
-            time_until += f"{minutes} Minute{'s' if minutes > 1 else ''}" if minutes > 0 else ""
-            if write_out:
-                next_run["next_run_str"] = f"Current Time: {current} | {time_until} until the next run at {time_to_run_str}"
+        next_run["next_run"] = next_run_time
+        next_run["next_run_str"] = f"Current Time: {current} | {time_until} until the next run at {time_to_run_str}"
     else:
         next_run["next_run"] = None
         next_run["next_run_str"] = ""
-    return time_until, next_run
+    return next_run
+
+
+def schedule_from_cron(cron_expression):
+    schedule.clear()
+    base_time = datetime.now()
+    try:
+        iter = croniter(cron_expression, base_time)
+        next_run_time = iter.get_next(datetime)
+    except Exception as e:
+        logger.error(f"Invalid Cron Syntax: {cron_expression}. {e}")
+        logger.stacktrace()
+        sys.exit(1)
+    delay = (next_run_time - base_time).total_seconds()
+    schedule.every(delay).seconds.do(start_loop)
+    return next_run_time
+
+
+def schedule_every_x_minutes(min):
+    schedule.clear()
+    schedule.every(min).minutes.do(start_loop)
+    next_run_time = datetime.now() + timedelta(minutes=min)
+    return next_run_time
 
 
 if __name__ == "__main__":
@@ -636,15 +670,24 @@ if __name__ == "__main__":
             logger.info("    Run Mode: Script will exit after completion.")
             start_loop()
         else:
-            schedule.every(sch).minutes.do(start_loop)
-            time_str, _ = calc_next_run(sch)
-            logger.info(f"    Scheduled Mode: Running every {time_str}.")
-            if startupDelay:
-                logger.info(f"     Startup Delay: Initial Run will start after {startupDelay} seconds")
-                time.sleep(startupDelay)
-            start_loop()
+            if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
+                logger.info(f"    Scheduled Mode: Running cron '{sch}'")
+                next_run_time = schedule_from_cron(sch)
+                next_run = calc_next_run(next_run_time)
+                logger.info(f"    {next_run['next_run_str']}")
+            else:
+                delta = timedelta(minutes=sch)
+                logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
+                next_run_time = schedule_every_x_minutes(sch)
+                if startupDelay:
+                    logger.info(f"    Startup Delay: Initial Run will start after {startupDelay} seconds")
+                    time.sleep(startupDelay)
+                start_loop()
+
             while not killer.kill_now:
+                next_run = calc_next_run(next_run_time)
                 schedule.run_pending()
+                logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
             end()
     except KeyboardInterrupt:

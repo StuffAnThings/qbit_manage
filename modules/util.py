@@ -1,4 +1,5 @@
 """ Utility functions for qBit Manage. """
+
 import json
 import logging
 import os
@@ -9,6 +10,7 @@ from pathlib import Path
 
 import requests
 import ruamel.yaml
+from pytimeparse2 import parse
 
 logger = logging.getLogger("qBit Manage")
 
@@ -53,13 +55,25 @@ def get_dict(data, lower=False, split=True):
 def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
     """Check if tag is in torrent_tags"""
     tags = get_list(torrent_tags)
-    if exact:
-        return check_tag in tags
-    else:
-        for t in tags:
-            if check_tag in t:
-                return t
-    return False
+    if isinstance(check_tag, str):
+        if exact:
+            return check_tag in tags
+        else:
+            tags_to_remove = []
+            for tag in tags:
+                if check_tag in tag:
+                    tags_to_remove.append(tag)
+            return tags_to_remove
+    elif isinstance(check_tag, list):
+        if exact:
+            return all(tag in tags for tag in check_tag)
+        else:
+            tags_to_remove = []
+            for tag in tags:
+                for ctag in check_tag:
+                    if ctag in tag:
+                        tags_to_remove.append(tag)
+            return tags_to_remove
 
 
 class TorrentMessages:
@@ -76,6 +90,7 @@ class TorrentMessages:
         "RETITLED",
         "TRUNCATED",
         "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
+        "INFOHASH NOT FOUND.",
     ]
 
     IGNORE_MSGS = [
@@ -87,6 +102,9 @@ class TorrentMessages:
         "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
         "COULD NOT PARSE BENCODED DATA",
         "STREAM TRUNCATED",
+        "GATEWAY TIMEOUT",  # BHD Gateway Timeout
+        "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
+        "TORRENT HAS BEEN POSTPONED",  # BHD Status
     ]
 
     EXCEPTIONS_MSGS = [
@@ -303,13 +321,27 @@ class check:
         elif var_type == "float":
             try:
                 data[attribute] = float(data[attribute])
-            except:
+            except Exception:
                 pass
             if isinstance(data[attribute], float) and data[attribute] >= min_int:
                 return data[attribute]
             else:
                 message = f"{text} must a float >= {float(min_int)}"
                 throw = True
+        elif var_type == "time_parse":
+            if isinstance(data[attribute], int) and data[attribute] >= min_int:
+                return data[attribute]
+            else:
+                try:
+                    parsed_seconds = parse(data[attribute])
+                    if parsed_seconds is not None:
+                        return int(parsed_seconds / 60)
+                    else:
+                        message = f"Unable to parse {text}, must be a valid time format."
+                        throw = True
+                except Exception:
+                    message = f"Unable to parse {text}, must be a valid time format."
+                    throw = True
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
@@ -449,7 +481,7 @@ def copy_files(src, dest):
         logger.error(ex)
 
 
-def remove_empty_directories(pathlib_root_dir, pattern):
+def remove_empty_directories(pathlib_root_dir, pattern, excluded_paths=None):
     """Remove empty directories recursively."""
     pathlib_root_dir = Path(pathlib_root_dir)
     try:
@@ -463,6 +495,8 @@ def remove_empty_directories(pathlib_root_dir, pattern):
         longest.append(pathlib_root_dir)  # delete the folder itself if it's empty
         for pdir in longest:
             try:
+                if str(pdir) in excluded_paths:
+                    continue
                 pdir.rmdir()  # remove directory if empty
             except (FileNotFoundError, OSError):
                 continue  # catch and continue if non-empty, folders within could already be deleted if run in parallel
@@ -501,7 +535,7 @@ class CheckHardLinks:
             else:
                 self.inode_count[inode_no] = 1
 
-    def nohardlink(self, file, notify):
+    def nohardlink(self, file, notify, ignore_root_dir):
         """
         Check if there are any hard links
         Will check if there are any hard links if it passes a file or folder
@@ -509,6 +543,23 @@ class CheckHardLinks:
         of the remaining files where the file is greater size a percentage of the largest file
         This fixes the bug in #192
         """
+
+        def has_hardlinks(self, file, ignore_root_dir):
+            """
+            Check if a file has hard links.
+
+            Args:
+                file (str): The path to the file.
+                ignore_root_dir (bool): Whether to ignore the root directory.
+
+            Returns:
+                bool: True if the file has hard links, False otherwise.
+            """
+            if ignore_root_dir:
+                return os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0
+            else:
+                return os.stat(file).st_nlink > 1
+
         check_for_hl = True
         try:
             if os.path.isfile(file):
@@ -519,8 +570,10 @@ class CheckHardLinks:
                 logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
                 logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
                 logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                logger.trace(f"ignore_root_dir: {ignore_root_dir}")
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
-                if os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0:
+                if has_hardlinks(self, file, ignore_root_dir):
+                    logger.trace(f"Hardlinks found in {file}.")
                     check_for_hl = False
             else:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
@@ -549,9 +602,9 @@ class CheckHardLinks:
                         logger.trace(f"Checking file size: {file_size}")
                         logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
                         logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
-                        if file_no_hardlinks - self.inode_count.get(os.stat(files).st_ino, 1) > 0 and file_size >= (
-                            largest_file_size * threshold
-                        ):
+                        logger.trace(f"ignore_root_dir: {ignore_root_dir}")
+                        if has_hardlinks(self, files, ignore_root_dir) and file_size >= (largest_file_size * threshold):
+                            logger.trace(f"Hardlinks found in {files}.")
                             check_for_hl = False
         except PermissionError as perm:
             logger.warning(f"{perm} : file {file} has permission issues. Skipping...")

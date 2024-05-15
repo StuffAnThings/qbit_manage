@@ -1,0 +1,50 @@
+name: Update Supported Versions
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+    paths:
+      - "requirements.txt"
+  workflow_dispatch:
+    inputs:
+      targetBranch:
+        description: "Branch to run the script on (default: develop)"
+        required: false
+        default: "develop"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.targetBranch || github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies from requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run update script
+        run: python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: Update SUPPORTED_VERSIONS.json
+          title: "Update SUPPORTED_VERSIONS.json for ${{ github.event.inputs.targetBranch || github.ref_name }}"
+          branch: update-supported-versions-${{ github.event.inputs.targetBranch || github.ref_name }}
+          base: develop
+          body: "This PR updates the SUPPORTED_VERSIONS.json to reflect new versions."

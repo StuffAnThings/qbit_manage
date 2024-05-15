@@ -1,4 +1,5 @@
 """Apprise notification class"""
+
 import time
 
 from modules import util

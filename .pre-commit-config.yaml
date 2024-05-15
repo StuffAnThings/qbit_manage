@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -11,43 +11,45 @@ repos:
       - id: debug-statements
       - id: requirements-txt-fixer
       - id: check-added-large-files
-      - id: check-byte-order-marker
+      - id: fix-byte-order-marker
       - id: fix-encoding-pragma
         args: [--remove]
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
   - repo: https://github.com/hhatto/autopep8
-    rev: v2.0.4
+    rev: v2.1.0
     hooks:
       - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.32.0  # or higher tag
+    rev: v1.35.1  # or higher tag
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.13.0
+    rev: 1.16.0
     hooks:
       - id: yamlfix
         exclude: ^.github/
-  - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.10.0
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
-      - id: reorder-python-imports
+      - id: isort
+        name: isort (python)
+        args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.10.1
+    rev: v3.15.2
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.4.2
     hooks:
       - id: black
         language_version: python3
-        args: [--line-length, '130', --preview]
+        args: [--line-length, '130']
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.1.0
+    rev: 7.0.0
     hooks:
       - id: flake8
         args: [--config=.flake8]
@@ -56,6 +58,14 @@ repos:
       - id: increase-version
         name: Increase version if branch contains "develop"
         entry: ./scripts/pre-commit/increase_version.sh
+        language: script
+        pass_filenames: false
+        stages: [commit]
+  - repo: local
+    hooks:
+      - id: update-readme-version
+        name: Update readme version
+        entry: ./scripts/pre-commit/update-readme-version.sh
         language: script
         pass_filenames: false
         stages: [commit]

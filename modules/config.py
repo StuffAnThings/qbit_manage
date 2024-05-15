@@ -1,4 +1,5 @@
 """Config class for qBittorrent-Manage"""
+
 import os
 import re
 import stat
@@ -13,9 +14,9 @@ from modules.apprise import Apprise
 from modules.bhd import BeyondHD
 from modules.notifiarr import Notifiarr
 from modules.qbittorrent import Qbt
-from modules.util import check
-from modules.util import Failed
 from modules.util import YAML
+from modules.util import Failed
+from modules.util import check
 from modules.webhooks import Webhooks
 
 logger = util.logger
@@ -167,17 +168,44 @@ class Config:
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
+            "share_limits_min_seeding_time_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_seeding_time_tag", parent="settings", default="MinSeedTimeNotReached"
+            ),
+            "share_limits_min_num_seeds_tag": self.util.check_for_attribute(
+                self.data, "share_limits_min_num_seeds_tag", parent="settings", default="MinSeedsNotMet"
+            ),
+            "share_limits_last_active_tag": self.util.check_for_attribute(
+                self.data, "share_limits_last_active_tag", parent="settings", default="LastActiveLimitNotReached"
+            ),
+            "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
+            "cat_filter_completed": self.util.check_for_attribute(
+                self.data, "cat_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "share_limits_filter_completed": self.util.check_for_attribute(
+                self.data, "share_limits_filter_completed", parent="settings", var_type="bool", default=True
+            ),
+            "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
+                self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
+        self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
+        self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
+        self.cross_seed_tag = self.settings["cross_seed_tag"]
 
-        default_ignore_tags = [self.nohardlinks_tag, self.tracker_error_tag, "cross-seed"]
-        self.settings["ignoreTags_OnUpdate"] = self.util.check_for_attribute(
-            self.data, "ignoreTags_OnUpdate", parent="settings", default=default_ignore_tags, var_type="list"
-        )
-        "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
+        self.default_ignore_tags = [
+            self.nohardlinks_tag,
+            self.tracker_error_tag,
+            self.cross_seed_tag,
+            self.share_limits_min_seeding_time_tag,
+            self.share_limits_min_num_seeds_tag,
+            self.share_limits_last_active_tag,
+        ]
+        # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")
 
@@ -213,7 +241,7 @@ class Config:
 
         self.apprise_factory = None
         if "apprise" in self.data:
-            if self.data["apprise"] is not None:
+            if self.data["apprise"] is not None and self.data["apprise"].get("api_url") is not None:
                 logger.info("Connecting to Apprise...")
                 try:
                     self.apprise_factory = Apprise(
@@ -233,7 +261,7 @@ class Config:
 
         self.notifiarr_factory = None
         if "notifiarr" in self.data:
-            if self.data["notifiarr"] is not None:
+            if self.data["notifiarr"] is not None and self.data["notifiarr"].get("apikey") is not None:
                 logger.info("Connecting to Notifiarr...")
                 try:
                     self.notifiarr_factory = Notifiarr(
@@ -260,7 +288,7 @@ class Config:
 
         self.beyond_hd = None
         if "bhd" in self.data:
-            if self.data["bhd"] is not None:
+            if self.data["bhd"] is not None and self.data["bhd"].get("apikey") is not None:
                 logger.info("Connecting to BHD API...")
                 try:
                     self.beyond_hd = BeyondHD(
@@ -276,16 +304,26 @@ class Config:
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
+                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
+                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+                    continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
-                    self.nohardlinks[cat_str] = {}
-                    exclude_tags = cat[cat_str].get("exclude_tags", [])
-                    if isinstance(exclude_tags, str):
-                        exclude_tags = [exclude_tags]
-                    self.nohardlinks[cat_str]["exclude_tags"] = exclude_tags
                 elif isinstance(cat, str):
-                    self.nohardlinks[cat] = {}
-                    self.nohardlinks[cat]["exclude_tags"] = []
+                    cat_str = cat
+                    cat = self.data["nohardlinks"]
+                if cat[cat_str] is None:
+                    cat[cat_str] = {}
+                self.nohardlinks[cat_str] = {
+                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
+                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                }
+                if self.nohardlinks[cat_str]["exclude_tags"] is None:
+                    self.nohardlinks[cat_str]["exclude_tags"] = []
+                if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
+                    err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
                 err = "Config Error: nohardlinks must be a list of categories"
@@ -404,7 +442,7 @@ class Config:
                     "max_seeding_time",
                     parent="share_limits",
                     subparent=group,
-                    var_type="int",
+                    var_type="time_parse",
                     min_int=-2,
                     default=-1,
                     do_print=False,
@@ -415,7 +453,7 @@ class Config:
                     "min_seeding_time",
                     parent="share_limits",
                     subparent=group,
-                    var_type="int",
+                    var_type="time_parse",
                     min_int=0,
                     default=0,
                     do_print=False,
@@ -443,12 +481,33 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["enable_group_upload_speed"] = self.util.check_for_attribute(
+                    self.data,
+                    "enable_group_upload_speed",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=False,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["min_num_seeds"] = self.util.check_for_attribute(
                     self.data,
                     "min_num_seeds",
                     parent="share_limits",
                     subparent=group,
                     var_type="int",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["last_active"] = self.util.check_for_attribute(
+                    self.data,
+                    "last_active",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="time_parse",
                     min_int=0,
                     default=0,
                     do_print=False,
@@ -531,6 +590,25 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                if (
+                    self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
+                ):
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
+                        f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
+                        f"min_seeding_time must be less than or equal to max_seeding_time."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if self.share_limits[group]["min_seeding_time"] > 0 and self.share_limits[group]["max_ratio"] <= 0:
+                    err = (
+                        f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is set, "
+                        f"but max_ratio ({self.share_limits[group]['max_ratio']}) is not set for the grouping '{group}'.\n"
+                        f"max_ratio must be greater than 0 when min_seeding_time is set."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["share_limits"]:
                 err = "Config Error: share_limits. No valid grouping found."
@@ -569,6 +647,8 @@ class Config:
                     self.remote_dir = self.util.check_for_attribute(
                         self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
                     )
+            if not self.remote_dir:
+                self.remote_dir = self.root_dir
             if self.commands["cross_seed"]:
                 self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
             else:
@@ -705,6 +785,7 @@ class Config:
                     for path, subdirs, files in os.walk(r_path)
                     for name in files
                 ]
+                location_files = list(set(location_files))  # remove duplicates
                 location_files = sorted(location_files)
                 logger.trace(f"location_files: {location_files}")
                 if location_files:
@@ -742,7 +823,8 @@ class Config:
                     if num_del > 0:
                         if not self.dry_run:
                             for path in location_path_list:
-                                util.remove_empty_directories(path, "**/*")
+                                if path != location_path:
+                                    util.remove_empty_directories(path, "**/*", self.qbt.get_category_save_paths())
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",

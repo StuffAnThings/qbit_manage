@@ -2,8 +2,8 @@ from qbittorrentapi import NotFound404Error
 from qbittorrentapi import TrackerStatus
 
 from modules import util
-from modules.util import list_in_text
 from modules.util import TorrentMessages
+from modules.util import list_in_text
 
 logger = util.logger
 
@@ -47,7 +47,7 @@ class RemoveUnregistered:
             t_name = torrent.name
             # Remove any error torrents Tags that are no longer unreachable.
             if self.tag_error in check_tags:
-                tracker = self.qbt.get_tags(torrent.trackers)
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 self.stats_untagged += 1
                 body = []
                 body += logger.print_line(
@@ -84,7 +84,7 @@ class RemoveUnregistered:
         ):
             json = {"info_hash": torrent_hash}
             response = self.config.beyond_hd.search(json)
-            if response["total_results"] == 0:
+            if response.get("total_results") == 0:
                 return True
         return False
 
@@ -104,7 +104,7 @@ class RemoveUnregistered:
             try:
                 for trk in torrent.trackers:
                     if trk.url.startswith("http"):
-                        tracker = self.qbt.get_tags([trk])
+                        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
                         msg_up = trk.msg.upper()
                         msg = trk.msg
                         if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
@@ -122,7 +122,6 @@ class RemoveUnregistered:
                             # Tag any error torrents
                             if self.cfg_tag_error and self.tag_error not in check_tags:
                                 self.tag_tracker_error(msg, tracker, torrent)
-
             except NotFound404Error:
                 continue
             except Exception as ex:
@@ -210,7 +209,7 @@ class RemoveUnregistered:
             "torrent_tracker": tracker["url"],
             "notifiarr_indexer": tracker["notifiarr"],
         }
-        if self.qbt.torrentinfo[self.t_name]["count"] > 1:
+        if self.qbt.has_cross_seed(torrent):
             # Checks if any of the original torrents are working
             if "" in self.t_msg or 2 in self.t_status:
                 attr["torrents_deleted_and_contents"] = False
@@ -233,4 +232,3 @@ class RemoveUnregistered:
         attr["body"] = "\n".join(body)
         self.torrents_updated_unreg.append(self.t_name)
         self.notify_attr_unreg.append(attr)
-        self.qbt.torrentinfo[self.t_name]["count"] -= 1

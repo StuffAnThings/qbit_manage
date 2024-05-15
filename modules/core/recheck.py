@@ -30,7 +30,7 @@ class ReCheck:
             torrent_list = self.qbt.get_torrents({"status_filter": "paused", "sort": "size"})
             if torrent_list:
                 for torrent in torrent_list:
-                    tracker = self.qbt.get_tags(torrent.trackers)
+                    tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                     t_name = torrent.name
                     t_category = torrent.category
                     # Resume torrent if completed
@@ -60,12 +60,12 @@ class ReCheck:
                             logger.debug("DEBUG: Torrent to see if torrent meets AutoTorrentManagement Criteria")
                             logger.debug(logger.insert_space(f"- Torrent Name: {t_name}", 2))
                             logger.debug(
-                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} < {torrent.max_ratio:.2f}", 4)
+                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} vs {torrent.max_ratio:.2f}", 4)
                             )
                             logger.debug(
                                 logger.insert_space(
-                                    f"-- Seeding Time vs Max Seed Time: {timedelta(seconds=torrent.seeding_time)} < "
-                                    f"{timedelta(minutes=torrent.max_seeding_time)}",
+                                    f"-- Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} vs "
+                                    f"{str(timedelta(minutes=torrent.max_seeding_time))}",
                                     4,
                                 )
                             )
