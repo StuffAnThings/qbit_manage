@@ -492,6 +492,10 @@ class Qbt:
                     except FileNotFoundError:
                         ex = logger.print_line(f"RecycleBin Warning - FileNotFound: No such file or directory: {src} ", "WARNING")
                         self.config.notify(ex, "Deleting Torrent", False)
+                    # Add src file to orphan exclusion since sometimes deleting files are slow in certain environments
+                    exclude_file = src.replace(self.config.remote_dir, self.config.root_dir)
+                    if exclude_file not in self.config.orphaned["exclude_patterns"]:
+                        self.config.orphaned["exclude_patterns"].append(exclude_file)
                 # Delete torrent and files
                 torrent.delete(delete_files=to_delete)
                 # Remove any empty directories
