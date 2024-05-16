@@ -140,7 +140,7 @@ class Qbt:
                 save_path = torrent.save_path
                 category = torrent.category
                 torrent_trackers = torrent.trackers
-                self.add_torrent_files(torrent_hash, torrent.files)
+                self.add_torrent_files(torrent_hash, torrent.files, save_path)
             except Exception as ex:
                 self.config.notify(ex, "Get Torrent Info", False)
                 logger.warning(ex)
@@ -190,7 +190,7 @@ class Qbt:
             }
             self.torrentinfo[torrent_name] = torrentattr
 
-    def add_torrent_files(self, torrent_hash, torrent_files):
+    def add_torrent_files(self, torrent_hash, torrent_files, save_path):
         """Process torrent files by adding the hash to the appropriate torrent_files list.
         Example structure:
         torrent_files = {
@@ -200,11 +200,11 @@ class Qbt:
         }
         """
         for file in torrent_files:
-            file_name = file.name
-            if file_name not in self.torrentfiles:
-                self.torrentfiles[file_name] = {"original": torrent_hash, "cross_seed": []}
+            full_path = os.path.join(save_path, file.name)
+            if full_path not in self.torrentfiles:
+                self.torrentfiles[full_path] = {"original": torrent_hash, "cross_seed": []}
             else:
-                self.torrentfiles[file_name]["cross_seed"].append(torrent_hash)
+                self.torrentfiles[full_path]["cross_seed"].append(torrent_hash)
 
     def is_cross_seed(self, torrent):
         """Check if the torrent is a cross seed if it has one or more files that are cross seeded."""
@@ -215,12 +215,12 @@ class Qbt:
             return False
         cross_seed = True
         for file in torrent.files:
-            file_name = file.name
-            if self.torrentfiles[file_name]["original"] == t_hash or t_hash not in self.torrentfiles[file_name]["cross_seed"]:
-                logger.trace(f"File: [{file_name}] is found in Torrent: {t_name} [Hash: {t_hash}] as the original torrent")
+            full_path = os.path.join(torrent.save_path, file.name)
+            if self.torrentfiles[full_path]["original"] == t_hash or t_hash not in self.torrentfiles[full_path]["cross_seed"]:
+                logger.trace(f"File: [{full_path}] is found in Torrent: {t_name} [Hash: {t_hash}] as the original torrent")
                 cross_seed = False
                 break
-            elif self.torrentfiles[file_name]["original"] is None:
+            elif self.torrentfiles[full_path]["original"] is None:
                 cross_seed = False
                 break
         logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'is' if cross_seed else 'is not'} a cross seed torrent.")
@@ -232,9 +232,9 @@ class Qbt:
         t_hash = torrent.hash
         t_name = torrent.name
         for file in torrent.files:
-            file_name = file.name
-            if len(self.torrentfiles[file_name]["cross_seed"]) > 0:
-                logger.trace(f"{file_name} has cross seeds: {self.torrentfiles[file_name]['cross_seed']}")
+            full_path = os.path.join(torrent.save_path, file.name)
+            if len(self.torrentfiles[full_path]["cross_seed"]) > 0:
+                logger.trace(f"{full_path} has cross seeds: {self.torrentfiles[full_path]['cross_seed']}")
                 cross_seed = True
                 break
         logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'has' if cross_seed else 'has no'} cross seeds.")
@@ -244,19 +244,19 @@ class Qbt:
         """Update the torrent_files list after a torrent is deleted"""
         torrent_hash = torrent.hash
         for file in torrent.files:
-            file_name = file.name
-            if self.torrentfiles[file_name]["original"] == torrent_hash:
-                if len(self.torrentfiles[file_name]["cross_seed"]) > 0:
-                    self.torrentfiles[file_name]["original"] = self.torrentfiles[file_name]["cross_seed"].pop(0)
-                    logger.trace(f"Updated {file_name} original to {self.torrentfiles[file_name]['original']}")
+            full_path = os.path.join(torrent.save_path, file.name)
+            if self.torrentfiles[full_path]["original"] == torrent_hash:
+                if len(self.torrentfiles[full_path]["cross_seed"]) > 0:
+                    self.torrentfiles[full_path]["original"] = self.torrentfiles[full_path]["cross_seed"].pop(0)
+                    logger.trace(f"Updated {full_path} original to {self.torrentfiles[full_path]['original']}")
                 else:
-                    self.torrentfiles[file_name]["original"] = None
+                    self.torrentfiles[full_path]["original"] = None
             else:
-                if torrent_hash in self.torrentfiles[file_name]["cross_seed"]:
-                    self.torrentfiles[file_name]["cross_seed"].remove(torrent_hash)
-                    logger.trace(f"Removed {torrent_hash} from {file_name} cross seeds")
-                    logger.trace(f"{file_name} original: {self.torrentfiles[file_name]['original']}")
-                    logger.trace(f"{file_name} cross seeds: {self.torrentfiles[file_name]['cross_seed']}")
+                if torrent_hash in self.torrentfiles[full_path]["cross_seed"]:
+                    self.torrentfiles[full_path]["cross_seed"].remove(torrent_hash)
+                    logger.trace(f"Removed {torrent_hash} from {full_path} cross seeds")
+                    logger.trace(f"{full_path} original: {self.torrentfiles[full_path]['original']}")
+                    logger.trace(f"{full_path} cross seeds: {self.torrentfiles[full_path]['cross_seed']}")
 
     def get_torrents(self, params):
         """Get torrents from qBittorrent"""
