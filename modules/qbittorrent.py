@@ -499,7 +499,7 @@ class Qbt:
                 # Delete torrent and files
                 torrent.delete(delete_files=to_delete)
                 # Remove any empty directories
-                util.remove_empty_directories(save_path, "**/*", self.get_category_save_paths())
+                util.remove_empty_directories(save_path, self.get_category_save_paths())
             else:
                 torrent.delete(delete_files=False)
         else:
