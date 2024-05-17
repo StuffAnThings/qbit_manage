@@ -466,6 +466,9 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None):
         # Attempt to remove the directory if it's empty
         try:
             os.rmdir(root)
+        except PermissionError as perm:
+            logger.warning(f"{perm} : Unable to delete folder {root} as it has permission issues. Skipping...")
+            pass
         except OSError:
             # Directory not empty or other error - safe to ignore here
             pass
@@ -474,6 +477,9 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None):
     if not excluded_paths or pathlib_root_dir not in excluded_paths:
         try:
             pathlib_root_dir.rmdir()
+        except PermissionError as perm:
+            logger.warning(f"{perm} :  Unable to delete folder {root} as it has permission issues. Skipping...")
+            pass
         except OSError:
             pass
 

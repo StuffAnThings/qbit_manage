@@ -758,6 +758,8 @@ class Config:
                             for path in location_path_list:
                                 if path != location_path:
                                     util.remove_empty_directories(path, self.qbt.get_category_save_paths())
+                            # Delete empty folders inside the location_path
+                            util.remove_empty_directories(location_path, [location_path])
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",

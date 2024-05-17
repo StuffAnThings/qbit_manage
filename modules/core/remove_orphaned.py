@@ -92,8 +92,6 @@ class RemoveOrphaned:
 
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
-        # Clear out any empty folders in orphaned_directory
-        util.remove_empty_directories(self.orphaned_dir, [self.orphaned_dir])
 
     def move_orphan(self, file):
         src = file.replace(self.root_dir, self.remote_dir)
