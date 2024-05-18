@@ -95,6 +95,9 @@ class Qbt:
             self.torrentinfo = None
             self.torrentissue = None
             self.torrentvalid = None
+        self.get_tags = cache(self.get_tags)
+        self.get_category = cache(self.get_category)
+        self.get_category_save_paths = cache(self.get_category_save_paths)
 
     def get_torrent_info(self):
         """
@@ -266,7 +269,6 @@ class Qbt:
         """Get tracker urls from torrent"""
         return tuple(x.url for x in trackers if x.url.startswith(("http", "udp", "ws")))
 
-    @cache
     def get_tags(self, urls):
         """Get tags from config file based on keyword"""
         urls = list(urls)
@@ -363,7 +365,6 @@ class Qbt:
             logger.warning(e)
         return tracker
 
-    @cache
     def get_category(self, path):
         """Get category from config file based on path provided"""
         category = ""
@@ -385,7 +386,6 @@ class Qbt:
             logger.warning(e)
         return category
 
-    @cache
     def get_category_save_paths(self):
         """Get all categories from qbitorrenta and return a list of save_paths"""
         save_paths = set()
