@@ -60,11 +60,11 @@ class ReCheck:
                             logger.debug("DEBUG: Torrent to see if torrent meets AutoTorrentManagement Criteria")
                             logger.debug(logger.insert_space(f"- Torrent Name: {t_name}", 2))
                             logger.debug(
-                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} < {torrent.max_ratio:.2f}", 4)
+                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} vs {torrent.max_ratio:.2f}", 4)
                             )
                             logger.debug(
                                 logger.insert_space(
-                                    f"-- Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} < "
+                                    f"-- Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} vs "
                                     f"{str(timedelta(minutes=torrent.max_seeding_time))}",
                                     4,
                                 )

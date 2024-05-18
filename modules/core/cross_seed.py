@@ -89,7 +89,7 @@ class CrossSeed:
                             logger.warning(f"Unable to find hash {torrent_hash} in qbt: {e}")
                         if torrent_info:
                             torrent = torrent_info[0]
-                            self.qbt.add_torrent_files(torrent.hash, torrent.files)
+                            self.qbt.add_torrent_files(torrent.hash, torrent.files, torrent.save_path)
                             self.qbt.torrentvalid.append(torrent)
                             self.qbt.torrentinfo[t_name]["torrents"].append(torrent)
                             self.qbt.torrent_list.append(torrent)
