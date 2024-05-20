@@ -216,6 +216,8 @@ share_limits:
     # If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_num_seeds: 0
+    # <OPTIONAL> custom_tag <str>: Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qbt)**
+    custom_tag: sharelimits_noHL
   cross-seed:
     priority: 2
     include_all_tags:
