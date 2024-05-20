@@ -542,6 +542,13 @@ class Config:
                     )
                     self.notify(err, "Config")
                     raise Failed(err)
+                if self.share_limits[group]["max_seeding_time"] > 525600:
+                    err = (
+                        f"Config Error: max_seeding_time ({self.share_limits[group]['max_seeding_time']}) cannot be set > 1 year "
+                        f"(525600 minutes) in qbitorrent. Please adjust the max_seeding_time for the grouping '{group}'."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["share_limits"]:
                 err = "Config Error: share_limits. No valid grouping found."
