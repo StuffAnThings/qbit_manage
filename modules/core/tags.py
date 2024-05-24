@@ -34,7 +34,7 @@ class Tags:
                     body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
                     if not self.config.dry_run:
                         torrent.add_tags(tracker["tag"])
-                    category = self.qbt.get_category(torrent.save_path) if torrent.category == "" else torrent.category
+                    category = self.qbt.get_category(torrent.save_path)[0] if torrent.category == "" else torrent.category
                     attr = {
                         "function": "tag_update",
                         "title": "Updating Tags",

@@ -25,12 +25,13 @@ class Category:
         torrent_list = self.qbt.get_torrents({"status_filter": self.status_filter})
         for torrent in torrent_list:
             torrent_category = torrent.category
-            new_cat = self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path)
-            if new_cat == self.uncategorized_mapping:
+            new_cat = []
+            new_cat.extend(self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path))
+            if new_cat[0] == self.uncategorized_mapping:
                 logger.print_line(f"{torrent.name} remains uncategorized.", self.config.loglevel)
                 continue
-            if new_cat != torrent_category:
-                self.update_cat(torrent, new_cat, False)
+            if torrent_category not in new_cat:
+                self.update_cat(torrent, new_cat[0], False)
             # Change categories
             if self.config.cat_change and torrent_category in self.config.cat_change:
                 updated_cat = self.config.cat_change[torrent_category]
