@@ -169,6 +169,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `resume_torrent_after_change`   | Will resume your torrent after changing share limits.                                                                                     | True      |  bool   | <center>❌</center> |
 | `add_group_to_tag`   | This adds your grouping as a tag with a prefix defined in settings (share_limits_tag). Example: A grouping named noHL with a priority of 1 will have a tag set to `~share_limit_1.noHL` (if using the default prefix).                                                                                    | True      |  bool   | <center>❌</center> |
 | `min_num_seeds`   | Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here (depending on the tracker, you may or may not be included). If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.                                                                                    | 0      |  int   | <center>❌</center> |
+| `custom_tag`   | Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qBittorrent)**                                                                                    |  None     |  str   | <center>❌</center> |
 ## **recyclebin:**
 
 ---
