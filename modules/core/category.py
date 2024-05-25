@@ -46,7 +46,7 @@ class Category:
 
     def get_tracker_cat(self, torrent):
         tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-        return tracker["cat"]
+        return [tracker["cat"]] if tracker["cat"] else None
 
     def update_cat(self, torrent, new_cat, cat_change):
         """Update category based on the torrent information"""
