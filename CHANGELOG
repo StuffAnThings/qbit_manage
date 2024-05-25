@@ -1,11 +1,15 @@
+# Requirements Updated
+- requests==2.32.2
+
 # New Updates
-- Adds additional remove unregistered logic for Blutopia
+- Customize tag names in share limits (Adds [#551](https://github.com/StuffAnThings/qbit_manage/issues/551))
+- Force category updates for all torrents (Adds [#483](https://github.com/StuffAnThings/qbit_manage/issues/483))
 
 # Bug Fixes
-- Fixes [#545](https://github.com/StuffAnThings/qbit_manage/issues/545)
-- Fixes [#546](https://github.com/StuffAnThings/qbit_manage/issues/546)
-- Fixes [#548](https://github.com/StuffAnThings/qbit_manage/issues/548)
-- Fixes [#550](https://github.com/StuffAnThings/qbit_manage/issues/550)
-- Optimizes Remove Empty Directories and remove empty folders in orphaned_data
+- Fixes [#552](https://github.com/StuffAnThings/qbit_manage/issues/552)
+- Fixes [#557](https://github.com/StuffAnThings/qbit_manage/issues/557)
+- Fixes [#558](https://github.com/StuffAnThings/qbit_manage/issues/558)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.3...v4.1.4
+
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.4...v4.1.5

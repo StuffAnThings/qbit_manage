@@ -192,6 +192,7 @@ class Config:
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.share_limits_custom_tags = []
         self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
         self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
         self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
@@ -204,6 +205,7 @@ class Config:
             self.share_limits_min_seeding_time_tag,
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
+            self.share_limits_tag,
         ]
         # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
@@ -522,6 +524,28 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["custom_tag"] = self.util.check_for_attribute(
+                    self.data,
+                    "custom_tag",
+                    parent="share_limits",
+                    subparent=group,
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                if self.share_limits[group]["custom_tag"]:
+                    if (
+                        self.share_limits[group]["custom_tag"] not in self.share_limits_custom_tags
+                        and self.share_limits[group]["custom_tag"] not in self.default_ignore_tags
+                    ):
+                        self.share_limits_custom_tags.append(self.share_limits[group]["custom_tag"])
+                    else:
+                        err = (
+                            f"Config Error: Duplicate custom tag '{self.share_limits[group]['custom_tag']}' "
+                            f"found in share_limits for the grouping '{group}'. Custom tag must be a unique value."
+                        )
+                        self.notify(err, "Config")
+                        raise Failed(err)
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
@@ -539,6 +563,13 @@ class Config:
                         f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is set, "
                         f"but max_ratio ({self.share_limits[group]['max_ratio']}) is not set for the grouping '{group}'.\n"
                         f"max_ratio must be greater than 0 when min_seeding_time is set."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if self.share_limits[group]["max_seeding_time"] > 525600:
+                    err = (
+                        f"Config Error: max_seeding_time ({self.share_limits[group]['max_seeding_time']}) cannot be set > 1 year "
+                        f"(525600 minutes) in qbitorrent. Please adjust the max_seeding_time for the grouping '{group}'."
                     )
                     self.notify(err, "Config")
                     raise Failed(err)

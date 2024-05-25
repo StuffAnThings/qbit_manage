@@ -381,7 +381,18 @@ class Failed(Exception):
 
 
 def list_in_text(text, search_list, match_all=False):
-    """Check if a list of strings is in a string"""
+    """
+    Check if elements from a search list are present in a given text.
+
+    Args:
+        text (str): The text to search in.
+        search_list (list or set): The list of elements to search for in the text.
+        match_all (bool, optional): If True, all elements in the search list must be present in the text.
+                                    If False, at least one element must be present. Defaults to False.
+
+    Returns:
+        bool: True if the search list elements are found in the text, False otherwise.
+    """
     if isinstance(search_list, list):
         search_list = set(search_list)
     contains = {x for x in search_list if " " in x}

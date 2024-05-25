@@ -186,7 +186,7 @@ share_limits:
     # <OPTIONAL> max_seeding_time <str>: Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
     # 32m, 2h32m, 3d2h32m, 1w3d2h32m
-    # Will default to -1 (no limit) if not specified for the group.
+    # Will default to -1 (no limit) if not specified for the group. (Max value of 1 year (525600 minutes))
     max_seeding_time: 90d
     # <OPTIONAL> min_seeding_time <str>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
     # This should only be set if you are using this in conjunction with max_seeding_time and max_ratio. If you are not setting a max_ratio, then use max_seeding_time instead.
@@ -216,6 +216,8 @@ share_limits:
     # If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.
     # Will default to 0 if not specified for the group.
     min_num_seeds: 0
+    # <OPTIONAL> custom_tag <str>: Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qbt)**
+    custom_tag: sharelimits_noHL
   cross-seed:
     priority: 2
     include_all_tags:

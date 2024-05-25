@@ -47,7 +47,7 @@ class CrossSeed:
                 # Get the exact torrent match name from self.qbt.torrentinfo
                 t_name = next(iter(torrentdict_file))
                 dest = os.path.join(self.qbt.torrentinfo[t_name]["save_path"], "")
-                category = self.qbt.torrentinfo[t_name].get("Category", self.qbt.get_category(dest))
+                category = self.qbt.torrentinfo[t_name].get("Category", self.qbt.get_category(dest)[0])
                 # Only add cross-seed torrent if original torrent is complete
                 if self.qbt.torrentinfo[t_name]["is_complete"]:
                     categories.append(category)
