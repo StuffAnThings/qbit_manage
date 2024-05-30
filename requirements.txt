@@ -3,7 +3,7 @@ croniter==2.0.5
 GitPython==3.1.43
 humanize==4.9.0
 pytimeparse2==1.7.1
-qbittorrent-api==2024.5.61
+qbittorrent-api==2024.5.62
 requests==2.32.2
 retrying==1.3.4
 ruamel.yaml==0.18.6
