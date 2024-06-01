@@ -15,20 +15,30 @@ class Category:
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
         self.uncategorized_mapping = "Uncategorized"
         self.status_filter = "completed" if self.config.settings["cat_filter_completed"] else "all"
-
+        self.cat_update_all = self.config.settings["cat_update_all"]
         self.category()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
         logger.separator("Updating Categories", space=False, border=False)
-        torrent_list = self.qbt.get_torrents({"status_filter": self.status_filter})
+        torrent_list_filter = {"status_filter": self.status_filter}
+        if not self.cat_update_all:
+            torrent_list_filter["category"] = ""
+        torrent_list = self.qbt.get_torrents(torrent_list_filter)
         for torrent in torrent_list:
             torrent_category = torrent.category
             new_cat = []
             new_cat.extend(self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path))
+            if not torrent.auto_tmm and torrent_category:
+                logger.print_line(
+                    f"{torrent.name} has Automatic Torrent Management disabled and already has a category"
+                    f"{torrent_category}. Skipping..",
+                    "DEBUG",
+                )
+                continue
             if new_cat[0] == self.uncategorized_mapping:
-                logger.print_line(f"{torrent.name} remains uncategorized.", self.config.loglevel)
+                logger.print_line(f"{torrent.name} remains uncategorized.", "DEBUG")
                 continue
             if torrent_category not in new_cat:
                 self.update_cat(torrent, new_cat[0], False)
