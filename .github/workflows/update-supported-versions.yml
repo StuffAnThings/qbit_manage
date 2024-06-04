@@ -41,6 +41,7 @@ jobs:
         run: python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
 
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: Update SUPPORTED_VERSIONS.json
@@ -48,3 +49,15 @@ jobs:
           branch: update-supported-versions-${{ github.event.inputs.targetBranch || github.ref_name }}
           base: develop
           body: "This PR updates the SUPPORTED_VERSIONS.json to reflect new versions."
+
+      - name: Approve the Pull Request
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge the Pull Request
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
