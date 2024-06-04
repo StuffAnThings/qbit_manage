@@ -1,7 +1,7 @@
 {
     "master": {
         "qbit": "v4.6.5",
-        "qbitapi": "2024.5.62"
+        "qbitapi": "2024.5.63"
     },
     "develop": {
         "qbit": "v4.6.5",
