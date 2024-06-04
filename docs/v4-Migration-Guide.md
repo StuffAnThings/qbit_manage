@@ -38,8 +38,8 @@ nohardlinks:
 
 ```yml
 cat:
-- movies: “/data/torrents/movies”
-- tv: “/data/torrents/tv”
+  movies: “/data/torrents/movies”
+  tv: “/data/torrents/tv”
 tracker:
   Tracker-a:
     tag: a
