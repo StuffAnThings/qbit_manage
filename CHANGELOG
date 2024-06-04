@@ -1,15 +1,13 @@
 # Requirements Updated
-- requests==2.32.2
+- qbittorrent-api==2024.5.63
+- requests==2.32.3
+- schedule==1.2.2
 
 # New Updates
-- Customize tag names in share limits (Adds [#551](https://github.com/StuffAnThings/qbit_manage/issues/551))
-- Force category updates for all torrents (Adds [#483](https://github.com/StuffAnThings/qbit_manage/issues/483))
+- Add config option `cat_update_all` to categorize only uncategorized torrents (Closes [#575](https://github.com/StuffAnThings/qbit_manage/issues/575))
 
 # Bug Fixes
-- Fixes [#552](https://github.com/StuffAnThings/qbit_manage/issues/552)
-- Fixes [#557](https://github.com/StuffAnThings/qbit_manage/issues/557)
-- Fixes [#558](https://github.com/StuffAnThings/qbit_manage/issues/558)
+- Fixes [#560](https://github.com/StuffAnThings/qbit_manage/issues/560)
 
 
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.4...v4.1.5
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.5...v4.1.6

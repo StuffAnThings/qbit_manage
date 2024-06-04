@@ -26,6 +26,10 @@ This is a program used to manage your qBittorrent instance such as:
 
 ## Supported Qbittorrent Versions
 
+We rely on [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) to interact with Qbittorrent.
+
+Generally expect new releases of Qbittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support gor the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
+
 ### Master
 
 ![master - qBittorrent version](https://img.shields.io/badge/dynamic/json?label=master%20-%20qBittorrent&query=master.qbit&url=https%3A%2F%2Fraw.githubusercontent.com%2FStuffAnThings%2Fqbit_manage%2Fdevelop%2FSUPPORTED_VERSIONS.json&color=brightgreen)

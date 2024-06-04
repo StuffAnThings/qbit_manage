@@ -43,19 +43,20 @@ This section defines your qBittorrent instance.
 ---
 This section defines any settings defined in the configuration.
 
-| Variable              | Definition                                                                                                                                          | Required           |
-| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------- |
-| `force_auto_tmm`      | Will force qBittorrent to enable Automatic Torrent Management for each torrent.                                                                     | <center>❌</center> |
-| `tracker_error_tag`   | Define the tag of any torrents that do not have a working tracker. (Used in `--rem-unregistered` and `--tag-tracker-error`)                         | <center>❌</center> |
-| `nohardlinks_tag`   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                         | <center>❌</center> |
-| `share_limits_tag`   | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`)                         | <center>❌</center> |
-| `share_limits_min_seeding_time_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)                         | <center>❌</center> |
-| `share_limits_min_num_seeds_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)                         | <center>❌</center> |
-| `share_limits_last_active_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)                         | <center>❌</center> |
-| `cross_seed_tag` | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag. | <center>❌</center> |
-| `cat_filter_completed` | When running `--cat-update` function, it will filter for completed torrents only. | <center>❌</center> |
-| `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | <center>❌</center> |
-| `tag_nohardlinks_filter_completed` | When running `--tag-nohardlinks` function, , it will filter for completed torrents only. | <center>❌</center> |
+| Variable              | Definition                                                                                                                                         | Default Values | Required           |
+| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------| :-----------------  | :----------------- |
+| `force_auto_tmm`      | Will force qBittorrent to enable Automatic Torrent Management for each torrent.                                                              | False        | <center>❌</center> |
+| `tracker_error_tag`   | Define the tag of any torrents that do not have a working tracker. (Used in `--rem-unregistered` and `--tag-tracker-error`)                | issue        | <center>❌</center> |
+| `nohardlinks_tag`   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                 | noHL        | <center>❌</center> |
+| `share_limits_tag`   | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`)                   | ~share_limit      | <center>❌</center> |
+| `share_limits_min_seeding_time_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)             | MinSeedTimeNotReached            | <center>❌</center> |
+| `share_limits_min_num_seeds_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)            | MinSeedsNotMet             | <center>❌</center> |
+| `share_limits_last_active_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)           | LastActiveLimitNotReached               | <center>❌</center> |
+| `cross_seed_tag` | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag. | cross-seed | <center>❌</center> |
+| `cat_filter_completed` | When running `--cat-update` function, it will filter for completed torrents only. | True | <center>❌</center> |
+| `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | True | <center>❌</center> |
+| `tag_nohardlinks_filter_completed` | When running `--tag-nohardlinks` function, , it will filter for completed torrents only. | True | <center>❌</center> |
+| `cat_update_all` | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents. | True | <center>❌</center> |
 ## **directory:**
 
 ---
@@ -74,7 +75,7 @@ This section defines the directories that qbit_manage will be looking into for v
 
 ---
 This section defines the categories that you are currently using and the path's that are associated with them.<br>
-> **NOTE** ALL categories must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors.
+> **NOTE** ALL categories must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
 
 | Configuration | Definition                | Required           |
 | :------------ | :------------------------ | :----------------- |
@@ -169,6 +170,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `resume_torrent_after_change`   | Will resume your torrent after changing share limits.                                                                                     | True      |  bool   | <center>❌</center> |
 | `add_group_to_tag`   | This adds your grouping as a tag with a prefix defined in settings (share_limits_tag). Example: A grouping named noHL with a priority of 1 will have a tag set to `~share_limit_1.noHL` (if using the default prefix).                                                                                    | True      |  bool   | <center>❌</center> |
 | `min_num_seeds`   | Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here (depending on the tracker, you may or may not be included). If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.                                                                                    | 0      |  int   | <center>❌</center> |
+| `custom_tag`   | Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qBittorrent)**                                                                                    |  None     |  str   | <center>❌</center> |
 ## **recyclebin:**
 
 ---
