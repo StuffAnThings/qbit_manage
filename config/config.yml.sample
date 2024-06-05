@@ -182,6 +182,8 @@ share_limits:
     categories:
       - RadarrComplete
       - SonarrComplete
+    # <OPTIONAL> include_smaller_than: <int> # Filter by including torrents that are smaller than the value set here. Value is in GB
+    include_smaller_than: 10  # GB
     # <OPTIONAL> include_bigger_than: <int> # Filter by including torrents that are bigger than the value set here. Value is in GB
     include_bigger_than: 48  # GB
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.

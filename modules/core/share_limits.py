@@ -354,7 +354,11 @@ class ShareLimits:
                 exclude_any_tags=group_config["exclude_any_tags"],
             )
             check_category = self.check_category(category, group_config["categories"])
-            check_size = self.check_size(size, group_config["include_bigger_than"])
+            check_size = self.check_size(
+                size,
+                group_config["include_smaller_than"],
+                group_config["include_bigger_than"]
+            )
 
             if check_tags and check_category and check_size:
                 return group_name
@@ -384,10 +388,13 @@ class ShareLimits:
                 return False
         return True
 
-    def check_size(self, size, include_bigger_than):
-        """Check if the torrent is bigger than the required size"""
+    def check_size(self, size, include_smaller_than, include_bigger_than):
+        """Check if the torrent is within the size limits"""
+        size_gb = size / 1024 / 1024 / 1024  # size returned by qBittorrent API is in bytes
+        if include_smaller_than:
+            if size_gb > include_smaller_than:
+                return False
         if include_bigger_than:
-            size_gb = size / 1024 / 1024 / 1024  # size returned by qBittorrent API is in bytes
             if size_gb < include_bigger_than:
                 return False
         return True
