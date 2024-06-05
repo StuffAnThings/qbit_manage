@@ -354,11 +354,7 @@ class ShareLimits:
                 exclude_any_tags=group_config["exclude_any_tags"],
             )
             check_category = self.check_category(category, group_config["categories"])
-            check_size = self.check_size(
-                size,
-                group_config["include_smaller_than"],
-                group_config["include_bigger_than"]
-            )
+            check_size = self.check_size(size, group_config["include_smaller_than"], group_config["include_bigger_than"])
 
             if check_tags and check_category and check_size:
                 return group_name
