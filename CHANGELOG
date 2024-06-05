@@ -1,23 +1,13 @@
-# Requirements Added
-- croniter==2.0.5
-- humanize==4.9.0
-- pytimeparse2==1.7.1
+# Requirements Updated
+- qbittorrent-api==2024.5.63
+- requests==2.32.3
+- schedule==1.2.2
 
 # New Updates
-- Adds support for [cron scheduling](https://crontab.guru/examples.html) via QBT_SCHEDULE / `--schedule`
-- Supports [time parsing](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) in `max_seeding_time`, `min_seeding_time`, and `last_active` config variables.
-Example:
-  - `32m`
-  - `2h32m`
-  - `3d2h32m`
-  - `1w3d2h32m`
-- Removes the config option `ignoreTags_OnUpdate`, and `force_retag_all` option (These config options are no longer used, the tag-update function will now automatically update all torents if the tracker tag is missing)
-- Better trace logs for share limits (Closes #533)
-- Adds new config option `ignore_root_dir` [#538 - NoHardlinking detection outside of root directory](https://github.com/StuffAnThings/qbit_manage/issues/538)
-
+- Add config option `cat_update_all` to categorize only uncategorized torrents (Closes [#575](https://github.com/StuffAnThings/qbit_manage/issues/575))
 
 # Bug Fixes
-- Fixes [#540](https://github.com/StuffAnThings/qbit_manage/issues/540)
+- Fixes [#560](https://github.com/StuffAnThings/qbit_manage/issues/560)
 
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.2...v4.1.3
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.5...v4.1.6

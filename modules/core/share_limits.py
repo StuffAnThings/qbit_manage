@@ -28,6 +28,7 @@ class ShareLimits:
         self.torrents_updated = []  # list of torrents that have been updated
         self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
+        self.share_limits_custom_tags = qbit_manager.config.share_limits_custom_tags  # All possible custom share limits tags
         self.min_seeding_time_tag = qbit_manager.config.share_limits_min_seeding_time_tag  # tag for min seeding time
         self.min_num_seeds_tag = qbit_manager.config.share_limits_min_num_seeds_tag  # tag for min num seeds
         self.last_active_tag = qbit_manager.config.share_limits_last_active_tag  # tag for last active
@@ -179,9 +180,13 @@ class ShareLimits:
         for torrent in torrents:
             t_name = torrent.name
             t_hash = torrent.hash
-            self.group_tag = (
-                f"{self.share_limits_tag}_{group_config['priority']}.{group_name}" if group_config["add_group_to_tag"] else None
-            )
+            if group_config["add_group_to_tag"]:
+                if group_config["custom_tag"]:
+                    self.group_tag = group_config["custom_tag"]
+                else:
+                    self.group_tag = f"{self.share_limits_tag}_{group_config['priority']}.{group_name}"
+            else:
+                self.group_tag = None
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
             check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
             check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
@@ -199,12 +204,34 @@ class ShareLimits:
                     group_config["limit_upload_speed"] = round(group_upload_speed / len(torrents))
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
-            share_limits_not_yet_tagged = (
-                True if self.group_tag and not is_tag_in_torrent(self.group_tag, torrent.tags) else False
-            )
-            check_multiple_share_limits_tag = (
-                self.group_tag and len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 1
-            )
+
+            if self.group_tag:
+                if group_config["custom_tag"] and not is_tag_in_torrent(self.group_tag, torrent.tags):
+                    share_limits_not_yet_tagged = True
+                elif not group_config["custom_tag"] and not is_tag_in_torrent(self.group_tag, torrent.tags, exact=False):
+                    share_limits_not_yet_tagged = True
+                else:
+                    share_limits_not_yet_tagged = False
+
+                check_multiple_share_limits_tag = False  # Default assume no multiple share limits tag
+
+                # Check if any of the previous share limits custom tags are there
+                for custom_tag in self.share_limits_custom_tags:
+                    if custom_tag != self.group_tag and is_tag_in_torrent(custom_tag, torrent.tags):
+                        check_multiple_share_limits_tag = True
+                        break
+                # Check if there are any other share limits tags in the torrent
+                if group_config["custom_tag"] and len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 0:
+                    check_multiple_share_limits_tag = True
+                elif (
+                    not group_config["custom_tag"]
+                    and len(is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)) > 1
+                ):
+                    check_multiple_share_limits_tag = True
+            else:
+                share_limits_not_yet_tagged = False
+                check_multiple_share_limits_tag = False
+
             logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
@@ -346,6 +373,10 @@ class ShareLimits:
             tag = is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)
             if tag:
                 torrent.remove_tags(tag)
+            # Check if any of the previous share limits custom tags are there
+            for custom_tag in self.share_limits_custom_tags:
+                if is_tag_in_torrent(custom_tag, torrent.tags):
+                    torrent.remove_tags(custom_tag)
 
         # Will tag the torrent with the group name if add_group_to_tag is True and set the share limits
         self.set_tags_and_limits(

@@ -9,7 +9,7 @@ import sys
 import time
 from datetime import datetime
 from datetime import timedelta
-from functools import cache
+from functools import lru_cache
 
 try:
     import schedule
@@ -238,7 +238,7 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
         return default
 
 
-@cache
+@lru_cache(maxsize=1)
 def is_valid_cron_syntax(cron_expression):
     try:
         croniter(str(cron_expression))

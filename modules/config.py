@@ -187,11 +187,15 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
+            "cat_update_all": self.util.check_for_attribute(
+                self.data, "cat_update_all", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
+        self.share_limits_custom_tags = []
         self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
         self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
         self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
@@ -204,6 +208,7 @@ class Config:
             self.share_limits_min_seeding_time_tag,
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
+            self.share_limits_tag,
         ]
         # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:
@@ -589,6 +594,28 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["custom_tag"] = self.util.check_for_attribute(
+                    self.data,
+                    "custom_tag",
+                    parent="share_limits",
+                    subparent=group,
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                if self.share_limits[group]["custom_tag"]:
+                    if (
+                        self.share_limits[group]["custom_tag"] not in self.share_limits_custom_tags
+                        and self.share_limits[group]["custom_tag"] not in self.default_ignore_tags
+                    ):
+                        self.share_limits_custom_tags.append(self.share_limits[group]["custom_tag"])
+                    else:
+                        err = (
+                            f"Config Error: Duplicate custom tag '{self.share_limits[group]['custom_tag']}' "
+                            f"found in share_limits for the grouping '{group}'. Custom tag must be a unique value."
+                        )
+                        self.notify(err, "Config")
+                        raise Failed(err)
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
@@ -606,6 +633,13 @@ class Config:
                         f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is set, "
                         f"but max_ratio ({self.share_limits[group]['max_ratio']}) is not set for the grouping '{group}'.\n"
                         f"max_ratio must be greater than 0 when min_seeding_time is set."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if self.share_limits[group]["max_seeding_time"] > 525600:
+                    err = (
+                        f"Config Error: max_seeding_time ({self.share_limits[group]['max_seeding_time']}) cannot be set > 1 year "
+                        f"(525600 minutes) in qbitorrent. Please adjust the max_seeding_time for the grouping '{group}'."
                     )
                     self.notify(err, "Config")
                     raise Failed(err)
@@ -824,7 +858,9 @@ class Config:
                         if not self.dry_run:
                             for path in location_path_list:
                                 if path != location_path:
-                                    util.remove_empty_directories(path, "**/*", self.qbt.get_category_save_paths())
+                                    util.remove_empty_directories(path, self.qbt.get_category_save_paths())
+                            # Delete empty folders inside the location_path
+                            util.remove_empty_directories(location_path, [location_path])
                         body += logger.print_line(
                             f"{'Did not delete' if self.dry_run else 'Deleted'} {num_del} files "
                             f"({util.human_readable_size(size_bytes)}) from the {location}.",

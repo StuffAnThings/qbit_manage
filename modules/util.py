@@ -90,7 +90,8 @@ class TorrentMessages:
         "RETITLED",
         "TRUNCATED",
         "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
-        "INFOHASH NOT FOUND.",
+        "INFOHASH NOT FOUND.",  # blutopia
+        "TORRENT HAS BEEN DELETED.",  # blutopia
     ]
 
     IGNORE_MSGS = [
@@ -412,7 +413,18 @@ class Failed(Exception):
 
 
 def list_in_text(text, search_list, match_all=False):
-    """Check if a list of strings is in a string"""
+    """
+    Check if elements from a search list are present in a given text.
+
+    Args:
+        text (str): The text to search in.
+        search_list (list or set): The list of elements to search for in the text.
+        match_all (bool, optional): If True, all elements in the search list must be present in the text.
+                                    If False, at least one element must be present. Defaults to False.
+
+    Returns:
+        bool: True if the search list elements are found in the text, False otherwise.
+    """
     if isinstance(search_list, list):
         search_list = set(search_list)
     contains = {x for x in search_list if " " in x}
@@ -481,27 +493,38 @@ def copy_files(src, dest):
         logger.error(ex)
 
 
-def remove_empty_directories(pathlib_root_dir, pattern, excluded_paths=None):
-    """Remove empty directories recursively."""
+def remove_empty_directories(pathlib_root_dir, excluded_paths=None):
+    """Remove empty directories recursively, optimized version."""
     pathlib_root_dir = Path(pathlib_root_dir)
-    try:
-        # list all directories recursively and sort them by path,
-        # longest first
-        longest = sorted(
-            pathlib_root_dir.glob(pattern),
-            key=lambda p: len(str(p)),
-            reverse=True,
-        )
-        longest.append(pathlib_root_dir)  # delete the folder itself if it's empty
-        for pdir in longest:
-            try:
-                if str(pdir) in excluded_paths:
-                    continue
-                pdir.rmdir()  # remove directory if empty
-            except (FileNotFoundError, OSError):
-                continue  # catch and continue if non-empty, folders within could already be deleted if run in parallel
-    except FileNotFoundError:
-        pass  # if this is being run in parallel, pathlib_root_dir could already be deleted
+    if excluded_paths is not None:
+        # Ensure excluded_paths is a set of Path objects for efficient lookup
+        excluded_paths = {Path(p) for p in excluded_paths}
+
+    for root, dirs, files in os.walk(pathlib_root_dir, topdown=False):
+        root_path = Path(root)
+        # Skip excluded paths
+        if excluded_paths and root_path in excluded_paths:
+            continue
+
+        # Attempt to remove the directory if it's empty
+        try:
+            os.rmdir(root)
+        except PermissionError as perm:
+            logger.warning(f"{perm} : Unable to delete folder {root} as it has permission issues. Skipping...")
+            pass
+        except OSError:
+            # Directory not empty or other error - safe to ignore here
+            pass
+
+    # Attempt to remove the root directory if it's now empty and not excluded
+    if not excluded_paths or pathlib_root_dir not in excluded_paths:
+        try:
+            pathlib_root_dir.rmdir()
+        except PermissionError as perm:
+            logger.warning(f"{perm} :  Unable to delete folder {root} as it has permission issues. Skipping...")
+            pass
+        except OSError:
+            pass
 
 
 class CheckHardLinks:
