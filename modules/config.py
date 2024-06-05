@@ -428,6 +428,17 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["include_bigger_than"] = self.util.check_for_attribute(
+                    self.data,
+                    "include_bigger_than",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=0,
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["cleanup"] = self.util.check_for_attribute(
                     self.data, "cleanup", parent="share_limits", subparent=group, var_type="bool", default=False, do_print=False
                 )

@@ -338,13 +338,13 @@ class ShareLimits:
         for torrent in torrent_list:
             tags = util.get_list(torrent.tags)
             category = torrent.category or ""
-            grouping = self.get_share_limit_group(tags, category)
+            grouping = self.get_share_limit_group(tags, category, torrent.size)
             logger.trace(f"Torrent: {torrent.name} [Hash: {torrent.hash}] - Share Limit Group: {grouping}")
             if grouping:
                 self.share_limits_config[grouping]["torrents"].append(torrent)
 
-    def get_share_limit_group(self, tags, category):
-        """Get the share limit group based on the tags and category of the torrent"""
+    def get_share_limit_group(self, tags, category, size):
+        """Get the share limit group based on the tags, category, and size of the torrent"""
         for group_name, group_config in self.share_limits_config.items():
             check_tags = self.check_tags(
                 tags=tags,
@@ -354,8 +354,9 @@ class ShareLimits:
                 exclude_any_tags=group_config["exclude_any_tags"],
             )
             check_category = self.check_category(category, group_config["categories"])
+            check_size = self.check_size(size, group_config["include_bigger_than"])
 
-            if check_tags and check_category:
+            if check_tags and check_category and check_size:
                 return group_name
         return None
 
@@ -380,6 +381,14 @@ class ShareLimits:
         """Check if the torrent has the required category"""
         if categories:
             if category not in categories:
+                return False
+        return True
+
+    def check_size(self, size, include_bigger_than):
+        """Check if the torrent is bigger than the required size"""
+        if include_bigger_than:
+            size_gb = size / 1024 / 1024 / 1024  # size returned by qBittorrent API is in bytes
+            if size_gb < include_bigger_than:
                 return False
         return True
 
