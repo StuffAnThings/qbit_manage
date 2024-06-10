@@ -343,8 +343,20 @@ class ShareLimits:
 
             apply_first_to_smaller_than = max_seeding_torrents_options["apply_first_to_smaller_than"]
             apply_first_to_bigger_than = max_seeding_torrents_options["apply_first_to_bigger_than"]
-            logger.print_line(logger.insert_space(f"- Torrents smaller than: {apply_first_to_smaller_than} MB", 3), self.config.loglevel) if apply_first_to_smaller_than else None
-            logger.print_line(logger.insert_space(f"- Torrents bigger than: {apply_first_to_bigger_than} MB", 3), self.config.loglevel) if apply_first_to_bigger_than else None
+            (
+                logger.print_line(
+                    logger.insert_space(f"- Torrents smaller than: {apply_first_to_smaller_than} MB", 3), self.config.loglevel
+                )
+                if apply_first_to_smaller_than
+                else None
+            )
+            (
+                logger.print_line(
+                    logger.insert_space(f"- Torrents bigger than: {apply_first_to_bigger_than} MB", 3), self.config.loglevel
+                )
+                if apply_first_to_bigger_than
+                else None
+            )
 
             def mb_to_oct(mb):
                 return mb * 1024 * 1024
