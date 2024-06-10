@@ -464,6 +464,17 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["max_seeding_torrents"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_seeding_torrents",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["limit_upload_speed"] = self.util.check_for_attribute(
                     self.data,
                     "limit_upload_speed",
@@ -526,6 +537,66 @@ class Config:
                     default=True,
                     do_print=False,
                     save=False,
+                )
+                self.share_limits[group]["max_seeding_torrents_options"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_seeding_torrents_options",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="dict",
+                    default={},
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_seeding_torrents_options"]["sort_by"] = self.util.check_for_attribute(
+                    self.data,
+                    "sort_by",
+                    parent="share_limits",
+                    subparent=group,
+                    subsubparent="max_seeding_torrents_options",
+                    var_type="str",
+                    default="last_activity",
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_seeding_torrents_options"]["apply_asc"] = self.util.check_for_attribute(
+                    self.data,
+                    "apply_asc",
+                    parent="share_limits",
+                    subparent=group,
+                    subsubparent="max_seeding_torrents_options",
+                    var_type="bool",
+                    default=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_seeding_torrents_options"]["apply_first_to_smaller_than"] = (
+                    self.util.check_for_attribute(
+                        self.data,
+                        "apply_first_to_smaller_than",
+                        parent="share_limits",
+                        subparent=group,
+                        subsubparent="max_seeding_torrents_options",
+                        var_type="int",
+                        min_int=0,
+                        default=0,
+                        do_print=False,
+                        save=False,
+                    )
+                )
+                self.share_limits[group]["max_seeding_torrents_options"]["apply_first_to_bigger_than"] = (
+                    self.util.check_for_attribute(
+                        self.data,
+                        "apply_first_to_bigger_than",
+                        parent="share_limits",
+                        subparent=group,
+                        subsubparent="max_seeding_torrents_options",
+                        var_type="int",
+                        min_int=0,
+                        default=0,
+                        do_print=False,
+                        save=False,
+                    )
                 )
                 self.share_limits[group]["custom_tag"] = self.util.check_for_attribute(
                     self.data,
