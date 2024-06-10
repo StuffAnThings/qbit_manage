@@ -326,7 +326,7 @@ class ShareLimits:
             max_seeding_torrents_options = group_config["max_seeding_torrents_options"]
 
             sort_by = max_seeding_torrents_options["sort_by"]
-            sort_asc = max_seeding_torrents_options["sort_asc"]
+            apply_asc = max_seeding_torrents_options["apply_asc"]
             allowed_sort_by = ["ratio", "seeding_time", "last_activity", "size"]
             default_sort_by = "last_activity"
             if sort_by not in allowed_sort_by:
@@ -336,32 +336,30 @@ class ShareLimits:
             logger.print_line("Priority share limits update for torrents meeting the following criteria:", self.config.loglevel)
 
             logger.print_line(
-                logger.insert_space(f"- {sort_by.title().replace('_', ' ')}: {'high' if sort_asc else 'low'}", 3),
+                logger.insert_space(f"- {sort_by.title().replace('_', ' ')}: {'low' if apply_asc else 'high'}", 3),
                 self.config.loglevel,
             )
-            sorted_torrents = sorted(torrents, key=lambda torrent: torrent[sort_by], reverse=not sort_asc)
+            sorted_torrents = sorted(torrents, key=lambda torrent: torrent[sort_by], reverse=apply_asc)
 
-            min_size = max_seeding_torrents_options["min_size"]
-            max_size = max_seeding_torrents_options["max_size"]
-            if min_size > max_size:
-                min_size, max_size = max_size, min_size
-            logger.print_line(logger.insert_space(f"- Min size: {min_size} MB", 3), self.config.loglevel) if min_size else None
-            logger.print_line(logger.insert_space(f"- Max size: {max_size} MB", 3), self.config.loglevel) if max_size else None
+            apply_first_to_smaller_than = max_seeding_torrents_options["apply_first_to_smaller_than"]
+            apply_first_to_bigger_than = max_seeding_torrents_options["apply_first_to_bigger_than"]
+            logger.print_line(logger.insert_space(f"- Torrents smaller than: {apply_first_to_smaller_than} MB", 3), self.config.loglevel) if apply_first_to_smaller_than else None
+            logger.print_line(logger.insert_space(f"- Torrents bigger than: {apply_first_to_bigger_than} MB", 3), self.config.loglevel) if apply_first_to_bigger_than else None
 
             def mb_to_oct(mb):
                 return mb * 1024 * 1024
 
-            min_size = mb_to_oct(min_size)
-            max_size = mb_to_oct(max_size)
+            apply_first_to_smaller_than = mb_to_oct(apply_first_to_smaller_than)
+            apply_first_to_bigger_than = mb_to_oct(apply_first_to_bigger_than)
 
             def filter_condition(torrent):
-                return min_size <= torrent["size"] < max_size
+                return apply_first_to_bigger_than <= torrent["size"] < apply_first_to_smaller_than
 
             filtered_torrents = filter(lambda x: filter_condition(x), sorted_torrents)
             non_filtered_torrents = filter(lambda x: not filter_condition(x), sorted_torrents)
             all_torrents = list(non_filtered_torrents) + list(filtered_torrents)
 
-            return all_torrents[-n_torrents_to_remove:]
+            return all_torrents[-n_torrents_to_remove:]  # Remove first the torrents that meet the filter condition
         else:
             logger.print_line("=> No share limit updates needed.", self.config.loglevel)
             return []
