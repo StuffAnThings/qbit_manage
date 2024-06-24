@@ -90,6 +90,7 @@ class TorrentMessages:
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
         "TORRENT HAS BEEN POSTPONED",  # BHD Status
+        "520 (UNKNOWN HTTP ERROR)",
     ]
 
     EXCEPTIONS_MSGS = [
