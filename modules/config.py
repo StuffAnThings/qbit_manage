@@ -551,7 +551,8 @@ class Config:
                         raise Failed(err)
                 self.share_limits[group]["torrents"] = []
                 if (
-                    self.share_limits[group]["min_seeding_time"] > 0 and self.share_limits[group]["max_seeding_time"] != -1
+                    self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["max_seeding_time"] != -1
                     and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
                 ):
                     err = (
