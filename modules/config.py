@@ -552,12 +552,13 @@ class Config:
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["max_seeding_time"] != -1
                     and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
                 ):
                     err = (
                         f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
                         f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
-                        f"min_seeding_time must be less than or equal to max_seeding_time."
+                        f"min_seeding_time must be less than or equal to max_seeding_time or max_seeding_time must be unlimited (-1)."
                     )
                     self.notify(err, "Config")
                     raise Failed(err)
