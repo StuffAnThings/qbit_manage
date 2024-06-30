@@ -558,7 +558,8 @@ class Config:
                     err = (
                         f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
                         f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
-                        f"min_seeding_time must be less than or equal to max_seeding_time or max_seeding_time must be unlimited (-1)."
+                        f"min_seeding_time must be less than or equal to max_seeding_time or "
+                        "max_seeding_time must be unlimited (-1)."
                     )
                     self.notify(err, "Config")
                     raise Failed(err)
