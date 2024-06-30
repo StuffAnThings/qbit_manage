@@ -545,7 +545,7 @@ class ShareLimits:
         def _has_reached_seeding_time_limit():
             nonlocal body
             seeding_time_limit = None
-            if max_seeding_time is None:
+            if max_seeding_time is None or max_seeding_time == -1:
                 return False
             if max_seeding_time >= 0:
                 seeding_time_limit = max_seeding_time
