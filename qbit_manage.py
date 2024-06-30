@@ -394,16 +394,20 @@ if branch is None:
 version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
 
 
-def start_loop():
+def start_loop(run_mode_message=""):
     """Start the main loop"""
     if len(config_files) == 1:
         args["config_file"] = config_files[0]
+        print_logo(logger)
+        logger.info(run_mode_message)
         start()
     else:
         for config_file in config_files:
             args["config_file"] = config_file
             config_base = os.path.splitext(config_file)[0]
             logger.add_config_handler(config_base)
+            print_logo(logger)
+            logger.info(run_mode_message)
             start()
             logger.remove_config_handler(config_base)
 
@@ -618,9 +622,8 @@ def schedule_every_x_minutes(min):
     return next_run_time
 
 
-if __name__ == "__main__":
-    killer = GracefulKiller()
-    logger.add_main_handler()
+def print_logo(logger):
+    global is_docker, version, git_branch
     logger.separator()
     logger.info_center("        _     _ _                                            ")  # noqa: W605
     logger.info_center("       | |   (_) |                                           ")  # noqa: W605
@@ -641,48 +644,29 @@ if __name__ == "__main__":
     if new_version:
         logger.info(f"    Newest Version: {new_version}")
     logger.info(f"    Platform: {platform.platform()}")
-    logger.separator(loglevel="DEBUG")
-    logger.debug(f"    --run (QBT_RUN): {run}")
-    logger.debug(f"    --schedule (QBT_SCHEDULE): {sch}")
-    logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {startupDelay}")
-    logger.debug(f"    --config-file (QBT_CONFIG): {config_files}")
-    logger.debug(f"    --log-file (QBT_LOGFILE): {log_file}")
-    logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {cross_seed}")
-    logger.debug(f"    --recheck (QBT_RECHECK): {recheck}")
-    logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {cat_update}")
-    logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {tag_update}")
-    logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {rem_unregistered}")
-    logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {tag_tracker_error}")
-    logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {rem_orphaned}")
-    logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {tag_nohardlinks}")
-    logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {share_limits}")
-    logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {skip_cleanup}")
-    logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {skip_qb_version_check}")
-    logger.debug(f"    --dry-run (QBT_DRY_RUN): {dry_run}")
-    logger.debug(f"    --log-level (QBT_LOG_LEVEL): {log_level}")
-    logger.debug(f"    --divider (QBT_DIVIDER): {divider}")
-    logger.debug(f"    --width (QBT_WIDTH): {screen_width}")
-    logger.debug(f"    --debug (QBT_DEBUG): {debug}")
-    logger.debug(f"    --trace (QBT_TRACE): {trace}")
-    logger.debug("")
+
+
+if __name__ == "__main__":
+    killer = GracefulKiller()
+    logger.add_main_handler()
     try:
         if run:
-            logger.info("    Run Mode: Script will exit after completion.")
-            start_loop()
+            run_mode_message = "    Run Mode: Script will exit after completion."
+            start_loop(run_mode_message)
         else:
             if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
-                logger.info(f"    Scheduled Mode: Running cron '{sch}'")
+                run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
                 next_run_time = schedule_from_cron(sch)
                 next_run = calc_next_run(next_run_time)
-                logger.info(f"    {next_run['next_run_str']}")
+                run_mode_message += f"\n     {next_run['next_run_str']}"
             else:
                 delta = timedelta(minutes=sch)
-                logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
+                run_mode_message = f"    Scheduled Mode: Running every {precisedelta(delta)}."
                 next_run_time = schedule_every_x_minutes(sch)
                 if startupDelay:
-                    logger.info(f"    Startup Delay: Initial Run will start after {startupDelay} seconds")
+                    run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     time.sleep(startupDelay)
-                start_loop()
+                start_loop(run_mode_message)
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
