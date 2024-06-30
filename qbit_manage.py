@@ -394,20 +394,20 @@ if branch is None:
 version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
 
 
-def start_loop(run_mode_message=""):
+def start_loop(first_run=False):
     """Start the main loop"""
     if len(config_files) == 1:
         args["config_file"] = config_files[0]
-        print_logo(logger)
-        logger.info(run_mode_message)
+        if not first_run:
+            print_logo(logger)
         start()
     else:
         for config_file in config_files:
             args["config_file"] = config_file
             config_base = os.path.splitext(config_file)[0]
             logger.add_config_handler(config_base)
-            print_logo(logger)
-            logger.info(run_mode_message)
+            if not first_run:
+                print_logo(logger)
             start()
             logger.remove_config_handler(config_base)
 
@@ -649,16 +649,19 @@ def print_logo(logger):
 if __name__ == "__main__":
     killer = GracefulKiller()
     logger.add_main_handler()
+    print_logo(logger)
     try:
         if run:
             run_mode_message = "    Run Mode: Script will exit after completion."
-            start_loop(run_mode_message)
+            logger.info(run_mode_message)
+            start_loop(True)
         else:
             if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
                 run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
                 next_run_time = schedule_from_cron(sch)
                 next_run = calc_next_run(next_run_time)
                 run_mode_message += f"\n     {next_run['next_run_str']}"
+                logger.info(run_mode_message)
             else:
                 delta = timedelta(minutes=sch)
                 run_mode_message = f"    Scheduled Mode: Running every {precisedelta(delta)}."
@@ -666,7 +669,8 @@ if __name__ == "__main__":
                 if startupDelay:
                     run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     time.sleep(startupDelay)
-                start_loop(run_mode_message)
+                logger.info(run_mode_message)
+                start_loop(True)
 
             while not killer.kill_now:
                 next_run = calc_next_run(next_run_time)
