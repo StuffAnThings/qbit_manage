@@ -293,7 +293,11 @@ class Config:
 
         self.beyond_hd = None
         if "bhd" in self.data:
-            if self.data["bhd"] is not None and self.data["bhd"].get("apikey") is not None:
+            if (
+                self.data["bhd"] is not None
+                and self.data["bhd"].get("apikey") is not None
+                and self.data["bhd"].get("legacy", False)
+            ):
                 logger.info("Connecting to BHD API...")
                 try:
                     self.beyond_hd = BeyondHD(

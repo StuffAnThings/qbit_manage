@@ -78,6 +78,18 @@ class TorrentMessages:
         "TORRENT HAS BEEN DELETED.",  # blutopia
     ]
 
+    UNREGISTERED_MSGS_BHD = [
+        "DEAD",
+        "DUPE",
+        "COMPLETE SEASON UPLOADED",
+        "PROBLEM WITH DESCRIPTION",
+        "PROBLEM WITH FILE",
+        "PROBLEM WITH PACK",
+        "SPECIFICALLY BANNED",
+        "TRUMPED",
+        "OTHER",
+    ]
+
     IGNORE_MSGS = [
         "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
         "MISSING PASSKEY",
