@@ -29,6 +29,12 @@ parser.add_argument(
     action="store_true",
     default=False,
 )
+parser.add_argument(
+    "--status-filter",
+    help="Define a status to limit which torrents to pause. Useful if you want to leave certain torrent unpaused. Allowed value same as API definition.",
+    choices=['all', 'downloading', 'seeding', 'completed', 'paused', 'stopped', 'active', 'inactive', 'resumed', 'running', 'stalled', 'stalled_uploading', 'stalled_downloading', 'checking', 'moving', 'errored'],
+    default=None,
+)
 # --DEFINE VARIABLES--#
 
 # --START SCRIPT--#
@@ -85,7 +91,7 @@ if __name__ == "__main__":
 
     timeoffset_from = current - timedelta(days=args.days_from)
     timeoffset_to = current - timedelta(days=args.days_to)
-    torrent_list = client.torrents.info(sort="added_on", reverse=True)
+    torrent_list = client.torrents.info(status_filter=args.status_filter, sort="added_on", reverse=True)
 
     torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
 
