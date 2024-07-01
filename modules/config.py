@@ -332,6 +332,7 @@ class Config:
 
         self.beyond_hd = None
         if "bhd" in self.data:
+            logger.warning("DEPCRATED: bhd attribute is no longer valid. Please remove the 'bhd' attribute from your config.")
             if (
                 self.data["bhd"] is not None
                 and self.data["bhd"].get("apikey") is not None
