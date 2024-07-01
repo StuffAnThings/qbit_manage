@@ -462,6 +462,18 @@ def move_files(src, dest, mod=False):
     return to_delete
 
 
+def delete_files(file_path):
+    """Try to delete the file directly."""
+    try:
+        os.remove(file_path)
+    except FileNotFoundError as e:
+        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+    except PermissionError as e:
+        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+    except OSError as e:
+        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
+
+
 def copy_files(src, dest):
     """Copy files from source to destination"""
     dest_path = os.path.dirname(dest)
