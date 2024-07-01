@@ -40,7 +40,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--status-filter",
-    help="Define a status to limit which torrents to pause. Useful if you want to leave certain torrent unpaused. Allowed value same as API definition.",
+    help="Define a status to limit which torrents to pause. Useful if you want to leave certain torrents unpaused.",
     choices=[
         "all",
         "downloading",
