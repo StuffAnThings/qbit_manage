@@ -78,6 +78,9 @@ class RemoveUnregistered:
         Checks if a torrent is unregistered in BHD using their deletion reasons.
         Legacy method uses the BHD API to check if a torrent is unregistered.
         """
+        # Some status's from BHD have a option message such as
+        # "Trumped: Internal: https://beyond-hd.xxxxx", so removing the colon is needed to match the status
+        status_filtered = msg_up.split(":")[0]
         if "tracker.beyond-hd.me" in tracker["url"]:
             # Checks if the legacy method is used and if the tracker is BHD then use API method
             if self.config.beyond_hd is not None and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS):
@@ -86,7 +89,7 @@ class RemoveUnregistered:
                 if response.get("total_results") == 0:
                     return True
             # Checks if the tracker is BHD and the message is in the deletion reasons for BHD
-            elif list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS_BHD):
+            elif list_in_text(status_filtered, TorrentMessages.UNREGISTERED_MSGS_BHD):
                 return True
         return False
 
