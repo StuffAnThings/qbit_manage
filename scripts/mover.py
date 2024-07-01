@@ -32,7 +32,24 @@ parser.add_argument(
 parser.add_argument(
     "--status-filter",
     help="Define a status to limit which torrents to pause. Useful if you want to leave certain torrent unpaused. Allowed value same as API definition.",
-    choices=['all', 'downloading', 'seeding', 'completed', 'paused', 'stopped', 'active', 'inactive', 'resumed', 'running', 'stalled', 'stalled_uploading', 'stalled_downloading', 'checking', 'moving', 'errored'],
+    choices=[
+        "all",
+        "downloading",
+        "seeding",
+        "completed",
+        "paused",
+        "stopped",
+        "active",
+        "inactive",
+        "resumed",
+        "running",
+        "stalled",
+        "stalled_uploading",
+        "stalled_downloading",
+        "checking",
+        "moving",
+        "errored",
+    ],
     default=None,
 )
 # --DEFINE VARIABLES--#
