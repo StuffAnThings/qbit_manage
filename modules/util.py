@@ -88,6 +88,7 @@ class TorrentMessages:
         "SPECIFICALLY BANNED",
         "TRUMPED",
         "OTHER",
+        "TORRENT HAS BEEN DELETED",
     ]
 
     IGNORE_MSGS = [
