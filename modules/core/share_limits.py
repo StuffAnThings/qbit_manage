@@ -570,7 +570,7 @@ class ShareLimits:
         if last_active is not None:
             if not _has_reached_last_active_time_limit():
                 return body
-        if max_ratio is not None:
+        if max_ratio is not None or max_ratio != -1:
             if max_ratio >= 0:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)
