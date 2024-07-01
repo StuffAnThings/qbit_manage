@@ -77,6 +77,18 @@ class Config:
                         default=False,
                         save=True,
                     )
+                logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")
+                logger.debug(f"    --run (QBT_RUN): {args['run']}")
+                logger.debug(f"    --schedule (QBT_SCHEDULE): {args['sch']}")
+                logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {args['startupDelay']}")
+                logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
+                logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
+                logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
+                logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
+                logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
+                logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
+                logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
+                logger.separator("CONFIG OVERRIDE RUN COMMDANDS", space=False, border=False, loglevel="DEBUG")
                 logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {self.commands['cross_seed']}")
                 logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
                 logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
@@ -89,8 +101,35 @@ class Config:
                 logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
                 logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {self.commands['skip_qb_version_check']}")
                 logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
+                logger.separator(loglevel="DEBUG")
+
         else:
             self.commands = args
+            logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")
+            logger.debug(f"    --run (QBT_RUN): {args['run']}")
+            logger.debug(f"    --schedule (QBT_SCHEDULE): {args['sch']}")
+            logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {args['startupDelay']}")
+            logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
+            logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
+            logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
+            logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
+            logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
+            logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
+            logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
+            logger.separator("DOCKER ENV RUN COMMANDS", space=False, border=False, loglevel="DEBUG")
+            logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {args['cross_seed']}")
+            logger.debug(f"    --recheck (QBT_RECHECK): {args['recheck']}")
+            logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {args['cat_update']}")
+            logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {args['tag_update']}")
+            logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {args['rem_unregistered']}")
+            logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {args['tag_tracker_error']}")
+            logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {args['rem_orphaned']}")
+            logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {args['tag_nohardlinks']}")
+            logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {args['share_limits']}")
+            logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {args['skip_cleanup']}")
+            logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {args['skip_qb_version_check']}")
+            logger.debug(f"    --dry-run (QBT_DRY_RUN): {args['dry_run']}")
+            logger.separator(loglevel="DEBUG")
 
         if "qbt" in self.data:
             self.data["qbt"] = self.data.pop("qbt")
@@ -293,7 +332,12 @@ class Config:
 
         self.beyond_hd = None
         if "bhd" in self.data:
-            if self.data["bhd"] is not None and self.data["bhd"].get("apikey") is not None:
+            logger.warning("DEPCRATED: bhd attribute is no longer valid. Please remove the 'bhd' attribute from your config.")
+            if (
+                self.data["bhd"] is not None
+                and self.data["bhd"].get("apikey") is not None
+                and self.data["bhd"].get("legacy", False)
+            ):
                 logger.info("Connecting to BHD API...")
                 try:
                     self.beyond_hd = BeyondHD(
@@ -552,12 +596,14 @@ class Config:
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
+                    and self.share_limits[group]["max_seeding_time"] != -1
                     and self.share_limits[group]["min_seeding_time"] > self.share_limits[group]["max_seeding_time"]
                 ):
                     err = (
                         f"Config Error: min_seeding_time ({self.share_limits[group]['min_seeding_time']}) is greater than "
                         f"max_seeding_time ({self.share_limits[group]['max_seeding_time']}) for the grouping '{group}'.\n"
-                        f"min_seeding_time must be less than or equal to max_seeding_time."
+                        f"min_seeding_time must be less than or equal to max_seeding_time or "
+                        "max_seeding_time must be unlimited (-1)."
                     )
                     self.notify(err, "Config")
                     raise Failed(err)

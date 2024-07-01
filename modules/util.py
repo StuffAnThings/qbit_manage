@@ -78,6 +78,19 @@ class TorrentMessages:
         "TORRENT HAS BEEN DELETED.",  # blutopia
     ]
 
+    UNREGISTERED_MSGS_BHD = [
+        "DEAD",
+        "DUPE",
+        "COMPLETE SEASON UPLOADED",
+        "PROBLEM WITH DESCRIPTION",
+        "PROBLEM WITH FILE",
+        "PROBLEM WITH PACK",
+        "SPECIFICALLY BANNED",
+        "TRUMPED",
+        "OTHER",
+        "TORRENT HAS BEEN DELETED",
+    ]
+
     IGNORE_MSGS = [
         "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
         "MISSING PASSKEY",
@@ -90,6 +103,7 @@ class TorrentMessages:
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
         "TORRENT HAS BEEN POSTPONED",  # BHD Status
+        "520 (UNKNOWN HTTP ERROR)",
     ]
 
     EXCEPTIONS_MSGS = [
@@ -447,6 +461,18 @@ def move_files(src, dest, mod=False):
         logger.stacktrace()
         logger.error(ex)
     return to_delete
+
+
+def delete_files(file_path):
+    """Try to delete the file directly."""
+    try:
+        os.remove(file_path)
+    except FileNotFoundError as e:
+        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+    except PermissionError as e:
+        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+    except OSError as e:
+        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
 
 
 def copy_files(src, dest):

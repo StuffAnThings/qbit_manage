@@ -2,11 +2,20 @@
 # This standalone script is used to pause torrents older than last x days,
 # run mover (in Unraid) and start torrents again once completed
 import argparse
+import logging
 import os
 import sys
 import time
 from datetime import datetime
 from datetime import timedelta
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 parser = argparse.ArgumentParser(prog="Qbit Mover", description="Stop torrents and kick off Unraid mover process")
 parser.add_argument("--host", help="qbittorrent host including port", required=True)
@@ -60,7 +69,9 @@ try:
     from qbittorrentapi import Client
     from qbittorrentapi import LoginFailed
 except ModuleNotFoundError:
-    print('Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"')
+    logging.error(
+        'Requirements Error: qbittorrent-api not installed. Please install using the command "pip install qbittorrent-api"'
+    )
     sys.exit(1)
 
 
@@ -83,10 +94,10 @@ def exists_in_cache(cache_mount, content_path):
 def stop_start_torrents(torrent_list, pause=True):
     for torrent in torrent_list:
         if pause:
-            print(f"Pausing: {torrent.name} [{torrent.added_on}]")
+            logging.info(f"Pausing: {torrent.name} [{torrent.added_on}]")
             torrent.pause()
         else:
-            print(f"Resuming: {torrent.name} [{torrent.added_on}]")
+            logging.info(f"Resuming: {torrent.name} [{torrent.added_on}]")
             torrent.resume()
 
 
@@ -113,16 +124,18 @@ if __name__ == "__main__":
     torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
 
     # Pause Torrents
-    print(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
+    logging.info(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, True)
     time.sleep(10)
-    # Start mover
-    print(f"Starting {'mover.old' if args.mover_old else 'mover'} to move files older than {args.days_to} days to array disks.")
     # Or using mover tunning
     if args.mover_old:
+        # Start mover
+        logging.info("Starting mover.old to move files in to array disks.")
         os.system("/usr/local/sbin/mover.old start")
     else:
+        # Start mover
+        logging.info("Starting mover to move files in to array disks based on mover tuning preferences.")
         os.system("/usr/local/sbin/mover start")
     # Start Torrents
-    print(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
+    logging.info(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
     stop_start_torrents(torrents, False)
