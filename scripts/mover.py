@@ -59,7 +59,7 @@ parser.add_argument(
         "moving",
         "errored",
     ],
-    default=None,
+    default="completed",
 )
 # --DEFINE VARIABLES--#
 
