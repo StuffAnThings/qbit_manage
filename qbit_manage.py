@@ -450,12 +450,15 @@ def start():
         nonlocal end_time, start_time, stats_summary, run_time, next_run, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
-        if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
-            next_run_time = schedule_from_cron(sch)
+        if run is False:
+            if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
+                next_run_time = schedule_from_cron(sch)
+            else:
+                delta = timedelta(minutes=sch)
+                logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
+                next_run_time = schedule_every_x_minutes(sch)
         else:
-            delta = timedelta(minutes=sch)
-            logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
-            next_run_time = schedule_every_x_minutes(sch)
+            next_run_time = datetime.now()
         nxt_run = calc_next_run(next_run_time)
         next_run_str = nxt_run["next_run_str"]
         next_run = nxt_run["next_run"]
