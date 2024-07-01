@@ -123,11 +123,9 @@ class RemoveUnregistered:
                             msg_up, TorrentMessages.IGNORE_MSGS
                         ):
                             self.del_unregistered(msg, tracker, torrent)
-                            break
                         else:
                             if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
                                 self.del_unregistered(msg, tracker, torrent)
-                                break
                     # Tag any error torrents
                     if self.cfg_tag_error and self.tag_error not in check_tags:
                         self.tag_tracker_error(msg, tracker, torrent)
