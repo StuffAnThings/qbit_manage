@@ -89,6 +89,7 @@ class TorrentMessages:
         "TRUMPED",
         "OTHER",
         "TORRENT HAS BEEN DELETED",
+        "NUKED",
     ]
 
     IGNORE_MSGS = [
