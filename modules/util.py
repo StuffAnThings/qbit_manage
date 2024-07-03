@@ -596,7 +596,7 @@ class CheckHardLinks:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
                 logger.trace(f"Folder: {file}")
                 logger.trace(f"Files Sorted by size: {sorted_files}")
-                threshold = 0.5
+                threshold = 0.1
                 if not sorted_files:
                     msg = (
                         f"Nohardlink Error: Unable to open the folder {file}. "
