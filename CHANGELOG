@@ -1,13 +1,16 @@
-# Requirements Updated
-- qbittorrent-api==2024.5.63
-- requests==2.32.3
-- schedule==1.2.2
-
 # New Updates
-- Add config option `cat_update_all` to categorize only uncategorized torrents (Closes [#575](https://github.com/StuffAnThings/qbit_manage/issues/575))
+- BHD config options are now deprecated due to qbm no longer needing to use the api to detect unregistered torrents (Closes #595)
+- Updates mover script to add logging and default to completed torrents only with new optional argument (`--status-filter`)
 
 # Bug Fixes
-- Fixes [#560](https://github.com/StuffAnThings/qbit_manage/issues/560)
+- Adds new ignore message for unregistered torrents (Closes #592)
+- Allow `max_seeding_time` to be unlimited (-1) if min_seeding_time is set (Closes #596)
+- Fixes checking tracker status for udp/wss (Closes #586)
+- Fixes Logging header not getting logged in every run (Closes #591)
+- Fixes min_seeding_time tag removal when max_seeding_time is -1 (#Closes 598)
+- Fixes Remove orphaned without moving to orphaned_dir (Closes #590)
+- Fixes bug in printing schedule mode when run is set to True
+- Modifies noHL threshold to 0.1 to address false positives
 
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.5...v4.1.6
+Special thanks to @bakerboy448, @ineednewpajamas, @lflare, @convexshiba  for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.6...v4.1.7

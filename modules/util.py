@@ -78,6 +78,20 @@ class TorrentMessages:
         "TORRENT HAS BEEN DELETED.",  # blutopia
     ]
 
+    UNREGISTERED_MSGS_BHD = [
+        "DEAD",
+        "DUPE",
+        "COMPLETE SEASON UPLOADED",
+        "PROBLEM WITH DESCRIPTION",
+        "PROBLEM WITH FILE",
+        "PROBLEM WITH PACK",
+        "SPECIFICALLY BANNED",
+        "TRUMPED",
+        "OTHER",
+        "TORRENT HAS BEEN DELETED",
+        "NUKED",
+    ]
+
     IGNORE_MSGS = [
         "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
         "MISSING PASSKEY",
@@ -90,6 +104,7 @@ class TorrentMessages:
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
         "TORRENT HAS BEEN POSTPONED",  # BHD Status
+        "520 (UNKNOWN HTTP ERROR)",
     ]
 
     EXCEPTIONS_MSGS = [
@@ -449,6 +464,18 @@ def move_files(src, dest, mod=False):
     return to_delete
 
 
+def delete_files(file_path):
+    """Try to delete the file directly."""
+    try:
+        os.remove(file_path)
+    except FileNotFoundError as e:
+        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+    except PermissionError as e:
+        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+    except OSError as e:
+        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
+
+
 def copy_files(src, dest):
     """Copy files from source to destination"""
     dest_path = os.path.dirname(dest)
@@ -570,7 +597,7 @@ class CheckHardLinks:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
                 logger.trace(f"Folder: {file}")
                 logger.trace(f"Files Sorted by size: {sorted_files}")
-                threshold = 0.5
+                threshold = 0.1
                 if not sorted_files:
                     msg = (
                         f"Nohardlink Error: Unable to open the folder {file}. "

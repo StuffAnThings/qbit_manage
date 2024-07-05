@@ -309,7 +309,3 @@ webhooks:
     tag_nohardlinks: notifiarr
     share_limits: notifiarr
     cleanup_dirs: notifiarr
-
-bhd:
-  # BHD Integration used for checking unregistered torrents
-  apikey:

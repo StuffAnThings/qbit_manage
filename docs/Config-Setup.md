@@ -530,12 +530,3 @@ Payload will be sent when files are deleted/cleaned up from the various folders
   "size_in_bytes": int,                   // Total number of bytes deleted from the location
 }
 ```
-
-## **bhd:**
-
----
-BHD integration is used if you are on the private tracker BHD. (Used to identify any unregistered torrents from this tracker)
-
-| Variable | Definition  | Default Values | Required           |
-| :------- | :---------- | :------------- | :----------------- |
-| `apikey` | BHD API Key | `None` (blank)            | <center>✅</center> |
