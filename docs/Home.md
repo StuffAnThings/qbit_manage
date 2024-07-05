@@ -41,5 +41,4 @@ This wiki should tell you everything you need to know about the script to get it
       * [apprise](Config-Setup#apprise)
       * [notifiarr](Config-Setup#notifiarr)
       * [webhooks](Config-Setup#webhooks)
-      * [bhd](Config-Setup#bhd)
   * [Commands](Commands)
