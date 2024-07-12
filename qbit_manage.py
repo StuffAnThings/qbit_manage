@@ -671,8 +671,10 @@ if __name__ == "__main__":
                 next_run_time = schedule_every_x_minutes(sch)
                 if startupDelay:
                     run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
+                    logger.info(run_mode_message)
                     time.sleep(startupDelay)
-                logger.info(run_mode_message)
+                else:
+                    logger.info(run_mode_message)
                 start_loop(True)
 
             while not killer.kill_now:
