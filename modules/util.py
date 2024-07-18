@@ -538,7 +538,7 @@ class CheckHardLinks:
         for file in self.root_files:
             # Only check hardlinks for files that are symlinks
             if os.path.isfile(file) and os.path.islink(file):
-                    continue
+                continue
             else:
                 try:
                     inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
