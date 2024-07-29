@@ -38,7 +38,7 @@ repos:
         name: isort (python)
         args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.16.0
+    rev: v3.17.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
