@@ -1,6 +1,6 @@
 # Local Installations
 
-* Requires `python 3.8.1`. Dependencies must be installed by running:
+* Requires `python 3.9.0`. Dependencies must be installed by running:
 
 Navigate to the directory you'd liked to clone the repo into
 
