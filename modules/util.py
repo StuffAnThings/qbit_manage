@@ -609,6 +609,7 @@ class CheckHardLinks:
                     )
                     notify(msg, "nohardlink")
                     logger.warning(msg)
+                    check_for_hl = False
                 else:
                     largest_file_size = os.stat(sorted_files[0]).st_size
                     logger.trace(f"Largest file: {sorted_files[0]}")
