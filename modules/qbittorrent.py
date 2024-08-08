@@ -99,7 +99,6 @@ class Qbt:
         self.get_category = cache(self.get_category)
         self.get_category_save_paths = cache(self.get_category_save_paths)
 
-
     def get_torrent_info(self):
         """
         Will create a 2D Dictionary with the torrent name as the key

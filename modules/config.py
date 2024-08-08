@@ -627,8 +627,6 @@ class Config:
                     raise Failed(err)
         else:
             if self.commands["share_limits"]:
-
-
                 err = "Config Error: share_limits. No valid grouping found."
                 self.notify(err, "Config")
                 raise Failed(err)
