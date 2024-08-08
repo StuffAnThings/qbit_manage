@@ -141,6 +141,7 @@ class Qbt:
                 and settings["force_auto_tmm"]
                 and torrent.category != ""
                 and not self.config.dry_run
+                # check whether the torrent has a matching tag to ignore force_auto_tmm.
                 and not any(tag in torrent.tags for tag in self.config.settings.get("force_auto_tmm_ignore_tags", []))
             ):
                 torrent.set_auto_management(True)
