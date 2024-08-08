@@ -125,7 +125,9 @@ class Qbt:
         logger.separator("Checking Settings", space=False, border=False)
         if settings["force_auto_tmm"]:
             logger.print_line(
-                "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents.", self.config.loglevel
+                """force_auto_tmm set to True. Will force Auto Torrent Management
+                   for all torrents without matching force_auto_tmm_ignore_tags.""",
+                self.config.loglevel,
             )
         logger.separator("Gathering Torrent Information", space=True, border=True)
         for torrent in self.torrent_list:
@@ -134,7 +136,14 @@ class Qbt:
             status = None
             working_tracker = None
             issue = {"potential": False}
-            if torrent.auto_tmm is False and settings["force_auto_tmm"] and torrent.category != "" and not self.config.dry_run:
+            if (
+                torrent.auto_tmm is False
+                and settings["force_auto_tmm"]
+                and torrent.category != ""
+                and not self.config.dry_run
+                # check whether the torrent has a matching tag to ignore force_auto_tmm.
+                and not any(tag in torrent.tags for tag in self.config.settings.get("force_auto_tmm_ignore_tags", []))
+            ):
                 torrent.set_auto_management(True)
             try:
                 torrent_name = torrent.name
