@@ -125,7 +125,8 @@ class Qbt:
         logger.separator("Checking Settings", space=False, border=False)
         if settings["force_auto_tmm"]:
             logger.print_line(
-                "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents without matching force_auto_tmm_ignore_tags.", self.config.loglevel
+                "force_auto_tmm set to True. Will force Auto Torrent Management for all torrents without matching force_auto_tmm_ignore_tags."
+                , self.config.loglevel
             )
         logger.separator("Gathering Torrent Information", space=True, border=True)
         for torrent in self.torrent_list:
