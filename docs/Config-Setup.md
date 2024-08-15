@@ -34,7 +34,7 @@ This section defines your qBittorrent instance.
 | :------- | :---------------------------------- | :----------------- |
 | `host`   | IP address of your qB installation. | <center>✅</center> |
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
-| `pass`   | The password of your qB's webUI.    | <center>❌</center> |
+| `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
 
 <br>
 
