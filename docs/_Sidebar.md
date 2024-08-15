@@ -13,7 +13,7 @@
           - [settings](Config-Setup#settings)
           - [directory](Config-Setup#directory)
           - [cat](Config-Setup#cat)
-          - [cat_changes](Config-Setup#cat_changes)
+          - [cat_change](Config-Setup#cat_change)
           - [tracker](Config-Setup#tracker)
           - [nohardlinks](Config-Setup#nohardlinks)
           - [share_limits](Config-Setup#share_limits)
