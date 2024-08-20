@@ -94,6 +94,20 @@ class TorrentMessages:
         "TORRENT HAS BEEN DELETED.",  # blutopia
     ]
 
+    UNREGISTERED_MSGS_BHD = [
+        "DEAD",
+        "DUPE",
+        "COMPLETE SEASON UPLOADED",
+        "PROBLEM WITH DESCRIPTION",
+        "PROBLEM WITH FILE",
+        "PROBLEM WITH PACK",
+        "SPECIFICALLY BANNED",
+        "TRUMPED",
+        "OTHER",
+        "TORRENT HAS BEEN DELETED",
+        "NUKED",
+    ]
+
     IGNORE_MSGS = [
         "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
         "MISSING PASSKEY",
@@ -106,6 +120,7 @@ class TorrentMessages:
         "GATEWAY TIMEOUT",  # BHD Gateway Timeout
         "ANNOUNCE IS CURRENTLY UNAVAILABLE",  # BHD Announce unavailable
         "TORRENT HAS BEEN POSTPONED",  # BHD Status
+        "520 (UNKNOWN HTTP ERROR)",
     ]
 
     EXCEPTIONS_MSGS = [
@@ -481,6 +496,18 @@ def move_files(src, dest, mod=False):
     return to_delete
 
 
+def delete_files(file_path):
+    """Try to delete the file directly."""
+    try:
+        os.remove(file_path)
+    except FileNotFoundError as e:
+        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+    except PermissionError as e:
+        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+    except OSError as e:
+        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
+
+
 def copy_files(src, dest):
     """Copy files from source to destination"""
     dest_path = os.path.dirname(dest)
@@ -541,22 +568,26 @@ class CheckHardLinks:
     def get_inode_count(self):
         self.inode_count = {}
         for file in self.root_files:
-            try:
-                inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
-            except PermissionError as perm:
-                logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+            # Only check hardlinks for files that are symlinks
+            if os.path.isfile(file) and os.path.islink(file):
                 continue
-            except FileNotFoundError as file_not_found_error:
-                logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
-                continue
-            except Exception as ex:
-                logger.stacktrace()
-                logger.error(ex)
-                continue
-            if inode_no in self.inode_count:
-                self.inode_count[inode_no] += 1
             else:
-                self.inode_count[inode_no] = 1
+                try:
+                    inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+                except PermissionError as perm:
+                    logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+                    continue
+                except FileNotFoundError as file_not_found_error:
+                    logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
+                    continue
+                except Exception as ex:
+                    logger.stacktrace()
+                    logger.error(ex)
+                    continue
+                if inode_no in self.inode_count:
+                    self.inode_count[inode_no] += 1
+                else:
+                    self.inode_count[inode_no] = 1
 
     def nohardlink(self, file, notify, ignore_root_dir):
         """
@@ -602,7 +633,7 @@ class CheckHardLinks:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
                 logger.trace(f"Folder: {file}")
                 logger.trace(f"Files Sorted by size: {sorted_files}")
-                threshold = 0.5
+                threshold = 0.1
                 if not sorted_files:
                     msg = (
                         f"Nohardlink Error: Unable to open the folder {file}. "

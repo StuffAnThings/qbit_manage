@@ -17,7 +17,7 @@ repos:
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
   - repo: https://github.com/hhatto/autopep8
-    rev: v2.2.0
+    rev: v2.3.1
     hooks:
       - id: autopep8
   - repo: https://github.com/adrienverge/yamllint.git
@@ -38,7 +38,7 @@ repos:
         name: isort (python)
         args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.15.2
+    rev: v3.16.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
@@ -49,7 +49,7 @@ repos:
         language_version: python3
         args: [--line-length, '130']
   - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+    rev: 7.1.0
     hooks:
       - id: flake8
         args: [--config=.flake8]

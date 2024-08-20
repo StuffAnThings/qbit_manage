@@ -158,7 +158,7 @@ class Qbt:
                 status_list = []
                 is_complete = torrent_is_complete
             for trk in torrent_trackers:
-                if trk.url.startswith("http"):
+                if trk.url.split(":")[0] in ["http", "https", "udp", "ws", "wss"]:
                     status = trk.status
                     msg = trk.msg.upper()
                     if TrackerStatus(trk.status) == TrackerStatus.WORKING:
