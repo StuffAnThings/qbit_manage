@@ -131,7 +131,13 @@ class ShareLimits:
                     if not self.config.dry_run:
                         self.qbt.tor_delete_recycle(torrent, attr)
                     body += logger.print_line(
-                        logger.insert_space("Deleted .torrent but NOT content files. Reason: path does not exist [path="+torrent["content_path"].replace(self.root_dir, self.remote_dir)+"].", 8), self.config.loglevel
+                        logger.insert_space(
+                            "Deleted .torrent but NOT content files. Reason: path does not exist [path="
+                            + torrent["content_path"].replace(self.root_dir, self.remote_dir)
+                            + "].",
+                            8,
+                        ),
+                        self.config.loglevel,
                     )
                 attr["body"] = "\n".join(body)
                 if not group_notifications:
