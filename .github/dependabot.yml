@@ -12,15 +12,6 @@ updates:
     target-branch: "develop"
     assignees:
       - "bobokun"
-  - package-ecosystem: "pip"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    target-branch: "master"
-    assignees:
-      - "bobokun"
-    allow:
-      - dependency-name: "qbittorrent-api"
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
