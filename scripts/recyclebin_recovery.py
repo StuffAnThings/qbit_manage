@@ -3,6 +3,7 @@ import argparse
 import os
 import shutil
 import sys
+
 import yaml
 
 
@@ -36,7 +37,7 @@ def ls(path):
 
 def load_config(config_path):
     """Load configuration from qbit manage's YAML config"""
-    with open(config_path, 'r') as file:
+    with open(config_path) as file:
         return yaml.safe_load(file)
 
 
@@ -72,11 +73,11 @@ if __name__ == "__main__":
 
     # Load configuration from YAML
     config = load_config(args.config)
-    
+
     # Retrieve directories from the config with defaults if not present
-    base_dir = args.base_dir or config.get('directory', {}).get('recycle_bin')
-    btbackup_dir = args.btbackup_dir or config.get('directory', {}).get('torrents_dir')
-    
+    base_dir = args.base_dir or config.get("directory", {}).get("recycle_bin")
+    btbackup_dir = args.btbackup_dir or config.get("directory", {}).get("torrents_dir")
+
     debug = args.debug
 
     try:
@@ -102,4 +103,3 @@ if __name__ == "__main__":
         print("\n\nRemember to restart Qbittorrent: docker compose restart qbittorrent")
     except KeyboardInterrupt:
         sys.exit(1)
-
