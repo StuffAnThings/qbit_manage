@@ -94,10 +94,8 @@ class TorrentMessages:
 
     IGNORE_MSGS = [
         "YOU HAVE REACHED THE CLIENT LIMIT FOR THIS TORRENT",
-        "MISSING PASSKEY",
+        "PASSKEY",  # Any mention of passkeys should be a clear sign it should NOT be deleted
         "MISSING INFO_HASH",
-        "PASSKEY IS INVALID",
-        "INVALID PASSKEY",
         "EXPECTED VALUE (LIST, DICT, INT OR STRING) IN BENCODED STRING",
         "COULD NOT PARSE BENCODED DATA",
         "STREAM TRUNCATED",

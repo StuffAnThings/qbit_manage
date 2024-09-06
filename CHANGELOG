@@ -1,16 +1,4 @@
-# Requirements Updated
-- qbittorrent-api==2024.8.65
-- croniter==3.0.3
-- humanize==4.10.0
-
-# New Updates
-- Adds `force_auto_tmm_ignore_tags` feature to ignore tags when force_auto_tmm is enabled (#634)
-
 # Bug Fixes
-- Fixes Print the schedule and delay before starting the sleep (Closes [#605](https://github.com/StuffAnThings/qbit_manage/issues/605))
-- Fixes noHL counting symlinks as part of its logic (Closes [#608](https://github.com/StuffAnThings/qbit_manage/issues/608))
-- Fix typos in documentation (#627)
-- Extended logging to explain why torrent files were not deleted (#625)
+- Fixes Blutopia torrents being deleted due to passkeys being invalid (#464)
 
-Special thanks to @ineednewpajamas, @glicholas, @Minituff, @Dark3clipse, @TJZine   for their contributions!
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.7...v4.1.8
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.8...v4.1.9
