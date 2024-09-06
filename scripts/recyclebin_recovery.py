@@ -50,13 +50,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="config.yml",
+        default="../config/config.yml",
         help="path to qbit_manages configuration file",
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        default=False,
         help="Print debug statements instead of taking action",
     )
     parser.add_argument(
