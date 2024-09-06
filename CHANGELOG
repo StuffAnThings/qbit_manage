@@ -1,4 +1,4 @@
 # Bug Fixes
-- Fixes Blutopia torrents being deleted due to passkeys being invalid (#464)
+- Fixes Blutopia torrents being deleted due to passkeys being invalid (#646)
 - Adds edit_passkey.py script
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.8...v4.1.9
