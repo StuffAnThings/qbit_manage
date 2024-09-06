@@ -42,7 +42,7 @@ jobs:
 
       - name: Create Pull Request
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           commit-message: Update SUPPORTED_VERSIONS.json
           title: "Update SUPPORTED_VERSIONS.json for ${{ github.event.inputs.targetBranch || github.ref_name }}"

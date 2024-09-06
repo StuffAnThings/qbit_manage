@@ -26,6 +26,9 @@ qbt:
 
 settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
+  force_auto_tmm_ignore_tags: #Torrents with these tags will be ignored when force_auto_tmm is enabled.
+    - cross-seed
+    - Upload
   tracker_error_tag: issue # Will set the tag of any torrents that do not have a working tracker.
   nohardlinks_tag: noHL # Will set the tag of any torrents with no hardlinks.
   share_limits_tag: ~share_limit # Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent
@@ -36,7 +39,7 @@ settings:
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
-  cat_update_all: True # Checks and udpates all torrent categories if set to True when running cat_update command, otherwise only update torrents that are uncategorized
+  cat_update_all: True # Checks and updates all torrent categories if set to True when running cat_update command, otherwise only update torrents that are uncategorized
 
 directory:
   # Do not remove these

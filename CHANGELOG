@@ -1,16 +1,16 @@
+# Requirements Updated
+- qbittorrent-api==2024.8.65
+- croniter==3.0.3
+- humanize==4.10.0
+
 # New Updates
-- BHD config options are now deprecated due to qbm no longer needing to use the api to detect unregistered torrents (Closes #595)
-- Updates mover script to add logging and default to completed torrents only with new optional argument (`--status-filter`)
+- Adds `force_auto_tmm_ignore_tags` feature to ignore tags when force_auto_tmm is enabled (#634)
 
 # Bug Fixes
-- Adds new ignore message for unregistered torrents (Closes #592)
-- Allow `max_seeding_time` to be unlimited (-1) if min_seeding_time is set (Closes #596)
-- Fixes checking tracker status for udp/wss (Closes #586)
-- Fixes Logging header not getting logged in every run (Closes #591)
-- Fixes min_seeding_time tag removal when max_seeding_time is -1 (#Closes 598)
-- Fixes Remove orphaned without moving to orphaned_dir (Closes #590)
-- Fixes bug in printing schedule mode when run is set to True
-- Modifies noHL threshold to 0.1 to address false positives
+- Fixes Print the schedule and delay before starting the sleep (Closes [#605](https://github.com/StuffAnThings/qbit_manage/issues/605))
+- Fixes noHL counting symlinks as part of its logic (Closes [#608](https://github.com/StuffAnThings/qbit_manage/issues/608))
+- Fix typos in documentation (#627)
+- Extended logging to explain why torrent files were not deleted (#625)
 
-Special thanks to @bakerboy448, @ineednewpajamas, @lflare, @convexshiba  for their contributions!
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.6...v4.1.7
+Special thanks to @ineednewpajamas, @glicholas, @Minituff, @Dark3clipse, @TJZine   for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.7...v4.1.8
