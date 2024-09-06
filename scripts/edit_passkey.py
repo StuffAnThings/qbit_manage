@@ -9,8 +9,8 @@ qbt_host = "qbittorrent:8080"
 qbt_user = None
 qbt_pass = None
 TRACKER = "blutopia"  # Part of the tracker URL, e.g., "blutopia" or "your-tracker.com"
-OLD_PASSKEY = "OLD_PASSKEY"
-NEW_PASSKEY = "NEW_PASSKEY"
+OLD_PASSKEY = "172b2f9fab7e3510982dc010ffecc5e5"
+NEW_PASSKEY = "e92b95de8922f2b9c3eb00a3447191fa"
 # --DEFINE VARIABLES--#
 # --START SCRIPT--#
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     for torrent in torrent_list:
         for x in torrent.trackers:
-            if TRACKER in x.url:
+            if TRACKER in x.url and OLD_PASSKEY in x.url:
                 try:
                     newurl = x.url.replace(OLD_PASSKEY, NEW_PASSKEY)
                     print(f"Updating passkey for torrent name: {torrent.name}\n")
