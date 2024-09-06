@@ -112,7 +112,7 @@ class ShareLimits:
                         if not self.config.dry_run:
                             self.qbt.tor_delete_recycle(torrent, attr)
                         body += logger.print_line(
-                            logger.insert_space("Deleted .torrent but NOT content files.", 8),
+                            logger.insert_space("Deleted .torrent but NOT content files. Reason: is cross-seed", 8),
                             self.config.loglevel,
                         )
                     else:
@@ -131,7 +131,13 @@ class ShareLimits:
                     if not self.config.dry_run:
                         self.qbt.tor_delete_recycle(torrent, attr)
                     body += logger.print_line(
-                        logger.insert_space("Deleted .torrent but NOT content files.", 8), self.config.loglevel
+                        logger.insert_space(
+                            "Deleted .torrent but NOT content files. Reason: path does not exist [path="
+                            + torrent["content_path"].replace(self.root_dir, self.remote_dir)
+                            + "].",
+                            8,
+                        ),
+                        self.config.loglevel,
                     )
                 attr["body"] = "\n".join(body)
                 if not group_notifications:
@@ -557,7 +563,7 @@ class ShareLimits:
         def _has_reached_seeding_time_limit():
             nonlocal body
             seeding_time_limit = None
-            if max_seeding_time is None:
+            if max_seeding_time is None or max_seeding_time == -1:
                 return False
             if max_seeding_time >= 0:
                 seeding_time_limit = max_seeding_time
@@ -582,7 +588,7 @@ class ShareLimits:
         if last_active is not None:
             if not _has_reached_last_active_time_limit():
                 return body
-        if max_ratio is not None:
+        if max_ratio is not None and max_ratio != -1:
             if max_ratio >= 0:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)

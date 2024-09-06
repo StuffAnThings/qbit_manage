@@ -66,11 +66,17 @@ class RemoveOrphaned:
             num_orphaned = len(orphaned_files)
             logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
             body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
-            body += logger.print_line(
-                f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
-                f"to {self.orphaned_dir.replace(self.remote_dir, self.root_dir)}",
-                self.config.loglevel,
-            )
+            if self.config.orphaned["empty_after_x_days"] == 0:
+                body += logger.print_line(
+                    f"{'Not Deleting' if self.config.dry_run else 'Deleting'} {num_orphaned} Orphaned files",
+                    self.config.loglevel,
+                )
+            else:
+                body += logger.print_line(
+                    f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
+                    f"to {self.orphaned_dir.replace(self.remote_dir, self.root_dir)}",
+                    self.config.loglevel,
+                )
 
             attr = {
                 "function": "rem_orphaned",
@@ -83,7 +89,7 @@ class RemoveOrphaned:
             self.config.send_notifications(attr)
             # Delete empty directories after moving orphan files
             if not self.config.dry_run:
-                orphaned_parent_path = set(self.executor.map(self.move_orphan, orphaned_files))
+                orphaned_parent_path = set(self.executor.map(self.handle_orphaned_files, orphaned_files))
                 logger.print_line("Removing newly empty directories", self.config.loglevel)
                 self.executor.map(
                     lambda directory: util.remove_empty_directories(directory, self.qbt.get_category_save_paths()),
@@ -93,11 +99,21 @@ class RemoveOrphaned:
         else:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
 
-    def move_orphan(self, file):
+    def handle_orphaned_files(self, file):
         src = file.replace(self.root_dir, self.remote_dir)
         dest = os.path.join(self.orphaned_dir, file.replace(self.root_dir, ""))
-        util.move_files(src, dest, True)
-        return os.path.dirname(file).replace(self.root_dir, self.remote_dir)
+        orphaned_parent_path = os.path.dirname(file).replace(self.root_dir, self.remote_dir)
+
+        """Delete orphaned files directly if empty_after_x_days is set to 0"""
+        if self.config.orphaned["empty_after_x_days"] == 0:
+            try:
+                util.delete_files(src)
+            except Exception:
+                logger.error(f"Error deleting orphaned file: {file}")
+                util.move_files(src, dest, True)
+        else:  # Move orphaned files to orphaned directory
+            util.move_files(src, dest, True)
+        return orphaned_parent_path
 
     def get_full_path_of_torrent_files(self, torrent):
         torrent_files = map(lambda dict: dict.name, torrent.files)

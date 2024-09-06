@@ -46,6 +46,7 @@ This section defines any settings defined in the configuration.
 | Variable              | Definition                                                                                                                                         | Default Values | Required           |
 | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------| :-----------------  | :----------------- |
 | `force_auto_tmm`      | Will force qBittorrent to enable Automatic Torrent Management for each torrent.                                                              | False        | <center>❌</center> |
+| `force_auto_tmm_ignore_tags`      | Torrents with these tags will be ignored when force_auto_tmm is enabled.                                                              |         | <center>❌</center> |
 | `tracker_error_tag`   | Define the tag of any torrents that do not have a working tracker. (Used in `--rem-unregistered` and `--tag-tracker-error`)                | issue        | <center>❌</center> |
 | `nohardlinks_tag`   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                 | noHL        | <center>❌</center> |
 | `share_limits_tag`   | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`)                   | ~share_limit      | <center>❌</center> |
@@ -530,12 +531,3 @@ Payload will be sent when files are deleted/cleaned up from the various folders
   "size_in_bytes": int,                   // Total number of bytes deleted from the location
 }
 ```
-
-## **bhd:**
-
----
-BHD integration is used if you are on the private tracker BHD. (Used to identify any unregistered torrents from this tracker)
-
-| Variable | Definition  | Default Values | Required           |
-| :------- | :---------- | :------------- | :----------------- |
-| `apikey` | BHD API Key | `None` (blank)            | <center>✅</center> |

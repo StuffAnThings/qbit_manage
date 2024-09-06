@@ -1,13 +1,4 @@
-# Requirements Updated
-- qbittorrent-api==2024.5.63
-- requests==2.32.3
-- schedule==1.2.2
-
-# New Updates
-- Add config option `cat_update_all` to categorize only uncategorized torrents (Closes [#575](https://github.com/StuffAnThings/qbit_manage/issues/575))
-
 # Bug Fixes
-- Fixes [#560](https://github.com/StuffAnThings/qbit_manage/issues/560)
-
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.5...v4.1.6
+- Fixes Blutopia torrents being deleted due to passkeys being invalid (#646)
+- Adds edit_passkey.py script
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.8...v4.1.9

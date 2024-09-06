@@ -73,18 +73,23 @@ class RemoveUnregistered:
 
         self.config.webhooks_factory.notify(torrents_updated, notify_attr, group_by="tag")
 
-    def check_for_unregistered_torrents_using_bhd_api(self, tracker, msg_up, torrent_hash):
+    def check_for_unregistered_torrents_in_bhd(self, tracker, msg_up, torrent_hash):
         """
-        Checks if a torrent is unregistered using the BHD API if the tracker is BHD.
+        Checks if a torrent is unregistered in BHD using their deletion reasons.
+        Legacy method uses the BHD API to check if a torrent is unregistered.
         """
-        if (
-            "tracker.beyond-hd.me" in tracker["url"]
-            and self.config.beyond_hd is not None
-            and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS)
-        ):
-            json = {"info_hash": torrent_hash}
-            response = self.config.beyond_hd.search(json)
-            if response.get("total_results") == 0:
+        # Some status's from BHD have a option message such as
+        # "Trumped: Internal: https://beyond-hd.xxxxx", so removing the colon is needed to match the status
+        status_filtered = msg_up.split(":")[0]
+        if "tracker.beyond-hd.me" in tracker["url"]:
+            # Checks if the legacy method is used and if the tracker is BHD then use API method
+            if self.config.beyond_hd is not None and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS):
+                json = {"info_hash": torrent_hash}
+                response = self.config.beyond_hd.search(json)
+                if response.get("total_results") == 0:
+                    return True
+            # Checks if the tracker is BHD and the message is in the deletion reasons for BHD
+            elif list_in_text(status_filtered, TorrentMessages.UNREGISTERED_MSGS_BHD):
                 return True
         return False
 
@@ -102,26 +107,31 @@ class RemoveUnregistered:
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]
             check_tags = util.get_list(torrent.tags)
             try:
+                tracker_working = False
                 for trk in torrent.trackers:
-                    if trk.url.startswith("http"):
-                        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
-                        msg_up = trk.msg.upper()
-                        msg = trk.msg
-                        if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
-                            # Check for unregistered torrents
-                            if self.cfg_rem_unregistered:
-                                if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
-                                    msg_up, TorrentMessages.IGNORE_MSGS
-                                ):
-                                    self.del_unregistered(msg, tracker, torrent)
-                                    break
-                                else:
-                                    if self.check_for_unregistered_torrents_using_bhd_api(tracker, msg_up, torrent.hash):
-                                        self.del_unregistered(msg, tracker, torrent)
-                                        break
-                            # Tag any error torrents
-                            if self.cfg_tag_error and self.tag_error not in check_tags:
-                                self.tag_tracker_error(msg, tracker, torrent)
+                    if (
+                        trk.url.split(":")[0] in ["http", "https", "udp", "ws", "wss"]
+                        and TrackerStatus(trk.status) == TrackerStatus.WORKING
+                    ):
+                        tracker_working = True
+                if tracker_working:
+                    continue
+                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
+                msg_up = trk.msg.upper()
+                msg = trk.msg
+                if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
+                    # Check for unregistered torrents
+                    if self.cfg_rem_unregistered:
+                        if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
+                            msg_up, TorrentMessages.IGNORE_MSGS
+                        ):
+                            self.del_unregistered(msg, tracker, torrent)
+                        else:
+                            if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
+                                self.del_unregistered(msg, tracker, torrent)
+                    # Tag any error torrents
+                    if self.cfg_tag_error and self.tag_error not in check_tags:
+                        self.tag_tracker_error(msg, tracker, torrent)
             except NotFound404Error:
                 continue
             except Exception as ex:
