@@ -60,6 +60,8 @@ directory:
 
 cat:
   # Category & Path Parameters
+  # All save paths in qbittorent must be populated below.
+  # If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
   # <Category Name> : <save_path>  # Path of your save directory.
   movies: "/data/torrents/Movies"
   tv: "/data/torrents/TV"
