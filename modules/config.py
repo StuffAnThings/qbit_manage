@@ -232,6 +232,9 @@ class Config:
             "force_auto_tmm_ignore_tags": self.util.check_for_attribute(
                 self.data, "force_auto_tmm_ignore_tags", parent="settings", var_type="list", default=[]
             ),
+            "disable_qbt_default_share_limits": self.util.check_for_attribute(
+                self.data, "disable_qbt_default_share_limits", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]

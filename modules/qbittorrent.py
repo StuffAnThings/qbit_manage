@@ -83,6 +83,22 @@ class Qbt:
         self.torrent_list = self.get_torrents({"sort": "added_on"})
         self.torrentfiles = {}  # a map of torrent files to track cross-seeds
 
+        if (
+            self.config.commands["share_limits"]
+            and self.config.settings["disable_qbt_default_share_limits"]
+            and self.client.app.preferences.max_ratio_act != 0
+        ):
+            logger.info("Disabling qBittorrent default share limits to allow qbm to manage share limits.")
+            # max_ratio_act: 0 = Pause Torrent, 1 = Remove Torrent, 2 = superseeding, 3 = Remove Torrent and Files
+            self.client.app_set_preferences(
+                {
+                    "max_ratio_act": 0,
+                    "max_seeding_time_enabled": False,
+                    "max_ratio_enabled": False,
+                    "max_inactive_seeding_time_enabled": False,
+                }
+            )
+
         self.global_max_ratio_enabled = self.client.app.preferences.max_ratio_enabled
         self.global_max_ratio = self.client.app.preferences.max_ratio
         self.global_max_seeding_time_enabled = self.client.app.preferences.max_seeding_time_enabled

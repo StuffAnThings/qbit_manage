@@ -40,6 +40,7 @@ settings:
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
   cat_update_all: True # Checks and updates all torrent categories if set to True when running cat_update command, otherwise only update torrents that are uncategorized
+  disable_qbt_default_share_limits: True # Allows QBM to handle share limits by disabling qBittorrents default Share limits. Only active when the share_limits command is set to True
 
 directory:
   # Do not remove these
