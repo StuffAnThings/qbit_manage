@@ -726,6 +726,14 @@ class Config:
         self.orphaned["exclude_patterns"] = self.util.check_for_attribute(
             self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False
         )
+        self.orphaned["max_orphaned_files_to_delete"] = self.util.check_for_attribute(
+            self.data,
+            "max_orphaned_files_to_delete",
+            parent="orphaned",
+            var_type="int",
+            default=50,
+            min_int=-1,
+        )
         if self.commands["rem_orphaned"]:
             exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
             (

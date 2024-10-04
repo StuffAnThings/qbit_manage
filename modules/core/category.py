@@ -32,8 +32,8 @@ class Category:
             new_cat.extend(self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path))
             if not torrent.auto_tmm and torrent_category:
                 logger.print_line(
-                    f"{torrent.name} has Automatic Torrent Management disabled and already has a category"
-                    f"{torrent_category}. Skipping..",
+                    f"{torrent.name} has Automatic Torrent Management disabled and already has the category"
+                    f" {torrent_category}. Skipping..",
                     "DEBUG",
                 )
                 continue

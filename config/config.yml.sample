@@ -277,6 +277,10 @@ orphaned:
     - "/data/torrents/temp/**"
     - "**/*.!qB"
     - "**/*_unpackerred"
+  # Set your desired threshold for the maximum number of orphaned files qbm will delete in a single run. (-1 to disable safeguards)
+  # This will help reduce the number of accidental large amount orphaned deletions in a single run
+  # WARNING: Setting this variable to -1 will not safeguard against any deletions
+  max_orphaned_files_to_delete: 50
 
 apprise:
   # Apprise integration with webhooks
