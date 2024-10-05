@@ -200,6 +200,12 @@ parser.add_argument(
     "-d", "--divider", dest="divider", help="Character that divides the sections (Default: '=')", default="=", type=str
 )
 parser.add_argument("-w", "--width", dest="width", help="Screen Width (Default: 100)", default=100, type=int)
+parser.add_argument(
+    "-ls", "--log-size", dest="log_size", action="store", default=10, type=int, help="Maximum log size per file (in MB)"
+)
+parser.add_argument(
+    "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
+)
 args = parser.parse_args()
 
 
@@ -278,6 +284,8 @@ skip_cleanup = get_arg("QBT_SKIP_CLEANUP", args.skip_cleanup, arg_bool=True)
 skip_qb_version_check = get_arg("QBT_SKIP_QB_VERSION_CHECK", args.skip_qb_version_check, arg_bool=True)
 dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
+log_size = get_arg("QBT_LOG_SIZE", args.log_size, arg_int=True)
+log_count = get_arg("QBT_LOG_COUNT", args.log_count, arg_int=True)
 divider = get_arg("QBT_DIVIDER", args.divider)
 screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
@@ -327,6 +335,8 @@ for v in [
     "skip_qb_version_check",
     "dry_run",
     "log_level",
+    "log_size",
+    "log_count",
     "divider",
     "screen_width",
     "debug",
@@ -354,7 +364,7 @@ except ValueError:
     sys.exit(1)
 
 
-logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False)
+logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, log_size, log_count)
 from modules import util  # noqa
 
 util.logger = logger
