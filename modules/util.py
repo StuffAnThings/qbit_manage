@@ -525,10 +525,16 @@ class CheckHardLinks:
     Class to check for hardlinks
     """
 
-    def __init__(self, root_dir, remote_dir):
-        self.root_dir = root_dir
-        self.remote_dir = remote_dir
-        self.root_files = set(get_root_files(self.root_dir, self.remote_dir))
+    def __init__(self, config):
+        self.root_dir = config.root_dir
+        self.remote_dir = config.remote_dir
+        self.orphaned_dir = config.orphaned_dir if config.orphaned_dir else ""
+        self.recycle_dir = config.recycle_dir if config.recycle_dir else ""
+        self.root_files = set(
+            get_root_files(self.root_dir, self.remote_dir)
+            + get_root_files(self.orphaned_dir, "")
+            + get_root_files(self.recycle_dir, "")
+        )
         self.get_inode_count()
 
     def get_inode_count(self):
@@ -641,6 +647,8 @@ class CheckHardLinks:
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
     local_exclude_dir = exclude_dir.replace(remote_dir, root_dir) if exclude_dir and remote_dir != root_dir else exclude_dir
+    # if not root_dir:
+    #     return []
     root_files = [
         os.path.join(path.replace(remote_dir, root_dir) if remote_dir != root_dir else path, name)
         for path, subdirs, files in os.walk(remote_dir if remote_dir != root_dir else root_dir)
