@@ -84,6 +84,8 @@ class Config:
                 logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
                 logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
                 logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
+                logger.debug(f"    --log-size (QBT_LOG_SIZE): {args['log_size']}")
+                logger.debug(f"    --log-count (QBT_LOG_COUNT): {args['log_count']}")
                 logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
                 logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
                 logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
