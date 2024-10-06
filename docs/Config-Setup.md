@@ -58,6 +58,7 @@ This section defines any settings defined in the configuration.
 | `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | True | <center>❌</center> |
 | `tag_nohardlinks_filter_completed` | When running `--tag-nohardlinks` function, , it will filter for completed torrents only. | True | <center>❌</center> |
 | `cat_update_all` | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents. | True | <center>❌</center> |
+| `disable_qbt_default_share_limits` | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits. | True | <center>❌</center> |
 ## **directory:**
 
 ---
@@ -198,6 +199,7 @@ This is handy when you have automatically generated files that certain OSs decid
 | :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
 | `empty_after_x_days` | Will delete Orphaned data contents if the files have been in the Orphaned data for more than x days. (Uses date modified to track the time) | None           | <center>❌</center> |
 | `exclude_patterns`   | List of [patterns](https://commandbox.ortusbooks.com/usage/parameters/globbing-patterns) to exclude certain files from orphaned             | None           | <center>❌</center> |
+| `max_orphaned_files_to_delete`   | This will help reduce the number of accidental large amount orphaned deletions in a single run. Set your desired threshold for the maximum number of orphaned files qbm will delete in a single run. (-1 to disable safeguards)             | 50           | <center>❌</center> |
 > Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
 
 ## **apprise:**

@@ -44,8 +44,9 @@ class RemoveOrphaned:
                 for fullpath in fullpathlist
             ]
         )
-
-        orphaned_files = set(root_files.result()) - set(torrent_files)
+        root_files_set = set(root_files.result())
+        torrent_files_set = set(torrent_files)
+        orphaned_files = root_files_set - torrent_files_set
 
         if self.config.orphaned["exclude_patterns"]:
             logger.print_line("Processing orphan exclude patterns")
@@ -59,7 +60,18 @@ class RemoveOrphaned:
 
         orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
 
-        if orphaned_files:
+        # Check the threshold before deleting orphaned files
+        max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")
+        if len(orphaned_files) and len(orphaned_files) > max_orphaned_files_to_delete and max_orphaned_files_to_delete != -1:
+            e = (
+                f"Too many orphaned files detected ({len(orphaned_files)}). "
+                f"Max Threshold for deletion is set to {max_orphaned_files_to_delete}. "
+                "Aborting deletion to avoid accidental data loss."
+            )
+            self.config.notify(e, "Remove Orphaned", False)
+            logger.warning(e)
+            return
+        elif orphaned_files:
             orphaned_files = sorted(orphaned_files)
             os.makedirs(self.orphaned_dir, exist_ok=True)
             body = []

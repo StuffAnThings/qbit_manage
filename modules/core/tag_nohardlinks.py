@@ -87,7 +87,7 @@ class TagNoHardLinks:
         """Tag torrents with no hardlinks"""
         logger.separator("Tagging Torrents with No Hardlinks", space=False, border=False)
         nohardlinks = self.nohardlinks
-        check_hardlinks = util.CheckHardLinks(self.root_dir, self.remote_dir)
+        check_hardlinks = util.CheckHardLinks(self.config)
         for category in nohardlinks:
             torrent_list = self.qbt.get_torrents({"category": category, "status_filter": self.status_filter})
             if len(torrent_list) == 0:

@@ -84,6 +84,8 @@ class Config:
                 logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
                 logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
                 logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
+                logger.debug(f"    --log-size (QBT_LOG_SIZE): {args['log_size']}")
+                logger.debug(f"    --log-count (QBT_LOG_COUNT): {args['log_count']}")
                 logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
                 logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
                 logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
@@ -231,6 +233,9 @@ class Config:
             ),
             "force_auto_tmm_ignore_tags": self.util.check_for_attribute(
                 self.data, "force_auto_tmm_ignore_tags", parent="settings", var_type="list", default=[]
+            ),
+            "disable_qbt_default_share_limits": self.util.check_for_attribute(
+                self.data, "disable_qbt_default_share_limits", parent="settings", var_type="bool", default=True
             ),
         }
 
@@ -722,6 +727,14 @@ class Config:
         )
         self.orphaned["exclude_patterns"] = self.util.check_for_attribute(
             self.data, "exclude_patterns", parent="orphaned", var_type="list", default_is_none=True, do_print=False
+        )
+        self.orphaned["max_orphaned_files_to_delete"] = self.util.check_for_attribute(
+            self.data,
+            "max_orphaned_files_to_delete",
+            parent="orphaned",
+            var_type="int",
+            default=50,
+            min_int=-1,
         )
         if self.commands["rem_orphaned"]:
             exclude_orphaned = f"**{os.sep}{os.path.basename(self.orphaned_dir.rstrip(os.sep))}{os.sep}*"
