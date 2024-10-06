@@ -1,4 +1,11 @@
-# Requirements Updated
-- qbittorrent-api==2024.9.67
+# New Updates
+- Adds new config option `disable_qbt_default_share_limits` to allow qbit_manage to handle share limits and disable qbittorrent's default share limits
+- Adds new config option `max_orphaned_files_to_delete` to set default safeguards against mass deletion when running remove orphaned.
+- Adds new environment variables `QBT_LOG_SIZE` and `QBT_LOG_COUNT` to customize log retention (Closes #656)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.9...v4.1.10
+# Bug Fixes
+- Truncates Recyclebin JSON filename when its too long. (Closes #604)
+- Uses Qbittorrent's torrent export to save .torrent files for qbittorrent version > 4.5.0 (Closes #650)
+- Include orphaned files and recycle bin in the list of folders to ignore when looking for noHL (Closes #660)
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.10...v4.1.11
