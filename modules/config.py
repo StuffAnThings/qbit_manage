@@ -34,7 +34,7 @@ COMMANDS = [
     "skip_cleanup",
     "skip_qb_version_check",
     "dry_run",
-    "rem_cross_seed_tags"
+    "rem_cross_seed_tags",
 ]
 
 

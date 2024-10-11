@@ -23,17 +23,15 @@ class RemoveCrossSeedTags:
 
         for torrent in torrents_list:
             torrent_tags = torrent.tags.split(", ")
-            if 'cross-seed' in torrent_tags:
-                torrent.remove_tags(tags='cross-seed')
+            if "cross-seed" in torrent_tags:
+                torrent.remove_tags(tags="cross-seed")
                 self.torrents_updated.append(torrent.name)
-                self.stats_removed +=1 
+                self.stats_removed += 1
 
         if self.stats_removed >= 1:
             logger.print_line(
-                f"{'Did not remove' if self.config.dry_run else 'Removed'} {self.stats_removed} torrents with cross-seed tag.", self.config.loglevel
+                f"{'Did not remove' if self.config.dry_run else 'Removed'} {self.stats_removed} torrents with cross-seed tag.",
+                self.config.loglevel,
             )
         else:
             logger.print_line("No new torrents to update.", self.config.loglevel)
-
-
-
