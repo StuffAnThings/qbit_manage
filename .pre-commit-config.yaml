@@ -60,4 +60,4 @@ repos:
         entry: ./scripts/pre-commit/increase_version.sh
         language: script
         pass_filenames: false
-        stages: [Nonepre-commitNone]
+        stages: [commit]
