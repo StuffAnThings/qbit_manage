@@ -11,12 +11,11 @@ class RemoveCrossSeedTags:
         self.stats_removed = 0
 
         self.torrents_updated = []  # List of torrents with tags removed
-        self.notify_attr = []  # List of single torrent attributes to send to notifiarr
 
         self.rem_cross_seed_tags()
 
     def rem_cross_seed_tags(self):
-        """Move torrents from cross seed directory to correct save directory."""
+        """Remove cross-seed tag from torrents"""
         logger.separator("Removing cross-seed tag from Torrents", space=False, border=False)
 
         logger.print_line("Checking for torrents with cross-seed tag")
