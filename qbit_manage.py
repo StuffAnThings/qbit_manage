@@ -371,8 +371,8 @@ util.logger = logger
 from modules.config import Config  # noqa
 from modules.core.category import Category  # noqa
 from modules.core.cross_seed import CrossSeed  # noqa
-from modules.core.remove_cross_seed_tags import RemoveCrossSeedTags  # noqa
 from modules.core.recheck import ReCheck  # noqa
+from modules.core.remove_cross_seed_tags import RemoveCrossSeedTags  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
 from modules.core.remove_unregistered import RemoveUnregistered  # noqa
 from modules.core.share_limits import ShareLimits  # noqa
