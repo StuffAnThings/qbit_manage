@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import time
+from fnmatch import fnmatch
 from pathlib import Path
 
 import requests
@@ -486,7 +487,7 @@ def copy_files(src, dest):
         logger.error(ex)
 
 
-def remove_empty_directories(pathlib_root_dir, excluded_paths=None):
+def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patterns=[]):
     """Remove empty directories recursively, optimized version."""
     pathlib_root_dir = Path(pathlib_root_dir)
     if excluded_paths is not None:
@@ -497,6 +498,14 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None):
         root_path = Path(root)
         # Skip excluded paths
         if excluded_paths and root_path in excluded_paths:
+            continue
+
+        exclude_pattern_match = False
+        for exclude_pattern in exclude_patterns:
+            if fnmatch(os.path.join(root, ""), exclude_pattern):
+                exclude_pattern_match = True
+                break
+        if exclude_pattern_match:
             continue
 
         # Attempt to remove the directory if it's empty
