@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -38,12 +38,12 @@ repos:
         name: isort (python)
         args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.17.0
+    rev: v3.18.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 24.10.0
     hooks:
       - id: black
         language_version: python3
@@ -60,4 +60,4 @@ repos:
         entry: ./scripts/pre-commit/increase_version.sh
         language: script
         pass_filenames: false
-        stages: [commit]
+        stages: [pre-commit]
