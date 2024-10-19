@@ -29,7 +29,8 @@ class RemoveOrphaned:
         logger.separator("Checking for Orphaned Files", space=False, border=False)
         torrent_files = []
         orphaned_files = []
-        excluded_orphan_files = []
+        excluded_orphan_files = set()
+        exclude_patterns = []
 
         root_files = self.executor.submit(util.get_root_files, self.root_dir, self.remote_dir, self.orphaned_dir)
 
@@ -54,11 +55,13 @@ class RemoveOrphaned:
                 exclude_pattern.replace(self.remote_dir, self.root_dir)
                 for exclude_pattern in self.config.orphaned["exclude_patterns"]
             ]
-            excluded_orphan_files = [
-                file for file in orphaned_files for exclude_pattern in exclude_patterns if fnmatch(file, exclude_pattern)
-            ]
 
-        orphaned_files = set(orphaned_files) - set(excluded_orphan_files)
+            for file in orphaned_files:
+                for exclude_pattern in exclude_patterns:
+                    if fnmatch(file, exclude_pattern):
+                        excluded_orphan_files.add(file)
+
+        orphaned_files = orphaned_files - excluded_orphan_files
 
         # Check the threshold before deleting orphaned files
         max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")
@@ -69,6 +72,7 @@ class RemoveOrphaned:
                 "Aborting deletion to avoid accidental data loss."
             )
             self.config.notify(e, "Remove Orphaned", False)
+            logger.debug(f"Orphaned files detected: {orphaned_files}")
             logger.warning(e)
             return
         elif orphaned_files:
@@ -104,7 +108,9 @@ class RemoveOrphaned:
                 orphaned_parent_path = set(self.executor.map(self.handle_orphaned_files, orphaned_files))
                 logger.print_line("Removing newly empty directories", self.config.loglevel)
                 self.executor.map(
-                    lambda directory: util.remove_empty_directories(directory, self.qbt.get_category_save_paths()),
+                    lambda directory: util.remove_empty_directories(
+                        directory, self.qbt.get_category_save_paths(), exclude_patterns
+                    ),
                     orphaned_parent_path,
                 )
 
