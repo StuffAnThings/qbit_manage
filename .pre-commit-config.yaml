@@ -38,7 +38,7 @@ repos:
         name: isort (python)
         args: [--force-single-line-imports, --profile, black]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.17.0
+    rev: v3.18.0
     hooks:
       - id: pyupgrade
         args: [--py3-plus]
@@ -60,4 +60,4 @@ repos:
         entry: ./scripts/pre-commit/increase_version.sh
         language: script
         pass_filenames: false
-        stages: [commit]
+        stages: [pre-commit]
