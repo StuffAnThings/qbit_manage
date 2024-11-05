@@ -1,0 +1,30 @@
+name: Run Pre-Commit
+
+on:
+  pull_request:
+    branches:
+      - develop  # Adjust as needed to only run on branches containing 'develop'
+  push:
+    branches:
+      - develop  # Adjust as needed
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install pre-commit
+
+      - name: Run pre-commit version check
+        run: |
+          pre-commit run increase-version --all-files
