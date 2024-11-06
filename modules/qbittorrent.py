@@ -447,7 +447,7 @@ class Qbt:
             torrent_export_path = os.path.join(recycle_path, "torrents_export")  # Exported torrent file (qbittorrent v4.5.0+)
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
             torrent_name = info["torrents"][0]
-            torrent_exportable = self.current_version >= "4.5.0"
+            torrent_exportable = self.current_version >= "v4.5.0"
             os.makedirs(recycle_path, exist_ok=True)
             if self.config.recyclebin["save_torrents"]:
                 if os.path.isdir(torrent_path) is False:
