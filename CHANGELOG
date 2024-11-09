@@ -1,11 +1,8 @@
 # Requirements Updated
-humanize==4.11.0
-
-# New Updates
-- Adds new script to remove cross-seed tag (`scripts/remove_cross-seed_tag.py`)
+croniter==5.0.1
+qbittorrent-api==2024.10.68
 
 # Bug Fixes
-- List orphaned files when reaches max threshold. (Closes #672)
-- Removing empty directories now ignores exclude patterns (Closes #624)
+- Fixes bug in torrent exporting for versions < 4.5.0
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.11...v4.1.12
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.12...v4.1.13
