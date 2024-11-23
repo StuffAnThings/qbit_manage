@@ -7,22 +7,21 @@ By default, the script looks at /config/config.yml for the Configuration File un
 
 A template Configuration File can be found in the repo [config/config.yml.sample](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample).
 
-**WARNING** <br>
-> As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
+**WARNING**: As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
 
 # Config File
 
 ## [Config Sample File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample)
 
-# **List of variables**<br>
+# **List of variables**
 
 ## **commands:**
 
 ---
 This section will ignore any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
 
-| Variable  | Definition                                | Required           |
-| :-------- | :---------------------------------------- | :----------------- |
+| Variable  | Definition                                            | Required           |
+| :-------- | :---------------------------------------------------- | :----------------- |
 | `command` | The [command](Commands) that you want qbm to execute. | <center>❌</center> |
 
 ## **qbt:**
@@ -36,29 +35,28 @@ This section defines your qBittorrent instance.
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
 | `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
 
-<br>
-
 ## **settings:**
 
 ---
 This section defines any settings defined in the configuration.
 
-| Variable              | Definition                                                                                                                                         | Default Values | Required           |
-| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------| :-----------------  | :----------------- |
-| `force_auto_tmm`      | Will force qBittorrent to enable Automatic Torrent Management for each torrent.                                                              | False        | <center>❌</center> |
-| `force_auto_tmm_ignore_tags`      | Torrents with these tags will be ignored when force_auto_tmm is enabled.                                                              |         | <center>❌</center> |
-| `tracker_error_tag`   | Define the tag of any torrents that do not have a working tracker. (Used in `--rem-unregistered` and `--tag-tracker-error`)                | issue        | <center>❌</center> |
-| `nohardlinks_tag`   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                 | noHL        | <center>❌</center> |
-| `share_limits_tag`   | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`)                   | ~share_limit      | <center>❌</center> |
-| `share_limits_min_seeding_time_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)             | MinSeedTimeNotReached            | <center>❌</center> |
-| `share_limits_min_num_seeds_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)            | MinSeedsNotMet             | <center>❌</center> |
-| `share_limits_last_active_tag`   | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)           | LastActiveLimitNotReached               | <center>❌</center> |
-| `cross_seed_tag` | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag. | cross-seed | <center>❌</center> |
-| `cat_filter_completed` | When running `--cat-update` function, it will filter for completed torrents only. | True | <center>❌</center> |
-| `share_limits_filter_completed` | When running `--share-limits` function, it will filter for completed torrents only. | True | <center>❌</center> |
-| `tag_nohardlinks_filter_completed` | When running `--tag-nohardlinks` function, , it will filter for completed torrents only. | True | <center>❌</center> |
-| `cat_update_all` | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents. | True | <center>❌</center> |
-| `disable_qbt_default_share_limits` | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits. | True | <center>❌</center> |
+| Variable                            | Definition                                                                                                                                                                                                                                                                                                                                      | Default Values            | Required           |
+| :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------ | :----------------- |
+| `force_auto_tmm`                    | Will force qBittorrent to enable Automatic Torrent Management for each torrent.                                                                                                                                                                                                                                                                 | False                     | <center>❌</center> |
+| `force_auto_tmm_ignore_tags`        | Torrents with these tags will be ignored when force_auto_tmm is enabled.                                                                                                                                                                                                                                                                        |                           | <center>❌</center> |
+| `tracker_error_tag`                 | Define the tag of any torrents that do not have a working tracker. (Used in `--rem-unregistered` and `--tag-tracker-error`)                                                                                                                                                                                                                     | issue                     | <center>❌</center> |
+| `nohardlinks_tag`                   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                                                                                                                                                                                                                                                          | noHL                      | <center>❌</center> |
+| `share_limits_tag`                  | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`) | ~share_limit              | <center>❌</center> |
+| `share_limits_min_seeding_time_tag` | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)                                                                                                                                                                                                          | MinSeedTimeNotReached     | <center>❌</center> |
+| `share_limits_min_num_seeds_tag`    | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)                                                                                                                                                                                                       | MinSeedsNotMet            | <center>❌</center> |
+| `share_limits_last_active_tag`      | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)                                                                                                                                                                                                             | LastActiveLimitNotReached | <center>❌</center> |
+| `cross_seed_tag`                    | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag.                                                                                                                                                                                                                                               | cross-seed                | <center>❌</center> |
+| `cat_filter_completed`              | When running `--cat-update` function, it will filter for completed torrents only.                                                                                                                                                                                                                                                               | True                      | <center>❌</center> |
+| `share_limits_filter_completed`     | When running `--share-limits` function, it will filter for completed torrents only.                                                                                                                                                                                                                                                             | True                      | <center>❌</center> |
+| `tag_nohardlinks_filter_completed`  | When running `--tag-nohardlinks` function, , it will filter for completed torrents only.                                                                                                                                                                                                                                                        | True                      | <center>❌</center> |
+| `cat_update_all`                    | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents.                                                                                                                                                                                                   | True                      | <center>❌</center> |
+| `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
+
 ## **directory:**
 
 ---
@@ -76,7 +74,7 @@ This section defines the directories that qbit_manage will be looking into for v
 ## **cat:**
 
 ---
-This section defines the categories that you are currently using and the save path's that are associated with them.<br>
+This section defines the categories that you are currently using and the save path's that are associated with them.
 > **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
 
 | Configuration | Definition                | Required           |
@@ -93,7 +91,7 @@ category: <path>/<to>/category
 ## **cat_change:**
 
 ---
-This moves all the torrents from one category to another category if the torrents are marked as complete.<br>
+This moves all the torrents from one category to another category if the torrents are marked as complete.
 > **NOTE** **WARNING**: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
 
 | Configuration | Definition                    | Required           |
@@ -110,25 +108,26 @@ old_category_name: new_category_name
 ## **tracker:**
 
 ---
-This section defines the tags used based upon the tracker's URL.<br>
-| Configuration | Definition          | Required           |
-| :------------ | :------------------ | :----------------- |
-| `key`         | Tracker URL Keyword. You can define multiple tracker urls by splitting with `\|` delimiter  | <center>✅</center> |
+This section defines the tags used based upon the tracker's URL.
 
-| Variable             | Definition                                                                                                                        | Default Values | Required           |
-| :------------------- | :-------------------------------------------------------------------------------------------------------------------------------- | :------------- | :----------------- |
-| `tag`                | The tracker tag or additional list of tags defined                                                                                | Tracker URL    | <center>✅</center> |
-| `cat`                | Set the category based on tracker URL. This category option takes priority over the category defined in [cat](#cat)               | None           | <center>❌</center> |
-| `notifiarr`          | Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr                | None           | <center>❌</center> |
+| Configuration | Definition                                                                                 | Required           |
+| :------------ | :----------------------------------------------------------------------------------------- | :----------------- |
+| `key`         | Tracker URL Keyword. You can define multiple tracker urls by splitting with `\|` delimiter | <center>✅</center> |
 
-If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a key word from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
+| Variable    | Definition                                                                                                          | Default Values | Required           |
+| :---------- | :------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
+| `tag`       | The tracker tag or additional list of tags defined                                                                  | Tracker URL    | <center>✅</center> |
+| `cat`       | Set the category based on tracker URL. This category option takes priority over the category defined in [cat](#cat) | None           | <center>❌</center> |
+| `notifiarr` | Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr  | None           | <center>❌</center> |
+
+If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
 
 ## **nohardlinks:**
 
 ---
-Hardlinking data allows you to have your data in both the torrent directory and your media direectory at the same time without using double the amount of data.
+Hardlinking data allows you to have your data in both the torrent directory and your media directory at the same time without using double the amount of data.
 
-If you're needing information regarding hardlinks here are some excellent resources. <br>
+If you're needing information regarding hardlinks here are some excellent resources.
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/AMcHsQJ7My0/0.jpg)](https://www.youtube.com/watch?v=AMcHsQJ7My0)
 
@@ -136,43 +135,45 @@ If you're needing information regarding hardlinks here are some excellent resour
 * [Wikipedia: Hardlinks](https://en.wikipedia.org/wiki/Hard_link)
 
 Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
-Beyond this you'll need to use one of the [categories](#cat) above as the key, and should be pointed to the `completed-` directory of your torrents.
+Beyond this you'll need to use one of the [categories](#cat) above as the key.
 
-| Configuration | Definition                                                       | Required           |
-| :------------ | :--------------------------------------------------------------- | :----------------- |
-| `key`         | Category name of your completed movies/completed series in qbit. | <center>✅</center> |
+| Configuration | Definition                                                | Required           |
+| :------------ | :-------------------------------------------------------- | :----------------- |
+| `key`         | Category name to check for nohardlinked torrents in qbit. | <center>✅</center> |
 
-| Variable             | Definition                                                                                                                                                                                             | Default Values | Required           |
-| :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------- | :----------------- |
-| `exclude_tags`       | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes                  | None           | <center>❌</center> |
-| `ignore_root_dir`       | Ignore any hardlinks detected in the same [root_dir](#directory)                  | True           | <center>❌</center> |
+| Variable          | Definition                                                                                                                                                                            | Default Values | Required           |
+| :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
+| `exclude_tags`    | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes | None           | <center>❌</center> |
+| `ignore_root_dir` | Ignore any hardlinks detected in the same [root_dir](#directory)                                                                                                                      | True           | <center>❌</center> |
 
 ## **share_limits:**
 
 Control how torrent share limits are set depending on the priority of your grouping. This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well. Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria. Each torrent can only be matched with one share limit group.
-| Configuration | Definition                                                       | Required           |
-| :------------ | :--------------------------------------------------------------- | :----------------- |
+
+| Configuration | Definition                                                                                                    | Required           |
+| :------------ | :------------------------------------------------------------------------------------------------------------ | :----------------- |
 | `key`         | This variable is mandatory and is a text defining the name of your grouping. This can be any string you want. | <center>✅</center> |
 
-| Variable             | Definition                                                                                                                                                                                             | Default Values | Type | Required           |
-| :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------- | :----------------- | :----------------- |
-| `priority`            | This is the priority of your grouping. The lower the number the higher the priority. This determines the order in which share limits are applied based on the filters set in this group                                            | largest priority + 1     |  int/float   | <center>✅</center> |
-| `include_all_tags`            | Filter the group based on one or more tags. Multiple include_all_tags are checked with an **AND** condition. All tags defined here must be present in the torrent for it to be included in this group                                        | None     |  list   | <center>❌</center> |
-| `include_any_tags`            | Filter the group based on one or more tags. Multiple include_any_tags are checked with an **OR** condition. Any tags defined here must be present in the torrent for it to be included in this group                                        | None     |  list   | <center>❌</center> |
-| `exclude_all_tags`            | Filter the group based on one or more tags. Multiple exclude_all_tags are checked with an **AND** condition. All tags defined here must be present in the torrent for it to be excluded in this group                                        | None     |  list   | <center>❌</center> |
-| `exclude_any_tags`            | Filter the group based on one or more tags. Multiple exclude_any_tags are checked with an **OR** condition. Any tags defined here must be present in the torrent for it to be excluded in this group                                        | None     |  list   | <center>❌</center> |
-| `categories`            | Filter by including one or more categories. Multiple categories are checked with an **OR** condition. Since one torrent can only be associated with a single category, multiple categories are checked with an **OR** condition                                        | None     |  list   | <center>❌</center> |
-| `cleanup`            | **WARNING!!** Setting this as true will remove and delete contents of any torrents that satisfies the share limits **(max time OR max ratio)** It will also delete the torrent's data if and only if no other torrents are using the same folder/files.                                            | False     |  bool   | <center>❌</center> |
-| `max_ratio`          | Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit)                                                                      | -1      |  float   | <center>❌</center> |
-| `max_seeding_time`   | Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit) (Max value of 1 year (525600 minutes)) See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m | -1      |  str   | <center>❌</center> |
-| `min_seeding_time`   | Will prevent torrent deletion by the cleanup variable if the torrent has reached the `max_ratio` limit you have set.  If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m. **MANDATORY: Must use also `max_ratio` with a value greater than `0` (default: `-1`) for this to work.** If you use both `min_seed_time` and `max_seed_time`, then you must set the value of `max_seed_time` to a number greater than `min_seed_time`.                                                                 | 0      |  str   | <center>❌</center> |
-| `last_active`   |Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes. If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                     | 0      |  str   | <center>❌</center> |
-| `limit_upload_speed` | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                 | -1      |  int   | <center>❌</center> |
-| `enable_group_upload_speed` | Upload speed limits are applied at the group level. This will take `limit_upload_speed` defined and divide it equally among the number of torrents in the group.                                                                                                                                 | False      |  bool   | <center>❌</center> |
-| `resume_torrent_after_change`   | Will resume your torrent after changing share limits.                                                                                     | True      |  bool   | <center>❌</center> |
-| `add_group_to_tag`   | This adds your grouping as a tag with a prefix defined in settings (share_limits_tag). Example: A grouping named noHL with a priority of 1 will have a tag set to `~share_limit_1.noHL` (if using the default prefix).                                                                                    | True      |  bool   | <center>❌</center> |
-| `min_num_seeds`   | Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here (depending on the tracker, you may or may not be included). If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.                                                                                    | 0      |  int   | <center>❌</center> |
-| `custom_tag`   | Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qBittorrent)**                                                                                    |  None     |  str   | <center>❌</center> |
+| Variable                      | Definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default Values       | Type      | Required           |
+| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------- | :-------- | :----------------- |
+| `priority`                    | This is the priority of your grouping. The lower the number the higher the priority. This determines the order in which share limits are applied based on the filters set in this group                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | largest priority + 1 | int/float | <center>✅</center> |
+| `include_all_tags`            | Filter the group based on one or more tags. Multiple include_all_tags are checked with an **AND** condition. All tags defined here must be present in the torrent for it to be included in this group                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | None                 | list      | <center>❌</center> |
+| `include_any_tags`            | Filter the group based on one or more tags. Multiple include_any_tags are checked with an **OR** condition. Any tags defined here must be present in the torrent for it to be included in this group                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | None                 | list      | <center>❌</center> |
+| `exclude_all_tags`            | Filter the group based on one or more tags. Multiple exclude_all_tags are checked with an **AND** condition. All tags defined here must be present in the torrent for it to be excluded in this group                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | None                 | list      | <center>❌</center> |
+| `exclude_any_tags`            | Filter the group based on one or more tags. Multiple exclude_any_tags are checked with an **OR** condition. Any tags defined here must be present in the torrent for it to be excluded in this group                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | None                 | list      | <center>❌</center> |
+| `categories`                  | Filter by including one or more categories. Multiple categories are checked with an **OR** condition. Since one torrent can only be associated with a single category, multiple categories are checked with an **OR** condition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | None                 | list      | <center>❌</center> |
+| `cleanup`                     | **WARNING!!** Setting this as true will remove and delete contents of any torrents that satisfies the share limits **(max time OR max ratio)** It will also delete the torrent's data if and only if no other torrents are using the same folder/files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | False                | bool      | <center>❌</center> |
+| `max_ratio`                   | Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | -1                   | float     | <center>❌</center> |
+| `max_seeding_time`            | Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit) (Max value of 1 year (525600 minutes)) See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                                                   | -1                   | str       | <center>❌</center> |
+| `min_seeding_time`            | Will prevent torrent deletion by the cleanup variable if the torrent has reached the `max_ratio` limit you have set.  If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m. **MANDATORY: Must use also `max_ratio` with a value greater than `0` (default: `-1`) for this to work.** If you use both `min_seed_time` and `max_seed_time`, then you must set the value of `max_seed_time` to a number greater than `min_seed_time`. | 0                    | str       | <center>❌</center> |
+| `last_active`                 | Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes. If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                           | 0                    | str       | <center>❌</center> |
+| `limit_upload_speed`          | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | -1                   | int       | <center>❌</center> |
+| `enable_group_upload_speed`   | Upload speed limits are applied at the group level. This will take `limit_upload_speed` defined and divide it equally among the number of torrents in the group.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | False                | bool      | <center>❌</center> |
+| `resume_torrent_after_change` | Will resume your torrent after changing share limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | True                 | bool      | <center>❌</center> |
+| `add_group_to_tag`            | This adds your grouping as a tag with a prefix defined in settings (share_limits_tag). Example: A grouping named noHL with a priority of 1 will have a tag set to `~share_limit_1.noHL` (if using the default prefix).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | True                 | bool      | <center>❌</center> |
+| `min_num_seeds`               | Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here (depending on the tracker, you may or may not be included). If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.                                                                                                                                                                                                                                                                                                                                                                                            | 0                    | int       | <center>❌</center> |
+| `custom_tag`                  | Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qBittorrent)**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | None                 | str       | <center>❌</center> |
+
 ## **recyclebin:**
 
 ---
@@ -186,6 +187,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `empty_after_x_days` | Will delete Recycle Bin contents if the files have been in the Recycle Bin for more than x days. (Uses date modified to track the time)                                                    | None           | <center>❌</center> |
 | `save_torrents`      | This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent. This requires the [torrents_dir](#directory) to be defined             | False          | <center>❌</center> |
 | `split_by_category`  | This will split the recycle bin folder by the save path defined in the [cat](#cat) attribute and add the base folder name of the recycle bin that was defined in [recycle_bin](#directory) | False          | <center>❌</center> |
+
 > Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Recycle Bin.
 
 ## **orphaned:**
@@ -195,11 +197,12 @@ This section allows for the exclusion of certain files from being considered "Or
 
 This is handy when you have automatically generated files that certain OSs decide to make. `.DS_Store` Is a primary example, for those who use MacOS.
 
-| Variable             | Definition                                                                                                                                  | Default Values | Required           |
-| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
-| `empty_after_x_days` | Will delete Orphaned data contents if the files have been in the Orphaned data for more than x days. (Uses date modified to track the time) | None           | <center>❌</center> |
-| `exclude_patterns`   | List of [patterns](https://commandbox.ortusbooks.com/usage/parameters/globbing-patterns) to exclude certain files from orphaned             | None           | <center>❌</center> |
-| `max_orphaned_files_to_delete`   | This will help reduce the number of accidental large amount orphaned deletions in a single run. Set your desired threshold for the maximum number of orphaned files qbm will delete in a single run. (-1 to disable safeguards)             | 50           | <center>❌</center> |
+| Variable                       | Definition                                                                                                                                                                                                                      | Default Values | Required           |
+| :----------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
+| `empty_after_x_days`           | Will delete Orphaned data contents if the files have been in the Orphaned data for more than x days. (Uses date modified to track the time)                                                                                     | None           | <center>❌</center> |
+| `exclude_patterns`             | List of [patterns](https://commandbox.ortusbooks.com/usage/parameters/globbing-patterns) to exclude certain files from orphaned                                                                                                 | None           | <center>❌</center> |
+| `max_orphaned_files_to_delete` | This will help reduce the number of accidental large amount orphaned deletions in a single run. Set your desired threshold for the maximum number of orphaned files qbm will delete in a single run. (-1 to disable safeguards) | 50             | <center>❌</center> |
+
 > Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
 
 ## **apprise:**
@@ -484,7 +487,9 @@ Payload will be sent when hard links are found for any torrents that were previo
 ```
 
 ### **Share Limits Notifications**
+
 Payload will be sent when Share Limits are updated for a specific group
+
 ```yaml
 {
   "function": "share_limits",               // Webhook Trigger keyword
@@ -516,7 +521,6 @@ Payload will be sent when `cleanup` flag is set to true and torrent meets share 
   "torrents_deleted_and_contents": bool,    // Deleted Torrents and contents or Deleted just the torrent
 }
 ```
-
 
 ### **Cleanup directories Notifications**
 
