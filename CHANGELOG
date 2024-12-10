@@ -1,8 +1,4 @@
 # Requirements Updated
-croniter==5.0.1
-qbittorrent-api==2024.10.68
+qbittorrent-api==2024.11.70
 
-# Bug Fixes
-- Fixes bug in torrent exporting for versions < 4.5.0
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.12...v4.1.13
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.13...v4.1.14
