@@ -135,7 +135,7 @@ If you're needing information regarding hardlinks here are some excellent resour
 * [Wikipedia: Hardlinks](https://en.wikipedia.org/wiki/Hard_link)
 
 Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
-Beyond this you'll need to use one of the [categories](#cat) above as the key.
+Beyond this you'll need to use one of the [categories](#cat) above as the key. 
 
 | Configuration | Definition                                                | Required           |
 | :------------ | :-------------------------------------------------------- | :----------------- |
