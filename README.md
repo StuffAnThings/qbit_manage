@@ -28,7 +28,7 @@ This is a program used to manage your qBittorrent instance such as:
 
 We rely on [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) to interact with Qbittorrent.
 
-Generally expect new releases of Qbittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support gor the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
+Generally expect new releases of Qbittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support for the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
 
 ### Master
 
