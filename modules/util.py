@@ -91,6 +91,9 @@ class TorrentMessages:
         "OTHER",
         "TORRENT HAS BEEN DELETED",
         "NUKED",
+        "SEASON PACK:",
+        "SEASON PACK OUT",
+        "SEASON PACK UPLOADED",
     ]
 
     IGNORE_MSGS = [
