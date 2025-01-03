@@ -77,6 +77,9 @@ class TorrentMessages:
         "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
         "INFOHASH NOT FOUND.",  # blutopia
         "TORRENT HAS BEEN DELETED.",  # blutopia
+        "TRACKER NICHT REGISTRIERT.",
+        "TORRENT EXISTIERT NICHT",
+        "TORRENT NICHT GEFUNDEN",
     ]
 
     UNREGISTERED_MSGS_BHD = [
