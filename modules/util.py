@@ -77,12 +77,16 @@ class TorrentMessages:
         "TORRENT IS NOT AUTHORIZED FOR USE ON THIS TRACKER",
         "INFOHASH NOT FOUND.",  # blutopia
         "TORRENT HAS BEEN DELETED.",  # blutopia
+        "TRACKER NICHT REGISTRIERT.",
+        "TORRENT EXISTIERT NICHT",
+        "TORRENT NICHT GEFUNDEN",
     ]
 
     UNREGISTERED_MSGS_BHD = [
         "DEAD",
         "DUPE",
         "COMPLETE SEASON UPLOADED",
+        "COMPLETE SEASON UPLOADED:",
         "PROBLEM WITH DESCRIPTION",
         "PROBLEM WITH FILE",
         "PROBLEM WITH PACK",
@@ -91,6 +95,9 @@ class TorrentMessages:
         "OTHER",
         "TORRENT HAS BEEN DELETED",
         "NUKED",
+        "SEASON PACK:",
+        "SEASON PACK OUT",
+        "SEASON PACK UPLOADED",
     ]
 
     IGNORE_MSGS = [
