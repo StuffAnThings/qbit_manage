@@ -140,7 +140,7 @@ parser.add_argument(
     dest="rem_orphaned",
     action="store_true",
     default=False,
-    help="Use this if you would like to remove unregistered torrents.",
+    help="Use this if you would like to remove orphaned files.",
 )
 parser.add_argument(
     "-tnhl",

@@ -83,6 +83,7 @@ class TorrentMessages:
         "DEAD",
         "DUPE",
         "COMPLETE SEASON UPLOADED",
+        "COMPLETE SEASON UPLOADED:",
         "PROBLEM WITH DESCRIPTION",
         "PROBLEM WITH FILE",
         "PROBLEM WITH PACK",
@@ -91,6 +92,9 @@ class TorrentMessages:
         "OTHER",
         "TORRENT HAS BEEN DELETED",
         "NUKED",
+        "SEASON PACK:",
+        "SEASON PACK OUT",
+        "SEASON PACK UPLOADED",
     ]
 
     IGNORE_MSGS = [
