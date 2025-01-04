@@ -2,6 +2,7 @@
 
 import os
 import sys
+from fnmatch import fnmatch
 from functools import cache
 
 from qbittorrentapi import Client
@@ -397,7 +398,7 @@ class Qbt:
         if "cat" in self.config.data and self.config.data["cat"] is not None:
             cat_path = self.config.data["cat"]
             for cat, save_path in cat_path.items():
-                if os.path.join(save_path, "") == path:
+                if os.path.join(save_path, "") == path or fnmatch(path, save_path):
                     category.append(cat)
 
         if not category:
