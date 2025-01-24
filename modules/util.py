@@ -10,7 +10,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import requests
-import ruamel.yaml
+import pyaml_env
 from pytimeparse2 import parse
 
 logger = logging.getLogger("qBit Manage")
@@ -193,7 +193,6 @@ class check:
         yaml = YAML(self.config.config_path)
         if data is not None and attribute in yaml.data:
             yaml.data[attribute] = data
-            yaml.save()
 
     def check_for_attribute(
         self,
@@ -283,7 +282,6 @@ class check:
                         yaml.data[parent][attribute] = default
                     else:
                         endline = ""
-                yaml.save()
             if default_is_none and var_type in ["list", "int_list"]:
                 return []
         elif data[attribute] is None:
@@ -756,36 +754,29 @@ def human_readable_size(size, decimal_places=3):
 
 
 class YAML:
-    """Class to load and save yaml files"""
-
+    """Class to load and save YAML files with environment variable substitution"""
+    
     def __init__(self, path=None, input_data=None, check_empty=False, create=False):
         self.path = path
         self.input_data = input_data
-        self.yaml = ruamel.yaml.YAML()
-        self.yaml.indent(mapping=2, sequence=2)
+
         try:
             if input_data:
-                self.data = self.yaml.load(input_data)
+                # If input data is provided, parse it with pyaml_env to resolve environment variables
+                self.data = pyaml_env.parse_config(data=input_data)
             else:
                 if create and not os.path.exists(self.path):
                     with open(self.path, "w"):
                         pass
                     self.data = {}
                 else:
-                    with open(self.path, encoding="utf-8") as filepath:
-                        self.data = self.yaml.load(filepath)
-        except ruamel.yaml.error.YAMLError as yerr:
+                    self.data = pyaml_env.parse_config(self.path)
+
+        except Exception as yerr:
             err = str(yerr).replace("\n", "\n      ")
             raise Failed(f"YAML Error: {err}") from yerr
-        except Exception as yerr:
-            raise Failed(f"YAML Error: {yerr}") from yerr
+
         if not self.data or not isinstance(self.data, dict):
             if check_empty:
                 raise Failed("YAML Error: File is empty")
             self.data = {}
-
-    def save(self):
-        """Save yaml file"""
-        if self.path:
-            with open(self.path, "w") as filepath:
-                self.yaml.dump(self.data, filepath)
