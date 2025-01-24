@@ -9,8 +9,8 @@ import time
 from fnmatch import fnmatch
 from pathlib import Path
 
-import requests
 import pyaml_env
+import requests
 from pytimeparse2 import parse
 
 logger = logging.getLogger("qBit Manage")
@@ -755,7 +755,7 @@ def human_readable_size(size, decimal_places=3):
 
 class YAML:
     """Class to load and save YAML files with environment variable substitution"""
-    
+
     def __init__(self, path=None, input_data=None, check_empty=False, create=False):
         self.path = path
         self.input_data = input_data
