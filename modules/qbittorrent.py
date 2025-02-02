@@ -8,6 +8,7 @@ from functools import cache
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
+from qbittorrentapi import APIConnectionError
 from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
 
@@ -77,6 +78,9 @@ class Qbt:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password."
             self.config.notify(ex, "Qbittorrent")
             raise Failed(ex)
+        except APIConnectionError as exc:
+            self.config.notify(exc, "Qbittorrent")
+            raise Failed(exc) from ConnectionError(exc)
         except Exception as exc:
             self.config.notify(exc, "Qbittorrent")
             raise Failed(exc)
