@@ -1,7 +1,7 @@
 # Requirements Updated
-qbittorrent-api==2024.12.71
+ruamel.yaml==0.18.10
 
-# Bug Fixes
-- Additional unregistered messages added (Fixes #719)
+# New Updates
+- Adds support for wlidcard matching in category (Adds #695)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.14...v4.1.15
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.15...v4.1.16

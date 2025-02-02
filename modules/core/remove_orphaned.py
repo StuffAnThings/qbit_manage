@@ -72,7 +72,7 @@ class RemoveOrphaned:
                 "Aborting deletion to avoid accidental data loss."
             )
             self.config.notify(e, "Remove Orphaned", False)
-            logger.debug(f"Orphaned files detected: {orphaned_files}")
+            logger.info(f"Orphaned files detected: {orphaned_files}")
             logger.warning(e)
             return
         elif orphaned_files:
