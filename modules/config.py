@@ -759,11 +759,16 @@ class Config:
             e = "Config Error: qbt attribute not found"
             self.notify(e, "Config")
             raise Failed(e)
-        
-    def __retry_on_connect(exception):       
+
+    def __retry_on_connect(exception):
         return isinstance(exception.__cause__, ConnectionError)
-    
-    @retry(retry_on_exception=__retry_on_connect, stop_max_attempt_number=5, wait_exponential_multiplier=30000, wait_exponential_max=120000)
+
+    @retry(
+        retry_on_exception=__retry_on_connect,
+        stop_max_attempt_number=5,
+        wait_exponential_multiplier=30000,
+        wait_exponential_max=120000,
+    )
     def __connect(self):
         logger.info("Connecting to Qbittorrent...")
         return Qbt(

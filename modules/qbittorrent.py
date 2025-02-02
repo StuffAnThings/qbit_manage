@@ -5,10 +5,10 @@ import sys
 from fnmatch import fnmatch
 from functools import cache
 
+from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
-from qbittorrentapi import APIConnectionError
 from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
 
