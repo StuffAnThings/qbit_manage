@@ -3,7 +3,7 @@
 
 The script utilizes a YAML config file to load information to connect to the various APIs you can connect with.
 
-By default, the script looks at /config/config.yml for the Configuration File unless otherwise specified.
+By default, the script looks at `/config/config.yml` when running locally or `/app/config.yml` in docker for the Configuration File unless otherwise specified.
 
 A template Configuration File can be found in the repo [config/config.yml.sample](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample).
 
