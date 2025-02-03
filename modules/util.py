@@ -12,6 +12,7 @@ from pathlib import Path
 import requests
 import ruamel.yaml
 from pytimeparse2 import parse
+from ruamel.yaml.constructor import ConstructorError
 
 logger = logging.getLogger("qBit Manage")
 
@@ -756,13 +757,19 @@ def human_readable_size(size, decimal_places=3):
 
 
 class YAML:
-    """Class to load and save yaml files"""
+    """Class to load and save yaml files with !ENV tag preservation and environment variable resolution"""
 
     def __init__(self, path=None, input_data=None, check_empty=False, create=False):
         self.path = path
         self.input_data = input_data
         self.yaml = ruamel.yaml.YAML()
         self.yaml.indent(mapping=2, sequence=2)
+
+        # Add constructor for !ENV tag
+        self.yaml.Constructor.add_constructor("!ENV", self._env_constructor)
+        # Add representer for !ENV tag
+        self.yaml.Representer.add_representer(EnvStr, self._env_representer)
+
         try:
             if input_data:
                 self.data = self.yaml.load(input_data)
@@ -784,8 +791,36 @@ class YAML:
                 raise Failed("YAML Error: File is empty")
             self.data = {}
 
+    def _env_constructor(self, loader, node):
+        """Constructor for !ENV tag"""
+        value = loader.construct_scalar(node)
+        # Resolve the environment variable at runtime
+        env_value = os.getenv(value)
+        if env_value is None:
+            raise ConstructorError(f"Environment variable '{value}' not found")
+        # Return a custom string subclass that preserves the !ENV tag
+        return EnvStr(value, env_value)
+
+    def _env_representer(self, dumper, data):
+        """Representer for EnvStr class"""
+        return dumper.represent_scalar("!ENV", data.env_var)
+
     def save(self):
-        """Save yaml file"""
+        """Save yaml file with !ENV tags preserved"""
         if self.path:
-            with open(self.path, "w") as filepath:
+            with open(self.path, "w", encoding="utf-8") as filepath:
                 self.yaml.dump(self.data, filepath)
+
+
+class EnvStr(str):
+    """Custom string subclass to preserve !ENV tags"""
+
+    def __new__(cls, env_var, resolved_value):
+        # Create a new string instance with the resolved value
+        instance = super().__new__(cls, resolved_value)
+        instance.env_var = env_var  # Store the environment variable name
+        return instance
+
+    def __repr__(self):
+        """Return the resolved value as a string"""
+        return super().__repr__()
