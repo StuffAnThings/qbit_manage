@@ -657,16 +657,31 @@ class Config:
                 self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), ""
             )
             self.remote_dir = os.path.join(
-                self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), ""
+                self.util.check_for_attribute(
+                    self.data, "remote_dir", parent="directory", default=self.root_dir, do_print=False, save=False
+                ),
+                "",
             )
             if self.commands["cross_seed"] or self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]:
                 self.remote_dir = self.util.check_for_attribute(
-                    self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
+                    self.data,
+                    "remote_dir",
+                    parent="directory",
+                    var_type="path",
+                    default=self.root_dir,
+                    do_print=False,
+                    save=False,
                 )
             else:
                 if self.recyclebin["enabled"]:
                     self.remote_dir = self.util.check_for_attribute(
-                        self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
+                        self.data,
+                        "remote_dir",
+                        parent="directory",
+                        var_type="path",
+                        default=self.root_dir,
+                        do_print=False,
+                        save=False,
                     )
             if not self.remote_dir:
                 self.remote_dir = self.root_dir
