@@ -296,7 +296,7 @@ notifiarr:
   # Notifiarr integration with webhooks
   # Leave Empty/Blank to disable
   # Mandatory to fill out API Key
-  apikey: ####################################
+  apikey: !ENV NOTIFIARR_API
   # <OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
   instance:
 
