@@ -1,4 +1,4 @@
-""" Utility functions for qBit Manage. """
+"""Utility functions for qBit Manage."""
 
 import json
 import logging
