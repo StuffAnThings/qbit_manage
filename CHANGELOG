@@ -1,7 +1,8 @@
-# Requirements Updated
-ruamel.yaml==0.18.10
-
 # New Updates
-- Adds support for wlidcard matching in category (Adds #695)
+- Adds support for environment variables in config file using (`!ENV VAR_NAME`)
+- Add Retries on ConnectionError (#740)
+- Fixes #702
+- Removes warning when `remote_dir` is not defined
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.15...v4.1.16
+Special thanks to @NooNameR for their contributions!
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.16...v4.1.17

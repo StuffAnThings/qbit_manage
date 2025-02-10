@@ -20,9 +20,10 @@ commands:
 
 qbt:
   # qBittorrent parameters
+  # Pass environment variables to the config via !ENV tag
   host: "localhost:8080"
-  user: "username"
-  pass: "password"
+  user: !ENV QBIT_USER
+  pass: !ENV QBIT_PASS
 
 settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
@@ -295,7 +296,7 @@ notifiarr:
   # Notifiarr integration with webhooks
   # Leave Empty/Blank to disable
   # Mandatory to fill out API Key
-  apikey: ####################################
+  apikey: !ENV NOTIFIARR_API
   # <OPTIONAL> Set to a unique value (could be your username on notifiarr for example)
   instance:
 

@@ -657,16 +657,31 @@ class Config:
                 self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), ""
             )
             self.remote_dir = os.path.join(
-                self.util.check_for_attribute(self.data, "remote_dir", parent="directory", default=self.root_dir), ""
+                self.util.check_for_attribute(
+                    self.data, "remote_dir", parent="directory", default=self.root_dir, do_print=False, save=False
+                ),
+                "",
             )
             if self.commands["cross_seed"] or self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]:
                 self.remote_dir = self.util.check_for_attribute(
-                    self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
+                    self.data,
+                    "remote_dir",
+                    parent="directory",
+                    var_type="path",
+                    default=self.root_dir,
+                    do_print=False,
+                    save=False,
                 )
             else:
                 if self.recyclebin["enabled"]:
                     self.remote_dir = self.util.check_for_attribute(
-                        self.data, "remote_dir", parent="directory", var_type="path", default=self.root_dir
+                        self.data,
+                        "remote_dir",
+                        parent="directory",
+                        var_type="path",
+                        default=self.root_dir,
+                        do_print=False,
+                        save=False,
                     )
             if not self.remote_dir:
                 self.remote_dir = self.root_dir
@@ -754,19 +769,31 @@ class Config:
         # Connect to Qbittorrent
         self.qbt = None
         if "qbt" in self.data:
-            logger.info("Connecting to Qbittorrent...")
-            self.qbt = Qbt(
-                self,
-                {
-                    "host": self.util.check_for_attribute(self.data, "host", parent="qbt", throw=True),
-                    "username": self.util.check_for_attribute(self.data, "user", parent="qbt", default_is_none=True),
-                    "password": self.util.check_for_attribute(self.data, "pass", parent="qbt", default_is_none=True),
-                },
-            )
+            self.qbt = self.__connect()
         else:
             e = "Config Error: qbt attribute not found"
             self.notify(e, "Config")
             raise Failed(e)
+
+    def __retry_on_connect(exception):
+        return isinstance(exception.__cause__, ConnectionError)
+
+    @retry(
+        retry_on_exception=__retry_on_connect,
+        stop_max_attempt_number=5,
+        wait_exponential_multiplier=30000,
+        wait_exponential_max=120000,
+    )
+    def __connect(self):
+        logger.info("Connecting to Qbittorrent...")
+        return Qbt(
+            self,
+            {
+                "host": self.util.check_for_attribute(self.data, "host", parent="qbt", throw=True),
+                "username": self.util.check_for_attribute(self.data, "user", parent="qbt", default_is_none=True),
+                "password": self.util.check_for_attribute(self.data, "pass", parent="qbt", default_is_none=True),
+            },
+        )
 
     # Empty old files from recycle bin or orphaned
     def cleanup_dirs(self, location):
