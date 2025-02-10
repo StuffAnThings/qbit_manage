@@ -1,5 +1,5 @@
 # New Updates
-- Adds support for environment variables in config file using (!ENV VAR_NAME)
+- Adds support for environment variables in config file using (`!ENV VAR_NAME`)
 - Add Retries on ConnectionError (#740)
 - Fixes #702
 - Removes warning when `remote_dir` is not defined
