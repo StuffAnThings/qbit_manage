@@ -81,6 +81,8 @@ class TorrentMessages:
         "TRACKER NICHT REGISTRIERT.",
         "TORRENT EXISTIERT NICHT",
         "TORRENT NICHT GEFUNDEN",
+        "TORRENT DELETED",
+        "TORRENT BANNED",
     ]
 
     UNREGISTERED_MSGS_BHD = [
