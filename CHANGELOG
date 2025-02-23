@@ -1,8 +1,5 @@
-# New Updates
-- Adds support for environment variables in config file using (`!ENV VAR_NAME`)
-- Add Retries on ConnectionError (#740)
-- Fixes #702
-- Removes warning when `remote_dir` is not defined
+# Requirements Updated
+qbittorrent-api==2025.2.0
+humanize==4.12.1
 
-Special thanks to @NooNameR for their contributions!
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.16...v4.1.17
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.17...v4.1.18
