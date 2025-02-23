@@ -84,14 +84,6 @@ parser.add_argument(
     help="This is used if you want to use a different name for your log file. Example: tv.log",
 )
 parser.add_argument(
-    "-cs",
-    "--cross-seed",
-    dest="cross_seed",
-    action="store_true",
-    default=False,
-    help="Use this after running cross-seed script to add torrents from the cross-seed output folder to qBittorrent",
-)
-parser.add_argument(
     "-re",
     "--recheck",
     dest="recheck",
@@ -271,7 +263,6 @@ sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
 config_files = get_arg("QBT_CONFIG", args.configfiles)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
-cross_seed = get_arg("QBT_CROSS_SEED", args.cross_seed, arg_bool=True)
 recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
 cat_update = get_arg("QBT_CAT_UPDATE", args.cat_update, arg_bool=True)
 tag_update = get_arg("QBT_TAG_UPDATE", args.tag_update, arg_bool=True)
@@ -322,7 +313,6 @@ for v in [
     "startupDelay",
     "config_files",
     "log_file",
-    "cross_seed",
     "recheck",
     "cat_update",
     "tag_update",
@@ -370,7 +360,6 @@ from modules import util  # noqa
 util.logger = logger
 from modules.config import Config  # noqa
 from modules.core.category import Category  # noqa
-from modules.core.cross_seed import CrossSeed  # noqa
 from modules.core.recheck import ReCheck  # noqa
 from modules.core.remove_orphaned import RemoveOrphaned  # noqa
 from modules.core.remove_unregistered import RemoveUnregistered  # noqa
@@ -496,12 +485,6 @@ def start():
         # Set Tags
         if cfg.commands["tag_update"]:
             stats["tagged"] += Tags(qbit_manager).stats
-
-        # Set Cross Seed
-        if cfg.commands["cross_seed"]:
-            cross_seed = CrossSeed(qbit_manager)
-            stats["added"] += cross_seed.stats_added
-            stats["tagged"] += cross_seed.stats_tagged
 
         # Remove Unregistered Torrents and tag errors
         if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:

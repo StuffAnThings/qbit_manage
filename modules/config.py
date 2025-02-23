@@ -22,7 +22,6 @@ from modules.webhooks import Webhooks
 logger = util.logger
 
 COMMANDS = [
-    "cross_seed",
     "recheck",
     "cat_update",
     "tag_update",
@@ -91,7 +90,6 @@ class Config:
                 logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
                 logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
                 logger.separator("CONFIG OVERRIDE RUN COMMDANDS", space=False, border=False, loglevel="DEBUG")
-                logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {self.commands['cross_seed']}")
                 logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
                 logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
                 logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {self.commands['tag_update']}")
@@ -119,7 +117,6 @@ class Config:
             logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
             logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
             logger.separator("DOCKER ENV RUN COMMANDS", space=False, border=False, loglevel="DEBUG")
-            logger.debug(f"    --cross-seed (QBT_CROSS_SEED): {args['cross_seed']}")
             logger.debug(f"    --recheck (QBT_RECHECK): {args['recheck']}")
             logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {args['cat_update']}")
             logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {args['tag_update']}")
@@ -175,7 +172,6 @@ class Config:
                         temp["function"][attr] = {}
                         temp["function"][attr] = None
 
-                hooks("cross_seed")
                 hooks("recheck")
                 hooks("cat_update")
                 hooks("tag_update")
@@ -218,7 +214,6 @@ class Config:
             "share_limits_last_active_tag": self.util.check_for_attribute(
                 self.data, "share_limits_last_active_tag", parent="settings", default="LastActiveLimitNotReached"
             ),
-            "cross_seed_tag": self.util.check_for_attribute(self.data, "cross_seed_tag", parent="settings", default="cross-seed"),
             "cat_filter_completed": self.util.check_for_attribute(
                 self.data, "cat_filter_completed", parent="settings", var_type="bool", default=True
             ),
@@ -246,12 +241,10 @@ class Config:
         self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
         self.share_limits_min_num_seeds_tag = self.settings["share_limits_min_num_seeds_tag"]
         self.share_limits_last_active_tag = self.settings["share_limits_last_active_tag"]
-        self.cross_seed_tag = self.settings["cross_seed_tag"]
 
         self.default_ignore_tags = [
             self.nohardlinks_tag,
             self.tracker_error_tag,
-            self.cross_seed_tag,
             self.share_limits_min_seeding_time_tag,
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
@@ -262,7 +255,6 @@ class Config:
             self.util.overwrite_attributes(self.settings, "settings")
 
         default_function = {
-            "cross_seed": None,
             "recheck": None,
             "cat_update": None,
             "tag_update": None,
@@ -662,7 +654,7 @@ class Config:
                 ),
                 "",
             )
-            if self.commands["cross_seed"] or self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]:
+            if self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]:
                 self.remote_dir = self.util.check_for_attribute(
                     self.data,
                     "remote_dir",
@@ -685,12 +677,6 @@ class Config:
                     )
             if not self.remote_dir:
                 self.remote_dir = self.root_dir
-            if self.commands["cross_seed"]:
-                self.cross_seed_dir = self.util.check_for_attribute(self.data, "cross_seed", parent="directory", var_type="path")
-            else:
-                self.cross_seed_dir = self.util.check_for_attribute(
-                    self.data, "cross_seed", parent="directory", default_is_none=True
-                )
             if self.commands["rem_orphaned"]:
                 if "orphaned_dir" in self.data["directory"] and self.data["directory"]["orphaned_dir"] is not None:
                     default_orphaned = os.path.join(

@@ -6,7 +6,6 @@
 commands:
   # The commands defined below will IGNORE any commands used in command line and docker env variables.
   dry_run: True
-  cross_seed: False
   recheck: False
   cat_update: False
   tag_update: False
@@ -36,7 +35,6 @@ settings:
   share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
   share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
   share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
-  cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
@@ -45,7 +43,6 @@ settings:
 
 directory:
   # Do not remove these
-  # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
   # root_dir var: </your/path/here/>  # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
   # <OPTIONAL> remote_dir var: </your/path/here/>  # Path of docker host mapping of root_dir.
   # remote_dir must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
@@ -53,7 +50,6 @@ directory:
   # <OPTIONAL> recycle_bin var: </your/path/here/>   # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
   # <OPTIONAL> torrents_dir var: </your/path/here/>  # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
   # <OPTIONAL> orphaned_dir var: </your/path/here/>  # Path of the the Orphaned Data folder. This is similar to RecycleBin, but only for orphaned data.
-  cross_seed: "/your/path/here/"
   root_dir: "/data/torrents/"
   remote_dir: "/mnt/user/data/torrents/"
   recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
@@ -311,7 +307,6 @@ webhooks:
   run_start: notifiarr
   run_end: apprise
   function:
-    cross_seed: https://mywebhookurl.com/qbt_manage
     recheck: notifiarr
     cat_update: apprise
     tag_update: notifiarr

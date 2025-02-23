@@ -38,7 +38,6 @@ services:
       - QBT_SCHEDULE=1440
       - QBT_CONFIG=/config/config.yml
       - QBT_LOGFILE=activity.log
-      - QBT_CROSS_SEED=false
       - QBT_RECHECK=false
       - QBT_CAT_UPDATE=false
       - QBT_TAG_UPDATE=false
