@@ -21,6 +21,7 @@ class RemoveUnregistered:
         self.tag_error = self.config.tracker_error_tag
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
+        self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -125,6 +126,12 @@ class RemoveUnregistered:
                         if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
                             msg_up, TorrentMessages.IGNORE_MSGS
                         ):
+                            if list_in_text(msg_up, self.rem_unregistered_ignore_list):
+                                logger.print_line(
+                                    f"Ignoring unregistered torrent {self.t_name} due to matching phrase found in ignore list.",
+                                    self.config.loglevel,
+                                )
+                                continue
                             self.del_unregistered(msg, tracker, torrent)
                         else:
                             if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):

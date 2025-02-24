@@ -235,6 +235,9 @@ class Config:
             "tag_stalled_torrents": self.util.check_for_attribute(
                 self.data, "tag_stalled_torrents", parent="settings", var_type="bool", default=True
             ),
+            "rem_unregistered_ignore_list": self.util.check_for_attribute(
+                self.data, "rem_unregistered_ignore_list", parent="settings", var_type="upper_list", default=[]
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]

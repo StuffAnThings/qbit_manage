@@ -17,11 +17,15 @@ from ruamel.yaml.constructor import ConstructorError
 logger = logging.getLogger("qBit Manage")
 
 
-def get_list(data, lower=False, split=True, int_list=False):
+def get_list(data, lower=False, split=True, int_list=False, upper=False):
     """Return a list from a string or list."""
     if data is None:
         return None
     elif isinstance(data, list):
+        if lower is True:
+            return [d.strip().lower() for d in data]
+        if upper is True:
+            return [d.strip().upper() for d in data]
         return data
     elif isinstance(data, dict):
         return [data]
@@ -29,6 +33,8 @@ def get_list(data, lower=False, split=True, int_list=False):
         return [str(data)]
     elif lower is True:
         return [d.strip().lower() for d in str(data).split(",")]
+    elif upper is True:
+        return [d.strip().upper() for d in str(data).split(",")]
     elif int_list is True:
         try:
             return [int(d.strip()) for d in str(data).split(",")]
@@ -359,6 +365,8 @@ class check:
                 message = "No Paths exist"
         elif var_type == "lower_list":
             return get_list(data[attribute], lower=True)
+        elif var_type == "upper_list":
+            return get_list(data[attribute], upper=True)
         elif test_list is None or data[attribute] in test_list:
             return data[attribute]
         else:
