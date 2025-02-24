@@ -232,6 +232,9 @@ class Config:
             "disable_qbt_default_share_limits": self.util.check_for_attribute(
                 self.data, "disable_qbt_default_share_limits", parent="settings", var_type="bool", default=True
             ),
+            "tag_stalled_torrents": self.util.check_for_attribute(
+                self.data, "tag_stalled_torrents", parent="settings", var_type="bool", default=True
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
