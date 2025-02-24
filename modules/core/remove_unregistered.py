@@ -131,8 +131,8 @@ class RemoveUnregistered:
                                     f"Ignoring unregistered torrent {self.t_name} due to matching phrase found in ignore list.",
                                     self.config.loglevel,
                                 )
-                                continue
-                            self.del_unregistered(msg, tracker, torrent)
+                            else:
+                                self.del_unregistered(msg, tracker, torrent)
                         else:
                             if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
                                 self.del_unregistered(msg, tracker, torrent)
