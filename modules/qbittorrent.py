@@ -48,9 +48,9 @@ class Qbt:
             )
             self.client.auth_log_in()
             self.current_version = self.client.app.version
-            logger.debug(f"qBittorrent: {self.current_version}")
-            logger.debug(f"qBittorrent Web API: {self.client.app.web_api_version}")
-            logger.debug(f"qbit_manage supported versions: {self.MIN_SUPPORTED_VERSION} - {self.SUPPORTED_VERSION}")
+            logger.info(f"qBittorrent: {self.current_version}")
+            logger.info(f"qBittorrent Web API: {self.client.app.web_api_version}")
+            logger.info(f"qbit_manage supported versions: {self.MIN_SUPPORTED_VERSION} - {self.SUPPORTED_VERSION}")
             if self.current_version < self.MIN_SUPPORTED_VERSION:
                 ex = (
                     f"Qbittorrent Error: qbit_manage is only compatible with {self.MIN_SUPPORTED_VERSION} or higher. "
