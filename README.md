@@ -15,7 +15,6 @@ This is a program used to manage your qBittorrent instance such as:
 * Apply category based on `save_path` to uncategorized torrents in category's `save_path`
 * Change categories based on current category (`cat_change`)
 * Remove unregistered torrents (delete data & torrent if it is not being cross-seeded, otherwise it will just remove the torrent)
-* Automatically add [cross-seed](https://github.com/cross-seed/cross-seed) torrents in paused state. **\*Note: cross-seed now allows for torrent injections directly to qBit, making this feature rarely needed/used.\***
 * Recheck paused torrents sorted by lowest size and resume if completed
 * Remove orphaned files from your root directory that are not referenced by qBittorrent
 * Tag any torrents that have no hard links outside the root folder (for multi-file torrents the largest file is used)

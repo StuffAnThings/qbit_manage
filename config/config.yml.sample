@@ -1,12 +1,12 @@
 # This is an example configuration file that documents all the options.
 # It will need to be modified for your specific use case.
+# These are not default values. You MUST review the config settings and properly configure this EXAMPLE file.
 # Please refer to the link below for more details on how to set up the configuration file
 # https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup
 
 commands:
   # The commands defined below will IGNORE any commands used in command line and docker env variables.
   dry_run: True
-  cross_seed: False
   recheck: False
   cat_update: False
   tag_update: False
@@ -36,16 +36,18 @@ settings:
   share_limits_min_seeding_time_tag: MinSeedTimeNotReached # Tag to be added to torrents that have not yet reached the minimum seeding time
   share_limits_min_num_seeds_tag: MinSeedsNotMet # Tag to be added to torrents that have not yet reached the minimum number of seeds
   share_limits_last_active_tag: LastActiveLimitNotReached # Tag to be added to torrents that have not yet reached the last active limit
-  cross_seed_tag: cross-seed # Will set the tag of any torrents that are added by cross-seed command
   cat_filter_completed: True # Filters for completed torrents only when running cat_update command
   share_limits_filter_completed: True # Filters for completed torrents only when running share_limits command
   tag_nohardlinks_filter_completed: True # Filters for completed torrents only when running tag_nohardlinks command
   cat_update_all: True # Checks and updates all torrent categories if set to True when running cat_update command, otherwise only update torrents that are uncategorized
   disable_qbt_default_share_limits: True # Allows QBM to handle share limits by disabling qBittorrents default Share limits. Only active when the share_limits command is set to True
+  tag_stalled_torrents: True # Tags any downloading torrents that are stalled with the `stalledDL` tag when running the tag_update command
+  rem_unregistered_ignore_list: # Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched
+    - example placeholder words
+    - ignore if found
 
 directory:
   # Do not remove these
-  # Cross-seed var: </your/path/here/>  # Output directory of cross-seed
   # root_dir var: </your/path/here/>  # Root downloads directory used to check for orphaned files, noHL, and RecycleBin.
   # <OPTIONAL> remote_dir var: </your/path/here/>  # Path of docker host mapping of root_dir.
   # remote_dir must be set if you're running qbit_manage locally and qBittorrent/cross_seed is in a docker
@@ -53,12 +55,11 @@ directory:
   # <OPTIONAL> recycle_bin var: </your/path/here/>   # Path of the RecycleBin folder. Default location is set to remote_dir/.RecycleBin
   # <OPTIONAL> torrents_dir var: </your/path/here/>  # Path of the your qbittorrent torrents directory. Required for `save_torrents` attribute in recyclebin
   # <OPTIONAL> orphaned_dir var: </your/path/here/>  # Path of the the Orphaned Data folder. This is similar to RecycleBin, but only for orphaned data.
-  cross_seed: "/your/path/here/"
-  root_dir: "/data/torrents/"
-  remote_dir: "/mnt/user/data/torrents/"
-  recycle_bin: "/mnt/user/data/torrents/.RecycleBin"
-  torrents_dir: "/qbittorrent/data/BT_backup"
-  orphaned_dir: "/data/torrents/orphaned_data"
+  root_dir: "/path/to/torrents/"
+  remote_dir: "/host/path/to/torrents/ifdocker/torrents/"
+  recycle_bin: "/path/to/.RecycleBin"
+  torrents_dir: "/path/to/qbitAppData/BT_backup"
+  orphaned_dir: "/path/to/orphaned_data"
 
 cat:
   # Category & Path Parameters
@@ -66,17 +67,15 @@ cat:
   # If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
   # You can use Unix filename pattern matching as well when specifying the save_path
   # <Category Name> : <save_path>  # Path of your save directory.
-  movies: "/data/torrents/Movies"
-  tv: "/data/torrents/TV"
+  somecategory: "/path/to/torrents/somecategory"
+  anothercategory: "/path/to/torrents/anothercategory"
 
 cat_change:
   # This moves all the torrents from one category to another category. This executes on --cat-update
   # WARNING: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
   # <Old Category Name> : <New Category>
-  Radarr-HD.cross-seed: movies-hd
-  Radarr-UHD.cross-seed: movies-uhd
-  movies-hd.cross-seed: movies-hd
-  movies-uhd.cross-seed: movies-uhd
+  CatA.cross-seed: CatA
+  CatB.cross-seed: CatB
 
 tracker:
   # Mandatory
@@ -311,7 +310,6 @@ webhooks:
   run_start: notifiarr
   run_end: apprise
   function:
-    cross_seed: https://mywebhookurl.com/qbt_manage
     recheck: notifiarr
     cat_update: apprise
     tag_update: notifiarr

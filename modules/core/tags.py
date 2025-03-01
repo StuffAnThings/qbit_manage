@@ -12,6 +12,7 @@ class Tags:
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # suffix tag for share limits
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
+        self.stalled_tag = "stalledDL"
 
         self.tags()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
@@ -21,8 +22,26 @@ class Tags:
         logger.separator("Updating Tags", space=False, border=False)
         for torrent in self.qbt.torrent_list:
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-            if torrent.tags == "" or not util.is_tag_in_torrent(tracker["tag"], torrent.tags):
-                if tracker["tag"]:
+
+            # Remove stalled_tag if torrent is no longer stalled
+            if util.is_tag_in_torrent(self.stalled_tag, torrent.tags) and torrent.state != "stalledDL":
+                t_name = torrent.name
+                body = []
+                body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Removing Tag: {self.stalled_tag}", 3), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                if not self.config.dry_run:
+                    torrent.remove_tags(self.stalled_tag)
+            if (
+                torrent.tags == ""
+                or not util.is_tag_in_torrent(tracker["tag"], torrent.tags)
+                or (torrent.state == "stalledDL" and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags))
+            ):
+                stalled = False
+                if torrent.state == "stalledDL":
+                    stalled = True
+                    tracker["tag"].append(self.stalled_tag)
+                if tracker["tag"] or stalled:
                     t_name = torrent.name
                     self.stats += len(tracker["tag"])
                     body = []

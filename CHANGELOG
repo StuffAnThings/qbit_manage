@@ -1,5 +1,9 @@
-# Requirements Updated
-qbittorrent-api==2025.2.0
-humanize==4.12.1
+# New Updates
+- Removes deprecated cross-seed command/function (#758)
+- Adds ability to tag stalled downloads (#757)
+- Adds ability to customize a list of status to ignore during rem_unregistered command (#756)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.17...v4.1.18
+# Bug Fixes
+- Fixes bug in Windows during category updates (#755)
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.1.18...v4.2.0

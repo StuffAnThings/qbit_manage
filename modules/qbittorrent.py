@@ -27,7 +27,7 @@ class Qbt:
 
     SUPPORTED_VERSION = Version.latest_supported_app_version()
     MIN_SUPPORTED_VERSION = "v4.3.0"
-    TORRENT_DICT_COMMANDS = ["recheck", "cross_seed", "rem_unregistered", "tag_tracker_error", "tag_nohardlinks", "share_limits"]
+    TORRENT_DICT_COMMANDS = ["recheck", "rem_unregistered", "tag_tracker_error", "tag_nohardlinks", "share_limits"]
 
     def __init__(self, config, params):
         self.config = config
@@ -48,9 +48,9 @@ class Qbt:
             )
             self.client.auth_log_in()
             self.current_version = self.client.app.version
-            logger.debug(f"qBittorrent: {self.current_version}")
-            logger.debug(f"qBittorrent Web API: {self.client.app.web_api_version}")
-            logger.debug(f"qbit_manage supported versions: {self.MIN_SUPPORTED_VERSION} - {self.SUPPORTED_VERSION}")
+            logger.info(f"qBittorrent: {self.current_version}")
+            logger.info(f"qBittorrent Web API: {self.client.app.web_api_version}")
+            logger.info(f"qbit_manage supported versions: {self.MIN_SUPPORTED_VERSION} - {self.SUPPORTED_VERSION}")
             if self.current_version < self.MIN_SUPPORTED_VERSION:
                 ex = (
                     f"Qbittorrent Error: qbit_manage is only compatible with {self.MIN_SUPPORTED_VERSION} or higher. "
@@ -311,7 +311,7 @@ class Qbt:
             self.config.data, "tag", parent="tracker", subparent="other", default_is_none=True, var_type="list", save=False
         )
         try:
-            tracker["url"] = util.trunc_val(urls[0], os.sep)
+            tracker["url"] = util.trunc_val(urls[0], "/")
         except IndexError as e:
             tracker["url"] = None
             if not urls:
@@ -331,8 +331,8 @@ class Qbt:
                             default_tag = tracker_other_tag
                         else:
                             try:
-                                tracker["url"] = util.trunc_val(url, os.sep)
-                                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+                                tracker["url"] = util.trunc_val(url, "/")
+                                default_tag = tracker["url"].split("/")[2].split(":")[0]
                             except IndexError as e:
                                 logger.debug(f"Tracker Url:{url}")
                                 logger.debug(e)
@@ -380,7 +380,7 @@ class Qbt:
             if tracker_other_tag:
                 default_tag = tracker_other_tag
             else:
-                default_tag = tracker["url"].split(os.sep)[2].split(":")[0]
+                default_tag = tracker["url"].split("/")[2].split(":")[0]
             tracker["tag"] = self.config.util.check_for_attribute(
                 self.config.data, "tag", parent="tracker", subparent=default_tag, default=default_tag, var_type="list"
             )

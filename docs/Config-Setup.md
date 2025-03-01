@@ -52,12 +52,13 @@ This section defines any settings defined in the configuration.
 | `share_limits_min_seeding_time_tag` | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)                                                                                                                                                                                                          | MinSeedTimeNotReached     | <center>❌</center> |
 | `share_limits_min_num_seeds_tag`    | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)                                                                                                                                                                                                       | MinSeedsNotMet            | <center>❌</center> |
 | `share_limits_last_active_tag`      | Will add this tag when applying share limits to torrents that have not yet reached the last active limit (Used in `--share-limits`)                                                                                                                                                                                                             | LastActiveLimitNotReached | <center>❌</center> |
-| `cross_seed_tag`                    | When running `--cross-seed` function, it will update any added cross-seed torrents with this tag.                                                                                                                                                                                                                                               | cross-seed                | <center>❌</center> |
 | `cat_filter_completed`              | When running `--cat-update` function, it will filter for completed torrents only.                                                                                                                                                                                                                                                               | True                      | <center>❌</center> |
 | `share_limits_filter_completed`     | When running `--share-limits` function, it will filter for completed torrents only.                                                                                                                                                                                                                                                             | True                      | <center>❌</center> |
 | `tag_nohardlinks_filter_completed`  | When running `--tag-nohardlinks` function, , it will filter for completed torrents only.                                                                                                                                                                                                                                                        | True                      | <center>❌</center> |
 | `cat_update_all`                    | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents.                                                                                                                                                                                                   | True                      | <center>❌</center> |
 | `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
+| `tag_stalled_torrents`  | Tags any downloading torrents that are stalled with the `stalledDL` tag when running the tag_update command                                                                                                                                                                                                                    | True                      | <center>❌</center> |
+| `rem_unregistered_ignore_list`  | Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched                                                                                                                                                                                                                    |                       | <center>❌</center> |
 
 ## **directory:**
 
@@ -66,7 +67,6 @@ This section defines the directories that qbit_manage will be looking into for v
 
 | Variable       | Definition                                                                                                                                                                                                                                                                                                                                                                          | Required                                                      |
 | :------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------ |
-| `cross_seed`   | Output directory of cross-seed, originally the application [cross-seed](https://github.com/mmgoodnow/cross-seed) was incapable of injecting cross-seed torrent into qB, this was built to inject them for the application. This is no longer required if you're using injects with that software. However, you can find other uses for this as it is more of a watch directory now. | QBT_CROSS_SEED                                                |
 | `root_dir`     | Root downloads directory used to check for orphaned files, noHL, and remove unregistered. This directory is where you place all your downloads. This will need to be how qB views the directory where it places the downloads. This is required if you're using qbit_managee and/or qBittorrent within a container.                                                                 | QBT_REM_ORPHANED / QBT_TAG_NOHARDLINKS / QBT_REM_UNREGISTERED |
 | `remote_dir`   | Path of docker host mapping of root_dir, this must be set if you're running qbit_manage locally (not required if running qbit_manage in a container) and qBittorrent/cross_seed is in a docker. Essentially this is where your downloads are being kept on the host.                                                                                                                | <center>❌</center>                                            |
 | `recycle_bin`  | Path of the RecycleBin folder. Default location is set to `remote_dir/.RecycleBin`. All files in this folder will be cleaned up based on your recycle bin settings.                                                                                                                                                                                                                 | <center>❌</center>                                            |
@@ -237,7 +237,6 @@ Provide webhook notifications based on event triggers
 | [error](#error-notifications)                                   | When errors occur during the run                                     | N/A            | <center>❌</center> |
 | [run_start](#run-start-notifications)                           | At the beginning of every run                                        | N/A            | <center>❌</center> |
 | [run_end](#run-end-notifications)                               | At the end of every run                                              | N/A            | <center>❌</center> |
-| [cross_seed](#cross-seed-notifications)                         | During the cross-seed function                                       | N/A            | <center>❌</center> |
 | [recheck](#recheck-notifications)                               | During the recheck function                                          | N/A            | <center>❌</center> |
 | [cat_update](#category-update-notifications)                    | During the category update function                                  | N/A            | <center>❌</center> |
 | [tag_update](#tag-update-notifications)                         | During the tag update function                                       | N/A            | <center>❌</center> |
@@ -309,36 +308,6 @@ Payload will be sent at the end of the run
 }
 ```
 
-### **Cross-Seed Notifications**
-
-Payload will be sent when adding a cross-seed torrent to qBittorrent if the original torrent is complete
-
-```yaml
-{
-  "function": "cross_seed",             // Webhook Trigger keyword
-  "title": str,                         // Title of the Payload
-  "body": str,                          // Message of the Payload
-  "torrents": [str],                    // List of Torrent Names
-  "torrent_category": str,              // Torrent Category
-  "torrent_save_path": str,             // Torrent Download directory
-  "torrent_tag": "cross-seed",          // Total Torrents Added
-  "torrent_tracker": str                // Torrent Tracker
-}
-```
-
-Payload will be sent when there are existing torrents found that are missing the cross-seed tag
-
-```yaml
-{
-  "function": "tag_cross_seed",         // Webhook Trigger keyword
-  "title": str,                         // Title of the Payload
-  "body": str,                          // Message of the Payload
-  "torrents": [str],                    // List of Torrent Names
-  "torrent_category": str,              // Torrent Category
-  "torrent_tag": "cross-seed",          // Tag Added
-  "torrent_tracker": str                // Torrent Tracker
-}
-```
 
 ### **Recheck Notifications**
 
