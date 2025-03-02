@@ -22,6 +22,7 @@ class RemoveUnregistered:
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
+        self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -108,6 +109,8 @@ class RemoveUnregistered:
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]
             check_tags = util.get_list(torrent.tags)
             try:
+                if self.filter_completed and not torrent.state_enum.is_complete:
+                    continue
                 tracker_working = False
                 for trk in torrent.trackers:
                     if (

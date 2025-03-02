@@ -223,6 +223,9 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
+            "rem_unregistered_filter_completed": self.util.check_for_attribute(
+                self.data, "rem_unregistered_filter_completed", parent="settings", var_type="bool", default=False
+            ),
             "cat_update_all": self.util.check_for_attribute(
                 self.data, "cat_update_all", parent="settings", var_type="bool", default=True
             ),
