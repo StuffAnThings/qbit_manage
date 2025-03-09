@@ -13,6 +13,7 @@ class Tags:
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
         self.stalled_tag = "stalledDL"
+        self.tag_stalled_torrents = self.config.settings["tag_stalled_torrents"]
 
         self.tags()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
@@ -24,7 +25,11 @@ class Tags:
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
 
             # Remove stalled_tag if torrent is no longer stalled
-            if util.is_tag_in_torrent(self.stalled_tag, torrent.tags) and torrent.state != "stalledDL":
+            if (
+                self.tag_stalled_torrents
+                and util.is_tag_in_torrent(self.stalled_tag, torrent.tags)
+                and torrent.state != "stalledDL"
+            ):
                 t_name = torrent.name
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
@@ -38,7 +43,7 @@ class Tags:
                 or (torrent.state == "stalledDL" and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags))
             ):
                 stalled = False
-                if torrent.state == "stalledDL":
+                if self.tag_stalled_torrents and torrent.state == "stalledDL":
                     stalled = True
                     tracker["tag"].append(self.stalled_tag)
                 if tracker["tag"] or stalled:
