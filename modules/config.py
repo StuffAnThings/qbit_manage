@@ -850,7 +850,8 @@ class Config:
                         try:
                             fileStats = os.stat(file)
                             filename = os.path.basename(file)
-                            last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
+                            # in seconds (last modified time)
+                            last_modified = fileStats[stat.ST_MTIME]
                         except FileNotFoundError:
                             ex = logger.print_line(
                                 f"{location} Warning - FileNotFound: No such file or directory: {file} ", "WARNING"

@@ -1,7 +1,0 @@
-[flake8]
-extend-ignore =
-  # E722	Do not use bare except, specify exception instead
-  E722,
-  # E402  module level import not at top of file
-  E402,
-max-line-length = 130

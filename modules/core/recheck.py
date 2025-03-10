@@ -14,7 +14,8 @@ class ReCheck:
         self.stats_rechecked = 0
 
         self.torrents_updated_recheck = []  # List of torrents updated
-        self.notify_attr_recheck = []  # List of single torrent attributes to send to notifiarr
+        # List of single torrent attributes to send to notifiarr
+        self.notify_attr_recheck = []
         self.torrents_updated_resume = []  # List of torrents updated
         self.notify_attr_resume = []  # List of single torrent attributes to send to notifiarr
 

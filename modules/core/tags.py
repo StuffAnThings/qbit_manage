@@ -9,7 +9,8 @@ class Tags:
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
-        self.share_limits_tag = qbit_manager.config.share_limits_tag  # suffix tag for share limits
+        # suffix tag for share limits
+        self.share_limits_tag = qbit_manager.config.share_limits_tag
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
         self.stalled_tag = "stalledDL"
@@ -34,7 +35,7 @@ class Tags:
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f"Removing Tag: {self.stalled_tag}", 3), self.config.loglevel)
-                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                 if not self.config.dry_run:
                     torrent.remove_tags(self.stalled_tag)
             if (
@@ -52,10 +53,10 @@ class Tags:
                     body = []
                     body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     body += logger.print_line(
-                        logger.insert_space(f'New Tag{"s" if len(tracker["tag"]) > 1 else ""}: {", ".join(tracker["tag"])}', 8),
+                        logger.insert_space(f"New Tag{'s' if len(tracker['tag']) > 1 else ''}: {', '.join(tracker['tag'])}", 8),
                         self.config.loglevel,
                     )
-                    body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                    body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                     if not self.config.dry_run:
                         torrent.add_tags(tracker["tag"])
                     category = self.qbt.get_category(torrent.save_path)[0] if torrent.category == "" else torrent.category

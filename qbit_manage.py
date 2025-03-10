@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """qBittorrent Manager."""
+
 import argparse
 import glob
 import math
@@ -27,8 +28,8 @@ current_version = sys.version_info
 
 if current_version < (REQUIRED_VERSION):
     print(
-        "Version Error: Version: %s.%s.%s incompatible with qbit_manage please use Python %s+"
-        % (current_version[0], current_version[1], current_version[2], REQUIRED_VERSION_STR)
+        f"Version Error: Version: {current_version[0]}.{current_version[1]}.{current_version[2]} incompatible with "
+        f"qbit_manage please use Python {REQUIRED_VERSION_STR}+"
     )
     sys.exit(1)
 
@@ -450,7 +451,8 @@ def start():
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if run is False:
-            if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
+            # Simple check to guess if it's a cron syntax
+            if is_valid_cron_syntax(sch):
                 next_run_time = schedule_from_cron(sch)
             else:
                 delta = timedelta(minutes=sch)
@@ -652,7 +654,8 @@ if __name__ == "__main__":
             logger.info(run_mode_message)
             start_loop(True)
         else:
-            if is_valid_cron_syntax(sch):  # Simple check to guess if it's a cron syntax
+            # Simple check to guess if it's a cron syntax
+            if is_valid_cron_syntax(sch):
                 run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
                 next_run_time = schedule_from_cron(sch)
                 next_run = calc_next_run(next_run_time)

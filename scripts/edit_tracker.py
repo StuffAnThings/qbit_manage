@@ -9,7 +9,8 @@ qbt_host = "qbittorrent:8080"
 qbt_user = None
 qbt_pass = None
 OLD_TRACKER = "https://blutopia.xyz"  # This is the tracker you want to replace
-NEW_TRACKER = "https://blutopia.cc"  # This is the tracker you want to replace it with
+# This is the tracker you want to replace it with
+NEW_TRACKER = "https://blutopia.cc"
 # --DEFINE VARIABLES--#
 # --START SCRIPT--#
 

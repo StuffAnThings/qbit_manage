@@ -28,3 +28,12 @@ jobs:
       - name: Run pre-commit version check
         run: |
           pre-commit run increase-version --all-files
+
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          command: 'ruff check'

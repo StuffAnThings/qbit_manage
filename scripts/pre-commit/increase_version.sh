@@ -10,6 +10,9 @@ fi
 if git diff --cached --name-only | grep -q "VERSION"; then
   echo "The VERSION file is already modified. Skipping version update."
   exit 0
+elif git diff --name-only | grep -q "VERSION"; then
+  echo "The VERSION file has unstaged changes. Please stage them before committing."
+  exit 0
 fi
 
 # Read the current version from the VERSION file
