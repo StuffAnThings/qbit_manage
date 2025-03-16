@@ -9,7 +9,8 @@ class TagNoHardLinks:
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats_tagged = 0  # counter for the number of torrents that has no hardlinks
-        self.stats_untagged = 0  # counter for number of torrents that previously had no hardlinks but now have hardlinks
+        # counter for number of torrents that previously had no hardlinks but now have hardlinks
+        self.stats_untagged = 0
 
         self.root_dir = qbit_manager.config.root_dir
         self.remote_dir = qbit_manager.config.remote_dir
@@ -20,7 +21,8 @@ class TagNoHardLinks:
         self.notify_attr_tagged = []  # List of single torrent attributes to send to notifiarr
 
         self.torrents_updated_untagged = []  # List of torrents updated
-        self.notify_attr_untagged = []  # List of single torrent attributes to send to notifiarr
+        # List of single torrent attributes to send to notifiarr
+        self.notify_attr_untagged = []
 
         self.status_filter = "completed" if self.config.settings["tag_nohardlinks_filter_completed"] else "all"
 
@@ -35,7 +37,7 @@ class TagNoHardLinks:
         body.append(logger.insert_space(f"Torrent Name: {torrent.name}", 3))
         body.append(logger.insert_space(f"Added Tag: {self.nohardlinks_tag}", 6))
         title = "Tagging Torrents with No Hardlinks"
-        body.append(logger.insert_space(f'Tracker: {tracker["url"]}', 8))
+        body.append(logger.insert_space(f"Tracker: {tracker['url']}", 8))
         if not self.config.dry_run:
             torrent.add_tags(self.nohardlinks_tag)
         self.stats_tagged += 1
@@ -67,7 +69,7 @@ class TagNoHardLinks:
                 self.config.loglevel,
             )
             body += logger.print_line(logger.insert_space(f"Removed Tag: {self.nohardlinks_tag}", 6), self.config.loglevel)
-            body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+            body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
             if not self.config.dry_run:
                 torrent.remove_tags(tags=self.nohardlinks_tag)
             attr = {

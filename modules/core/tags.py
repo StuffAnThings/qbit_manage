@@ -9,10 +9,12 @@ class Tags:
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
-        self.share_limits_tag = qbit_manager.config.share_limits_tag  # suffix tag for share limits
+        # suffix tag for share limits
+        self.share_limits_tag = qbit_manager.config.share_limits_tag
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
         self.stalled_tag = "stalledDL"
+        self.tag_stalled_torrents = self.config.settings["tag_stalled_torrents"]
 
         self.tags()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
@@ -24,12 +26,16 @@ class Tags:
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
 
             # Remove stalled_tag if torrent is no longer stalled
-            if util.is_tag_in_torrent(self.stalled_tag, torrent.tags) and torrent.state != "stalledDL":
+            if (
+                self.tag_stalled_torrents
+                and util.is_tag_in_torrent(self.stalled_tag, torrent.tags)
+                and torrent.state != "stalledDL"
+            ):
                 t_name = torrent.name
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f"Removing Tag: {self.stalled_tag}", 3), self.config.loglevel)
-                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                 if not self.config.dry_run:
                     torrent.remove_tags(self.stalled_tag)
             if (
@@ -38,7 +44,7 @@ class Tags:
                 or (torrent.state == "stalledDL" and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags))
             ):
                 stalled = False
-                if torrent.state == "stalledDL":
+                if self.tag_stalled_torrents and torrent.state == "stalledDL":
                     stalled = True
                     tracker["tag"].append(self.stalled_tag)
                 if tracker["tag"] or stalled:
@@ -47,10 +53,10 @@ class Tags:
                     body = []
                     body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     body += logger.print_line(
-                        logger.insert_space(f'New Tag{"s" if len(tracker["tag"]) > 1 else ""}: {", ".join(tracker["tag"])}', 8),
+                        logger.insert_space(f"New Tag{'s' if len(tracker['tag']) > 1 else ''}: {', '.join(tracker['tag'])}", 8),
                         self.config.loglevel,
                     )
-                    body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                    body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                     if not self.config.dry_run:
                         torrent.add_tags(tracker["tag"])
                     category = self.qbt.get_category(torrent.save_path)[0] if torrent.category == "" else torrent.category

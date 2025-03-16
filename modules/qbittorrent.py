@@ -390,7 +390,7 @@ class Qbt:
                 self.config.data["tracker"][default_tag]["tag"] = [default_tag]
             except Exception:
                 self.config.data["tracker"][default_tag] = {"tag": [default_tag]}
-            e = f'No tags matched for {tracker["url"]}. Please check your config.yml file. Setting tag to {default_tag}'
+            e = f"No tags matched for {tracker['url']}. Please check your config.yml file. Setting tag to {default_tag}"
             self.config.notify(e, "Tag", False)
             logger.warning(e)
         return tracker
@@ -448,8 +448,10 @@ class Qbt:
             else:
                 recycle_path = self.config.recycle_dir
             # Create recycle bin if not exists
-            torrent_path = os.path.join(recycle_path, "torrents")  # Export torrent/fastresume from BT_backup
-            torrent_export_path = os.path.join(recycle_path, "torrents_export")  # Exported torrent file (qbittorrent v4.5.0+)
+            # Export torrent/fastresume from BT_backup
+            torrent_path = os.path.join(recycle_path, "torrents")
+            # Exported torrent file (qbittorrent v4.5.0+)
+            torrent_export_path = os.path.join(recycle_path, "torrents_export")
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
             torrent_name = info["torrents"][0]
             torrent_exportable = self.current_version >= "v4.5.0"
@@ -472,7 +474,8 @@ class Qbt:
                 dot_torrent_files = []
                 # Exporting torrent via Qbit API (v4.5.0+)
                 if torrent_exportable:
-                    hash_suffix = f"{info_hash[-8:]}"  # Get the last 8 hash characters of the torrent
+                    # Get the last 8 hash characters of the torrent
+                    hash_suffix = f"{info_hash[-8:]}"
                     torrent_export_file = os.path.join(torrent_export_path, f"{torrent_name} [{hash_suffix}].torrent")
                     truncated_torrent_export_file = util.truncate_filename(torrent_export_file, offset=11)
                     try:

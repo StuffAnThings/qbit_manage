@@ -21,17 +21,24 @@ class ShareLimits:
         # meets the criteria for ratio limit/seed limit for deletion including contents \
         self.status_filter = "completed" if self.config.settings["share_limits_filter_completed"] else "all"
 
-        self.tdel_dict = {}  # dictionary to track the torrent names and content path that meet the deletion criteria
+        # dictionary to track the torrent names and content path that meet the deletion criteria
+        self.tdel_dict = {}
         self.root_dir = qbit_manager.config.root_dir  # root directory of torrents
         self.remote_dir = qbit_manager.config.remote_dir  # remote directory of torrents
-        self.share_limits_config = qbit_manager.config.share_limits  # configuration of share limits
+        # configuration of share limits
+        self.share_limits_config = qbit_manager.config.share_limits
         self.torrents_updated = []  # list of torrents that have been updated
-        self.torrent_hash_checked = []  # list of torrent hashes that have been checked for share limits
+        # list of torrent hashes that have been checked for share limits
+        self.torrent_hash_checked = []
         self.share_limits_tag = qbit_manager.config.share_limits_tag  # tag for share limits
-        self.share_limits_custom_tags = qbit_manager.config.share_limits_custom_tags  # All possible custom share limits tags
-        self.min_seeding_time_tag = qbit_manager.config.share_limits_min_seeding_time_tag  # tag for min seeding time
-        self.min_num_seeds_tag = qbit_manager.config.share_limits_min_num_seeds_tag  # tag for min num seeds
-        self.last_active_tag = qbit_manager.config.share_limits_last_active_tag  # tag for last active
+        # All possible custom share limits tags
+        self.share_limits_custom_tags = qbit_manager.config.share_limits_custom_tags
+        # tag for min seeding time
+        self.min_seeding_time_tag = qbit_manager.config.share_limits_min_seeding_time_tag
+        # tag for min num seeds
+        self.min_num_seeds_tag = qbit_manager.config.share_limits_min_num_seeds_tag
+        # tag for last active
+        self.last_active_tag = qbit_manager.config.share_limits_last_active_tag
         self.group_tag = None  # tag for the share limit group
 
         self.update_share_limits()
@@ -87,7 +94,7 @@ class ShareLimits:
                 tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                 body += logger.print_line(torrent_dict["body"], self.config.loglevel)
                 body += logger.print_line(
                     logger.insert_space("Cleanup: True [Meets Share Limits]", 8),
@@ -215,7 +222,8 @@ class ShareLimits:
                 else:
                     share_limits_not_yet_tagged = False
 
-                check_multiple_share_limits_tag = False  # Default assume no multiple share limits tag
+                # Default assume no multiple share limits tag
+                check_multiple_share_limits_tag = False
 
                 # Check if any of the previous share limits custom tags are there
                 for custom_tag in self.share_limits_custom_tags:
@@ -296,7 +304,7 @@ class ShareLimits:
                     or check_multiple_share_limits_tag
                 ):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                    logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                    logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                     if self.group_tag:
                         logger.print_line(logger.insert_space(f"Added Tag: {self.group_tag}", 8), self.config.loglevel)
                     self.tag_and_update_share_limits_for_torrent(torrent, group_config)

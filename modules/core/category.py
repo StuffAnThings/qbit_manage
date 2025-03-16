@@ -84,7 +84,7 @@ class Category:
         else:
             title = "Updating Categories"
         body += logger.print_line(logger.insert_space(f"New Category: {new_cat}", 3), self.config.loglevel)
-        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+        body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
         attr = {
             "function": "cat_update",
             "title": title,

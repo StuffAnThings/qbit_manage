@@ -223,6 +223,9 @@ class Config:
             "tag_nohardlinks_filter_completed": self.util.check_for_attribute(
                 self.data, "tag_nohardlinks_filter_completed", parent="settings", var_type="bool", default=True
             ),
+            "rem_unregistered_filter_completed": self.util.check_for_attribute(
+                self.data, "rem_unregistered_filter_completed", parent="settings", var_type="bool", default=False
+            ),
             "cat_update_all": self.util.check_for_attribute(
                 self.data, "cat_update_all", parent="settings", var_type="bool", default=True
             ),
@@ -847,7 +850,8 @@ class Config:
                         try:
                             fileStats = os.stat(file)
                             filename = os.path.basename(file)
-                            last_modified = fileStats[stat.ST_MTIME]  # in seconds (last modified time)
+                            # in seconds (last modified time)
+                            last_modified = fileStats[stat.ST_MTIME]
                         except FileNotFoundError:
                             ex = logger.print_line(
                                 f"{location} Warning - FileNotFound: No such file or directory: {file} ", "WARNING"

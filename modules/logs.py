@@ -85,7 +85,7 @@ class MyLogger:
     def _formatter(self, handler=None, border=True, log_only=False, space=False):
         """Format log message"""
         console = f"| %(message)-{self.screen_width - 2}s |" if border else f"%(message)-{self.screen_width - 2}s"
-        file = f"{' '*65}" if space else "[%(asctime)s] %(filename)-27s %(levelname)-10s "
+        file = f"{' ' * 65}" if space else "[%(asctime)s] %(filename)-27s %(levelname)-10s "
         handlers = [handler] if handler else self._logger.handlers
         for h in handlers:
             if not log_only or isinstance(h, RotatingFileHandler):

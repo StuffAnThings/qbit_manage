@@ -14,16 +14,21 @@ import qbittorrentapi
 """===Config==="""
 # qBittorrent WebUi Login
 qbt_login = {"host": "localhost", "port": 8080, "username": "???", "password": "???"}
-PATH = "M:"  # Path of drive to monitor. Only torrents with paths that start with this may be deleted.
+# Path of drive to monitor. Only torrents with paths that start with this may be deleted.
+PATH = "M:"
 MIN_FREE_SPACE = 10  # In GB. Min free space on drive.
 MIN_FREE_USAGE = 0  # In decimal percentage, 0 to 1. Min % free space on drive.
-MIN_TORRENT_SHARE_RATIO = 0  # In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
-MIN_TORRENT_AGE = 30  # In days, min age of torrent to delete. Uses seeding time.
+# In decimal percentage, 0 to inf. Min seeding ratio of torrent to delete.
+MIN_TORRENT_SHARE_RATIO = 0
+# In days, min age of torrent to delete. Uses seeding time.
+MIN_TORRENT_AGE = 30
 ALLOW_INCOMPLETE_TORRENT_DELETIONS = (
-    False  # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
+    # Also delete torrents that haven't finished downloading. MIN_TORRENT_AGE now based on time active.
+    False
 )
 PREFER_PRIVATE_TORRENTS = (
-    True  # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
+    # Will delete public torrents before private ones regardless of seed difference. See is_torrent_public().
+    True
 )
 """===End Config==="""
 
@@ -171,7 +176,8 @@ def main():
                 qbt_client.torrents_delete(torrent_hashes=torrent_hash, delete_files=True)
                 deleted_torrents.append(torrent_name)
                 print(f"--- {torrent_name}")
-                time.sleep(1)  # Sleep a bit after each deletion to make sure disk usage is updated.
+                # Sleep a bit after each deletion to make sure disk usage is updated.
+                time.sleep(1)
 
     # Print results
     print_free_space()

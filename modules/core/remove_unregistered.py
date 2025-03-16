@@ -22,6 +22,7 @@ class RemoveUnregistered:
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
+        self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -56,7 +57,7 @@ class RemoveUnregistered:
                 )
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                 body += logger.print_line(logger.insert_space(f"Removed Tag: {self.tag_error}", 4), self.config.loglevel)
-                body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+                body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                 if not self.config.dry_run:
                     torrent.remove_tags(tags=self.tag_error)
                 attr = {
@@ -108,6 +109,8 @@ class RemoveUnregistered:
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]
             check_tags = util.get_list(torrent.tags)
             try:
+                if self.filter_completed and not torrent.state_enum.is_complete:
+                    continue
                 tracker_working = False
                 for trk in torrent.trackers:
                     if (
@@ -190,7 +193,7 @@ class RemoveUnregistered:
         tor_error = ""
         tor_error += logger.insert_space(f"Torrent Name: {self.t_name}", 3) + "\n"
         tor_error += logger.insert_space(f"Status: {msg}", 9) + "\n"
-        tor_error += logger.insert_space(f'Tracker: {tracker["url"]}', 8) + "\n"
+        tor_error += logger.insert_space(f"Tracker: {tracker['url']}", 8) + "\n"
         tor_error += logger.insert_space(f"Added Tag: {self.tag_error}", 6) + "\n"
         self.tor_error_summary += tor_error
         self.stats_tagged += 1
@@ -215,7 +218,7 @@ class RemoveUnregistered:
         body = []
         body += logger.print_line(logger.insert_space(f"Torrent Name: {self.t_name}", 3), self.config.loglevel)
         body += logger.print_line(logger.insert_space(f"Status: {msg}", 9), self.config.loglevel)
-        body += logger.print_line(logger.insert_space(f'Tracker: {tracker["url"]}', 8), self.config.loglevel)
+        body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
         attr = {
             "function": "rem_unregistered",
             "title": "Removing Unregistered Torrents",
