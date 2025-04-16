@@ -77,7 +77,7 @@ This section defines the directories that qbit_manage will be looking into for v
 
 ---
 This section defines the categories that you are currently using and the save path's that are associated with them.
-> **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
+> **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category. You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
 
 | Configuration | Definition                | Required           |
 | :------------ | :------------------------ | :----------------- |
