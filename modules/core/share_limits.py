@@ -568,7 +568,7 @@ class ShareLimits:
             else:
                 _remove_min_seeding_time_tag()
                 return False
-            if seeding_time_limit:
+            if seeding_time_limit is not None:
                 if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
                         f"Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} >= "
