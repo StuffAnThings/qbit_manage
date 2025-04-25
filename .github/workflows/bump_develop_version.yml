@@ -28,7 +28,12 @@ jobs:
           if [[ "$VERSION" == *-develop* ]]; then
             BASE="${VERSION%%-develop*}"
             SUFFIX="${VERSION##*-develop}"
-            NEW_VERSION="${BASE}-develop$((SUFFIX + 1))"
+            if [[ "$SUFFIX" =~ ^[0-9]+$ ]]; then
+              NEW_VERSION="${BASE}-develop$((SUFFIX + 1))"
+            else
+              echo "Warning: Non-numeric SUFFIX detected ('$SUFFIX'). Defaulting to 1."
+              NEW_VERSION="${BASE}-develop1"
+            fi
           else
             NEW_VERSION="${VERSION}-develop1"
           fi
