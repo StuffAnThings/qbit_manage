@@ -1,0 +1,46 @@
+name: Bump Develop Version
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check last commit
+        id: last_commit
+        run: |
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "msg=$LAST_COMMIT_MSG" >> $GITHUB_OUTPUT
+
+      - name: Read and bump VERSION
+        if: "!contains(steps.last_commit.outputs.msg, 'chore: bump develop version')"
+        run: |
+          FILE="VERSION"
+          VERSION=$(cat $FILE)
+
+          # Split base and develop suffix
+          if [[ "$VERSION" == *-develop* ]]; then
+            BASE="${VERSION%%-develop*}"
+            SUFFIX="${VERSION##*-develop}"
+            NEW_VERSION="${BASE}-develop$((SUFFIX + 1))"
+          else
+            NEW_VERSION="${VERSION}-develop1"
+          fi
+
+          echo "$NEW_VERSION" > "$FILE"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Commit and push version bump
+        if: "!contains(steps.last_commit.outputs.msg, 'chore: bump develop version')"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: bump develop version to $NEW_VERSION"
+          git push
