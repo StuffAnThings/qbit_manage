@@ -1,5 +1,7 @@
 # Local Installations
 
+Below is a simple high level set of instructions for cloning the repository and executing qbit_manage
+
 * Requires `python 3.9.0`. Dependencies must be installed by running:
 
 Navigate to the directory you'd liked to clone the repo into

@@ -1,10 +1,10 @@
 {
     "master": {
-        "qbit": "v5.0.4",
-        "qbitapi": "2025.2.0"
+        "qbit": "v5.0.5",
+        "qbitapi": "2025.4.1"
     },
     "develop": {
-        "qbit": "v5.0.4",
-        "qbitapi": "2025.2.0"
+        "qbit": "v5.0.5",
+        "qbitapi": "2025.4.1"
     }
 }
