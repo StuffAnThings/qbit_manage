@@ -47,6 +47,8 @@ class ShareLimits:
     def update_share_limits(self):
         """Updates share limits for torrents based on grouping"""
         logger.separator("Updating Share Limits based on priority", space=False, border=False)
+        if self.config.dry_run:
+            logger.warning("Share Limits will not be applied with dry_run and could be inaccurate unless manually adding tags.")
         torrent_list = self.qbt.get_torrents({"status_filter": self.status_filter})
         self.assign_torrents_to_group(torrent_list)
         for group_name, group_config in self.share_limits_config.items():
