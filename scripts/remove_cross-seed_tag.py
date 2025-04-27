@@ -1,4 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
+# This script was written by zakkarry ( https://github.com/zakkarry )
+# Simply follow the basic configuration options below to remove all 'cross-seed'
+# tags from all torrents from qBittorrent client matching the options below.
+#
+# If you do not know how to use environmental variables, or do not need to, simply
+# configure the second part of the OBIT_* variables, where the actual URL and strings are.
+#
+# If you need to, you can use this script to remove any tag as well, simply modify CROSS_SEED_TAG
+# from 'cross-seed' to whichever tag you wish to remove.
+#
+
 import os
 
 # USES ENVIRONMENTAL VARIABLES, IF NONE ARE PRESENT WILL FALLBACK TO THE SECOND STRING
