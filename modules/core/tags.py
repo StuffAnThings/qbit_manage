@@ -13,7 +13,7 @@ class Tags:
         self.share_limits_tag = qbit_manager.config.share_limits_tag
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
-        self.stalled_tag = "stalledDL"
+        self.stalled_tag = qbit_manager.config.stalled_tag
         self.tag_stalled_torrents = self.config.settings["tag_stalled_torrents"]
 
         self.tags()
