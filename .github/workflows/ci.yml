@@ -29,11 +29,13 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv .venv
-          .venv/bin/uv pip install pre-commit
+          source .venv/bin/activate
+          uv pip install pre-commit
 
       - name: Run pre-commit version check
         run: |
-          .venv/bin/pre-commit run increase-version --all-files
+          source .venv/bin/activate
+          pre-commit run increase-version --all-files
 
   ruff:
     runs-on: ubuntu-latest

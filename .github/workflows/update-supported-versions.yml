@@ -40,6 +40,7 @@ jobs:
       - name: Install dependencies with uv
         run: |
           uv venv .venv
+          source .venv/bin/activate
           .venv/bin/uv pip install -e .
 
       - name: Run update script
