@@ -56,11 +56,11 @@ In the new text field you'll need to place:
 ```bash
 #!/bin/bash
 echo "Installing required packages"
-python3 -m pip install -r /mnt/user/path/to/requirements.txt
+python3 -m pip install /mnt/user/path/to/qbit
 echo "Required packages installed"
 ```
 
-Replace `path/to/` with your path example mines `/data/scripts/qbit/` or `/mnt/user/data/scripts/qbit/requirements.txt`
+Replace `path/to/` with your path example mines `/data/scripts/qbit/`
 
 Now click **Save Changes**
 

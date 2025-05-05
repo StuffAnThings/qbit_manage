@@ -488,6 +488,7 @@ class ShareLimits:
                         torrent.add_tags(self.min_seeding_time_tag)
                         torrent_tags += f", {self.min_seeding_time_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
+                        torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return False
@@ -520,6 +521,7 @@ class ShareLimits:
                         torrent.add_tags(self.min_num_seeds_tag)
                         torrent_tags += f", {self.min_num_seeds_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
+                        torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return True
@@ -554,6 +556,7 @@ class ShareLimits:
                         torrent.add_tags(self.last_active_tag)
                         torrent_tags += f", {self.last_active_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
+                        torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return False
@@ -570,7 +573,7 @@ class ShareLimits:
             else:
                 _remove_min_seeding_time_tag()
                 return False
-            if seeding_time_limit:
+            if seeding_time_limit is not None:
                 if (torrent.seeding_time >= seeding_time_limit * 60) and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(
                         f"Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} >= "

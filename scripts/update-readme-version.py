@@ -25,11 +25,15 @@ try:
 except FileNotFoundError:
     supported_versions = {}
 
-# Extract the current qbittorrent-api version from requirements.txt
-print("Reading requirements.txt...")
-with open("requirements.txt", encoding="utf-8") as file:
-    requirements = file.read()
-    qbittorrent_api_version = re.search(r"qbittorrent-api==(.+)", requirements).group(1)
+# Extract the current qbittorrent-api version from pyproject.toml
+print("Reading pyproject.toml...")
+with open("pyproject.toml", encoding="utf-8") as file:
+    content = file.read()
+    match = re.search(r"qbittorrent-api==([\d.]+)", content)
+    if match:
+        qbittorrent_api_version = match.group(1)
+    else:
+        raise ValueError("qbittorrent-api version not found in pyproject.toml")
 
 print(f"Current qbittorrent-api version: {qbittorrent_api_version}")
 

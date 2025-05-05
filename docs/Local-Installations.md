@@ -15,13 +15,13 @@ git clone https://github.com/StuffAnThings/qbit_manage
 Install requirements
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 If there are issues installing dependencies try:
 
 ```bash
-pip install -r requirements.txt --ignore-installed
+pip install . --ignore-installed
 ```
 
 ## Usage
