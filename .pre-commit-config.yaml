@@ -14,7 +14,7 @@ repos:
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.37.0  # or higher tag
+    rev: v1.37.1  # or higher tag
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
@@ -26,7 +26,7 @@ repos:
         exclude: ^.github/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.11.6
+    rev: v0.11.8
     hooks:
       # Run the linter.
       - id: ruff
