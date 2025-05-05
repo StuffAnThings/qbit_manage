@@ -22,7 +22,7 @@ COPY pyproject.toml setup.py VERSION /app/
 WORKDIR /app
 
 # Install project in a virtual env (lightweight & reproducible)
-RUN /root/.local/bin/uv pip install --system --no-deps -e .
+RUN /root/.local/bin/uv pip install --system .
 
 # Final stage: minimal runtime image
 FROM python:3.13-alpine
@@ -38,7 +38,7 @@ RUN apk add --no-cache \
     tini \
     && rm -rf /var/cache/apk/*
 
-# Copy installed packages from builder
+# Copy installed packages and scripts from builder
 COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=builder /app /app
 COPY . /app
