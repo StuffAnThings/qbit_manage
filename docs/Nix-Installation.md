@@ -57,7 +57,7 @@ check_qbm_installation() {
         qbm_repo_group=$(stat --format='%G' "$QBM_PATH")
         if [ "$qbm_repo_owner" != "$CURRENT_UID" ]; then
             echo "You do not own the QbitManage repo. Please run this script as the user that owns the repo [$qbm_repo_owner]."
-            echo "use 'sudo -u $qbm_repo_owner -g $qbm_repo_group qbm-update'"
+            echo "use 'sudo -u $qbm_repo_owner -g $qbm_repo_group /path/to/qbm-update.sh'"
             exit 1
         fi
     else
@@ -85,7 +85,7 @@ update_venv() {
     new_requirements=$(sha1sum "$QBM_REQUIREMENTS_FILE" | awk '{print $1}')
     if [ "$current_requirements" != "$new_requirements" ] || [ "$force_update" = true ]; then
         echo "=== Requirements changed, updating venv ==="
-        "$QBM_VENV_PATH/bin/python" "$QBM_VENV_PATH/bin/pip" install .
+        "$QBM_VENV_PATH/bin/python" -m pip  install --upgrade "$QBM_PATH"
     fi
 }
 
@@ -102,7 +102,6 @@ check_qbm_installation
 update_qbm
 update_venv
 restart_service
-
 ```
 
 * Make the update script executable
