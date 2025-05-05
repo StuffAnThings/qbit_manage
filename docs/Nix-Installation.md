@@ -47,7 +47,7 @@ QBM_VENV_PATH="/opt/.venv/qbm-venv"
 QBM_SERVICE_NAME="qbmanage"
 QBM_UPSTREAM_GIT_REMOTE="origin"
 QBM_VERSION_FILE="$QBM_PATH/VERSION"
-QBM_REQUIREMENTS_FILE="$QBM_PATH/requirements.txt"
+QBM_REQUIREMENTS_FILE="$QBM_PATH/pyproject.toml"
 CURRENT_UID=$(id -un)
 
 # Check if QBM is installed and if the current user owns it
