@@ -1,1 +1,2 @@
-venv/bin/activate
+#!/bin/bash
+source .venv/bin/activate

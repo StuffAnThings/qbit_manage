@@ -8,7 +8,6 @@ repos:
       - id: check-merge-conflict
       - id: check-json
       - id: check-yaml
-      - id: requirements-txt-fixer
       - id: check-added-large-files
       - id: fix-byte-order-marker
       - id: pretty-format-json

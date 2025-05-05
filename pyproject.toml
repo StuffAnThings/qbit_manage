@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Keep using setup.py for version handling
+# Dependencies are specified here for uv to use
+
+[project]
+name = "qbit_manage"
+# Version is dynamically determined from setup.py
+dynamic = ["version"]
+description = "This tool will help manage tedious tasks in qBittorrent and automate them. Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "bobokun"},
+]
+dependencies = [
+    "bencodepy==0.9.5",
+    "croniter==6.0.0",
+    "GitPython==3.1.44",
+    "humanize==4.12.3",
+    "pytimeparse2==1.7.1",
+    "qbittorrent-api==2025.5.0",
+    "requests==2.32.3",
+    "retrying==1.3.4",
+    "ruamel.yaml==0.18.10",
+    "schedule==1.2.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/StuffAnThings"
+Repository = "https://github.com/StuffAnThings/qbit_manage"
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit==4.2.0",
+    "ruff==0.11.8",
+]
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint]
+select = [
+    "I",   # isort - import order
+    "UP",  # pyupgrade
+    "T10", # debugger
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+]
+
+ignore = [
+    "E722",   # E722	Do not use bare except, specify exception instead
+    "E402",   # E402  module level import not at top of file
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.format]
+line-ending = "auto"

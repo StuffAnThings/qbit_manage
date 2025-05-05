@@ -15,7 +15,7 @@ chmod +x qbit_manage.py
 * Get & Install Requirements
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 * Create Config
@@ -50,7 +50,7 @@ if [ "$(git rev-parse HEAD)" = "$(git rev-parse @'{u}')" ]; then
 fi
 git pull
 newVersion=$(cat VERSION)
-"$qbmVenvPath"/bin/python -m pip install -r requirements.txt
+"$qbmVenvPath"/bin/python -m pip install .
 echo "=== Updated from $currentVersion to $newVersion on $branch ==="
 echo "=== Restarting qbm Service ==="
 sudo systemctl restart "$qbmServiceName"

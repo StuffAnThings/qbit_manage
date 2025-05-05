@@ -1,9 +1,13 @@
 import os
-from distutils.core import setup
 
 from setuptools import find_packages
+from setuptools import setup
 
-from modules import __version__
+# Read version from VERSION file
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as f:
+    version_str = f.read().strip()
+    # Get only the first part (without develop suffix)
+    version = version_str.rsplit("-", 1)[0]
 
 # User-friendly description from README.md
 current_directory = os.path.dirname(os.path.abspath(__file__))
@@ -12,7 +16,6 @@ try:
         long_description = f.read()
 except Exception:
     long_description = ""
-
 
 setup(
     # Name of the package
@@ -23,7 +26,7 @@ setup(
     include_package_data=True,
     # Start with a small number and increase it with
     # every change you make https://semver.org
-    version=__version__,
+    version=version,
     # Chose a license from here: https: //
     # help.github.com / articles / licensing - a -
     # repository. For example: MIT

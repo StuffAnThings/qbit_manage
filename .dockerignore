@@ -24,3 +24,8 @@ test.py
 qbit_manage.egg-info/
 .tox
 *.env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
