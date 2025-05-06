@@ -52,19 +52,16 @@ jobs:
         if: ${{ github.event.inputs.targetBranch || github.ref_name == 'develop' }}
         id: get-develop-version
         run: |
-          version=$(bash scripts/pre-commit/update_develop_version.sh)
-          echo "Version updated to: $version"
-          echo "::set-output name=stdout::$version"
-      - name: Verion output
-        run: |
-          echo "Version: ${{ steps.get-develop-version.outputs.stdout }}"
+          version=$(bash scripts/pre-commit/update_develop_version.sh | tail -n 1)
+          echo "VERSION=$version" >> $GITHUB_ENV
+          echo "Captured Version: ${{ env.VERSION }}"
 
       - name: Create Pull Request
         id: create-pr
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: Update SUPPORTED_VERSIONS.json
-          title: "Update SUPPORTED_VERSIONS.json for ${{ steps.get-develop-version.outputs.stdout || github.event.inputs.targetBranch || github.ref_name }}"
+          title: "Update SUPPORTED_VERSIONS.json for ${{ env.VERSION || github.event.inputs.targetBranch || github.ref_name }}"
           branch: update-supported-versions-${{ github.event.inputs.targetBranch || github.ref_name }}
           base: develop
           body: "This PR updates the SUPPORTED_VERSIONS.json to reflect new versions."
