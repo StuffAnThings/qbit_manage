@@ -52,7 +52,9 @@ jobs:
         if: ${{ github.event.inputs.targetBranch || github.ref_name == 'develop' }}
         id: get-develop-version
         run: |
-          bash scripts/pre-commit/update_develop_version.sh
+          version=$(bash scripts/pre-commit/update_develop_version.sh)
+          echo "Version updated to: $version"
+          echo "::set-output name=stdout::$version"
       - name: Verion output
         run: |
           echo "Version: ${{ steps.get-develop-version.outputs.stdout }}"
