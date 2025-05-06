@@ -41,11 +41,12 @@ jobs:
         run: |
           uv venv .venv
           source .venv/bin/activate
-          .venv/bin/uv pip install -e .
+          uv pip install .
 
       - name: Run update script
         run: |
-          .venv/bin/python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
+          source .venv/bin/activate
+          python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
 
       - name: Create Pull Request
         id: cpr
