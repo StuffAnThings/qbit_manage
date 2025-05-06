@@ -55,6 +55,14 @@ class ShareLimits:
             torrents = group_config["torrents"]
             self.torrents_updated = []
             self.tdel_dict = {}
+            group_priority = group_config.get("priority", "Unknown")
+            num_torrents = len(torrents) if torrents else 0
+
+            logger.separator(
+                f"Updating Share Limits for [Group {group_name}] [Priority {group_priority}] [Torrents ({num_torrents})]",
+                space=False,
+                border=False,
+            )
             if torrents:
                 self.update_share_limits_for_group(group_name, group_config, torrents)
                 attr = {
@@ -183,9 +191,6 @@ class ShareLimits:
 
     def update_share_limits_for_group(self, group_name, group_config, torrents):
         """Updates share limits for torrents in a group"""
-        logger.separator(
-            f"Updating Share Limits for [Group {group_name}] [Priority {group_config['priority']}]", space=False, border=False
-        )
         group_upload_speed = group_config["limit_upload_speed"]
 
         for torrent in torrents:

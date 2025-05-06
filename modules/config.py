@@ -4,7 +4,6 @@ import os
 import re
 import stat
 import time
-from collections import OrderedDict
 
 import requests
 from retrying import retry
@@ -426,10 +425,12 @@ class Config:
                             save=True,
                         )
                     priorities.add(priority)
-                return OrderedDict(sorted_limits)
+                return dict(sorted_limits)
 
-            self.share_limits = OrderedDict()
+            self.share_limits = dict()
             sorted_share_limits = _sort_share_limits(self.data["share_limits"])
+            logger.trace(f"Unsorted Share Limits: {self.data['share_limits']}")
+            logger.trace(f"Sorted Share Limits: {sorted_share_limits}")
             for group in sorted_share_limits:
                 self.share_limits[group] = {}
                 self.share_limits[group]["priority"] = sorted_share_limits[group]["priority"]
@@ -639,6 +640,7 @@ class Config:
                 self.notify(err, "Config")
                 raise Failed(err)
 
+        logger.trace(f"Share_limits config: {self.share_limits}")
         # Add RecycleBin
         self.recyclebin = {}
         self.recyclebin["enabled"] = self.util.check_for_attribute(
