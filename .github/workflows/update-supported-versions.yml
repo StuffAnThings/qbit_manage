@@ -48,6 +48,11 @@ jobs:
           source .venv/bin/activate
           python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
 
+      - name: Update develop versions
+        if: ${{ github.event.inputs.targetBranch || github.ref_name == 'develop' }}
+        run: |
+          bash scripts/pre-commit/update_develop_version.sh
+
       - name: Create Pull Request
         id: cpr
         uses: peter-evans/create-pull-request@v7
