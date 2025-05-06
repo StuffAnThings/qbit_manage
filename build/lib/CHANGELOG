@@ -1,0 +1,9 @@
+# Requirements Updated
+qbittorrent-api==2025.4.1
+humanize==4.12.2
+
+# New Updates
+- Adds warning to share_limits not being applied in dry-run (closes #786)
+- Adds credit to remove_scross-seed_tag.py script (Thanks to @zakkarry)
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.2.1...v4.2.2

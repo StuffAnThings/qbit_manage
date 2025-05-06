@@ -4,7 +4,7 @@
         "qbitapi": "2025.4.1"
     },
     "develop": {
-        "qbit": "v5.1.0",
-        "qbitapi": "2025.5.0"
+        "qbit": "v5.0.5",
+        "qbitapi": "2025.4.1"
     }
 }

@@ -1,0 +1,22 @@
+line-length = 130
+
+[lint]
+select = [
+    "I",   # isort - import order
+    "UP",  # pyupgrade
+    "T10", # debugger
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+]
+
+ignore = [
+    "E722",   # E722	Do not use bare except, specify exception instead
+    "E402",   # E402  module level import not at top of file
+]
+
+[lint.isort]
+force-single-line = true
+
+[format]
+line-ending = "auto"
