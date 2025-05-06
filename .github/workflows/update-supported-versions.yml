@@ -53,6 +53,9 @@ jobs:
         id: get-develop-version
         run: |
           bash scripts/pre-commit/update_develop_version.sh
+      - name: Verion output
+        run: |
+          echo "Version: ${{ steps.get-develop-version.outputs.stdout }}"
 
       - name: Create Pull Request
         id: create-pr
