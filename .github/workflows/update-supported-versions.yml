@@ -50,15 +50,16 @@ jobs:
 
       - name: Update develop versions
         if: ${{ github.event.inputs.targetBranch || github.ref_name == 'develop' }}
+        id: get-develop-version
         run: |
           bash scripts/pre-commit/update_develop_version.sh
 
       - name: Create Pull Request
-        id: cpr
+        id: create-pr
         uses: peter-evans/create-pull-request@v7
         with:
           commit-message: Update SUPPORTED_VERSIONS.json
-          title: "Update SUPPORTED_VERSIONS.json for ${{ github.event.inputs.targetBranch || github.ref_name }}"
+          title: "Update SUPPORTED_VERSIONS.json for ${{ steps.get-develop-version.outputs.stdout || github.event.inputs.targetBranch || github.ref_name }}"
           branch: update-supported-versions-${{ github.event.inputs.targetBranch || github.ref_name }}
           base: develop
           body: "This PR updates the SUPPORTED_VERSIONS.json to reflect new versions."

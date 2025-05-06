@@ -19,6 +19,7 @@ if [[ $current_version == *"develop"* ]]; then
   sed -i "s/$current_version/$new_version/" VERSION
 
   echo "Version updated to: $new_version"
+  echo "$new_version"
 else
   echo "The word 'develop' is not present in the version string."
   exit 0
