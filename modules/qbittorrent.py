@@ -423,6 +423,8 @@ class Qbt:
             save_path = categories[cat].savePath.replace(self.config.root_dir, self.config.remote_dir)
             if save_path:
                 save_paths.add(save_path)
+        # Also add root_dir to the list
+        save_paths.add(self.config.remote_dir)
         return list(save_paths)
 
     def tor_delete_recycle(self, torrent, info):
