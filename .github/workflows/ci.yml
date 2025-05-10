@@ -21,12 +21,20 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install dependencies
         run: |
-          pip install pre-commit
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install pre-commit
 
       - name: Run pre-commit version check
         run: |
+          source .venv/bin/activate
           pre-commit run increase-version --all-files
 
   ruff:

@@ -4,7 +4,6 @@ import os
 import re
 import stat
 import time
-from collections import OrderedDict
 
 import requests
 from retrying import retry
@@ -202,6 +201,7 @@ class Config:
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
+            "stalled_tag": self.util.check_for_attribute(self.data, "stalled_tag", parent="settings", default="stalledDL"),
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
@@ -245,6 +245,7 @@ class Config:
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
+        self.stalled_tag = self.settings["stalled_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
         self.share_limits_custom_tags = []
         self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
@@ -424,10 +425,12 @@ class Config:
                             save=True,
                         )
                     priorities.add(priority)
-                return OrderedDict(sorted_limits)
+                return dict(sorted_limits)
 
-            self.share_limits = OrderedDict()
+            self.share_limits = dict()
             sorted_share_limits = _sort_share_limits(self.data["share_limits"])
+            logger.trace(f"Unsorted Share Limits: {self.data['share_limits']}")
+            logger.trace(f"Sorted Share Limits: {sorted_share_limits}")
             for group in sorted_share_limits:
                 self.share_limits[group] = {}
                 self.share_limits[group]["priority"] = sorted_share_limits[group]["priority"]
@@ -637,6 +640,7 @@ class Config:
                 self.notify(err, "Config")
                 raise Failed(err)
 
+        logger.trace(f"Share_limits config: {self.share_limits}")
         # Add RecycleBin
         self.recyclebin = {}
         self.recyclebin["enabled"] = self.util.check_for_attribute(
