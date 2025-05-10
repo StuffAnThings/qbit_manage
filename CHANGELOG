@@ -1,9 +1,18 @@
+# Breaking Change
+- `requirements.txt` is now replaced with `pyproject.toml` meaning that **local installs** will need to replace their update command `pip install -r requirements.txt` with `pip install .`
+- Those that are running qbit-manage in docker don't need to do anything and things will continue to work as is
+
 # Requirements Updated
-qbittorrent-api==2025.4.1
-humanize==4.12.2
+qbittorrent-api==2025.5.0
+humanize==4.12.3
 
 # New Updates
-- Adds warning to share_limits not being applied in dry-run (closes #786)
-- Adds credit to remove_scross-seed_tag.py script (Thanks to @zakkarry)
+- Added user defined stalled_tag. Configurable through config.yml. (Closes #802 Thanks to @Patchy3767)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.2.1...v4.2.2
+## Bug Fixes
+- Fixed max_seeding time of 0 for share_limits (Fixes #790 Thanks to @glau-bd)
+- Fixed Upload Limit not reset when LastActive/MinSeedsNotMet (Fixes #804)
+- Fixed Share limits not showing in logs when 0 torrents are in the group(Fixes #789)
+- Fixes bug where it tries to remove root_dir when not using category (Fixes #777)
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.2.2...v4.3.0
