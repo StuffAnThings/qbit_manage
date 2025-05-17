@@ -41,7 +41,11 @@ class Tags:
             if (
                 torrent.tags == ""
                 or not util.is_tag_in_torrent(tracker["tag"], torrent.tags)
-                or (torrent.state == "stalledDL" and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags))
+                or (
+                    self.tag_stalled_torrents
+                    and torrent.state == "stalledDL"
+                    and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags)
+                )
             ):
                 stalled = False
                 if self.tag_stalled_torrents and torrent.state == "stalledDL":
