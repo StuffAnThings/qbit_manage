@@ -199,6 +199,11 @@ share_limits:
     # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to -1 (no limit) if not specified for the group. (Max value of 1 year (525600 minutes))
     max_seeding_time: 90d
+    # <OPTIONAL> max_last_active <str>: Will delete the torrent if cleanup variable is set and if torrent has been inactive longer than x minutes.
+    # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
+    # 32m, 2h32m, 3d2h32m, 1w3d2h32m
+    # Will default to -1 if not specified for the group.
+    max_last_active: 30d
     # <OPTIONAL> min_seeding_time <str>: Will prevent torrent deletion by cleanup variable if torrent has not yet minimum seeding time (minutes).
     # This should only be set if you are using this in conjunction with max_seeding_time and max_ratio. If you are not setting a max_ratio, then use max_seeding_time instead.
     # If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding.
