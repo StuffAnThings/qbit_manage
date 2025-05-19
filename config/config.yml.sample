@@ -206,12 +206,12 @@ share_limits:
     # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
     min_seeding_time: 30d
-    # <OPTIONAL> last_active <str>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
+    # <OPTIONAL> min_last_active <str>: Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes.
     # If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding.
     # See Some examples of valid time expressions (https://github.com/onegreyonewhite/pytimeparse2)
     # 32m, 2h32m, 3d2h32m, 1w3d2h32m
     # Will default to 0 if not specified for the group.
-    last_active: 30d
+    min_last_active: 30d
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
     limit_upload_speed: 0
     # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents in the group.

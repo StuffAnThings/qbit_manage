@@ -552,7 +552,7 @@ class Config:
                     do_print=False,
                     save=False,
                 )
-                self.share_limits[group]["last_active"] = self.util.check_for_attribute(
+                self.share_limits[group]["min_last_active"] = self.util.check_for_attribute(
                     self.data,
                     "last_active",
                     parent="share_limits",
@@ -562,7 +562,31 @@ class Config:
                     default=0,
                     do_print=False,
                     save=False,
+                ) or self.util.check_for_attribute(
+                    self.data,
+                    "min_last_active",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="time_parse",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
                 )
+                if "last_active" in self.data["share_limits"][group]:
+                    self.data["share_limits"][group]["min_last_active"] = self.data["share_limits"][group].pop("last_active")
+                    self.util.overwrite_attributes(data=self.data["share_limits"][group], attribute=group, parent="share_limits")
+                    self.util.check_for_attribute(
+                        self.data,
+                        "min_last_active",
+                        parent="share_limits",
+                        subparent=group,
+                        var_type="time_parse",
+                        min_int=0,
+                        default=self.data["share_limits"][group]["min_last_active"],
+                        do_print=False,
+                        save=True,
+                    )
                 self.share_limits[group]["resume_torrent_after_change"] = self.util.check_for_attribute(
                     self.data,
                     "resume_torrent_after_change",

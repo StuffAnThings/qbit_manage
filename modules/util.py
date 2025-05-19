@@ -197,11 +197,57 @@ class check:
     def __init__(self, config):
         self.config = config
 
-    def overwrite_attributes(self, data, attribute):
-        """Overwrite attributes in config."""
+    def overwrite_attributes(self, data, attribute, parent=None):
+        """
+        Overwrite attributes in config.
+
+        Args:
+            data: The new data to replace the attribute with
+            attribute: The attribute name to search for
+            parent: Optional parent attribute to restrict the search to
+        """
+        if data is None:
+            return
+
         yaml = YAML(self.config.config_path)
-        if data is not None and attribute in yaml.data:
-            yaml.data[attribute] = data
+
+        # Define the recursive search function once
+        def find_and_replace_attribute(dictionary, attr, new_data):
+            """Recursively search for attribute in nested dictionaries and replace it."""
+            for key, value in dictionary.items():
+                if key == attr:
+                    dictionary[key] = new_data
+                    return True
+                elif isinstance(value, dict):
+                    if find_and_replace_attribute(value, attr, new_data):
+                        return True
+            return False
+
+        # Determine the root dictionary to search in
+        if parent is not None:
+            # Only search within parent if it exists and is a dictionary
+            if parent not in yaml.data or not isinstance(yaml.data[parent], dict):
+                return
+
+            root_dict = yaml.data[parent]
+
+            # Check if attribute exists directly in parent
+            if attribute in root_dict:
+                root_dict[attribute] = data
+                yaml.save()
+                return
+        else:
+            # Search in the entire yaml.data
+            root_dict = yaml.data
+
+            # Check if attribute exists at top level
+            if attribute in root_dict:
+                root_dict[attribute] = data
+                yaml.save()
+                return
+
+        # If not found directly, search recursively
+        if find_and_replace_attribute(root_dict, attribute, data):
             yaml.save()
 
     def check_for_attribute(
