@@ -36,7 +36,7 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.2.0",
-    "ruff==0.11.10",
+    "ruff==0.11.11",
 ]
 
 [tool.ruff]
