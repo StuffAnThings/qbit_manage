@@ -74,10 +74,11 @@ class ShareLimits:
                     "torrent_tag": self.group_tag,
                     "torrent_max_ratio": group_config["max_ratio"],
                     "torrent_max_seeding_time": group_config["max_seeding_time"],
+                    "torrent_max_last_active": group_config["max_last_active"],
                     "torrent_min_seeding_time": group_config["min_seeding_time"],
                     "torrent_min_num_seeds": group_config["min_num_seeds"],
                     "torrent_limit_upload_speed": group_config["limit_upload_speed"],
-                    "torrent_last_active": group_config["last_active"],
+                    "torrent_min_last_active": group_config["min_last_active"],
                 }
                 if len(self.torrents_updated) > 0:
                     self.config.send_notifications(attr)
@@ -286,9 +287,10 @@ class ShareLimits:
                 torrent=torrent,
                 max_ratio=group_config["max_ratio"],
                 max_seeding_time=group_config["max_seeding_time"],
+                max_last_active=group_config["max_last_active"],
                 min_seeding_time=group_config["min_seeding_time"],
                 min_num_seeds=group_config["min_num_seeds"],
-                last_active=group_config["last_active"],
+                min_last_active=group_config["min_last_active"],
                 resume_torrent=group_config["resume_torrent_after_change"],
                 tracker=tracker["url"],
             )
@@ -455,7 +457,16 @@ class ShareLimits:
         return body
 
     def has_reached_seed_limit(
-        self, torrent, max_ratio, max_seeding_time, min_seeding_time, min_num_seeds, last_active, resume_torrent, tracker
+        self,
+        torrent,
+        max_ratio,
+        max_seeding_time,
+        max_last_active,
+        min_seeding_time,
+        min_num_seeds,
+        min_last_active,
+        resume_torrent,
+        tracker,
     ):
         """Check if torrent has reached seed limit"""
         body = ""
@@ -531,12 +542,12 @@ class ShareLimits:
                             torrent.resume()
             return True
 
-        def _has_reached_last_active_time_limit():
+        def _has_reached_min_last_active_time_limit():
             nonlocal torrent_tags
             print_log = []
             now = int(time())
             inactive_time_minutes = round((now - torrent.last_activity) / 60)
-            if inactive_time_minutes >= last_active:
+            if inactive_time_minutes >= min_last_active:
                 if is_tag_in_torrent(self.last_active_tag, torrent_tags):
                     if not self.config.dry_run:
                         torrent.remove_tags(tags=self.last_active_tag)
@@ -548,7 +559,7 @@ class ShareLimits:
                     print_log += logger.print_line(
                         logger.insert_space(
                             f"Min inactive time not met: {str(timedelta(minutes=inactive_time_minutes))} <="
-                            f" {str(timedelta(minutes=last_active))}. Removing Share Limits so qBittorrent can continue"
+                            f" {str(timedelta(minutes=min_last_active))}. Removing Share Limits so qBittorrent can continue"
                             " seeding.",
                             8,
                         ),
@@ -588,11 +599,26 @@ class ShareLimits:
                     return True
             return False
 
+        def _has_reached_max_last_active_time_limit():
+            """Check if the torrent has been inactive longer than the max last active time"""
+            nonlocal body
+            now = int(time())
+            inactive_time_minutes = round((now - torrent.last_activity) / 60)
+            if max_last_active is not None and max_last_active != -1:
+                if (inactive_time_minutes >= max_last_active) and _has_reached_min_last_active_time_limit():
+                    body += logger.insert_space(
+                        f"Inactive Time vs Max Last Active Time: {str(timedelta(minutes=inactive_time_minutes))} >= "
+                        f"{str(timedelta(minutes=max_last_active))}",
+                        8,
+                    )
+                    return True
+            return False
+
         if min_num_seeds is not None:
             if _is_less_than_min_num_seeds():
                 return body
-        if last_active is not None:
-            if not _has_reached_last_active_time_limit():
+        if min_last_active is not None:
+            if not _has_reached_min_last_active_time_limit():
                 return body
         if max_ratio is not None and max_ratio != -1:
             if max_ratio >= 0:
@@ -606,6 +632,8 @@ class ShareLimits:
                     )
                     return body
         if _has_reached_seeding_time_limit():
+            return body
+        if _has_reached_max_last_active_time_limit():
             return body
         return False
 
