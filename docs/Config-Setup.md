@@ -77,6 +77,7 @@ This section defines the directories that qbit_manage will be looking into for v
 
 ---
 This section defines the categories that you are currently using and the save path's that are associated with them.
+
 > **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category. You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
 
 | Configuration | Definition                | Required           |
@@ -124,7 +125,9 @@ This section defines the tags used based upon the tracker's URL.
 
 If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
 
-***The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.***
+> **NOTE** The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
+
+> **NOTE** If `other` is not used then trackers will be auto added.
 
 ## **nohardlinks:**
 
