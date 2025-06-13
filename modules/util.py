@@ -1,5 +1,6 @@
 """Utility functions for qBit Manage."""
 
+import glob
 import json
 import logging
 import os
@@ -880,3 +881,34 @@ class EnvStr(str):
     def __repr__(self):
         """Return the resolved value as a string"""
         return super().__repr__()
+
+
+def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
+    """Get list of config files matching a pattern.
+
+    Args:
+        config_pattern (str): Config file pattern (e.g. "config.yml" or "config*.yml")
+        default_dir (str): Default directory to look for configs
+
+    Returns:
+        list: List of matching config file names
+
+    Raises:
+        Failed: If no matching config files found
+    """
+    # Check docker config first
+    if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_pattern)):
+        search_dir = "/config"
+    else:
+        search_dir = default_dir
+
+    # Handle single file vs pattern
+    if "*" not in config_pattern:
+        return [config_pattern]
+    else:
+        glob_configs = glob.glob(os.path.join(search_dir, config_pattern))
+        if glob_configs:
+            # Return just the filenames without paths
+            return [os.path.split(x)[-1] for x in glob_configs]
+        else:
+            raise Failed(f"Config Error: Unable to find any config files in the pattern '{config_pattern}'")

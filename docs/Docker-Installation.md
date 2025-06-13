@@ -33,11 +33,20 @@ services:
       - /mnt/user/appdata/qbit_manage/:/config:rw
       - /mnt/user/data/torrents/:/data/torrents:rw
       - /mnt/user/appdata/qbittorrent/:/qbittorrent/:ro
+    ports:
+      - "8080:8080"  # Web API port (when enabled)
     environment:
+      # Web API Configuration
+      - QBT_WEB_SERVER=false    # Set to true to enable web API
+      - QBT_PORT=8080           # Web API port (default: 8080)
+
+      # Scheduler Configuration
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
       - QBT_CONFIG=/config/config.yml
       - QBT_LOGFILE=activity.log
+
+      # Command Flags
       - QBT_RECHECK=false
       - QBT_CAT_UPDATE=false
       - QBT_TAG_UPDATE=false
@@ -48,11 +57,22 @@ services:
       - QBT_SHARE_LIMITS=false
       - QBT_SKIP_CLEANUP=false
       - QBT_DRY_RUN=false
+
+      # Logging Configuration
       - QBT_LOG_LEVEL=INFO
       - QBT_DIVIDER==
       - QBT_WIDTH=100
     restart: on-failure:2
 ```
+
+### Web API Usage
+
+To enable the web API:
+1. Set `QBT_WEB_SERVER=true` in the environment variables
+2. Map port 8080 (or your chosen port) using the ports section
+3. Access the API at `http://your-host:8080/api/run-command`
+
+See the [Web API Documentation](Web-API.md) for detailed usage instructions and examples.
 
 You will also need to define not just the config volume but the volume to your torrents, this is in order to use the recycling bin, remove orphans and the no hard link options
 

@@ -61,8 +61,11 @@ class Config:
         loaded_yaml = YAML(self.config_path)
         self.data = loaded_yaml.data
 
-        # Replace env variables with config commands
-        if "commands" in self.data:
+        # Check if request is from web API
+        is_web_api = args.get("_from_web_api", False)
+
+        # Handle command overrides differently for web API vs normal runs
+        if "commands" in self.data and not is_web_api:
             if self.data["commands"] is not None:
                 logger.info(f"Commands found in {config_file}, ignoring env variables and using config commands instead.")
                 self.commands = {}

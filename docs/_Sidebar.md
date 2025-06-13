@@ -23,3 +23,4 @@
           - [notifiarr](Config-Setup#notifiarr)
           - [webhooks](Config-Setup#webhooks)
     - [Commands](Commands)
+    - [Web API](Web-API)

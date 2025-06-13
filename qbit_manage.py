@@ -4,6 +4,7 @@
 import argparse
 import glob
 import math
+import multiprocessing
 import os
 import platform
 import sys
@@ -11,6 +12,8 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from functools import lru_cache
+
+from modules.util import get_matching_config_files
 
 try:
     import schedule
@@ -34,6 +37,22 @@ if current_version < (REQUIRED_VERSION):
     sys.exit(1)
 
 parser = argparse.ArgumentParser("qBittorrent Manager.", description="A mix of scripts combined for managing qBittorrent.")
+parser.add_argument(
+    "-ws",
+    "--web-server",
+    dest="web_server",
+    action="store_true",
+    default=False,
+    help="Start a web server to handle command requests via HTTP API.",
+)
+parser.add_argument(
+    "-p",
+    "--port",
+    dest="port",
+    type=int,
+    default=8080,
+    help="Port number for the web server (default: 8080).",
+)
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument(
@@ -259,6 +278,8 @@ except ImportError:
 
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
+web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
+port = get_arg("QBT_PORT", args.port, arg_int=True)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
@@ -296,16 +317,7 @@ if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files))
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
-
-if "*" not in config_files:
-    config_files = [config_files]
-else:
-    glob_configs = glob.glob(os.path.join(default_dir, config_files))
-    if glob_configs:
-        config_files = [os.path.split(x)[-1] for x in glob_configs]
-    else:
-        print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
-        sys.exit(1)
+config_files = get_matching_config_files(config_files, default_dir)
 
 
 for v in [
@@ -404,7 +416,7 @@ def start_loop(first_run=False):
     else:
         for config_file in config_files:
             args["config_file"] = config_file
-            config_base = os.path.splitext(config_file)[0]
+            config_base = os.path.splitext(os.path.basename(config_file))[0]
             logger.add_config_handler(config_base)
             if not first_run:
                 print_logo(logger)
@@ -414,6 +426,8 @@ def start_loop(first_run=False):
 
 def start():
     """Start the run"""
+    global is_running, web_api_queue
+    is_running.value = True  # Set flag to indicate a run is in progress
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
@@ -569,9 +583,15 @@ def start():
     if cfg:
         try:
             cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
+            # Release flag after all cleanup is complete
+            is_running.value = False
+            logger.info("Scheduled run completed. Web API requests will be processed automatically.")
         except Failed as err:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
+            # Release flag even if webhooks fail
+            is_running.value = False
+            logger.info("Released lock for web API requests despite webhook error")
 
 
 def end():
@@ -649,6 +669,46 @@ if __name__ == "__main__":
     logger.add_main_handler()
     print_logo(logger)
     try:
+
+        def run_web_server(port, process_args, is_running, web_api_queue):
+            """Run web server in a separate process with shared args"""
+            try:
+                import uvicorn
+
+                from modules.web_api import create_app
+
+                # Create FastAPI app instance with process args and shared state
+                app = create_app(process_args, is_running, web_api_queue)
+
+                # Configure uvicorn settings
+                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
+
+                # Run the server
+                server = uvicorn.Server(config)
+                server.run()
+            except ImportError:
+                logger.critical("Web server dependencies not installed. Please install with: pip install qbit_manage[web]")
+                sys.exit(1)
+            except KeyboardInterrupt:
+                pass
+
+        is_running = multiprocessing.Value("b", False)  # 'b' for boolean, initialized to False
+        web_api_queue = multiprocessing.Queue()
+
+        # Start web server if enabled and not in run mode
+        web_process = None
+        if web_server and not run:
+            logger.separator("Starting Web Server")
+            logger.info(f"Web API server running on http://0.0.0.0:{port}")
+
+            # Create a copy of args to pass to the web server process
+            process_args = args.copy()
+
+            web_process = multiprocessing.Process(target=run_web_server, args=(port, process_args, is_running, web_api_queue))
+            web_process.start()
+            logger.info("Web server started in separate process")
+
+        # Handle normal run modes
         if run:
             run_mode_message = "    Run Mode: Script will exit after completion."
             logger.info(run_mode_message)
@@ -678,6 +738,12 @@ if __name__ == "__main__":
                 schedule.run_pending()
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
+            if web_process:
+                web_process.terminate()
+                web_process.join()
             end()
     except KeyboardInterrupt:
+        if web_process:
+            web_process.terminate()
+            web_process.join()
         end()
