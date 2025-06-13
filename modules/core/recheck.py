@@ -71,7 +71,11 @@ class ReCheck:
                                 )
                             )
                             if (
-                                (torrent.ratio_limit >= 0 and torrent.ratio < torrent.ratio_limit and torrent.seeding_time_limit < 0)
+                                (
+                                    torrent.ratio_limit >= 0
+                                    and torrent.ratio < torrent.ratio_limit
+                                    and torrent.seeding_time_limit < 0
+                                )
                                 or (
                                     torrent.seeding_time_limit >= 0
                                     and (torrent.seeding_time < (torrent.seeding_time_limit * 60))
