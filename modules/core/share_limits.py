@@ -205,8 +205,8 @@ class ShareLimits:
             else:
                 self.group_tag = None
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-            check_max_ratio = group_config["max_ratio"] != torrent.max_ratio
-            check_max_seeding_time = group_config["max_seeding_time"] != torrent.max_seeding_time
+            check_max_ratio = group_config["max_ratio"] != torrent.ratio_limit
+            check_max_seeding_time = group_config["max_seeding_time"] != torrent.seeding_time_limit
             # Treat upload limit as -1 if it is set to 0 (unlimited)
             torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
             if group_config["limit_upload_speed"] <= 0:
@@ -254,11 +254,11 @@ class ShareLimits:
             logger.trace(f"Torrent Category: {torrent.category}")
             logger.trace(f"Torrent Tags: {torrent.tags}")
             logger.trace(f"Grouping: {group_name}")
-            logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.max_ratio}")
+            logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.ratio_limit}")
             logger.trace(f"check_max_ratio: {check_max_ratio}")
             logger.trace(
                 "Config Max Seeding Time vs Torrent Max Seeding Time (minutes): "
-                f"{group_config['max_seeding_time']} vs {torrent.max_seeding_time}"
+                f"{group_config['max_seeding_time']} vs {torrent.seeding_time_limit}"
             )
             logger.trace(
                 "Config Max Seeding Time vs Torrent Current Seeding Time (minutes): "
@@ -421,13 +421,13 @@ class ShareLimits:
                 msg = logger.insert_space("Share Limit: Set No Share Limit", 4)
                 body.append(msg)
             else:
-                if max_ratio != torrent.max_ratio and (max_seeding_time is None or max_seeding_time < 0):
+                if max_ratio != torrent.ratio_limit and (max_seeding_time is None or max_seeding_time < 0):
                     msg = logger.insert_space(f"Share Limit: Max Ratio = {max_ratio}", 4)
                     body.append(msg)
-                elif max_seeding_time != torrent.max_seeding_time and (max_ratio is None or max_ratio < 0):
+                elif max_seeding_time != torrent.seeding_time_limit and (max_ratio is None or max_ratio < 0):
                     msg = logger.insert_space(f"Share Limit: Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4)
                     body.append(msg)
-                elif max_ratio != torrent.max_ratio or max_seeding_time != torrent.max_seeding_time:
+                elif max_ratio != torrent.ratio_limit or max_seeding_time != torrent.seeding_time_limit:
                     msg = logger.insert_space(
                         f"Share Limit: Max Ratio = {max_ratio}, Max Seed Time = {str(timedelta(minutes=max_seeding_time))}", 4
                     )
@@ -443,9 +443,9 @@ class ShareLimits:
                 else:
                     torrent.set_upload_limit(limit_upload_speed * 1024)
             if max_ratio is None:
-                max_ratio = torrent.max_ratio
+                max_ratio = torrent.ratio_limit
             if max_seeding_time is None:
-                max_seeding_time = torrent.max_seeding_time
+                max_seeding_time = torrent.seeding_time_limit
             if is_tag_in_torrent(self.min_seeding_time_tag, torrent.tags):
                 return []
             if is_tag_in_torrent(self.min_num_seeds_tag, torrent.tags):

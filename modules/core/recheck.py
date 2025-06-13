@@ -36,7 +36,7 @@ class ReCheck:
                     t_category = torrent.category
                     # Resume torrent if completed
                     if torrent.progress == 1:
-                        if torrent.max_ratio < 0 and torrent.max_seeding_time < 0:
+                        if torrent.ratio_limit < 0 and torrent.seeding_time_limit < 0:
                             self.stats_resumed += 1
                             body = logger.print_line(
                                 f"{'Not Resuming' if self.config.dry_run else 'Resuming'} [{tracker['tag']}] - {t_name}",
@@ -61,27 +61,31 @@ class ReCheck:
                             logger.debug("DEBUG: Torrent to see if torrent meets AutoTorrentManagement Criteria")
                             logger.debug(logger.insert_space(f"- Torrent Name: {t_name}", 2))
                             logger.debug(
-                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} vs {torrent.max_ratio:.2f}", 4)
+                                logger.insert_space(f"-- Ratio vs Max Ratio: {torrent.ratio:.2f} vs {torrent.ratio_limit:.2f}", 4)
                             )
                             logger.debug(
                                 logger.insert_space(
                                     f"-- Seeding Time vs Max Seed Time: {str(timedelta(seconds=torrent.seeding_time))} vs "
-                                    f"{str(timedelta(minutes=torrent.max_seeding_time))}",
+                                    f"{str(timedelta(minutes=torrent.seeding_time_limit))}",
                                     4,
                                 )
                             )
                             if (
-                                (torrent.max_ratio >= 0 and torrent.ratio < torrent.max_ratio and torrent.max_seeding_time < 0)
-                                or (
-                                    torrent.max_seeding_time >= 0
-                                    and (torrent.seeding_time < (torrent.max_seeding_time * 60))
-                                    and torrent.max_ratio < 0
+                                (
+                                    torrent.ratio_limit >= 0
+                                    and torrent.ratio < torrent.ratio_limit
+                                    and torrent.seeding_time_limit < 0
                                 )
                                 or (
-                                    torrent.max_ratio >= 0
-                                    and torrent.max_seeding_time >= 0
-                                    and torrent.ratio < torrent.max_ratio
-                                    and (torrent.seeding_time < (torrent.max_seeding_time * 60))
+                                    torrent.seeding_time_limit >= 0
+                                    and (torrent.seeding_time < (torrent.seeding_time_limit * 60))
+                                    and torrent.ratio_limit < 0
+                                )
+                                or (
+                                    torrent.ratio_limit >= 0
+                                    and torrent.seeding_time_limit >= 0
+                                    and torrent.ratio < torrent.ratio_limit
+                                    and (torrent.seeding_time < (torrent.seeding_time_limit * 60))
                                 )
                             ):
                                 self.stats_resumed += 1
