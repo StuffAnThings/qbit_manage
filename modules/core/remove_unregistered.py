@@ -84,14 +84,8 @@ class RemoveUnregistered:
         # "Trumped: Internal: https://beyond-hd.xxxxx", so removing the colon is needed to match the status
         status_filtered = msg_up.split(":")[0]
         if "tracker.beyond-hd.me" in tracker["url"]:
-            # Checks if the legacy method is used and if the tracker is BHD then use API method
-            if self.config.beyond_hd is not None and not list_in_text(msg_up, TorrentMessages.IGNORE_MSGS):
-                json = {"info_hash": torrent_hash}
-                response = self.config.beyond_hd.search(json)
-                if response.get("total_results") == 0:
-                    return True
             # Checks if the tracker is BHD and the message is in the deletion reasons for BHD
-            elif list_in_text(status_filtered, TorrentMessages.UNREGISTERED_MSGS_BHD):
+            if list_in_text(status_filtered, TorrentMessages.UNREGISTERED_MSGS_BHD):
                 return True
         return False
 
