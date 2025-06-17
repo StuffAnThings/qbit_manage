@@ -116,7 +116,7 @@ class Config:
                         save=True,
                     )
                 # For logging, we'll still use args
-                command_source = "CONFIG OVERRIDE RUN COMMDANDS"
+                command_source = "CONFIG OVERRIDE RUN COMMANDS"
             else:
                 self.commands = self.args
                 command_source = "DOCKER ENV RUN COMMANDS"
