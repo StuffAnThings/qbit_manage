@@ -122,7 +122,7 @@ class Config:
                 command_source = "DOCKER ENV RUN COMMANDS"
         else:
             self.commands = self.args
-            command_source = "DOCKER ENV RUN COMMANDS"
+            command_source = "WEB API RUN COMMANDS"
 
         # Log Docker env commands (same regardless of source)
         logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")

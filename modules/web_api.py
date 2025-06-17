@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from multiprocessing import Queue
-from multiprocessing import Value
 
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -24,6 +23,7 @@ from modules.core.remove_unregistered import RemoveUnregistered
 from modules.core.share_limits import ShareLimits
 from modules.core.tag_nohardlinks import TagNoHardLinks
 from modules.core.tags import Tags
+from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
 logger = util.logger
@@ -34,6 +34,7 @@ class CommandRequest(BaseModel):
 
     config_file: str = "config.yml"
     commands: list[str]
+    hashes: list[str] = field(default_factory=list)
     dry_run: bool = False
 
 
@@ -69,8 +70,9 @@ class WebAPI:
     )
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default_factory=FastAPI)
-    is_running: Value = field(default=None)
+    is_running: bool = field(default=None)
     web_api_queue: Queue = field(default=None)
+    next_scheduled_run_info: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Initialize routes and events."""
@@ -95,24 +97,43 @@ class WebAPI:
                 except asyncio.CancelledError:
                     pass
 
-    async def execute_for_config(self, args: dict) -> dict:
+    async def execute_for_config(self, args: dict, hashes: list[str]) -> dict:
         """Execute commands for a specific config file."""
         try:
             cfg = Config(self.default_dir, args)
             qbit_manager = cfg.qbt
-            stats = {"executed_commands": []}
+            stats = {
+                "executed_commands": [],
+                "added": 0,
+                "deleted": 0,
+                "deleted_contents": 0,
+                "resumed": 0,
+                "rechecked": 0,
+                "orphaned": 0,
+                "recycle_emptied": 0,
+                "orphaned_emptied": 0,
+                "tagged": 0,
+                "categorized": 0,
+                "rem_unreg": 0,
+                "tagged_tracker_error": 0,
+                "untagged_tracker_error": 0,
+                "tagged_noHL": 0,
+                "untagged_noHL": 0,
+                "updated_share_limits": 0,
+                "cleaned_share_limits": 0,
+            }
 
             if qbit_manager:
                 if args["cat_update"]:
-                    stats["categorized"] = Category(qbit_manager).stats
+                    stats["categorized"] = Category(qbit_manager, hashes).stats
                     stats["executed_commands"].append("cat_update")
 
                 if args["tag_update"]:
-                    stats["tagged"] = Tags(qbit_manager).stats
+                    stats["tagged"] = Tags(qbit_manager, hashes).stats
                     stats["executed_commands"].append("tag_update")
 
                 if args["rem_unregistered"] or args["tag_tracker_error"]:
-                    rem_unreg = RemoveUnregistered(qbit_manager)
+                    rem_unreg = RemoveUnregistered(qbit_manager, hashes)
                     stats.update(
                         {
                             "rem_unreg": rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents,
@@ -125,7 +146,7 @@ class WebAPI:
                     stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if args[cmd]])
 
                 if args["recheck"]:
-                    recheck = ReCheck(qbit_manager)
+                    recheck = ReCheck(qbit_manager, hashes)
                     stats["rechecked"] = recheck.stats_rechecked
                     stats["resumed"] = recheck.stats_resumed
                     stats["executed_commands"].append("recheck")
@@ -135,28 +156,35 @@ class WebAPI:
                     stats["executed_commands"].append("rem_orphaned")
 
                 if args["tag_nohardlinks"]:
-                    stats.update(TagNoHardLinks(qbit_manager).stats)
+                    tag_nohardlinks = TagNoHardLinks(qbit_manager, hashes)
+                    stats["tagged_noHL"] = tag_nohardlinks.stats_tagged
+                    stats["untagged_noHL"] = tag_nohardlinks.stats_untagged
                     stats["executed_commands"].append("tag_nohardlinks")
 
                 if args["share_limits"]:
-                    stats.update(ShareLimits(qbit_manager).stats)
+                    share_limits = ShareLimits(qbit_manager, hashes)
+                    stats["updated_share_limits"] = share_limits.stats_tagged
+                    stats["cleaned_share_limits"] = share_limits.stats_deleted + share_limits.stats_deleted_contents
                     stats["executed_commands"].append("share_limits")
 
-                return stats
+                return stats, cfg
             else:
                 raise HTTPException(status_code=500, detail=f"Failed to initialize qBittorrent manager for {args['config_file']}")
 
         except Exception as e:
+            logger.stacktrace()
             logger.error(f"Error executing commands for {args['config_file']}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""
+        self.is_running.value = True  # Set flag to indicate a run is in progress
         try:
             logger.separator("Web API Request")
             logger.info(f"Config File: {request.config_file}")
             logger.info(f"Commands: {', '.join(request.commands)}")
             logger.info(f"Dry Run: {request.dry_run}")
+            logger.info(f"Hashes: {', '.join(request.hashes) if request.hashes else 'None'}")
 
             config_files = get_matching_config_files(request.config_file, self.default_dir)
             logger.info(f"Found config files: {', '.join(config_files)}")
@@ -170,6 +198,7 @@ class WebAPI:
                     "time": now.strftime("%H:%M"),
                     "time_obj": now,
                     "run": True,
+                    "hashes": request.hashes,
                 }
             )
 
@@ -204,17 +233,37 @@ class WebAPI:
                 config_base = os.path.splitext(config_file)[0]
                 logger.add_config_handler(config_base)
 
+                config_start_time = datetime.now()  # Record start time for this config file
+
                 try:
-                    stats = await self.execute_for_config(run_args)
+                    stats, cfg_obj = await self.execute_for_config(run_args, request.hashes)
                     all_stats.append({"config_file": config_file, "stats": stats})
+                    stats_output = format_stats_summary(stats, cfg_obj)
+
+                    config_end_time = datetime.now()  # Record end time for this config file
+                    config_run_time = str(config_end_time - config_start_time).split(".", maxsplit=1)[0]  # Calculate run time
+
+                    run_mode_message = ""
+                    if self.next_scheduled_run_info:
+                        run_mode_message = f"\nNext Scheduled Run: {self.next_scheduled_run_info['next_run_str']}"
+
+                    logger.separator(
+                        f"Finished Run\n"
+                        f"Config File: {config_file}\n"
+                        f"{os.linesep.join(stats_output) if len(stats_output) > 0 else ''}"
+                        f"\nRun Time: {config_run_time}\n{run_mode_message}"  # Include run time and next scheduled run
+                    )
                 finally:
                     logger.remove_config_handler(config_base)
 
             return {"status": "success", "message": "Commands executed successfully for all configs", "results": all_stats}
 
         except Exception as e:
+            logger.stacktrace()
             logger.error(f"Error executing commands: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            self.is_running.value = False  # Reset flag after run completes or fails
 
     async def run_command(self, request: CommandRequest) -> dict:
         """Handle incoming command requests."""
@@ -247,6 +296,8 @@ class WebAPI:
         return await self._execute_command(request)
 
 
-def create_app(args: dict, is_running: Value, web_api_queue: Queue) -> FastAPI:
+def create_app(args: dict, is_running: bool, web_api_queue: Queue, next_scheduled_run_info: dict) -> FastAPI:
     """Create and return the FastAPI application."""
-    return WebAPI(args=args, is_running=is_running, web_api_queue=web_api_queue).app
+    return WebAPI(
+        args=args, is_running=is_running, web_api_queue=web_api_queue, next_scheduled_run_info=next_scheduled_run_info
+    ).app

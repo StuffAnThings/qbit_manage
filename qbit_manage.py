@@ -12,7 +12,9 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from functools import lru_cache
+from multiprocessing import Manager
 
+from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
 try:
@@ -381,6 +383,7 @@ from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.util import Failed  # noqa
 from modules.util import GracefulKiller  # noqa
+from modules.web_api import CommandRequest  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -426,7 +429,7 @@ def start_loop(first_run=False):
 
 def start():
     """Start the run"""
-    global is_running, web_api_queue
+    global is_running, web_api_queue, next_scheduled_run_info_shared
     is_running.value = True  # Set flag to indicate a run is in progress
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
@@ -437,7 +440,6 @@ def start():
     body = ""
     run_time = ""
     end_time = None
-    next_run = None
     global stats
     stats = {
         "added": 0,
@@ -459,9 +461,9 @@ def start():
         "cleaned_share_limits": 0,
     }
 
-    def finished_run():
+    def finished_run(next_scheduled_run_info_shared):
         """Handle the end of a run"""
-        nonlocal end_time, start_time, stats_summary, run_time, next_run, body
+        nonlocal end_time, start_time, stats_summary, run_time, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if run is False:
@@ -475,13 +477,16 @@ def start():
         else:
             next_run_time = datetime.now()
         nxt_run = calc_next_run(next_run_time)
-        next_run_str = nxt_run["next_run_str"]
-        next_run = nxt_run["next_run"]
-        body = logger.separator(
-            f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary) > 0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str) > 0 else ''}".replace("\n\n", "\n").rstrip()
-        )[0]
-        return next_run, body
+        next_scheduled_run_info_shared.update(nxt_run)
+        summary = os.linesep.join(stats_summary) if stats_summary else ""
+        next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
+        msg = (
+            (f"Finished Run\n{summary}\nRun Time: {run_time}\n{next_run_str if next_run_str else ''}")
+            .replace("\n\n", "\n")
+            .rstrip()
+        )
+        body = logger.separator(msg)[0]
+        return body
 
     try:
         cfg = Config(default_dir, args)
@@ -490,7 +495,7 @@ def start():
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
-        finished_run()
+        finished_run(next_scheduled_run_info_shared)
         return None
 
     if qbit_manager:
@@ -544,44 +549,12 @@ def start():
         # Empty Orphaned Directory
         stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
 
-    if stats["categorized"] > 0:
-        stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
-    if stats["tagged"] > 0:
-        stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
-    if stats["rem_unreg"] > 0:
-        stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
-    if stats["tagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents Tagged: {stats['tagged_tracker_error']}")
-    if stats["untagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents untagged: {stats['untagged_tracker_error']}")
-    if stats["added"] > 0:
-        stats_summary.append(f"Total Torrents Added: {stats['added']}")
-    if stats["resumed"] > 0:
-        stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
-    if stats["rechecked"] > 0:
-        stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
-    if stats["deleted"] > 0:
-        stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
-    if stats["deleted_contents"] > 0:
-        stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
-    if stats["orphaned"] > 0:
-        stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
-    if stats["tagged_noHL"] > 0:
-        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
-    if stats["untagged_noHL"] > 0:
-        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
-    if stats["updated_share_limits"] > 0:
-        stats_summary.append(f"Total Share Limits Updated: {stats['updated_share_limits']}")
-    if stats["cleaned_share_limits"] > 0:
-        stats_summary.append(f"Total Torrents Removed from Meeting Share Limits: {stats['cleaned_share_limits']}")
-    if stats["recycle_emptied"] > 0:
-        stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
-    if stats["orphaned_emptied"] > 0:
-        stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
+    stats_summary = format_stats_summary(stats, cfg)
 
-    finished_run()
+    finished_run(next_scheduled_run_info_shared)
     if cfg:
         try:
+            next_run = next_scheduled_run_info_shared.get("next_run")
             cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
             # Release flag after all cleanup is complete
             is_running.value = False
@@ -670,7 +643,7 @@ if __name__ == "__main__":
     print_logo(logger)
     try:
 
-        def run_web_server(port, process_args, is_running, web_api_queue):
+        def run_web_server(port, process_args, is_running, web_api_queue, next_scheduled_run_info_shared):
             """Run web server in a separate process with shared args"""
             try:
                 import uvicorn
@@ -678,7 +651,7 @@ if __name__ == "__main__":
                 from modules.web_api import create_app
 
                 # Create FastAPI app instance with process args and shared state
-                app = create_app(process_args, is_running, web_api_queue)
+                app = create_app(process_args, is_running, web_api_queue, next_scheduled_run_info_shared)
 
                 # Configure uvicorn settings
                 config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
@@ -692,8 +665,10 @@ if __name__ == "__main__":
             except KeyboardInterrupt:
                 pass
 
-        is_running = multiprocessing.Value("b", False)  # 'b' for boolean, initialized to False
-        web_api_queue = multiprocessing.Queue()
+        manager = Manager()
+        is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
+        web_api_queue = manager.Queue()
+        next_scheduled_run_info_shared = manager.dict()
 
         # Start web server if enabled and not in run mode
         web_process = None
@@ -704,7 +679,9 @@ if __name__ == "__main__":
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
 
-            web_process = multiprocessing.Process(target=run_web_server, args=(port, process_args, is_running, web_api_queue))
+            web_process = multiprocessing.Process(
+                target=run_web_server, args=(port, process_args, is_running, web_api_queue, next_scheduled_run_info_shared)
+            )
             web_process.start()
             logger.info("Web server started in separate process")
 
@@ -718,13 +695,16 @@ if __name__ == "__main__":
             if is_valid_cron_syntax(sch):
                 run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
                 next_run_time = schedule_from_cron(sch)
-                next_run = calc_next_run(next_run_time)
-                run_mode_message += f"\n     {next_run['next_run_str']}"
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+                run_mode_message += f"\n     {next_run_info['next_run_str']}"
                 logger.info(run_mode_message)
             else:
                 delta = timedelta(minutes=sch)
                 run_mode_message = f"    Scheduled Mode: Running every {precisedelta(delta)}."
                 next_run_time = schedule_every_x_minutes(sch)
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
                 if startupDelay:
                     run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     logger.info(run_mode_message)
@@ -733,9 +713,50 @@ if __name__ == "__main__":
                     logger.info(run_mode_message)
                 start_loop(True)
 
+            # Update next_scheduled_run_info_shared in the main loop
             while not killer.kill_now:
-                next_run = calc_next_run(next_run_time)
-                schedule.run_pending()
+                next_run_time = schedule.next_run()  # Call the function to get the datetime object
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+
+                if web_server:
+                    if is_running.value:
+                        logger.info(
+                            "Scheduled run skipped: Web API is currently processing a request. Adding scheduled run to queue."
+                        )
+                        for scheduled_config_file in config_files:
+                            # Create a temporary args dictionary for this config file
+                            args_for_config = args.copy()
+                            args_for_config["config_file"] = scheduled_config_file
+                            args_for_config["config_files"] = [scheduled_config_file]
+                            args_for_config["_from_web_api"] = False  # Ensure commands are read from config if present
+                            # time and time_obj are already in args from global initialization
+
+                            try:
+                                # Temporarily create a Config object to get the effective commands
+                                temp_cfg = Config(default_dir, args_for_config)
+                                effective_commands = [cmd for cmd, enabled in temp_cfg.commands.items() if enabled]
+
+                                scheduled_request = CommandRequest(
+                                    config_file=scheduled_config_file,
+                                    commands=effective_commands,
+                                    hashes=[],
+                                    dry_run=args["dry_run"],
+                                )
+                                web_api_queue.put(scheduled_request)
+                                logger.info(f"Scheduled job for {scheduled_config_file} added to web API queue.")
+                            except Failed as e:
+                                logger.error(f"Failed to process config file {scheduled_config_file} for scheduled job: {e}")
+                            except Exception as e:
+                                logger.error(
+                                    "An unexpected error occurred while processing config file "
+                                    f"{scheduled_config_file} for scheduled job: {e}"
+                                )
+                    else:
+                        schedule.run_pending()
+                else:
+                    schedule.run_pending()
+
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
             if web_process:

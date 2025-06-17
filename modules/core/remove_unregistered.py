@@ -9,7 +9,7 @@ logger = util.logger
 
 
 class RemoveUnregistered:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
         self.client = qbit_manager.client
@@ -23,6 +23,7 @@ class RemoveUnregistered:
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
         self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
+        self.hashes = hashes
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -44,7 +45,10 @@ class RemoveUnregistered:
         torrents_updated = []
         notify_attr = []
 
-        for torrent in self.qbt.torrentvalid:
+        torrent_valid_list = self.qbt.torrentvalid
+        if self.hashes:
+            torrent_valid_list = [t for t in torrent_valid_list if t.hash in self.hashes]
+        for torrent in torrent_valid_list:
             check_tags = util.get_list(torrent.tags)
             t_name = torrent.name
             # Remove any error torrents Tags that are no longer unreachable.
@@ -96,7 +100,10 @@ class RemoveUnregistered:
         self.torrents_updated_unreg = []  # List of torrents updated
         self.notify_attr_unreg = []  # List of single torrent attributes to send to notifiarr
 
-        for torrent in self.qbt.torrentissue:
+        torrent_issue_list = self.qbt.torrentissue
+        if self.hashes:
+            torrent_issue_list = [t for t in torrent_issue_list if t.hash in self.hashes]
+        for torrent in torrent_issue_list:
             self.t_name = torrent.name
             self.t_cat = self.qbt.torrentinfo[self.t_name]["Category"]
             self.t_msg = self.qbt.torrentinfo[self.t_name]["msg"]

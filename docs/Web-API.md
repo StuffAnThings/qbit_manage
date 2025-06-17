@@ -7,11 +7,13 @@ qBit Manage provides a REST API that allows you to trigger commands via HTTP req
 ## Running the Web Server
 
 ### Command Line
+
 ```bash
 python qbit_manage.py --web-server --port 8080
 ```
 
 ### Docker
+
 ```yaml
 version: "3"
 services:
@@ -19,10 +21,10 @@ services:
     image: bobokun/qbit_manage:latest
     container_name: qbit_manage
     environment:
-      - QBT_WEB_SERVER=true    # Enable web server
-      - QBT_PORT=8080          # Set web server port
+      - QBT_WEB_SERVER=true # Enable web server
+      - QBT_PORT=8080 # Set web server port
     ports:
-      - "8080:8080"           # Map container port to host
+      - "8080:8080" # Map container port to host
     volumes:
       - /path/to/config:/config
 ```
@@ -34,16 +36,20 @@ services:
 Execute qBit Manage commands via the API.
 
 #### Request Body
+
 ```json
 {
-  "config_file": "config.yml",     // Optional, defaults to "config.yml"
-  "commands": ["cat_update", "tag_update"],  // Required, list of commands to run
-  "dry_run": false                 // Optional, defaults to false
+  "config_file": "config.yml", // Optional, defaults to "config.yml"
+  "commands": ["cat_update", "tag_update"], // Required, list of commands to run
+  "dry_run": false, // Optional, defaults to false
+  "hashes": ["<hash1>", "<hash2>"] // Optional, list of torrent hashes to filter by
 }
 ```
 
 #### Response
+
 Success:
+
 ```json
 {
   "status": "success",
@@ -62,6 +68,7 @@ Success:
 ```
 
 Queued (when scheduled run is in progress):
+
 ```json
 {
   "status": "queued",
@@ -72,27 +79,30 @@ Queued (when scheduled run is in progress):
 ```
 
 Error:
+
 ```json
 {
   "detail": "Error message"
 }
 ```
+
 ## Available Commands
 
 The following commands can be included in the `commands` array of the API request:
 
-| Command | Description |
-|---------|-------------|
-| `cat_update` | Update categories based on save paths |
-| `tag_update` | Add tags based on tracker URLs |
-| `recheck` | Recheck paused torrents sorted by size and resume completed ones |
-| `rem_unregistered` | Remove unregistered torrents |
-| `tag_tracker_error` | Tag torrents with tracker errors |
-| `rem_orphaned` | Remove orphaned files from root directory |
-| `tag_nohardlinks` | Tag torrents with no hard links |
-| `share_limits` | Apply share limits based on tags/categories |
+| Command             | Description                                                                                       | Supports Hashes |
+| ------------------- | ------------------------------------------------------------------------------------------------- | --------------- |
+| `cat_update`        | Update categories based on save paths                                                             | Yes             |
+| `tag_update`        | Add tags based on tracker URLs                                                                    | Yes             |
+| `recheck`           | Recheck paused torrents sorted by size and resume completed ones                                  | Yes             |
+| `rem_unregistered`  | Remove unregistered torrents                                                                      | Yes             |
+| `tag_tracker_error` | Tag torrents with tracker errors                                                                  | Yes             |
+| `rem_orphaned`      | Remove orphaned files from root directory                                                         | No              |
+| `tag_nohardlinks`   | Tag torrents with no hard links                                                                   | Yes             |
+| `share_limits`      | Apply share limits based on tags/categories                                                       | Yes             |
 
 Example using multiple commands:
+
 ```json
 {
   "config_file": "config.yml",
@@ -103,13 +113,14 @@ Example using multiple commands:
 
 ## Behavior
 
-
 1. Concurrent Execution:
+
    - API requests during scheduled runs are automatically queued
    - Queued requests are processed after the scheduled run completes
    - Double-check mechanism prevents race conditions
 
 2. Command Execution:
+
    - Commands sent to the API are mandatory and the commands defined in ENV variables and in the config file are not used when using the API.
    - All regular command validations apply
    - Dry run mode available for testing
@@ -122,17 +133,20 @@ Example using multiple commands:
 ## Example Usage
 
 Using curl:
+
 ```bash
 curl -X POST http://localhost:8080/api/run-command \
   -H "Content-Type: application/json" \
   -d '{
     "config_file": "config.yml",
     "commands": ["cat_update", "tag_update"],
-    "dry_run": false
+    "dry_run": false,
+    "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"]
   }'
 ```
 
 Using Python requests:
+
 ```python
 import requests
 
@@ -141,7 +155,8 @@ response = requests.post(
     json={
         "config_file": "config.yml",
         "commands": ["cat_update", "tag_update"],
-        "dry_run": false
+        "dry_run": false,
+        "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"]
     }
 )
 print(response.json())
@@ -157,8 +172,9 @@ print(response.json())
 - The API validates commands before execution and during runtime
 
 Example error response for invalid command:
+
 ```json
 {
-    "detail": "Invalid command: invalid_command"
+  "detail": "Invalid command: invalid_command"
 }
 ```

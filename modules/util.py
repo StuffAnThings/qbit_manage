@@ -69,6 +69,63 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
             return tags_to_remove
 
 
+def format_stats_summary(stats: dict, config) -> list[str]:
+    """
+    Formats the statistics summary into a human-readable list of strings.
+
+    Args:
+        stats (dict): The dictionary containing the statistics.
+        config (Config): The Config object to access tracker_error_tag and nohardlinks_tag.
+
+    Returns:
+        list[str]: A list of formatted strings, each representing a statistic.
+    """
+    stats_output = []
+    for stat_key, stat_value in stats.items():
+        if stat_key == "executed_commands":
+            if stat_value:
+                stats_output.append(f"Executed Commands: {', '.join(stat_value)}")
+        elif isinstance(stat_value, (int, float)) and stat_value > 0:
+            display_key = stat_key.replace("_", " ").title()
+            if stat_key == "tagged_tracker_error" and hasattr(config, "tracker_error_tag"):
+                display_key = f"{config.tracker_error_tag} Torrents Tagged"
+            elif stat_key == "untagged_tracker_error" and hasattr(config, "tracker_error_tag"):
+                display_key = f"{config.tracker_error_tag} Torrents Untagged"
+            elif stat_key == "tagged_noHL" and hasattr(config, "nohardlinks_tag"):
+                display_key = f"{config.nohardlinks_tag} Torrents Tagged"
+            elif stat_key == "untagged_noHL" and hasattr(config, "nohardlinks_tag"):
+                display_key = f"{config.nohardlinks_tag} Torrents Untagged"
+            elif stat_key == "rem_unreg":
+                display_key = "Unregistered Torrents Removed"
+            elif stat_key == "deleted_contents":
+                display_key = "Torrents + Contents Deleted"
+            elif stat_key == "updated_share_limits":
+                display_key = "Share Limits Updated"
+            elif stat_key == "cleaned_share_limits":
+                display_key = "Torrents Removed from Meeting Share Limits"
+            elif stat_key == "recycle_emptied":
+                display_key = "Files Deleted from Recycle Bin"
+            elif stat_key == "orphaned_emptied":
+                display_key = "Files Deleted from Orphaned Data"
+            elif stat_key == "orphaned":
+                display_key = "Orphaned Files"
+            elif stat_key == "added":
+                display_key = "Torrents Added"
+            elif stat_key == "resumed":
+                display_key = "Torrents Resumed"
+            elif stat_key == "rechecked":
+                display_key = "Torrents Rechecked"
+            elif stat_key == "deleted":
+                display_key = "Torrents Deleted"
+            elif stat_key == "categorized":
+                display_key = "Torrents Categorized"
+            elif stat_key == "tagged":
+                display_key = "Torrents Tagged"
+
+            stats_output.append(f"Total {display_key}: {stat_value}")
+    return stats_output
+
+
 class TorrentMessages:
     """Contains list of messages to check against a status of a torrent"""
 

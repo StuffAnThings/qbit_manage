@@ -6,9 +6,10 @@ logger = util.logger
 
 
 class ReCheck:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
+        self.hashes = hashes
         self.client = qbit_manager.client
         self.stats_resumed = 0
         self.stats_rechecked = 0
@@ -28,7 +29,10 @@ class ReCheck:
         if self.config.commands["recheck"]:
             logger.separator("Rechecking Paused Torrents", space=False, border=False)
             # sort by size and paused
-            torrent_list = self.qbt.get_torrents({"status_filter": "paused", "sort": "size"})
+            torrent_list_filter = {"status_filter": "paused", "sort": "size"}
+            if self.hashes:
+                torrent_list_filter["torrent_hashes"] = self.hashes
+            torrent_list = self.qbt.get_torrents(torrent_list_filter)
             if torrent_list:
                 for torrent in torrent_list:
                     tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))

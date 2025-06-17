@@ -10,7 +10,7 @@ logger = util.logger
 
 
 class ShareLimits:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
         self.client = qbit_manager.client
@@ -20,6 +20,7 @@ class ShareLimits:
         self.stats_deleted_contents = 0  # counter for the number of torrents that  \
         # meets the criteria for ratio limit/seed limit for deletion including contents \
         self.status_filter = "completed" if self.config.settings["share_limits_filter_completed"] else "all"
+        self.hashes = hashes
 
         # dictionary to track the torrent names and content path that meet the deletion criteria
         self.tdel_dict = {}
@@ -49,7 +50,10 @@ class ShareLimits:
         logger.separator("Updating Share Limits based on priority", space=False, border=False)
         if self.config.dry_run:
             logger.warning("Share Limits will not be applied with dry_run and could be inaccurate unless manually adding tags.")
-        torrent_list = self.qbt.get_torrents({"status_filter": self.status_filter})
+        torrent_list_filter = {"status_filter": self.status_filter}
+        if self.hashes:
+            torrent_list_filter["torrent_hashes"] = self.hashes
+        torrent_list = self.qbt.get_torrents(torrent_list_filter)
         self.assign_torrents_to_group(torrent_list)
         for group_name, group_config in self.share_limits_config.items():
             torrents = group_config["torrents"]

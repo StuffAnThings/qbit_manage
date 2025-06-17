@@ -4,11 +4,12 @@ logger = util.logger
 
 
 class TagNoHardLinks:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats_tagged = 0  # counter for the number of torrents that has no hardlinks
+        self.hashes = hashes
         # counter for number of torrents that previously had no hardlinks but now have hardlinks
         self.stats_untagged = 0
 
@@ -85,45 +86,66 @@ class TagNoHardLinks:
             self.torrents_updated_untagged.append(torrent.name)
             self.notify_attr_untagged.append(attr)
 
+    def _process_torrent_for_nohardlinks(self, torrent, check_hardlinks, ignore_root_dir, exclude_tags, category):
+        """Helper method to process a single torrent for nohardlinks tagging."""
+        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
+        has_nohardlinks = check_hardlinks.nohardlink(
+            torrent["content_path"].replace(self.root_dir, self.remote_dir),
+            self.config.notify,
+            ignore_root_dir,
+        )
+        if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in exclude_tags):
+            # Skip to the next torrent if we find any torrents that are in the exclude tag
+            return
+        else:
+            # Checks for any hardlinks and not already tagged
+            # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
+            if has_nohardlinks:
+                # Will only tag new torrents that don't have nohardlinks_tag tag
+                if not util.is_tag_in_torrent(self.nohardlinks_tag, torrent.tags):
+                    self.add_tag_no_hl(
+                        torrent=torrent,
+                        tracker=tracker,
+                        category=category,
+                    )
+        self.check_previous_nohardlinks_tagged_torrents(has_nohardlinks, torrent, tracker, category)
+
     def tag_nohardlinks(self):
         """Tag torrents with no hardlinks"""
         logger.separator("Tagging Torrents with No Hardlinks", space=False, border=False)
         nohardlinks = self.nohardlinks
         check_hardlinks = util.CheckHardLinks(self.config)
-        for category in nohardlinks:
-            torrent_list = self.qbt.get_torrents({"category": category, "status_filter": self.status_filter})
-            if len(torrent_list) == 0:
-                ex = (
-                    "No torrents found in the category ("
-                    + category
-                    + ") defined under nohardlinks attribute in the config. "
-                    + "Please check if this matches with any category in qbittorrent and has 1 or more torrents."
-                )
-                logger.warning(ex)
-                continue
+
+        if self.hashes:
+            torrent_list = self.qbt.get_torrents({"torrent_hashes": self.hashes, "status_filter": self.status_filter})
             for torrent in torrent_list:
-                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-                has_nohardlinks = check_hardlinks.nohardlink(
-                    torrent["content_path"].replace(self.root_dir, self.remote_dir),
-                    self.config.notify,
-                    nohardlinks[category]["ignore_root_dir"],
+                self._process_torrent_for_nohardlinks(
+                    torrent,
+                    check_hardlinks,
+                    nohardlinks.get(torrent.category, {}).get("ignore_root_dir", True),
+                    nohardlinks.get(torrent.category, {}).get("exclude_tags", []),
+                    torrent.category,
                 )
-                if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in nohardlinks[category]["exclude_tags"]):
-                    # Skip to the next torrent if we find any torrents that are in the exclude tag
+        else:
+            for category in nohardlinks:
+                torrent_list = self.qbt.get_torrents({"category": category, "status_filter": self.status_filter})
+                if len(torrent_list) == 0:
+                    ex = (
+                        "No torrents found in the category ("
+                        + category
+                        + ") defined under nohardlinks attribute in the config. "
+                        + "Please check if this matches with any category in qbittorrent and has 1 or more torrents."
+                    )
+                    logger.warning(ex)
                     continue
-                else:
-                    # Checks for any hardlinks and not already tagged
-                    # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
-                    if has_nohardlinks:
-                        tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
-                        # Will only tag new torrents that don't have nohardlinks_tag tag
-                        if not util.is_tag_in_torrent(self.nohardlinks_tag, torrent.tags):
-                            self.add_tag_no_hl(
-                                torrent=torrent,
-                                tracker=tracker,
-                                category=category,
-                            )
-                self.check_previous_nohardlinks_tagged_torrents(has_nohardlinks, torrent, tracker, category)
+                for torrent in torrent_list:
+                    self._process_torrent_for_nohardlinks(
+                        torrent,
+                        check_hardlinks,
+                        nohardlinks.get(category, {}).get("ignore_root_dir", True),
+                        nohardlinks.get(category, {}).get("exclude_tags", []),
+                        category,
+                    )
         if self.stats_tagged >= 1:
             logger.print_line(
                 f"{'Did not Tag' if self.config.dry_run else 'Added Tag'} for {self.stats_tagged} "
