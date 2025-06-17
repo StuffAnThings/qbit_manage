@@ -111,6 +111,15 @@ Example using multiple commands:
 }
 ```
 
+## qBittorrent Integration
+
+qBittorrent can call a program after a torrent is added or finished. You can configure this in `Settings > Downloads > Run external program`.
+
+Example command to run after torrent added/finished:
+
+```bash
+curl -fsSL -X POST -H "Content-Type: application/json" -d "{ \"commands\": [\"tag_update\", \"share_limits\"], \"hashes\": [\"%I\"] }" http://qbit_manage:8080/api/run-command
+```
 ## Behavior
 
 1. Concurrent Execution:

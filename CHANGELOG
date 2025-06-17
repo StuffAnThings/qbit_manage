@@ -12,6 +12,7 @@ ruamel.yaml==0.18.14
 - Added `max_last_active` to `share_limits` (Closes #774)
 
 ## Bug Fixes
-- (fix): don't reapply tags every run when torrent #824 (Thanks to @xx4h)
+- (fix): don't reapply tags every run when torrent (#824) (Thanks to @xx4h)
+- Fix share limits always re-applying when using global Limit (-2) (Closes #831) (Thanks to @chrisfosterelli)
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.3.0...v4.3.1

@@ -558,7 +558,6 @@ def start():
             cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
             # Release flag after all cleanup is complete
             is_running.value = False
-            logger.info("Scheduled run completed. Web API requests will be processed automatically.")
         except Failed as err:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
