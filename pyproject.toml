@@ -19,7 +19,7 @@ authors = [
 dependencies = [
     "bencodepy==0.9.5",
     "croniter==6.0.0",
-    "fastapi==0.115.12",
+    "fastapi==0.115.13",
     "GitPython==3.1.44",
     "humanize==4.12.3",
     "pytimeparse2==1.7.1",
