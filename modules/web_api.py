@@ -152,7 +152,7 @@ class WebAPI:
                     stats["executed_commands"].append("recheck")
 
                 if args["rem_orphaned"]:
-                    stats.update(RemoveOrphaned(qbit_manager).stats)
+                    stats["orphaned"] = RemoveOrphaned(qbit_manager).stats
                     stats["executed_commands"].append("rem_orphaned")
 
                 if args["tag_nohardlinks"]:
