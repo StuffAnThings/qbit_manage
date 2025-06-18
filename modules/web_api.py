@@ -157,13 +157,17 @@ class WebAPI:
 
                 if args["tag_nohardlinks"]:
                     tag_nohardlinks = TagNoHardLinks(qbit_manager, hashes)
+                    stats["tagged"] += tag_nohardlinks.stats_tagged
                     stats["tagged_noHL"] = tag_nohardlinks.stats_tagged
                     stats["untagged_noHL"] = tag_nohardlinks.stats_untagged
                     stats["executed_commands"].append("tag_nohardlinks")
 
                 if args["share_limits"]:
                     share_limits = ShareLimits(qbit_manager, hashes)
+                    stats["tagged"] += share_limits.stats_tagged
                     stats["updated_share_limits"] = share_limits.stats_tagged
+                    stats["deleted"] += share_limits.stats_deleted
+                    stats["deleted_contents"] += share_limits.stats_deleted_contents
                     stats["cleaned_share_limits"] = share_limits.stats_deleted + share_limits.stats_deleted_contents
                     stats["executed_commands"].append("share_limits")
 
