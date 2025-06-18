@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from multiprocessing import Queue
+from multiprocessing import Value
 
 from fastapi import FastAPI
 from fastapi import HTTPException
@@ -42,15 +43,31 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
     """Continuously check and process queued requests."""
     try:
         while True:
-            if not web_api.is_running.value and not web_api.web_api_queue.empty():
+            # Use multiprocessing-safe check for is_running with timeout
+            is_currently_running = True  # Default to assuming running if we can't check
+            try:
+                if web_api.is_running_lock.acquire(timeout=0.1):
+                    try:
+                        is_currently_running = web_api.is_running.value
+                    finally:
+                        web_api.is_running_lock.release()
+            except Exception:
+                # If we can't acquire the lock, assume something is running
+                pass
+
+            if not is_currently_running and not web_api.web_api_queue.empty():
                 logger.info("Processing queued requests...")
                 while not web_api.web_api_queue.empty():
-                    request = web_api.web_api_queue.get()
                     try:
-                        await web_api._execute_command(request)
-                        logger.info("Successfully processed queued request")
-                    except Exception as e:
-                        logger.error(f"Error processing queued request: {str(e)}")
+                        request = web_api.web_api_queue.get_nowait()
+                        try:
+                            await web_api._execute_command(request)
+                            logger.info("Successfully processed queued request")
+                        except Exception as e:
+                            logger.error(f"Error processing queued request: {str(e)}")
+                    except:
+                        # Queue is empty, break out of inner loop
+                        break
             await asyncio.sleep(1)  # Check every second
     except asyncio.CancelledError:
         logger.info("Queue processing task cancelled")
@@ -70,7 +87,8 @@ class WebAPI:
     )
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default_factory=FastAPI)
-    is_running: bool = field(default=None)
+    is_running: Value = field(default=None)
+    is_running_lock: object = field(default=None)  # multiprocessing.Lock
     web_api_queue: Queue = field(default=None)
     next_scheduled_run_info: dict = field(default_factory=dict)
 
@@ -182,7 +200,6 @@ class WebAPI:
 
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""
-        self.is_running.value = True  # Set flag to indicate a run is in progress
         try:
             logger.separator("Web API Request")
             logger.info(f"Config File: {request.config_file}")
@@ -267,41 +284,108 @@ class WebAPI:
             logger.error(f"Error executing commands: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
         finally:
-            self.is_running.value = False  # Reset flag after run completes or fails
+            # Reset flag with proper synchronization
+            try:
+                with self.is_running_lock:
+                    self.is_running.value = False
+            except Exception as e:
+                # If we can't acquire the lock, force reset anyway as a safety measure
+                logger.error(f"Could not acquire lock in finally block: {e}. Force resetting is_running.value")
+                self.is_running.value = False
 
     async def run_command(self, request: CommandRequest) -> dict:
         """Handle incoming command requests."""
-        # First check if a scheduled run is in progress
-        if self.is_running.value:
-            logger.info("Scheduled run in progress. Queuing web API request...")
+        # Use atomic check-and-set operation
+        try:
+            if self.is_running_lock.acquire(timeout=0.1):
+                try:
+                    if self.is_running.value:
+                        logger.info("Another run is in progress. Queuing web API request...")
+                        self.web_api_queue.put(request)
+                        return {
+                            "status": "queued",
+                            "message": "Another run is in progress. Request queued.",
+                            "config_file": request.config_file,
+                            "commands": request.commands,
+                        }
+                    # Atomic operation: set flag to True
+                    self.is_running.value = True
+                finally:
+                    # Release lock immediately after atomic operation
+                    self.is_running_lock.release()
+            else:
+                # If we can't acquire the lock quickly, assume another run is in progress
+                self.web_api_queue.put(request)
+                return {
+                    "status": "queued",
+                    "message": "Another run is in progress. Request queued.",
+                    "config_file": request.config_file,
+                    "commands": request.commands,
+                }
+        except Exception as e:
+            logger.error(f"Error acquiring lock: {str(e)}")
+            # If there's any error with locking, queue the request as a safety measure
             self.web_api_queue.put(request)
             return {
                 "status": "queued",
-                "message": "Scheduled run in progress. Request queued.",
+                "message": "Lock error occurred. Request queued.",
                 "config_file": request.config_file,
                 "commands": request.commands,
             }
 
-        # Add a small delay and recheck to handle race conditions
-        await asyncio.sleep(0.1)
+        # Execute the command outside the lock
+        try:
+            return await self._execute_command(request)
+        except HTTPException as e:
+            # Ensure is_running is reset if an HTTPException occurs
+            with self.is_running_lock:
+                self.is_running.value = False
+            raise e
+        except Exception as e:
+            # Ensure is_running is reset if any other exception occurs
+            with self.is_running_lock:
+                self.is_running.value = False
+            logger.stacktrace()
+            logger.error(f"Error in run_command during execution: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        try:
+            return await self._execute_command(request)
+        except HTTPException as e:
+            # Ensure is_running is reset if an HTTPException occurs
+            try:
+                if self.is_running_lock.acquire(timeout=0.1):
+                    try:
+                        self.is_running.value = False
+                    finally:
+                        self.is_running_lock.release()
+            except Exception:
+                # If we can't acquire the lock, force reset anyway as a safety measure
+                self.is_running.value = False
+            raise e
+        except Exception as e:
+            # Ensure is_running is reset if any other exception occurs
+            try:
+                if self.is_running_lock.acquire(timeout=0.1):
+                    try:
+                        self.is_running.value = False
+                    finally:
+                        self.is_running_lock.release()
+            except Exception:
+                # If we can't acquire the lock, force reset anyway as a safety measure
+                self.is_running.value = False
+            logger.stacktrace()
+            logger.error(f"Error in run_command during execution: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-        # Double-check if a scheduled run started during the delay
-        if self.is_running.value:
-            logger.info("Scheduled run started. Queuing web API request...")
-            self.web_api_queue.put(request)
-            return {
-                "status": "queued",
-                "message": "Scheduled run started. Request queued.",
-                "config_file": request.config_file,
-                "commands": request.commands,
-            }
 
-        # If still no scheduled run, execute the command
-        return await self._execute_command(request)
-
-
-def create_app(args: dict, is_running: bool, web_api_queue: Queue, next_scheduled_run_info: dict) -> FastAPI:
+def create_app(
+    args: dict, is_running: bool, is_running_lock: object, web_api_queue: Queue, next_scheduled_run_info: dict
+) -> FastAPI:
     """Create and return the FastAPI application."""
     return WebAPI(
-        args=args, is_running=is_running, web_api_queue=web_api_queue, next_scheduled_run_info=next_scheduled_run_info
+        args=args,
+        is_running=is_running,
+        is_running_lock=is_running_lock,
+        web_api_queue=web_api_queue,
+        next_scheduled_run_info=next_scheduled_run_info,
     ).app

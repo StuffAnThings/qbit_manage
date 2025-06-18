@@ -429,8 +429,10 @@ def start_loop(first_run=False):
 
 def start():
     """Start the run"""
-    global is_running, web_api_queue, next_scheduled_run_info_shared
-    is_running.value = True  # Set flag to indicate a run is in progress
+    global is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared
+    # Acquire lock only briefly to set the flag, then release immediately
+    with is_running_lock:
+        is_running.value = True  # Set flag to indicate a run is in progress
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
@@ -557,12 +559,14 @@ def start():
             next_run = next_scheduled_run_info_shared.get("next_run")
             cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
             # Release flag after all cleanup is complete
-            is_running.value = False
+            with is_running_lock:
+                is_running.value = False
         except Failed as err:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
             # Release flag even if webhooks fail
-            is_running.value = False
+            with is_running_lock:
+                is_running.value = False
             logger.info("Released lock for web API requests despite webhook error")
 
 
@@ -642,7 +646,7 @@ if __name__ == "__main__":
     print_logo(logger)
     try:
 
-        def run_web_server(port, process_args, is_running, web_api_queue, next_scheduled_run_info_shared):
+        def run_web_server(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared):
             """Run web server in a separate process with shared args"""
             try:
                 import uvicorn
@@ -650,7 +654,7 @@ if __name__ == "__main__":
                 from modules.web_api import create_app
 
                 # Create FastAPI app instance with process args and shared state
-                app = create_app(process_args, is_running, web_api_queue, next_scheduled_run_info_shared)
+                app = create_app(process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared)
 
                 # Configure uvicorn settings
                 config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
@@ -666,6 +670,7 @@ if __name__ == "__main__":
 
         manager = Manager()
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
+        is_running_lock = manager.Lock()  # Separate lock for is_running synchronization
         web_api_queue = manager.Queue()
         next_scheduled_run_info_shared = manager.dict()
 
@@ -679,7 +684,8 @@ if __name__ == "__main__":
             process_args = args.copy()
 
             web_process = multiprocessing.Process(
-                target=run_web_server, args=(port, process_args, is_running, web_api_queue, next_scheduled_run_info_shared)
+                target=run_web_server,
+                args=(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared),
             )
             web_process.start()
             logger.info("Web server started in separate process")
@@ -720,37 +726,7 @@ if __name__ == "__main__":
 
                 if web_server:
                     if is_running.value:
-                        logger.info(
-                            "Scheduled run skipped: Web API is currently processing a request. Adding scheduled run to queue."
-                        )
-                        for scheduled_config_file in config_files:
-                            # Create a temporary args dictionary for this config file
-                            args_for_config = args.copy()
-                            args_for_config["config_file"] = scheduled_config_file
-                            args_for_config["config_files"] = [scheduled_config_file]
-                            args_for_config["_from_web_api"] = False  # Ensure commands are read from config if present
-                            # time and time_obj are already in args from global initialization
-
-                            try:
-                                # Temporarily create a Config object to get the effective commands
-                                temp_cfg = Config(default_dir, args_for_config)
-                                effective_commands = [cmd for cmd, enabled in temp_cfg.commands.items() if enabled]
-
-                                scheduled_request = CommandRequest(
-                                    config_file=scheduled_config_file,
-                                    commands=effective_commands,
-                                    hashes=[],
-                                    dry_run=args["dry_run"],
-                                )
-                                web_api_queue.put(scheduled_request)
-                                logger.info(f"Scheduled job for {scheduled_config_file} added to web API queue.")
-                            except Failed as e:
-                                logger.error(f"Failed to process config file {scheduled_config_file} for scheduled job: {e}")
-                            except Exception as e:
-                                logger.error(
-                                    "An unexpected error occurred while processing config file "
-                                    f"{scheduled_config_file} for scheduled job: {e}"
-                                )
+                        logger.info("Scheduled run skipped: Web API is currently processing a request.")
                     else:
                         schedule.run_pending()
                 else:
