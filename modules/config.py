@@ -99,10 +99,10 @@ class Config:
         Process and log command settings from either config file or environment variables.
         """
         # Check if request is from web API
-        is_web_api = self.args.get("_from_web_api", False)
+        self.web_api_enabled = self.args.get("_from_web_api", False)
 
         # Determine source of commands (config file or args)
-        if "commands" in self.data and not is_web_api:
+        if "commands" in self.data and not self.web_api_enabled:
             if self.data["commands"] is not None:
                 logger.info(f"Commands found in {self.config_file}, ignoring env variables and using config commands instead.")
                 self.commands = {}
@@ -407,7 +407,11 @@ class Config:
         This method ensures that all required webhooks settings are present and correctly formatted.
         """
         self.webhooks_factory = Webhooks(
-            self, self.webhooks_factory, notifiarr=self.notifiarr_factory, apprise=self.apprise_factory
+            self,
+            self.webhooks_factory,
+            notifiarr=self.notifiarr_factory,
+            apprise=self.apprise_factory,
+            web_api_used=self.web_api_enabled,
         )
         try:
             self.webhooks_factory.start_time_hooks(self.start_time)

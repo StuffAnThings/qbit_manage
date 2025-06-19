@@ -16,7 +16,7 @@ GROUP_NOTIFICATION_LIMIT = 10
 class Webhooks:
     """Class to handle webhooks."""
 
-    def __init__(self, config, system_webhooks, notifiarr=None, apprise=None):
+    def __init__(self, config, system_webhooks, notifiarr=None, apprise=None, web_api_used=False):
         """Initialize the class."""
         self.config = config
         self.error_webhooks = system_webhooks["error"] if "error" in system_webhooks else []
@@ -31,6 +31,7 @@ class Webhooks:
             self.function_webhooks = []
         self.notifiarr = notifiarr
         self.apprise = apprise
+        self.web_api_used = web_api_used
 
     def request_and_check(self, webhook, json):
         """
@@ -113,6 +114,7 @@ class Webhooks:
                     "body": f"Starting {start_type}Run",
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dry_run": self.config.commands["dry_run"],
+                    "web_api_used": self.web_api_used,
                 },
             )
 

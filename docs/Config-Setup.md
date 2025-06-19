@@ -277,7 +277,8 @@ Payload will be sent at the start of the run
   "title": str,                // Title of the Payload
   "body": str,                 // Message of the Payload
   "start_time": str,           // Time Run is started Format "YYYY-mm-dd HH:MM:SS"
-  "dry_run": bool              // Dry-Run
+  "dry_run": bool,             // Dry-Run
+  "web_api_used": bool         // Indicates whether the run was initiated via the Web API (true) or not (false).
 }
 ```
 
