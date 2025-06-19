@@ -183,6 +183,8 @@ class Webhooks:
                 group_attr = group_notifications_by_key(payload, "torrent_tag")
             elif group_by == "tracker":
                 group_attr = group_notifications_by_key(payload, "torrent_tracker")
+            elif group_by == "status":
+                group_attr = group_notifications_by_key(payload, "torrent_status")
 
             # group notifications by grouping attribute
             for group in group_attr:
@@ -216,6 +218,12 @@ class Webhooks:
                     attr["torrent_tracker"] = group
                     attr["torrent_category"] = group_attr[group].get("torrent_category") if only_one_torrent_updated else None
                     attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
+                elif group_by == "status":
+                    attr["torrent_status"] = group
+                    attr["torrent_category"] = group_attr[group].get("torrent_category")
+                    attr["torrent_tag"] = group_attr[group].get("torrent_tag")
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker")
                     attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
 
                 self.config.send_notifications(attr)

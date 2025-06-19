@@ -155,8 +155,8 @@ class RemoveUnregistered:
         self.remove_previous_errors()
         self.process_torrent_issues()
 
-        self.config.webhooks_factory.notify(self.torrents_updated_issue, self.notify_attr_issue, group_by="tag")
-        self.config.webhooks_factory.notify(self.torrents_updated_unreg, self.notify_attr_unreg, group_by="tag")
+        self.config.webhooks_factory.notify(self.torrents_updated_issue, self.notify_attr_issue, group_by="status")
+        self.config.webhooks_factory.notify(self.torrents_updated_unreg, self.notify_attr_unreg, group_by="status")
 
         if self.cfg_rem_unregistered:
             if self.stats_deleted >= 1 or self.stats_deleted_contents >= 1:
