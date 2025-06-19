@@ -14,6 +14,7 @@ from datetime import timedelta
 from functools import lru_cache
 from multiprocessing import Manager
 
+from modules.util import execute_qbit_commands
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
@@ -501,49 +502,8 @@ def start():
         return None
 
     if qbit_manager:
-        # Set Category
-        if cfg.commands["cat_update"]:
-            stats["categorized"] += Category(qbit_manager).stats
-
-        # Set Tags
-        if cfg.commands["tag_update"]:
-            stats["tagged"] += Tags(qbit_manager).stats
-
-        # Remove Unregistered Torrents and tag errors
-        if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
-            rem_unreg = RemoveUnregistered(qbit_manager)
-            stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
-            stats["deleted"] += rem_unreg.stats_deleted
-            stats["deleted_contents"] += rem_unreg.stats_deleted_contents
-            stats["tagged_tracker_error"] += rem_unreg.stats_tagged
-            stats["untagged_tracker_error"] += rem_unreg.stats_untagged
-            stats["tagged"] += rem_unreg.stats_tagged
-
-        # Recheck Torrents
-        if cfg.commands["recheck"]:
-            recheck = ReCheck(qbit_manager)
-            stats["resumed"] += recheck.stats_resumed
-            stats["rechecked"] += recheck.stats_rechecked
-
-        # Tag NoHardLinks
-        if cfg.commands["tag_nohardlinks"]:
-            no_hardlinks = TagNoHardLinks(qbit_manager)
-            stats["tagged"] += no_hardlinks.stats_tagged
-            stats["tagged_noHL"] += no_hardlinks.stats_tagged
-            stats["untagged_noHL"] += no_hardlinks.stats_untagged
-
-        # Set Share Limits
-        if cfg.commands["share_limits"]:
-            share_limits = ShareLimits(qbit_manager)
-            stats["tagged"] += share_limits.stats_tagged
-            stats["updated_share_limits"] += share_limits.stats_tagged
-            stats["deleted"] += share_limits.stats_deleted
-            stats["deleted_contents"] += share_limits.stats_deleted_contents
-            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
-
-        # Remove Orphaned Files
-        if cfg.commands["rem_orphaned"]:
-            stats["orphaned"] += RemoveOrphaned(qbit_manager).stats
+        # Execute qBittorrent commands using shared function
+        execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
 
         # Empty RecycleBin
         stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")

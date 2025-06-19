@@ -969,3 +969,129 @@ def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
             return [os.path.split(x)[-1] for x in glob_configs]
         else:
             raise Failed(f"Config Error: Unable to find any config files in the pattern '{config_pattern}'")
+
+
+def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
+    """Execute qBittorrent management commands and update stats.
+
+    Args:
+        qbit_manager: The qBittorrent manager instance
+        commands: Dictionary of command flags (e.g., {"cat_update": True, "tag_update": False})
+        stats: Dictionary to update with execution statistics
+        hashes: Optional list of torrent hashes to process (for web API)
+
+    Returns:
+        None (modifies stats dictionary in place)
+    """
+    # Import here to avoid circular imports
+    from modules.core.category import Category
+    from modules.core.recheck import ReCheck
+    from modules.core.remove_orphaned import RemoveOrphaned
+    from modules.core.remove_unregistered import RemoveUnregistered
+    from modules.core.share_limits import ShareLimits
+    from modules.core.tag_nohardlinks import TagNoHardLinks
+    from modules.core.tags import Tags
+
+    # Initialize executed_commands list
+    if "executed_commands" not in stats:
+        stats["executed_commands"] = []
+
+    # Set Category
+    if commands.get("cat_update"):
+        if hashes is not None:
+            result = Category(qbit_manager, hashes).stats
+        else:
+            result = Category(qbit_manager).stats
+
+        if "categorized" not in stats:
+            stats["categorized"] = 0
+        stats["categorized"] += result
+        stats["executed_commands"].append("cat_update")
+
+    # Set Tags
+    if commands.get("tag_update"):
+        if hashes is not None:
+            result = Tags(qbit_manager, hashes).stats
+        else:
+            result = Tags(qbit_manager).stats
+
+        stats["tagged"] += result
+        stats["executed_commands"].append("tag_update")
+
+    # Remove Unregistered Torrents and tag errors
+    if commands.get("rem_unregistered") or commands.get("tag_tracker_error"):
+        if hashes is not None:
+            rem_unreg = RemoveUnregistered(qbit_manager, hashes)
+        else:
+            rem_unreg = RemoveUnregistered(qbit_manager)
+
+        # Initialize stats if they don't exist
+        for key in ["rem_unreg", "deleted", "deleted_contents", "tagged_tracker_error", "untagged_tracker_error"]:
+            if key not in stats:
+                stats[key] = 0
+
+        stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
+        stats["deleted"] += rem_unreg.stats_deleted
+        stats["deleted_contents"] += rem_unreg.stats_deleted_contents
+        stats["tagged_tracker_error"] += rem_unreg.stats_tagged
+        stats["untagged_tracker_error"] += rem_unreg.stats_untagged
+        stats["tagged"] += rem_unreg.stats_tagged
+        stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
+
+    # Recheck Torrents
+    if commands.get("recheck"):
+        if hashes is not None:
+            recheck = ReCheck(qbit_manager, hashes)
+        else:
+            recheck = ReCheck(qbit_manager)
+
+        if "rechecked" not in stats:
+            stats["rechecked"] = 0
+        if "resumed" not in stats:
+            stats["resumed"] = 0
+        stats["rechecked"] += recheck.stats_rechecked
+        stats["resumed"] += recheck.stats_resumed
+        stats["executed_commands"].append("recheck")
+
+    # Remove Orphaned Files
+    if commands.get("rem_orphaned"):
+        result = RemoveOrphaned(qbit_manager).stats
+
+        if "orphaned" not in stats:
+            stats["orphaned"] = 0
+        stats["orphaned"] += result
+        stats["executed_commands"].append("rem_orphaned")
+
+    # Tag NoHardLinks
+    if commands.get("tag_nohardlinks"):
+        if hashes is not None:
+            no_hardlinks = TagNoHardLinks(qbit_manager, hashes)
+        else:
+            no_hardlinks = TagNoHardLinks(qbit_manager)
+
+        if "tagged_noHL" not in stats:
+            stats["tagged_noHL"] = 0
+        if "untagged_noHL" not in stats:
+            stats["untagged_noHL"] = 0
+        stats["tagged"] += no_hardlinks.stats_tagged
+        stats["tagged_noHL"] += no_hardlinks.stats_tagged
+        stats["untagged_noHL"] += no_hardlinks.stats_untagged
+        stats["executed_commands"].append("tag_nohardlinks")
+
+    # Set Share Limits
+    if commands.get("share_limits"):
+        if hashes is not None:
+            share_limits = ShareLimits(qbit_manager, hashes)
+        else:
+            share_limits = ShareLimits(qbit_manager)
+
+        if "updated_share_limits" not in stats:
+            stats["updated_share_limits"] = 0
+        if "cleaned_share_limits" not in stats:
+            stats["cleaned_share_limits"] = 0
+        stats["tagged"] += share_limits.stats_tagged
+        stats["updated_share_limits"] += share_limits.stats_tagged
+        stats["deleted"] += share_limits.stats_deleted
+        stats["deleted_contents"] += share_limits.stats_deleted_contents
+        stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
+        stats["executed_commands"].append("share_limits")

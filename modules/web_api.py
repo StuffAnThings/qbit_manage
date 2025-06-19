@@ -17,13 +17,6 @@ from pydantic import BaseModel
 
 from modules import util
 from modules.config import Config
-from modules.core.category import Category
-from modules.core.recheck import ReCheck
-from modules.core.remove_orphaned import RemoveOrphaned
-from modules.core.remove_unregistered import RemoveUnregistered
-from modules.core.share_limits import ShareLimits
-from modules.core.tag_nohardlinks import TagNoHardLinks
-from modules.core.tags import Tags
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
@@ -142,52 +135,10 @@ class WebAPI:
             }
 
             if qbit_manager:
-                if args["cat_update"]:
-                    stats["categorized"] = Category(qbit_manager, hashes).stats
-                    stats["executed_commands"].append("cat_update")
+                # Execute qBittorrent commands using shared function
+                from modules.util import execute_qbit_commands
 
-                if args["tag_update"]:
-                    stats["tagged"] = Tags(qbit_manager, hashes).stats
-                    stats["executed_commands"].append("tag_update")
-
-                if args["rem_unregistered"] or args["tag_tracker_error"]:
-                    rem_unreg = RemoveUnregistered(qbit_manager, hashes)
-                    stats.update(
-                        {
-                            "rem_unreg": rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents,
-                            "deleted": rem_unreg.stats_deleted,
-                            "deleted_contents": rem_unreg.stats_deleted_contents,
-                            "tagged_tracker_error": rem_unreg.stats_tagged,
-                            "untagged_tracker_error": rem_unreg.stats_untagged,
-                        }
-                    )
-                    stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if args[cmd]])
-
-                if args["recheck"]:
-                    recheck = ReCheck(qbit_manager, hashes)
-                    stats["rechecked"] = recheck.stats_rechecked
-                    stats["resumed"] = recheck.stats_resumed
-                    stats["executed_commands"].append("recheck")
-
-                if args["rem_orphaned"]:
-                    stats["orphaned"] = RemoveOrphaned(qbit_manager).stats
-                    stats["executed_commands"].append("rem_orphaned")
-
-                if args["tag_nohardlinks"]:
-                    tag_nohardlinks = TagNoHardLinks(qbit_manager, hashes)
-                    stats["tagged"] += tag_nohardlinks.stats_tagged
-                    stats["tagged_noHL"] = tag_nohardlinks.stats_tagged
-                    stats["untagged_noHL"] = tag_nohardlinks.stats_untagged
-                    stats["executed_commands"].append("tag_nohardlinks")
-
-                if args["share_limits"]:
-                    share_limits = ShareLimits(qbit_manager, hashes)
-                    stats["tagged"] += share_limits.stats_tagged
-                    stats["updated_share_limits"] = share_limits.stats_tagged
-                    stats["deleted"] += share_limits.stats_deleted
-                    stats["deleted_contents"] += share_limits.stats_deleted_contents
-                    stats["cleaned_share_limits"] = share_limits.stats_deleted + share_limits.stats_deleted_contents
-                    stats["executed_commands"].append("share_limits")
+                execute_qbit_commands(qbit_manager, args, stats, hashes=hashes)
 
                 return stats, cfg
             else:
@@ -274,6 +225,16 @@ class WebAPI:
                         f"{os.linesep.join(stats_output) if len(stats_output) > 0 else ''}"
                         f"\nRun Time: {config_run_time}\n{run_mode_message}"  # Include run time and next scheduled run
                     )
+
+                    # Execute end time webhooks
+                    try:
+                        next_run = self.next_scheduled_run_info.get("next_run")
+                        body = ""  # Web API doesn't have a body like the main process
+                        cfg_obj.webhooks_factory.end_time_hooks(
+                            config_start_time, config_end_time, config_run_time, next_run, stats, body
+                        )
+                    except Exception as webhook_error:
+                        logger.error(f"Webhook error: {str(webhook_error)}")
                 finally:
                     logger.remove_config_handler(config_base)
 
@@ -344,34 +305,6 @@ class WebAPI:
         except Exception as e:
             # Ensure is_running is reset if any other exception occurs
             with self.is_running_lock:
-                self.is_running.value = False
-            logger.stacktrace()
-            logger.error(f"Error in run_command during execution: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
-        try:
-            return await self._execute_command(request)
-        except HTTPException as e:
-            # Ensure is_running is reset if an HTTPException occurs
-            try:
-                if self.is_running_lock.acquire(timeout=0.1):
-                    try:
-                        self.is_running.value = False
-                    finally:
-                        self.is_running_lock.release()
-            except Exception:
-                # If we can't acquire the lock, force reset anyway as a safety measure
-                self.is_running.value = False
-            raise e
-        except Exception as e:
-            # Ensure is_running is reset if any other exception occurs
-            try:
-                if self.is_running_lock.acquire(timeout=0.1):
-                    try:
-                        self.is_running.value = False
-                    finally:
-                        self.is_running_lock.release()
-            except Exception:
-                # If we can't acquire the lock, force reset anyway as a safety measure
                 self.is_running.value = False
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
