@@ -405,6 +405,8 @@ def restore_torrents(torrents_to_restore, dry_run=False):
             for file_path_relative in torrent_info.get("files", []):
                 all_files_to_move.add(file_path_relative)
 
+    failed_file_operations = []
+
     # Perform all file movements once
     if all_files_to_move:
         logging.info("\nMoving deleted contents back to their original locations...")
@@ -426,12 +428,26 @@ def restore_torrents(torrents_to_restore, dry_run=False):
                             logging.info(f"  Copied file as fallback: {file_path_relative}")
                         except Exception as copy_e:
                             logging.error(f"  Error copying {file_path_relative} as fallback: {copy_e}")
+                            failed_file_operations.append(file_path_relative)
+                    else:
+                        logging.info(f"  [DRY RUN] Would move file: {src_file_path} to {dest_file_path}")
                 else:
-                    logging.info(f"  [DRY RUN] Would move file: {src_file_path} to {dest_file_path}")
-            else:
-                logging.warning(f"  Source file not found for {file_path_relative}. Skipping move.")
+                    logging.warning(f"  Source file not found for {file_path_relative}. Skipping move.")
+                    failed_file_operations.append(file_path_relative)  # Also add to failed if source not found
     else:
         logging.info("\nNo contents marked as deleted for selected torrents. Skipping file movement.")
+
+    if failed_file_operations:
+        logging.error("\n--- Failed File Operations Summary ---")
+        for failed_file in failed_file_operations:
+            logging.error(f"  - {failed_file}")
+        logging.error("------------------------------------")
+        proceed_anyway = input(
+            "Some file operations failed. Do you want to proceed with torrent injection anyway? (yes/no): "
+        ).lower()
+        if proceed_anyway not in ["yes", "y"]:
+            logging.info("Torrent injection cancelled due to failed file operations.")
+            sys.exit(0)
 
     logging.info("\nStarting torrent injection...")
     for torrent_info in torrents_to_restore:
