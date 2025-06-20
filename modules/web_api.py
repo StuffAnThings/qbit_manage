@@ -219,8 +219,8 @@ class WebAPI:
                     if self.next_scheduled_run_info:
                         run_mode_message = f"\nNext Scheduled Run: {self.next_scheduled_run_info['next_run_str']}"
 
-                    logger.separator(
-                        f"Finished Run\n"
+                    body = logger.separator(
+                        f"Finished WebAPI Run\n"
                         f"Config File: {config_file}\n"
                         f"{os.linesep.join(stats_output) if len(stats_output) > 0 else ''}"
                         f"\nRun Time: {config_run_time}\n{run_mode_message}"  # Include run time and next scheduled run
@@ -229,7 +229,6 @@ class WebAPI:
                     # Execute end time webhooks
                     try:
                         next_run = self.next_scheduled_run_info.get("next_run")
-                        body = ""  # Web API doesn't have a body like the main process
                         cfg_obj.webhooks_factory.end_time_hooks(
                             config_start_time, config_end_time, config_run_time, next_run, stats, body
                         )

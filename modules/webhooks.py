@@ -111,7 +111,7 @@ class Webhooks:
                 {
                     "function": "run_start",
                     "title": None,
-                    "body": f"Starting {start_type}Run",
+                    "body": f"Starting {'WebAPI ' if self.web_api_used else ''}{start_type}Run",
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dry_run": self.config.commands["dry_run"],
                     "web_api_used": self.web_api_used,
