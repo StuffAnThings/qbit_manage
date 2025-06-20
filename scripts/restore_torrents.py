@@ -133,6 +133,7 @@ def load_torrents_metadata():
     torrents_data = []
     if not os.path.exists(metadata_path):
         logging.error(f"Metadata directory not found at {metadata_path}")
+        sys.exit(1)
         return torrents_data
 
     for filename in os.listdir(metadata_path):
@@ -418,8 +419,13 @@ def restore_torrents(torrents_to_restore, dry_run=False):
                     try:
                         shutil.move(src_file_path, dest_file_path)
                         logging.info(f"  Moved file: {file_path_relative}")
-                    except Exception as e:
-                        logging.error(f"  Error moving {file_path_relative}: {e}")
+                    except Exception as move_e:
+                        logging.error(f"  Error moving {file_path_relative}: {move_e}. Attempting to copy instead.")
+                        try:
+                            shutil.copy2(src_file_path, dest_file_path)
+                            logging.info(f"  Copied file as fallback: {file_path_relative}")
+                        except Exception as copy_e:
+                            logging.error(f"  Error copying {file_path_relative} as fallback: {copy_e}")
                 else:
                     logging.info(f"  [DRY RUN] Would move file: {src_file_path} to {dest_file_path}")
             else:
