@@ -230,7 +230,7 @@ class WebAPI:
                     try:
                         next_run = self.next_scheduled_run_info.get("next_run")
                         cfg_obj.webhooks_factory.end_time_hooks(
-                            config_start_time, config_end_time, config_run_time, next_run, stats, body
+                            config_start_time, config_end_time, config_run_time, next_run, stats, body[0]
                         )
                     except Exception as webhook_error:
                         logger.error(f"Webhook error: {str(webhook_error)}")
