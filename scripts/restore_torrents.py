@@ -1,3 +1,22 @@
+# restore_torrents.py
+# Version: 1.0.0
+#
+# This script restores torrents and their files from a Recycle Bin directory
+# to qBittorrent and their original locations.
+#
+# Usage:
+# python scripts/restore_torrents.py [--dry-run]
+#
+# Features:
+# - Interactive selection by torrent name, category, tracker, or all.
+# - Dry run mode for testing without actual changes.
+# - Requires qbittorrentapi (`pip install qbittorrentapi`).
+#
+# Configuration:
+# - Set `QBIT_HOST`, `QBIT_USERNAME`, `QBIT_PASSWORD` for qBittorrent WebUI.
+# - Set `RECYCLE_BIN_DIR` and `ROOT_DIR` for file paths.
+# - Adjust `LOG_LEVEL` (e.g., "INFO", "DEBUG").
+
 import argparse
 import json
 import logging
@@ -10,19 +29,32 @@ from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 
-# Configuration Constants
+### Configuration Constants ###
 QBIT_HOST = "http://qbittorrent:8080"  # Replace with your qBittorrent host
 QBIT_USERNAME = ""  # Replace with your qBittorrent username
 QBIT_PASSWORD = ""  # Replace with your qBittorrent password
 RECYCLE_BIN_DIR = "/data/torrents/.RecycleBin"
 ROOT_DIR = "/data/torrents/"
 LOG_LEVEL = "INFO"  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+### End of Configuration Constants ###
 
 
 def main():
     parser = argparse.ArgumentParser(description="Restore torrents from Recyclebin.")
     parser.add_argument("--dry-run", action="store_true", help="Perform a dry run without moving files or injecting torrents.")
     args = parser.parse_args()
+
+    # Check if ROOT_DIR exists and is a directory
+    if not os.path.isdir(ROOT_DIR):
+        logging.error(f"Error: ROOT_DIR '{ROOT_DIR}' does not exist or is not a directory. Please check your configuration.")
+        sys.exit(1)
+
+    # Check if RECYCLE_BIN_DIR exists and is a directory
+    if not os.path.isdir(RECYCLE_BIN_DIR):
+        logging.error(
+            f"Error: RECYCLE_BIN_DIR '{RECYCLE_BIN_DIR}' does not exist or is not a directory. Please check your configuration."
+        )
+        sys.exit(1)
 
     # Configure logging
     log_level = getattr(logging, LOG_LEVEL.upper())
