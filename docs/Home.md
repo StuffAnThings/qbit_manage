@@ -42,3 +42,5 @@ This wiki should tell you everything you need to know about the script to get it
       * [notifiarr](Config-Setup#notifiarr)
       * [webhooks](Config-Setup#webhooks)
   * [Commands](Commands)
+  * [Standalone Scripts](Standalone-Scripts)
+  * [Web API](Web-API)

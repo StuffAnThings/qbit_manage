@@ -10,6 +10,7 @@
 # Features:
 # - Interactive selection by torrent name, category, tracker, or all.
 # - Dry run mode for testing without actual changes.
+# - Injected torrents are added in a paused state to allow users to manually recheck or re-verify.
 # - Requires qbittorrentapi (`pip install qbittorrentapi`).
 #
 # Please fill in the configuration details below in the Configuration Constants section.
@@ -478,7 +479,7 @@ def restore_torrents(torrents_to_restore, dry_run=False):
             logging.info("Torrent injection cancelled due to failed file operations.")
             sys.exit(0)
 
-    logging.info("\nStarting torrent injection...")
+    logging.info("\nStarting torrent injection. All injected torrents will be added in a paused state.")
     for torrent_info in torrents_to_restore:
         torrent_name = torrent_info.get("torrent_name", "Unknown")
         torrent_hash = torrent_info.get("torrent_hash")
