@@ -12,10 +12,7 @@
 # - Dry run mode for testing without actual changes.
 # - Requires qbittorrentapi (`pip install qbittorrentapi`).
 #
-# Configuration:
-# - Set `QBIT_HOST`, `QBIT_USERNAME`, `QBIT_PASSWORD` for qBittorrent WebUI.
-# - Set `RECYCLE_BIN_DIR` and `ROOT_DIR` for file paths.
-# - Adjust `LOG_LEVEL` (e.g., "INFO", "DEBUG").
+# Please fill in the configuration details below in the Configuration Constants section.
 
 import argparse
 import json
@@ -30,11 +27,11 @@ from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
 
 ### Configuration Constants ###
-QBIT_HOST = "http://qbittorrent:8080"  # Replace with your qBittorrent host
-QBIT_USERNAME = ""  # Replace with your qBittorrent username
-QBIT_PASSWORD = ""  # Replace with your qBittorrent password
-RECYCLE_BIN_DIR = "/data/torrents/.RecycleBin"
-ROOT_DIR = "/data/torrents/"
+QBIT_HOST = "http://qbittorrent:8080"  # Hostname or IP address of the qBittorrent WebUI.
+QBIT_USERNAME = ""  # Username for the qBittorrent WebUI.
+QBIT_PASSWORD = ""  # Password for the qBittorrent WebUI.
+RECYCLE_BIN_DIR = "/data/torrents/.RecycleBin"  # Directory where torrents are moved before deletion.
+ROOT_DIR = "/data/torrents/"  # Root directory where your downloads are stored.
 LOG_LEVEL = "INFO"  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 ### End of Configuration Constants ###
 
