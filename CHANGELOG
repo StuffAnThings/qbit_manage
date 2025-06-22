@@ -1,18 +1,19 @@
-# Breaking Change
-- `requirements.txt` is now replaced with `pyproject.toml` meaning that **local installs** will need to replace their update command `pip install -r requirements.txt` with `pip install .`
-- Those that are running qbit-manage in docker don't need to do anything and things will continue to work as is
-
 # Requirements Updated
-qbittorrent-api==2025.5.0
-humanize==4.12.3
+- requests==2.32.4
+- ruamel.yaml==0.18.14
 
 # New Updates
-- Added user defined stalled_tag. Configurable through config.yml. (Closes #802 Thanks to @Patchy3767)
+- Added Web API server feature for running commands via HTTP requests
+  - New `--web-server` flag to start the API server
+  - API requests during scheduled runs are automatically queued
+  - Queued requests are processed after the scheduled run completes
+  - See [docs/Web-API.md](https://github.com/StuffAnThings/qbit_manage/wiki/Web-API) for usage instructions
+- Renamed `last_active` to `min_last_active`
+- Added `max_last_active` to `share_limits` (Closes #774)
+- Added new [restore_torrents.py](https://github.com/StuffAnThings/qbit_manage/blob/develop/scripts/restore_torrents.py) script for restoring deleted files+torrents in RecycleBin
 
 ## Bug Fixes
-- Fixed max_seeding time of 0 for share_limits (Fixes #790 Thanks to @glau-bd)
-- Fixed Upload Limit not reset when LastActive/MinSeedsNotMet (Fixes #804)
-- Fixed Share limits not showing in logs when 0 torrents are in the group(Fixes #789)
-- Fixes bug where it tries to remove root_dir when not using category (Fixes #777)
+- (fix): don't reapply tags every run when torrent (#824) (Thanks to @xx4h)
+- Fix share limits always re-applying when using global Limit (-2) (Closes #831) (Thanks to @chrisfosterelli)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.2.2...v4.3.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.3.0...v4.4.0

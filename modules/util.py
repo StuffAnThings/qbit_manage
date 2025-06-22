@@ -1,5 +1,6 @@
 """Utility functions for qBit Manage."""
 
+import glob
 import json
 import logging
 import os
@@ -66,6 +67,63 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
                     if ctag in tag:
                         tags_to_remove.append(tag)
             return tags_to_remove
+
+
+def format_stats_summary(stats: dict, config) -> list[str]:
+    """
+    Formats the statistics summary into a human-readable list of strings.
+
+    Args:
+        stats (dict): The dictionary containing the statistics.
+        config (Config): The Config object to access tracker_error_tag and nohardlinks_tag.
+
+    Returns:
+        list[str]: A list of formatted strings, each representing a statistic.
+    """
+    stats_output = []
+    for stat_key, stat_value in stats.items():
+        if stat_key == "executed_commands":
+            if stat_value:
+                stats_output.append(f"Executed Commands: {', '.join(stat_value)}")
+        elif isinstance(stat_value, (int, float)) and stat_value > 0:
+            display_key = stat_key.replace("_", " ").title()
+            if stat_key == "tagged_tracker_error" and hasattr(config, "tracker_error_tag"):
+                display_key = f"{config.tracker_error_tag} Torrents Tagged"
+            elif stat_key == "untagged_tracker_error" and hasattr(config, "tracker_error_tag"):
+                display_key = f"{config.tracker_error_tag} Torrents Untagged"
+            elif stat_key == "tagged_noHL" and hasattr(config, "nohardlinks_tag"):
+                display_key = f"{config.nohardlinks_tag} Torrents Tagged"
+            elif stat_key == "untagged_noHL" and hasattr(config, "nohardlinks_tag"):
+                display_key = f"{config.nohardlinks_tag} Torrents Untagged"
+            elif stat_key == "rem_unreg":
+                display_key = "Unregistered Torrents Removed"
+            elif stat_key == "deleted_contents":
+                display_key = "Torrents + Contents Deleted"
+            elif stat_key == "updated_share_limits":
+                display_key = "Share Limits Updated"
+            elif stat_key == "cleaned_share_limits":
+                display_key = "Torrents Removed from Meeting Share Limits"
+            elif stat_key == "recycle_emptied":
+                display_key = "Files Deleted from Recycle Bin"
+            elif stat_key == "orphaned_emptied":
+                display_key = "Files Deleted from Orphaned Data"
+            elif stat_key == "orphaned":
+                display_key = "Orphaned Files"
+            elif stat_key == "added":
+                display_key = "Torrents Added"
+            elif stat_key == "resumed":
+                display_key = "Torrents Resumed"
+            elif stat_key == "rechecked":
+                display_key = "Torrents Rechecked"
+            elif stat_key == "deleted":
+                display_key = "Torrents Deleted"
+            elif stat_key == "categorized":
+                display_key = "Torrents Categorized"
+            elif stat_key == "tagged":
+                display_key = "Torrents Tagged"
+
+            stats_output.append(f"Total {display_key}: {stat_value}")
+    return stats_output
 
 
 class TorrentMessages:
@@ -197,11 +255,57 @@ class check:
     def __init__(self, config):
         self.config = config
 
-    def overwrite_attributes(self, data, attribute):
-        """Overwrite attributes in config."""
+    def overwrite_attributes(self, data, attribute, parent=None):
+        """
+        Overwrite attributes in config.
+
+        Args:
+            data: The new data to replace the attribute with
+            attribute: The attribute name to search for
+            parent: Optional parent attribute to restrict the search to
+        """
+        if data is None:
+            return
+
         yaml = YAML(self.config.config_path)
-        if data is not None and attribute in yaml.data:
-            yaml.data[attribute] = data
+
+        # Define the recursive search function once
+        def find_and_replace_attribute(dictionary, attr, new_data):
+            """Recursively search for attribute in nested dictionaries and replace it."""
+            for key, value in dictionary.items():
+                if key == attr:
+                    dictionary[key] = new_data
+                    return True
+                elif isinstance(value, dict):
+                    if find_and_replace_attribute(value, attr, new_data):
+                        return True
+            return False
+
+        # Determine the root dictionary to search in
+        if parent is not None:
+            # Only search within parent if it exists and is a dictionary
+            if parent not in yaml.data or not isinstance(yaml.data[parent], dict):
+                return
+
+            root_dict = yaml.data[parent]
+
+            # Check if attribute exists directly in parent
+            if attribute in root_dict:
+                root_dict[attribute] = data
+                yaml.save()
+                return
+        else:
+            # Search in the entire yaml.data
+            root_dict = yaml.data
+
+            # Check if attribute exists at top level
+            if attribute in root_dict:
+                root_dict[attribute] = data
+                yaml.save()
+                return
+
+        # If not found directly, search recursively
+        if find_and_replace_attribute(root_dict, attribute, data):
             yaml.save()
 
     def check_for_attribute(
@@ -834,3 +938,160 @@ class EnvStr(str):
     def __repr__(self):
         """Return the resolved value as a string"""
         return super().__repr__()
+
+
+def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
+    """Get list of config files matching a pattern.
+
+    Args:
+        config_pattern (str): Config file pattern (e.g. "config.yml" or "config*.yml")
+        default_dir (str): Default directory to look for configs
+
+    Returns:
+        list: List of matching config file names
+
+    Raises:
+        Failed: If no matching config files found
+    """
+    # Check docker config first
+    if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_pattern)):
+        search_dir = "/config"
+    else:
+        search_dir = default_dir
+
+    # Handle single file vs pattern
+    if "*" not in config_pattern:
+        return [config_pattern]
+    else:
+        glob_configs = glob.glob(os.path.join(search_dir, config_pattern))
+        if glob_configs:
+            # Return just the filenames without paths
+            return [os.path.split(x)[-1] for x in glob_configs]
+        else:
+            raise Failed(f"Config Error: Unable to find any config files in the pattern '{config_pattern}'")
+
+
+def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
+    """Execute qBittorrent management commands and update stats.
+
+    Args:
+        qbit_manager: The qBittorrent manager instance
+        commands: Dictionary of command flags (e.g., {"cat_update": True, "tag_update": False})
+        stats: Dictionary to update with execution statistics
+        hashes: Optional list of torrent hashes to process (for web API)
+
+    Returns:
+        None (modifies stats dictionary in place)
+    """
+    # Import here to avoid circular imports
+    from modules.core.category import Category
+    from modules.core.recheck import ReCheck
+    from modules.core.remove_orphaned import RemoveOrphaned
+    from modules.core.remove_unregistered import RemoveUnregistered
+    from modules.core.share_limits import ShareLimits
+    from modules.core.tag_nohardlinks import TagNoHardLinks
+    from modules.core.tags import Tags
+
+    # Initialize executed_commands list
+    if "executed_commands" not in stats:
+        stats["executed_commands"] = []
+
+    # Set Category
+    if commands.get("cat_update"):
+        if hashes is not None:
+            result = Category(qbit_manager, hashes).stats
+        else:
+            result = Category(qbit_manager).stats
+
+        if "categorized" not in stats:
+            stats["categorized"] = 0
+        stats["categorized"] += result
+        stats["executed_commands"].append("cat_update")
+
+    # Set Tags
+    if commands.get("tag_update"):
+        if hashes is not None:
+            result = Tags(qbit_manager, hashes).stats
+        else:
+            result = Tags(qbit_manager).stats
+
+        stats["tagged"] += result
+        stats["executed_commands"].append("tag_update")
+
+    # Remove Unregistered Torrents and tag errors
+    if commands.get("rem_unregistered") or commands.get("tag_tracker_error"):
+        if hashes is not None:
+            rem_unreg = RemoveUnregistered(qbit_manager, hashes)
+        else:
+            rem_unreg = RemoveUnregistered(qbit_manager)
+
+        # Initialize stats if they don't exist
+        for key in ["rem_unreg", "deleted", "deleted_contents", "tagged_tracker_error", "untagged_tracker_error"]:
+            if key not in stats:
+                stats[key] = 0
+
+        stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
+        stats["deleted"] += rem_unreg.stats_deleted
+        stats["deleted_contents"] += rem_unreg.stats_deleted_contents
+        stats["tagged_tracker_error"] += rem_unreg.stats_tagged
+        stats["untagged_tracker_error"] += rem_unreg.stats_untagged
+        stats["tagged"] += rem_unreg.stats_tagged
+        stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
+
+    # Recheck Torrents
+    if commands.get("recheck"):
+        if hashes is not None:
+            recheck = ReCheck(qbit_manager, hashes)
+        else:
+            recheck = ReCheck(qbit_manager)
+
+        if "rechecked" not in stats:
+            stats["rechecked"] = 0
+        if "resumed" not in stats:
+            stats["resumed"] = 0
+        stats["rechecked"] += recheck.stats_rechecked
+        stats["resumed"] += recheck.stats_resumed
+        stats["executed_commands"].append("recheck")
+
+    # Remove Orphaned Files
+    if commands.get("rem_orphaned"):
+        result = RemoveOrphaned(qbit_manager).stats
+
+        if "orphaned" not in stats:
+            stats["orphaned"] = 0
+        stats["orphaned"] += result
+        stats["executed_commands"].append("rem_orphaned")
+
+    # Tag NoHardLinks
+    if commands.get("tag_nohardlinks"):
+        if hashes is not None:
+            no_hardlinks = TagNoHardLinks(qbit_manager, hashes)
+        else:
+            no_hardlinks = TagNoHardLinks(qbit_manager)
+
+        if "tagged_noHL" not in stats:
+            stats["tagged_noHL"] = 0
+        if "untagged_noHL" not in stats:
+            stats["untagged_noHL"] = 0
+        stats["tagged"] += no_hardlinks.stats_tagged
+        stats["tagged_noHL"] += no_hardlinks.stats_tagged
+        stats["untagged_noHL"] += no_hardlinks.stats_untagged
+        stats["executed_commands"].append("tag_nohardlinks")
+
+    # Set Share Limits
+    if commands.get("share_limits"):
+        if hashes is not None:
+            share_limits = ShareLimits(qbit_manager, hashes)
+        else:
+            share_limits = ShareLimits(qbit_manager)
+
+        if "updated_share_limits" not in stats:
+            stats["updated_share_limits"] = 0
+        if "cleaned_share_limits" not in stats:
+            stats["cleaned_share_limits"] = 0
+        stats["tagged"] += share_limits.stats_tagged
+        stats["updated_share_limits"] += share_limits.stats_tagged
+        stats["deleted"] += share_limits.stats_deleted
+        stats["deleted_contents"] += share_limits.stats_deleted_contents
+        stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
+        stats["executed_commands"].append("share_limits")

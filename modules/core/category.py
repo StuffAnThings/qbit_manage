@@ -6,9 +6,10 @@ logger = util.logger
 
 
 class Category:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
         self.config = qbit_manager.config
+        self.hashes = hashes
         self.client = qbit_manager.client
         self.stats = 0
         self.torrents_updated = []  # List of torrents updated
@@ -23,7 +24,9 @@ class Category:
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
         logger.separator("Updating Categories", space=False, border=False)
         torrent_list_filter = {"status_filter": self.status_filter}
-        if not self.cat_update_all:
+        if self.hashes:
+            torrent_list_filter["torrent_hashes"] = self.hashes
+        if not self.cat_update_all and not self.hashes:
             torrent_list_filter["category"] = ""
         torrent_list = self.qbt.get_torrents(torrent_list_filter)
         for torrent in torrent_list:

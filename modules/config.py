@@ -10,7 +10,6 @@ from retrying import retry
 
 from modules import util
 from modules.apprise import Apprise
-from modules.bhd import BeyondHD
 from modules.notifiarr import Notifiarr
 from modules.qbittorrent import Qbt
 from modules.util import YAML
@@ -39,15 +38,14 @@ class Config:
     """Config class for qBittorrent-Manage"""
 
     def __init__(self, default_dir, args):
-        logger.info("Locating config...")
         self.args = args
-        config_file = args["config_file"]
-        if config_file and os.path.exists(config_file):
-            self.config_path = os.path.abspath(config_file)
-        elif config_file and os.path.exists(os.path.join(default_dir, config_file)):
-            self.config_path = os.path.abspath(os.path.join(default_dir, config_file))
-        elif config_file and not os.path.exists(config_file):
-            raise Failed(f"Config Error: config not found at {os.path.abspath(config_file)}")
+        self.config_file = args["config_file"]
+        if self.config_file and os.path.exists(self.config_file):
+            self.config_path = os.path.abspath(self.config_file)
+        elif self.config_file and os.path.exists(os.path.join(default_dir, self.config_file)):
+            self.config_path = os.path.abspath(os.path.join(default_dir, self.config_file))
+        elif self.config_file and not os.path.exists(self.config_file):
+            raise Failed(f"Config Error: config not found at {os.path.abspath(self.config_file)}")
         elif os.path.exists(os.path.join(default_dir, "config.yml")):
             self.config_path = os.path.abspath(os.path.join(default_dir, "config.yml"))
         else:
@@ -56,15 +54,57 @@ class Config:
 
         self.util = check(self)
         self.default_dir = default_dir
-        self.start_time = args["time_obj"]
+        self.start_time = self.args["time_obj"]
 
         loaded_yaml = YAML(self.config_path)
         self.data = loaded_yaml.data
 
-        # Replace env variables with config commands
-        if "commands" in self.data:
+        self.load_config()
+        self.configure_qbt()
+
+    def load_config(self):
+        """
+        Loads and processes the configuration settings for the application.
+        """
+        self.commands = self.process_config_commands()
+        self.data = self.process_config_data()
+        self.process_config_settings()
+        self.process_config_webhooks()
+        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
+        self.process_config_apprise()
+        self.process_config_notifiarr()
+        self.process_config_all_webhooks()
+        self.process_config_nohardlinks()
+        self.process_config_share_limits()
+        self.processs_config_recyclebin()
+        self.process_config_directories()
+        self.process_config_orphaned()
+
+    def configure_qbt(self):
+        """
+        Configure qBittorrent client settings based on the loaded configuration data.
+        This method initializes the qBittorrent client with the necessary settings.
+        """
+        # Connect to Qbittorrent
+        self.qbt = None
+        if "qbt" in self.data:
+            self.qbt = self.__connect()
+        else:
+            e = "Config Error: qbt attribute not found"
+            self.notify(e, "Config")
+            raise Failed(e)
+
+    def process_config_commands(self):
+        """
+        Process and log command settings from either config file or environment variables.
+        """
+        # Check if request is from web API
+        self.web_api_enabled = self.args.get("_from_web_api", False)
+
+        # Determine source of commands (config file or args)
+        if "commands" in self.data and not self.web_api_enabled:
             if self.data["commands"] is not None:
-                logger.info(f"Commands found in {config_file}, ignoring env variables and using config commands instead.")
+                logger.info(f"Commands found in {self.config_file}, ignoring env variables and using config commands instead.")
                 self.commands = {}
                 for command in COMMANDS:
                     self.commands[command] = self.util.check_for_attribute(
@@ -75,68 +115,82 @@ class Config:
                         default=False,
                         save=True,
                     )
-                logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")
-                logger.debug(f"    --run (QBT_RUN): {args['run']}")
-                logger.debug(f"    --schedule (QBT_SCHEDULE): {args['sch']}")
-                logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {args['startupDelay']}")
-                logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
-                logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
-                logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
-                logger.debug(f"    --log-size (QBT_LOG_SIZE): {args['log_size']}")
-                logger.debug(f"    --log-count (QBT_LOG_COUNT): {args['log_count']}")
-                logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
-                logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
-                logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
-                logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
-                logger.separator("CONFIG OVERRIDE RUN COMMDANDS", space=False, border=False, loglevel="DEBUG")
-                logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
-                logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
-                logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {self.commands['tag_update']}")
-                logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {self.commands['rem_unregistered']}")
-                logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
-                logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
-                logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
-                logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {self.commands['share_limits']}")
-                logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
-                logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {self.commands['skip_qb_version_check']}")
-                logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
-                logger.separator(loglevel="DEBUG")
-
+                # For logging, we'll still use args
+                command_source = "CONFIG OVERRIDE RUN COMMANDS"
+            else:
+                self.commands = self.args
+                command_source = "DOCKER ENV RUN COMMANDS"
         else:
-            self.commands = args
-            logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")
-            logger.debug(f"    --run (QBT_RUN): {args['run']}")
-            logger.debug(f"    --schedule (QBT_SCHEDULE): {args['sch']}")
-            logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {args['startupDelay']}")
-            logger.debug(f"    --config-file (QBT_CONFIG): {args['config_files']}")
-            logger.debug(f"    --log-file (QBT_LOGFILE): {args['log_file']}")
-            logger.debug(f"    --log-level (QBT_LOG_LEVEL): {args['log_level']}")
-            logger.debug(f"    --divider (QBT_DIVIDER): {args['divider']}")
-            logger.debug(f"    --width (QBT_WIDTH): {args['screen_width']}")
-            logger.debug(f"    --debug (QBT_DEBUG): {args['debug']}")
-            logger.debug(f"    --trace (QBT_TRACE): {args['trace']}")
-            logger.separator("DOCKER ENV RUN COMMANDS", space=False, border=False, loglevel="DEBUG")
-            logger.debug(f"    --recheck (QBT_RECHECK): {args['recheck']}")
-            logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {args['cat_update']}")
-            logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {args['tag_update']}")
-            logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {args['rem_unregistered']}")
-            logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {args['tag_tracker_error']}")
-            logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {args['rem_orphaned']}")
-            logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {args['tag_nohardlinks']}")
-            logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {args['share_limits']}")
-            logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {args['skip_cleanup']}")
-            logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {args['skip_qb_version_check']}")
-            logger.debug(f"    --dry-run (QBT_DRY_RUN): {args['dry_run']}")
-            logger.separator(loglevel="DEBUG")
+            self.commands = self.args
+            command_source = "WEB API RUN COMMANDS"
 
-        if "qbt" in self.data:
-            self.data["qbt"] = self.data.pop("qbt")
-        self.data["settings"] = self.data.pop("settings") if "settings" in self.data else {}
-        if "directory" in self.data:
-            self.data["directory"] = self.data.pop("directory")
-        self.data["cat"] = self.data.pop("cat") if "cat" in self.data else {}
-        if "cat_change" in self.data:
-            self.data["cat_change"] = self.data.pop("cat_change")
+        # Log Docker env commands (same regardless of source)
+        logger.separator("DOCKER ENV COMMANDS", loglevel="DEBUG")
+        logger.debug(f"    --run (QBT_RUN): {self.args['run']}")
+        logger.debug(f"    --schedule (QBT_SCHEDULE): {self.args['sch']}")
+        logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {self.args['startupDelay']}")
+        logger.debug(f"    --config-file (QBT_CONFIG): {self.args['config_files']}")
+        logger.debug(f"    --log-file (QBT_LOGFILE): {self.args['log_file']}")
+        logger.debug(f"    --log-level (QBT_LOG_LEVEL): {self.args['log_level']}")
+        logger.debug(f"    --log-size (QBT_LOG_SIZE): {self.args['log_size']}")
+        logger.debug(f"    --log-count (QBT_LOG_COUNT): {self.args['log_count']}")
+        logger.debug(f"    --divider (QBT_DIVIDER): {self.args['divider']}")
+        logger.debug(f"    --width (QBT_WIDTH): {self.args['screen_width']}")
+        logger.debug(f"    --debug (QBT_DEBUG): {self.args['debug']}")
+        logger.debug(f"    --trace (QBT_TRACE): {self.args['trace']}")
+
+        # Log run commands (which may come from config or env)
+        logger.separator(command_source, space=False, border=False, loglevel="DEBUG")
+        logger.debug(f"    --recheck (QBT_RECHECK): {self.commands['recheck']}")
+        logger.debug(f"    --cat-update (QBT_CAT_UPDATE): {self.commands['cat_update']}")
+        logger.debug(f"    --tag-update (QBT_TAG_UPDATE): {self.commands['tag_update']}")
+        logger.debug(f"    --rem-unregistered (QBT_REM_UNREGISTERED): {self.commands['rem_unregistered']}")
+        logger.debug(f"    --tag-tracker-error (QBT_TAG_TRACKER_ERROR): {self.commands['tag_tracker_error']}")
+        logger.debug(f"    --rem-orphaned (QBT_REM_ORPHANED): {self.commands['rem_orphaned']}")
+        logger.debug(f"    --tag-nohardlinks (QBT_TAG_NOHARDLINKS): {self.commands['tag_nohardlinks']}")
+        logger.debug(f"    --share-limits (QBT_SHARE_LIMITS): {self.commands['share_limits']}")
+        logger.debug(f"    --skip-cleanup (QBT_SKIP_CLEANUP): {self.commands['skip_cleanup']}")
+        logger.debug(f"    --skip-qb-version-check (QBT_SKIP_QB_VERSION_CHECK): {self.commands['skip_qb_version_check']}")
+        logger.debug(f"    --dry-run (QBT_DRY_RUN): {self.commands['dry_run']}")
+        logger.separator(loglevel="DEBUG")
+
+        return self.commands
+
+    def process_config_data(self):
+        """
+        Process configuration data by normalizing structure and handling special cases.
+        Transforms configuration data into the expected internal format.
+        """
+        # Handle section renames and ensure all required sections exist
+        section_mappings = {
+            "qbt": "qbt",
+            "settings": "settings",
+            "directory": "directory",
+            "cat": "cat",
+            "cat_change": "cat_change",
+            "nohardlinks": "nohardlinks",
+            "recyclebin": "recyclebin",
+            "orphaned": "orphaned",
+            "apprise": "apprise",
+            "notifiarr": "notifiarr",
+            "share_limits": "share_limits",
+        }
+
+        # Ensure settings section exists
+        if "settings" not in self.data:
+            self.data["settings"] = {}
+
+        # Ensure cat section exists
+        if "cat" not in self.data:
+            self.data["cat"] = {}
+
+        # Process each standard section
+        for target_key, source_key in section_mappings.items():
+            if source_key in self.data:
+                if target_key != source_key:  # Only pop if renaming is needed
+                    self.data[target_key] = self.data.pop(source_key)
+
+        # Process tracker section with special handling for pipe-separated URLs
         if "tracker" in self.data:
             trackers = self.data.pop("tracker")
             self.data["tracker"] = {}
@@ -146,23 +200,16 @@ class Config:
                     self.data["tracker"][tracker_url.strip()] = data
         else:
             self.data["tracker"] = {}
-        if "nohardlinks" in self.data:
-            self.data["nohardlinks"] = self.data.pop("nohardlinks")
-        if "recyclebin" in self.data:
-            self.data["recyclebin"] = self.data.pop("recyclebin")
-        if "orphaned" in self.data:
-            self.data["orphaned"] = self.data.pop("orphaned")
-        if "apprise" in self.data:
-            self.data["apprise"] = self.data.pop("apprise")
-        if "notifiarr" in self.data:
-            self.data["notifiarr"] = self.data.pop("notifiarr")
+
+        # Process webhooks with special handling for function hooks
         if "webhooks" in self.data:
             temp = self.data.pop("webhooks")
             if temp is not None:
                 if "function" not in temp or ("function" in temp and temp["function"] is None):
                     temp["function"] = {}
 
-                def hooks(attr):
+                # Helper function to process each webhook function type
+                def process_hook(attr):
                     if attr in temp:
                         items = temp.pop(attr)
                         if items:
@@ -171,23 +218,33 @@ class Config:
                         temp["function"][attr] = {}
                         temp["function"][attr] = None
 
-                hooks("recheck")
-                hooks("cat_update")
-                hooks("tag_update")
-                hooks("rem_unregistered")
-                hooks("rem_orphaned")
-                hooks("tag_nohardlinks")
-                hooks("cleanup_dirs")
-                self.data["webhooks"] = temp
-        if "bhd" in self.data:
-            self.data["bhd"] = self.data.pop("bhd")
-        if "share_limits" in self.data:
-            self.data["share_limits"] = self.data.pop("share_limits")
+                # Process all webhook function types
+                hook_types = [
+                    "recheck",
+                    "cat_update",
+                    "tag_update",
+                    "rem_unregistered",
+                    "rem_orphaned",
+                    "tag_nohardlinks",
+                    "cleanup_dirs",
+                ]
+                for hook_type in hook_types:
+                    process_hook(hook_type)
 
+                self.data["webhooks"] = temp
+
+        # Set final values from commands
         self.dry_run = self.commands["dry_run"]
         self.loglevel = "DRYRUN" if self.dry_run else "INFO"
         self.session = requests.Session()
 
+        return self.data
+
+    def process_config_settings(self):
+        """
+        Process settings from the configuration data.
+        This method ensures that all required settings are present and correctly formatted.
+        """
         share_limits_tag = self.data["settings"].get("share_limits_suffix_tag", "~share_limit")
         # Convert previous share_limits_suffix_tag to new default share_limits_tag
         if share_limits_tag == "share_limit":
@@ -264,6 +321,11 @@ class Config:
         if "share_limits_suffix_tag" in self.data["settings"]:
             self.util.overwrite_attributes(self.settings, "settings")
 
+    def process_config_webhooks(self):
+        """
+        Process webhooks from the configuration data.
+        This method ensures that all required webhooks are present and correctly formatted.
+        """
         default_function = {
             "recheck": None,
             "cat_update": None,
@@ -291,8 +353,11 @@ class Config:
         for func in default_function:
             self.util.check_for_attribute(self.data, func, parent="webhooks", subparent="function", default_is_none=True)
 
-        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
-
+    def process_config_apprise(self):
+        """
+        Process the Apprise configuration data.
+        This method ensures that all required Apprise settings are present and correctly formatted.
+        """
         self.apprise_factory = None
         if "apprise" in self.data:
             if self.data["apprise"] is not None and self.data["apprise"].get("api_url") is not None:
@@ -313,6 +378,11 @@ class Config:
                     logger.error(err)
                 logger.info(f"Apprise Connection {'Failed' if self.apprise_factory is None else 'Successful'}")
 
+    def process_config_notifiarr(self):
+        """
+        Process the Notifiarr configuration data.
+        This method ensures that all required Notifiarr settings are present and correctly formatted.
+        """
         self.notifiarr_factory = None
         if "notifiarr" in self.data:
             if self.data["notifiarr"] is not None and self.data["notifiarr"].get("apikey") is not None:
@@ -331,8 +401,17 @@ class Config:
                     logger.error(err)
                 logger.info(f"Notifiarr Connection {'Failed' if self.notifiarr_factory is None else 'Successful'}")
 
+    def process_config_all_webhooks(self):
+        """
+        Process all the webhooks configuration data for any type of webhook.
+        This method ensures that all required webhooks settings are present and correctly formatted.
+        """
         self.webhooks_factory = Webhooks(
-            self, self.webhooks_factory, notifiarr=self.notifiarr_factory, apprise=self.apprise_factory
+            self,
+            self.webhooks_factory,
+            notifiarr=self.notifiarr_factory,
+            apprise=self.apprise_factory,
+            web_api_used=self.web_api_enabled,
         )
         try:
             self.webhooks_factory.start_time_hooks(self.start_time)
@@ -340,24 +419,11 @@ class Config:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
 
-        self.beyond_hd = None
-        if "bhd" in self.data:
-            logger.warning("DEPCRATED: bhd attribute is no longer valid. Please remove the 'bhd' attribute from your config.")
-            if (
-                self.data["bhd"] is not None
-                and self.data["bhd"].get("apikey") is not None
-                and self.data["bhd"].get("legacy", False)
-            ):
-                logger.info("Connecting to BHD API...")
-                try:
-                    self.beyond_hd = BeyondHD(
-                        self, {"apikey": self.util.check_for_attribute(self.data, "apikey", parent="bhd", throw=True)}
-                    )
-                except Failed as err:
-                    logger.error(err)
-                    self.notify(err, "BHD")
-                logger.info(f"BHD Connection {'Failed' if self.beyond_hd is None else 'Successful'}")
-
+    def process_config_nohardlinks(self):
+        """
+        Process the nohardlinks configuration data.
+        This method ensures that all required nohardlinks settings are present and correctly formatted.
+        """
         # nohardlinks
         self.nohardlinks = None
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
@@ -389,7 +455,11 @@ class Config:
                 self.notify(err, "Config")
                 raise Failed(err)
 
-        # share limits
+    def process_config_share_limits(self):
+        """
+        Process the share limits configuration data.
+        This method ensures that all required share limits settings are present and correctly formatted.
+        """
         self.share_limits = None
         if "share_limits" in self.data and self.commands["share_limits"]:
 
@@ -509,6 +579,17 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["max_last_active"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_last_active",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="time_parse",
+                    min_int=-1,
+                    default=-1,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["min_seeding_time"] = self.util.check_for_attribute(
                     self.data,
                     "min_seeding_time",
@@ -552,7 +633,7 @@ class Config:
                     do_print=False,
                     save=False,
                 )
-                self.share_limits[group]["last_active"] = self.util.check_for_attribute(
+                self.share_limits[group]["min_last_active"] = self.util.check_for_attribute(
                     self.data,
                     "last_active",
                     parent="share_limits",
@@ -562,7 +643,31 @@ class Config:
                     default=0,
                     do_print=False,
                     save=False,
+                ) or self.util.check_for_attribute(
+                    self.data,
+                    "min_last_active",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="time_parse",
+                    min_int=0,
+                    default=0,
+                    do_print=False,
+                    save=False,
                 )
+                if "last_active" in self.data["share_limits"][group]:
+                    self.data["share_limits"][group]["min_last_active"] = self.data["share_limits"][group].pop("last_active")
+                    self.util.overwrite_attributes(data=self.data["share_limits"][group], attribute=group, parent="share_limits")
+                    self.util.check_for_attribute(
+                        self.data,
+                        "min_last_active",
+                        parent="share_limits",
+                        subparent=group,
+                        var_type="time_parse",
+                        min_int=0,
+                        default=self.data["share_limits"][group]["min_last_active"],
+                        do_print=False,
+                        save=True,
+                    )
                 self.share_limits[group]["resume_torrent_after_change"] = self.util.check_for_attribute(
                     self.data,
                     "resume_torrent_after_change",
@@ -641,7 +746,12 @@ class Config:
                 raise Failed(err)
 
         logger.trace(f"Share_limits config: {self.share_limits}")
-        # Add RecycleBin
+
+    def processs_config_recyclebin(self):
+        """
+        Process the recycle bin configuration data.
+        This method ensures that all required recycle bin settings are present and correctly formatted.
+        """
         self.recyclebin = {}
         self.recyclebin["enabled"] = self.util.check_for_attribute(
             self.data, "enabled", parent="recyclebin", var_type="bool", default=True
@@ -656,6 +766,11 @@ class Config:
             self.data, "split_by_category", parent="recyclebin", var_type="bool", default=False
         )
 
+    def process_config_directories(self):
+        """
+        Process the directory configuration data.
+        This method ensures that all required directory settings are present and correctly formatted.
+        """
         # Assign directories
         if "directory" in self.data:
             self.root_dir = os.path.join(
@@ -734,6 +849,11 @@ class Config:
             self.notify(e, "Config")
             raise Failed(e)
 
+    def process_config_orphaned(self):
+        """
+        Process the orphaned data configuration.
+        This method ensures that all required orphaned data settings are present and correctly formatted.
+        """
         # Add Orphaned
         self.orphaned = {}
         self.orphaned["empty_after_x_days"] = self.util.check_for_attribute(
@@ -764,15 +884,6 @@ class Config:
                 if exclude_recycle not in self.orphaned["exclude_patterns"]
                 else self.orphaned["exclude_patterns"]
             )
-
-        # Connect to Qbittorrent
-        self.qbt = None
-        if "qbt" in self.data:
-            self.qbt = self.__connect()
-        else:
-            e = "Config Error: qbt attribute not found"
-            self.notify(e, "Config")
-            raise Failed(e)
 
     def __retry_on_connect(exception):
         return isinstance(exception.__cause__, ConnectionError)

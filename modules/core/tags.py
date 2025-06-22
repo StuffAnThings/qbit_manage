@@ -4,8 +4,9 @@ logger = util.logger
 
 
 class Tags:
-    def __init__(self, qbit_manager):
+    def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
+        self.hashes = hashes
         self.config = qbit_manager.config
         self.client = qbit_manager.client
         self.stats = 0
@@ -22,7 +23,10 @@ class Tags:
     def tags(self):
         """Update tags for torrents"""
         logger.separator("Updating Tags", space=False, border=False)
-        for torrent in self.qbt.torrent_list:
+        torrent_list = self.qbt.torrent_list
+        if self.hashes:
+            torrent_list = self.qbt.get_torrents({"torrent_hashes": self.hashes})
+        for torrent in torrent_list:
             tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
 
             # Remove stalled_tag if torrent is no longer stalled
@@ -41,7 +45,11 @@ class Tags:
             if (
                 torrent.tags == ""
                 or not util.is_tag_in_torrent(tracker["tag"], torrent.tags)
-                or (torrent.state == "stalledDL" and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags))
+                or (
+                    self.tag_stalled_torrents
+                    and torrent.state == "stalledDL"
+                    and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags)
+                )
             ):
                 stalled = False
                 if self.tag_stalled_torrents and torrent.state == "stalledDL":

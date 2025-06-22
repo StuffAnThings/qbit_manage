@@ -16,7 +16,7 @@ GROUP_NOTIFICATION_LIMIT = 10
 class Webhooks:
     """Class to handle webhooks."""
 
-    def __init__(self, config, system_webhooks, notifiarr=None, apprise=None):
+    def __init__(self, config, system_webhooks, notifiarr=None, apprise=None, web_api_used=False):
         """Initialize the class."""
         self.config = config
         self.error_webhooks = system_webhooks["error"] if "error" in system_webhooks else []
@@ -31,6 +31,7 @@ class Webhooks:
             self.function_webhooks = []
         self.notifiarr = notifiarr
         self.apprise = apprise
+        self.web_api_used = web_api_used
 
     def request_and_check(self, webhook, json):
         """
@@ -110,9 +111,10 @@ class Webhooks:
                 {
                     "function": "run_start",
                     "title": None,
-                    "body": f"Starting {start_type}Run",
+                    "body": f"Starting {'WebAPI ' if self.web_api_used else ''}{start_type}Run",
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dry_run": self.config.commands["dry_run"],
+                    "web_api_used": self.web_api_used,
                 },
             )
 
@@ -181,6 +183,8 @@ class Webhooks:
                 group_attr = group_notifications_by_key(payload, "torrent_tag")
             elif group_by == "tracker":
                 group_attr = group_notifications_by_key(payload, "torrent_tracker")
+            elif group_by == "status":
+                group_attr = group_notifications_by_key(payload, "torrent_status")
 
             # group notifications by grouping attribute
             for group in group_attr:
@@ -214,6 +218,12 @@ class Webhooks:
                     attr["torrent_tracker"] = group
                     attr["torrent_category"] = group_attr[group].get("torrent_category") if only_one_torrent_updated else None
                     attr["torrent_tag"] = group_attr[group].get("torrent_tag") if only_one_torrent_updated else None
+                    attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
+                elif group_by == "status":
+                    attr["torrent_status"] = group
+                    attr["torrent_category"] = group_attr[group].get("torrent_category")
+                    attr["torrent_tag"] = group_attr[group].get("torrent_tag")
+                    attr["torrent_tracker"] = group_attr[group].get("torrent_tracker")
                     attr["notifiarr_indexer"] = group_attr[group].get("notifiarr_indexer")
 
                 self.config.send_notifications(attr)

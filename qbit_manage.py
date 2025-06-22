@@ -4,6 +4,7 @@
 import argparse
 import glob
 import math
+import multiprocessing
 import os
 import platform
 import sys
@@ -11,6 +12,11 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from functools import lru_cache
+from multiprocessing import Manager
+
+from modules.util import execute_qbit_commands
+from modules.util import format_stats_summary
+from modules.util import get_matching_config_files
 
 try:
     import schedule
@@ -34,6 +40,22 @@ if current_version < (REQUIRED_VERSION):
     sys.exit(1)
 
 parser = argparse.ArgumentParser("qBittorrent Manager.", description="A mix of scripts combined for managing qBittorrent.")
+parser.add_argument(
+    "-ws",
+    "--web-server",
+    dest="web_server",
+    action="store_true",
+    default=False,
+    help="Start a web server to handle command requests via HTTP API.",
+)
+parser.add_argument(
+    "-p",
+    "--port",
+    dest="port",
+    type=int,
+    default=8080,
+    help="Port number for the web server (default: 8080).",
+)
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument(
@@ -259,6 +281,8 @@ except ImportError:
 
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
+web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
+port = get_arg("QBT_PORT", args.port, arg_int=True)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
@@ -296,16 +320,7 @@ if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files))
 else:
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
-
-if "*" not in config_files:
-    config_files = [config_files]
-else:
-    glob_configs = glob.glob(os.path.join(default_dir, config_files))
-    if glob_configs:
-        config_files = [os.path.split(x)[-1] for x in glob_configs]
-    else:
-        print(f"Config Error: Unable to find any config files in the pattern '{config_files}'.")
-        sys.exit(1)
+config_files = get_matching_config_files(config_files, default_dir)
 
 
 for v in [
@@ -369,6 +384,7 @@ from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.util import Failed  # noqa
 from modules.util import GracefulKiller  # noqa
+from modules.web_api import CommandRequest  # noqa
 
 
 def my_except_hook(exctype, value, tbi):
@@ -404,7 +420,7 @@ def start_loop(first_run=False):
     else:
         for config_file in config_files:
             args["config_file"] = config_file
-            config_base = os.path.splitext(config_file)[0]
+            config_base = os.path.splitext(os.path.basename(config_file))[0]
             logger.add_config_handler(config_base)
             if not first_run:
                 print_logo(logger)
@@ -414,6 +430,10 @@ def start_loop(first_run=False):
 
 def start():
     """Start the run"""
+    global is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared
+    # Acquire lock only briefly to set the flag, then release immediately
+    with is_running_lock:
+        is_running.value = True  # Set flag to indicate a run is in progress
     start_time = datetime.now()
     args["time"] = start_time.strftime("%H:%M")
     args["time_obj"] = start_time
@@ -423,7 +443,6 @@ def start():
     body = ""
     run_time = ""
     end_time = None
-    next_run = None
     global stats
     stats = {
         "added": 0,
@@ -445,9 +464,9 @@ def start():
         "cleaned_share_limits": 0,
     }
 
-    def finished_run():
+    def finished_run(next_scheduled_run_info_shared):
         """Handle the end of a run"""
-        nonlocal end_time, start_time, stats_summary, run_time, next_run, body
+        nonlocal end_time, start_time, stats_summary, run_time, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if run is False:
@@ -461,13 +480,16 @@ def start():
         else:
             next_run_time = datetime.now()
         nxt_run = calc_next_run(next_run_time)
-        next_run_str = nxt_run["next_run_str"]
-        next_run = nxt_run["next_run"]
-        body = logger.separator(
-            f"Finished Run\n{os.linesep.join(stats_summary) if len(stats_summary) > 0 else ''}"
-            f"\nRun Time: {run_time}\n{next_run_str if len(next_run_str) > 0 else ''}".replace("\n\n", "\n").rstrip()
-        )[0]
-        return next_run, body
+        next_scheduled_run_info_shared.update(nxt_run)
+        summary = os.linesep.join(stats_summary) if stats_summary else ""
+        next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
+        msg = (
+            (f"Finished Run\n{summary}\nRun Time: {run_time}\n{next_run_str if next_run_str else ''}")
+            .replace("\n\n", "\n")
+            .rstrip()
+        )
+        body = logger.separator(msg)[0]
+        return body
 
     try:
         cfg = Config(default_dir, args)
@@ -476,53 +498,12 @@ def start():
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
-        finished_run()
+        finished_run(next_scheduled_run_info_shared)
         return None
 
     if qbit_manager:
-        # Set Category
-        if cfg.commands["cat_update"]:
-            stats["categorized"] += Category(qbit_manager).stats
-
-        # Set Tags
-        if cfg.commands["tag_update"]:
-            stats["tagged"] += Tags(qbit_manager).stats
-
-        # Remove Unregistered Torrents and tag errors
-        if cfg.commands["rem_unregistered"] or cfg.commands["tag_tracker_error"]:
-            rem_unreg = RemoveUnregistered(qbit_manager)
-            stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
-            stats["deleted"] += rem_unreg.stats_deleted
-            stats["deleted_contents"] += rem_unreg.stats_deleted_contents
-            stats["tagged_tracker_error"] += rem_unreg.stats_tagged
-            stats["untagged_tracker_error"] += rem_unreg.stats_untagged
-            stats["tagged"] += rem_unreg.stats_tagged
-
-        # Recheck Torrents
-        if cfg.commands["recheck"]:
-            recheck = ReCheck(qbit_manager)
-            stats["resumed"] += recheck.stats_resumed
-            stats["rechecked"] += recheck.stats_rechecked
-
-        # Tag NoHardLinks
-        if cfg.commands["tag_nohardlinks"]:
-            no_hardlinks = TagNoHardLinks(qbit_manager)
-            stats["tagged"] += no_hardlinks.stats_tagged
-            stats["tagged_noHL"] += no_hardlinks.stats_tagged
-            stats["untagged_noHL"] += no_hardlinks.stats_untagged
-
-        # Set Share Limits
-        if cfg.commands["share_limits"]:
-            share_limits = ShareLimits(qbit_manager)
-            stats["tagged"] += share_limits.stats_tagged
-            stats["updated_share_limits"] += share_limits.stats_tagged
-            stats["deleted"] += share_limits.stats_deleted
-            stats["deleted_contents"] += share_limits.stats_deleted_contents
-            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
-
-        # Remove Orphaned Files
-        if cfg.commands["rem_orphaned"]:
-            stats["orphaned"] += RemoveOrphaned(qbit_manager).stats
+        # Execute qBittorrent commands using shared function
+        execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
 
         # Empty RecycleBin
         stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
@@ -530,48 +511,23 @@ def start():
         # Empty Orphaned Directory
         stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
 
-    if stats["categorized"] > 0:
-        stats_summary.append(f"Total Torrents Categorized: {stats['categorized']}")
-    if stats["tagged"] > 0:
-        stats_summary.append(f"Total Torrents Tagged: {stats['tagged']}")
-    if stats["rem_unreg"] > 0:
-        stats_summary.append(f"Total Unregistered Torrents Removed: {stats['rem_unreg']}")
-    if stats["tagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents Tagged: {stats['tagged_tracker_error']}")
-    if stats["untagged_tracker_error"] > 0:
-        stats_summary.append(f"Total {cfg.tracker_error_tag} Torrents untagged: {stats['untagged_tracker_error']}")
-    if stats["added"] > 0:
-        stats_summary.append(f"Total Torrents Added: {stats['added']}")
-    if stats["resumed"] > 0:
-        stats_summary.append(f"Total Torrents Resumed: {stats['resumed']}")
-    if stats["rechecked"] > 0:
-        stats_summary.append(f"Total Torrents Rechecked: {stats['rechecked']}")
-    if stats["deleted"] > 0:
-        stats_summary.append(f"Total Torrents Deleted: {stats['deleted']}")
-    if stats["deleted_contents"] > 0:
-        stats_summary.append(f"Total Torrents + Contents Deleted : {stats['deleted_contents']}")
-    if stats["orphaned"] > 0:
-        stats_summary.append(f"Total Orphaned Files: {stats['orphaned']}")
-    if stats["tagged_noHL"] > 0:
-        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents Tagged: {stats['tagged_noHL']}")
-    if stats["untagged_noHL"] > 0:
-        stats_summary.append(f"Total {cfg.nohardlinks_tag} Torrents untagged: {stats['untagged_noHL']}")
-    if stats["updated_share_limits"] > 0:
-        stats_summary.append(f"Total Share Limits Updated: {stats['updated_share_limits']}")
-    if stats["cleaned_share_limits"] > 0:
-        stats_summary.append(f"Total Torrents Removed from Meeting Share Limits: {stats['cleaned_share_limits']}")
-    if stats["recycle_emptied"] > 0:
-        stats_summary.append(f"Total Files Deleted from Recycle Bin: {stats['recycle_emptied']}")
-    if stats["orphaned_emptied"] > 0:
-        stats_summary.append(f"Total Files Deleted from Orphaned Data: {stats['orphaned_emptied']}")
+    stats_summary = format_stats_summary(stats, cfg)
 
-    finished_run()
+    finished_run(next_scheduled_run_info_shared)
     if cfg:
         try:
+            next_run = next_scheduled_run_info_shared.get("next_run")
             cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
+            # Release flag after all cleanup is complete
+            with is_running_lock:
+                is_running.value = False
         except Failed as err:
             logger.stacktrace()
             logger.error(f"Webhooks Error: {err}")
+            # Release flag even if webhooks fail
+            with is_running_lock:
+                is_running.value = False
+            logger.info("Released lock for web API requests despite webhook error")
 
 
 def end():
@@ -649,6 +605,52 @@ if __name__ == "__main__":
     logger.add_main_handler()
     print_logo(logger)
     try:
+
+        def run_web_server(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared):
+            """Run web server in a separate process with shared args"""
+            try:
+                import uvicorn
+
+                from modules.web_api import create_app
+
+                # Create FastAPI app instance with process args and shared state
+                app = create_app(process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared)
+
+                # Configure uvicorn settings
+                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
+
+                # Run the server
+                server = uvicorn.Server(config)
+                server.run()
+            except ImportError:
+                logger.critical("Web server dependencies not installed. Please install with: pip install qbit_manage[web]")
+                sys.exit(1)
+            except KeyboardInterrupt:
+                pass
+
+        manager = Manager()
+        is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
+        is_running_lock = manager.Lock()  # Separate lock for is_running synchronization
+        web_api_queue = manager.Queue()
+        next_scheduled_run_info_shared = manager.dict()
+
+        # Start web server if enabled and not in run mode
+        web_process = None
+        if web_server and not run:
+            logger.separator("Starting Web Server")
+            logger.info(f"Web API server running on http://0.0.0.0:{port}")
+
+            # Create a copy of args to pass to the web server process
+            process_args = args.copy()
+
+            web_process = multiprocessing.Process(
+                target=run_web_server,
+                args=(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared),
+            )
+            web_process.start()
+            logger.info("Web server started in separate process")
+
+        # Handle normal run modes
         if run:
             run_mode_message = "    Run Mode: Script will exit after completion."
             logger.info(run_mode_message)
@@ -658,13 +660,16 @@ if __name__ == "__main__":
             if is_valid_cron_syntax(sch):
                 run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
                 next_run_time = schedule_from_cron(sch)
-                next_run = calc_next_run(next_run_time)
-                run_mode_message += f"\n     {next_run['next_run_str']}"
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+                run_mode_message += f"\n     {next_run_info['next_run_str']}"
                 logger.info(run_mode_message)
             else:
                 delta = timedelta(minutes=sch)
                 run_mode_message = f"    Scheduled Mode: Running every {precisedelta(delta)}."
                 next_run_time = schedule_every_x_minutes(sch)
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
                 if startupDelay:
                     run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     logger.info(run_mode_message)
@@ -673,11 +678,28 @@ if __name__ == "__main__":
                     logger.info(run_mode_message)
                 start_loop(True)
 
+            # Update next_scheduled_run_info_shared in the main loop
             while not killer.kill_now:
-                next_run = calc_next_run(next_run_time)
-                schedule.run_pending()
+                next_run_time = schedule.next_run()  # Call the function to get the datetime object
+                next_run_info = calc_next_run(next_run_time)
+                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+
+                if web_server:
+                    if is_running.value:
+                        logger.info("Scheduled run skipped: Web API is currently processing a request.")
+                    else:
+                        schedule.run_pending()
+                else:
+                    schedule.run_pending()
+
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
                 time.sleep(60)
+            if web_process:
+                web_process.terminate()
+                web_process.join()
             end()
     except KeyboardInterrupt:
+        if web_process:
+            web_process.terminate()
+            web_process.join()
         end()
