@@ -11,13 +11,12 @@ from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
 from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
+from ruamel.yaml import CommentedSeq
 
 from modules import util
 from modules.util import Failed
 from modules.util import TorrentMessages
 from modules.util import list_in_text
-
-from ruamel.yaml import CommentedSeq
 
 logger = util.logger
 
