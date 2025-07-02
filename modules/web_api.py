@@ -93,7 +93,7 @@ class WebAPI:
         @self.app.get("/api/healthz")
         async def healthz():
             return {"status": "ok"}
-        
+
         # Store reference to self in app state for access in event handlers
         self.app.state.web_api = self
 
