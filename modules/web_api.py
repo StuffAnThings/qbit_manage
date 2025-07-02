@@ -90,6 +90,10 @@ class WebAPI:
         # Initialize routes
         self.app.post("/api/run-command")(self.run_command)
 
+        @self.app.get("/api/healthz")
+        async def healthz():
+            return {"status": "ok"}
+        
         # Store reference to self in app state for access in event handlers
         self.app.state.web_api = self
 
