@@ -28,6 +28,8 @@
   overflow: hidden;
   transform: scale(0.95);
   transition: transform var(--transition-normal);
+  position: relative;
+  z-index: 1;
 }
 
 .modal-overlay:not(.hidden) .modal {

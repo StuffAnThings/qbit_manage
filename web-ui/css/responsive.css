@@ -1,5 +1,28 @@
 /* Mobile First Responsive Design */
 
+/* Global touch improvements */
+@media (pointer: coarse) {
+  /* Improve touch targets for coarse pointers (fingers) */
+  .btn, .form-input, .form-select, .form-textarea {
+    min-height: 44px;
+  }
+
+  /* Prevent text selection during touch interactions */
+  .draggable, [draggable="true"] {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* Better touch feedback */
+  .btn:active, .clickable:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
 /* Small devices (landscape phones, 576px and up) */
 @media (max-width: 575.98px) {
   :root {
@@ -97,7 +120,7 @@
     right: 0;
     bottom: var(--footer-height);
     width: 100%;
-    z-index: var(--z-modal);
+    z-index: var(--z-fixed);
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
     background-color: var(--bg-primary);
@@ -120,7 +143,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: calc(var(--z-modal) - 1);
+    z-index: calc(var(--z-fixed) - 1);
     opacity: 0;
     transition: opacity var(--transition-normal);
   }
@@ -204,15 +227,28 @@
   }
 
   /* Modal adjustments */
+  .modal-overlay {
+    z-index: var(--z-modal-backdrop);
+    padding: var(--spacing-sm);
+  }
+
   .modal {
     width: 95%;
+    max-width: none;
     max-height: 85vh;
+    margin: auto;
   }
 
   .modal-header,
   .modal-content,
   .modal-footer {
     padding: var(--spacing-md);
+  }
+
+  /* Ensure modal content is scrollable on small screens */
+  .modal-content {
+    max-height: 60vh;
+    overflow-y: auto;
   }
 
   /* Toast adjustments */

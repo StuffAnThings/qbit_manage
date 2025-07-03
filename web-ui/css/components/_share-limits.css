@@ -56,6 +56,14 @@
   transform: rotate(2deg);
 }
 
+.share-limit-group-item.touch-dragging {
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  position: relative;
+}
+
 .share-limit-group-item:last-child {
   margin-bottom: 0;
 }
@@ -70,6 +78,13 @@
   cursor: grab;
   color: var(--text-muted);
   transition: color var(--transition-fast);
+  /* Prevent text selection on mobile */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Improve touch target size on mobile */
+  touch-action: none;
 }
 
 .share-limit-group-handle:hover {
@@ -212,6 +227,14 @@
     border-radius: 2px;
 }
 
+.share-limit-group-placeholder.touch-placeholder {
+    height: 3px;
+    background-color: var(--primary-color);
+    margin: 8px 0;
+    border-radius: 3px;
+    box-shadow: 0 0 4px var(--primary-color);
+}
+
 /* Drop target highlight */
 .share-limit-group-item.drop-target {
     border-left: 3px solid var(--primary-color);
@@ -239,5 +262,50 @@
   .share-limit-modal {
     width: 98%;
     margin: 1%;
+  }
+
+  /* Improve touch targets on mobile */
+  .share-limit-group-handle {
+    width: 32px;
+    height: 32px;
+    margin-right: var(--spacing-sm);
+  }
+
+  .share-limit-group-item {
+    padding: var(--spacing-md) var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+  }
+
+  /* Prevent text selection during touch drag */
+  .share-limit-group-item.touch-dragging,
+  .share-limit-group-item.touch-dragging * {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+
+  /* Better visual feedback for touch interactions */
+  .share-limit-group-item.touch-dragging {
+    opacity: 0.9;
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Touch-specific styles for very small screens */
+@media (max-width: 480px) {
+  .share-limit-group-handle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .share-limit-group-item {
+    padding: var(--spacing-lg) var(--spacing-sm);
+  }
+
+  .share-limit-group-placeholder.touch-placeholder {
+    height: 4px;
+    margin: 10px 0;
   }
 }

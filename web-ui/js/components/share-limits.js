@@ -69,11 +69,19 @@ export class ShareLimitsComponent {
 
             // Remove existing listeners
             handle.removeEventListener('mousedown', this.handleMouseDown);
+            handle.removeEventListener('touchstart', this.handleTouchStart);
+            handle.removeEventListener('touchmove', this.handleTouchMove);
+            handle.removeEventListener('touchend', this.handleTouchEnd);
 
-            // Add new listeners
+            // Add mouse listeners
             handle.addEventListener('mousedown', (e) => this.handleMouseDown(e, item));
 
-            // Make items draggable
+            // Add touch listeners for mobile support
+            handle.addEventListener('touchstart', (e) => this.handleTouchStart(e, item), { passive: false });
+            handle.addEventListener('touchmove', (e) => this.handleTouchMove(e, item), { passive: false });
+            handle.addEventListener('touchend', (e) => this.handleTouchEnd(e, item), { passive: false });
+
+            // Make items draggable for desktop
             item.draggable = true;
             item.addEventListener('dragstart', (e) => this.handleDragStart(e, item));
             item.addEventListener('dragover', (e) => this.handleDragOver(e));
@@ -85,6 +93,138 @@ export class ShareLimitsComponent {
     handleMouseDown(e, item) {
         e.preventDefault();
         this.draggedElement = item;
+    }
+
+    handleTouchStart(e, item) {
+        e.preventDefault();
+        this.isDragging = false;
+        this.draggedElement = item;
+        this.touchStartTime = Date.now();
+        this.touchStartY = e.touches[0].clientY;
+        this.initialTouchY = e.touches[0].clientY;
+        this.lastTouchY = e.touches[0].clientY;
+
+        // Add visual feedback
+        item.classList.add('touch-dragging');
+
+        // Prevent text selection during drag
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+    }
+
+    handleTouchMove(e, item) {
+        if (!this.draggedElement) return;
+
+        e.preventDefault();
+
+        const touch = e.touches[0];
+        const currentY = touch.clientY;
+        const deltaY = Math.abs(currentY - this.initialTouchY);
+
+        // Start dragging if moved more than 10px
+        if (!this.isDragging && deltaY > 10) {
+            this.isDragging = true;
+            this.draggedElement.classList.add('dragging');
+            this.createTouchPlaceholder();
+        }
+
+        if (this.isDragging) {
+            this.lastTouchY = currentY;
+            this.updateTouchPlaceholder(currentY);
+        }
+    }
+
+    handleTouchEnd(e, item) {
+        if (!this.draggedElement) return;
+
+        e.preventDefault();
+
+        // Clean up visual feedback
+        item.classList.remove('touch-dragging');
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+
+        if (this.isDragging) {
+            this.completeTouchDrop();
+            this.isDragging = false;
+        }
+
+        // Clean up
+        this.draggedElement.classList.remove('dragging');
+        this.draggedElement = null;
+        this.removeTouchPlaceholder();
+    }
+
+    createTouchPlaceholder() {
+        if (this.touchPlaceholder) return;
+
+        this.touchPlaceholder = document.createElement('div');
+        this.touchPlaceholder.classList.add('share-limit-group-placeholder', 'touch-placeholder');
+
+        const container = this.container.querySelector('#share-limits-sortable');
+        container.appendChild(this.touchPlaceholder);
+    }
+
+    updateTouchPlaceholder(touchY) {
+        if (!this.touchPlaceholder) return;
+
+        const container = this.container.querySelector('#share-limits-sortable');
+        const items = Array.from(container.querySelectorAll('.share-limit-group-item:not(.dragging)'));
+
+        let closestItem = null;
+        let closestOffset = Number.POSITIVE_INFINITY;
+
+        items.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const itemCenter = rect.top + rect.height / 2;
+            const offset = Math.abs(touchY - itemCenter);
+
+            if (offset < closestOffset) {
+                closestOffset = offset;
+                closestItem = item;
+            }
+        });
+
+        // Position placeholder
+        if (closestItem) {
+            const rect = closestItem.getBoundingClientRect();
+            const itemCenter = rect.top + rect.height / 2;
+
+            if (touchY < itemCenter) {
+                container.insertBefore(this.touchPlaceholder, closestItem);
+            } else {
+                container.insertBefore(this.touchPlaceholder, closestItem.nextSibling);
+            }
+        } else {
+            container.appendChild(this.touchPlaceholder);
+        }
+
+        // Highlight drop targets
+        items.forEach(item => item.classList.remove('drop-target'));
+        if (closestItem) {
+            closestItem.classList.add('drop-target');
+        }
+    }
+
+    completeTouchDrop() {
+        if (!this.draggedElement || !this.touchPlaceholder) return;
+
+        const container = this.touchPlaceholder.parentNode;
+        container.insertBefore(this.draggedElement, this.touchPlaceholder);
+
+        this.updatePriorities();
+
+        // Clean up drop target highlights
+        this.container.querySelectorAll('.share-limit-group-item').forEach(item => {
+            item.classList.remove('drop-target');
+        });
+    }
+
+    removeTouchPlaceholder() {
+        if (this.touchPlaceholder && this.touchPlaceholder.parentNode) {
+            this.touchPlaceholder.parentNode.removeChild(this.touchPlaceholder);
+        }
+        this.touchPlaceholder = null;
     }
 
     handleDragStart(e, item) {
