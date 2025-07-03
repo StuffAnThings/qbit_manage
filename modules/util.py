@@ -248,6 +248,56 @@ def parse_version(version, text="develop"):
     return version, split_version[0], int(split_version[1]) if len(split_version) > 1 else 0
 
 
+def get_current_version():
+    """
+    Get the current qBit Manage version using the same logic as qbit_manage.py:400-411.
+    This function centralizes version parsing logic to avoid duplication.
+
+    Returns:
+        tuple: (version_tuple, branch) where version_tuple is (version_string, base_version, build_number)
+               and branch is the detected branch name
+    """
+    # Initialize version tuple
+    version = ("Unknown", "Unknown", 0)
+
+    # Read and parse VERSION file (same logic as qbit_manage.py:400-406)
+    try:
+        version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION")
+        with open(version_file_path) as handle:
+            for line in handle.readlines():
+                line = line.strip()
+                if len(line) > 0:
+                    version = parse_version(line)
+                    break
+    except Exception as e:
+        logger.error(f"Error reading VERSION file: {str(e)}")
+        return version, "Unknown"
+
+    # Get environment version (same as qbit_manage.py:282)
+    env_version = os.environ.get("BRANCH_NAME", "master")
+
+    # Get git branch (same logic as qbit_manage.py:275-280)
+    git_branch = None
+    try:
+        try:
+            from git import InvalidGitRepositoryError
+            from git import Repo
+
+            git_branch = Repo(path=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).head.ref.name
+        except InvalidGitRepositoryError:
+            git_branch = None
+    except ImportError:
+        git_branch = None
+
+    # Guess branch and format version (same logic as qbit_manage.py:407-410)
+    branch = guess_branch(version, env_version, git_branch)
+    if branch is None:
+        branch = "Unknown"
+    version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
+
+    return version, branch
+
+
 class check:
     """Check for attributes in config."""
 

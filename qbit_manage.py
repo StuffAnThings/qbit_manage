@@ -397,17 +397,7 @@ def my_except_hook(exctype, value, tbi):
 
 sys.excepthook = my_except_hook
 
-version = ("Unknown", "Unknown", 0)
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
-    for line in handle.readlines():
-        line = line.strip()
-        if len(line) > 0:
-            version = util.parse_version(line)
-            break
-branch = util.guess_branch(version, env_version, git_branch)
-if branch is None:
-    branch = "Unknown"
-version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
+version, branch = util.get_current_version()
 
 
 def start_loop(first_run=False):

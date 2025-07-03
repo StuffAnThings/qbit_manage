@@ -273,6 +273,19 @@ class API {
         return this.get('/log_files');
     }
 
+    /**
+     * Get the current qBit Manage version
+     */
+    async getVersion() {
+        try {
+            const result = await this.get('/version');
+            return result;
+        } catch (error) {
+            console.error('API.getVersion() failed:', error);
+            throw error;
+        }
+    }
+
 
     // Utility Methods
 

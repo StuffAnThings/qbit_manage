@@ -157,6 +157,7 @@ class WebAPI:
         self.app.post("/api/configs/{filename}/restore")(self.restore_config_from_backup)
         self.app.get("/api/logs")(self.get_logs)
         self.app.get("/api/log_files")(self.list_log_files)
+        self.app.get("/api/version")(self.get_version)
 
         # Root route to serve web UI
         @self.app.get("/")
@@ -229,6 +230,15 @@ class WebAPI:
             logger.stacktrace()
             logger.error(f"Error executing commands for {args['config_file']}: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_version(self) -> dict:
+        """Get the current qBit Manage version using centralized util function"""
+        try:
+            version, branch = util.get_current_version()
+            return {"version": version[0]}
+        except Exception as e:
+            logger.error(f"Error getting version: {str(e)}")
+            return {"version": "Unknown"}
 
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""

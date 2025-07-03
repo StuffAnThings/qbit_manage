@@ -53,6 +53,8 @@ class QbitManageApp {
             // Load initial data
             await this.loadConfigs();
 
+            // Fetch and display version
+            await this.fetchVersion();
 
             // Determine initial section from URL hash or default to 'commands'
             const initialSection = window.location.hash ? window.location.hash.substring(1) : 'commands';
@@ -71,6 +73,17 @@ class QbitManageApp {
         } catch (error) {
             console.error('Failed to initialize application:', error);
             showToast('Failed to initialize application', 'error');
+        }
+    }
+
+    async fetchVersion() {
+        try {
+            const response = await this.api.getVersion();
+            const versionText = response.version || 'Unknown';
+            document.getElementById('version-text').textContent = `qBit Manage v${versionText}`;
+        } catch (error) {
+            console.error('Failed to fetch version from API:', error);
+            document.getElementById('version-text').textContent = 'qBit Manage vUnknown';
         }
     }
 
