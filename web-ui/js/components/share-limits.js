@@ -442,7 +442,7 @@ export class ShareLimitsComponent {
                 <div class="modal">
                     <div class="modal-header">
                         <h3>Edit Share Limit Group: ${key}</h3>
-                        <button type="button" class="btn btn-icon modal-close-btn">
+                        <button type="button" class="btn btn-icon modal-close-btn btn-close-icon">
                             <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                         </button>
                     </div>
