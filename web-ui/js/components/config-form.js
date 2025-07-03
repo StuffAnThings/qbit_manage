@@ -587,10 +587,15 @@ class ConfigForm {
             return;
         }
 
-        const newKey = prompt('Enter the Tracker URL:');
+        // Use schema's keyLabel and keyDescription for dynamic prompt text
+        const keyLabel = sectionConfig.keyLabel || 'Tracker URL';
+        const keyDescription = sectionConfig.keyDescription || keyLabel;
+        const promptText = `Enter ${keyDescription}:`;
+
+        const newKey = prompt(promptText);
         if (!newKey || this.currentData[newKey]) {
             if (this.currentData[newKey]) {
-                showToast('A Tracker URL with this name already exists.', 'error');
+                showToast(`A ${keyLabel} with this name already exists.`, 'error');
             }
             return;
         }
@@ -823,33 +828,74 @@ class ConfigForm {
                 });
             }
         } else if (sectionConfig && sectionConfig.type === 'complex-object' && sectionConfig.patternProperties) {
-            // This is for sections like 'tracker'
-            Object.entries(processedData).forEach(([entryKey, entryValue]) => {
-                if (entryValue && typeof entryValue === 'object') {
-                    // Find the matching schema for the current entry
-                    let schemaProperties;
-                    if (entryKey === 'other' && sectionConfig.patternProperties.other) {
-                        schemaProperties = sectionConfig.patternProperties.other.properties;
-                    } else if (sectionConfig.patternProperties["^(?!other$).*$"]) {
-                        schemaProperties = sectionConfig.patternProperties["^(?!other$).*$"].properties;
-                    } else if (sectionConfig.patternProperties[".*"]) {
-                        schemaProperties = sectionConfig.patternProperties[".*"].properties;
-                    }
-
-                    if (schemaProperties) {
-                        Object.entries(schemaProperties).forEach(([propName, propSchema]) => {
-                            if (propSchema.type === 'array' && !Array.isArray(entryValue[propName])) {
-                                entryValue[propName] = entryValue[propName] ? [entryValue[propName]] : [];
-                            } else if (propSchema.oneOf) { // Handle fields like 'tag'
-                                const isArray = propSchema.oneOf.some(s => s.type === 'array');
-                                if (isArray && !Array.isArray(entryValue[propName])) {
-                                    entryValue[propName] = entryValue[propName] ? [entryValue[propName]] : [];
-                                }
+            // Handle special case for nohardlinks which can have both array and object formats
+            if (sectionName === 'nohardlinks') {
+                // Check if the data is in array format and convert it to object format
+                if (Array.isArray(processedData)) {
+                    const newNohardlinksData = {};
+                    processedData.forEach(categoryItem => {
+                        if (typeof categoryItem === 'string') {
+                            // Simple string category name
+                            newNohardlinksData[categoryItem] = {
+                                exclude_tags: [],
+                                ignore_root_dir: true
+                            };
+                        } else if (typeof categoryItem === 'object') {
+                            // Object with category name as key and properties as value
+                            for (const [categoryName, categoryProps] of Object.entries(categoryItem)) {
+                                newNohardlinksData[categoryName] = {
+                                    exclude_tags: categoryProps?.exclude_tags || [],
+                                    ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                                };
                             }
-                        });
-                    }
+                        }
+                    });
+                    return newNohardlinksData;
+                } else if (typeof processedData === 'object' && processedData !== null) {
+                    // Handle object format: ensure all entries have proper structure
+                    Object.entries(processedData).forEach(([categoryName, categoryProps]) => {
+                        if (categoryProps === null || categoryProps === undefined) {
+                            processedData[categoryName] = {
+                                exclude_tags: [],
+                                ignore_root_dir: true
+                            };
+                        } else if (typeof categoryProps === 'object') {
+                            processedData[categoryName] = {
+                                exclude_tags: categoryProps.exclude_tags || [],
+                                ignore_root_dir: categoryProps.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                            };
+                        }
+                    });
                 }
-            });
+            } else {
+                // This is for sections like 'tracker'
+                Object.entries(processedData).forEach(([entryKey, entryValue]) => {
+                    if (entryValue && typeof entryValue === 'object') {
+                        // Find the matching schema for the current entry
+                        let schemaProperties;
+                        if (entryKey === 'other' && sectionConfig.patternProperties.other) {
+                            schemaProperties = sectionConfig.patternProperties.other.properties;
+                        } else if (sectionConfig.patternProperties["^(?!other$).*$"]) {
+                            schemaProperties = sectionConfig.patternProperties["^(?!other$).*$"].properties;
+                        } else if (sectionConfig.patternProperties[".*"]) {
+                            schemaProperties = sectionConfig.patternProperties[".*"].properties;
+                        }
+
+                        if (schemaProperties) {
+                            Object.entries(schemaProperties).forEach(([propName, propSchema]) => {
+                                if (propSchema.type === 'array' && !Array.isArray(entryValue[propName])) {
+                                    entryValue[propName] = entryValue[propName] ? [entryValue[propName]] : [];
+                                } else if (propSchema.oneOf) { // Handle fields like 'tag'
+                                    const isArray = propSchema.oneOf.some(s => s.type === 'array');
+                                    if (isArray && !Array.isArray(entryValue[propName])) {
+                                        entryValue[propName] = entryValue[propName] ? [entryValue[propName]] : [];
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            }
         }
 
         return processedData;
