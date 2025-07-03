@@ -279,11 +279,11 @@ def get_current_version():
     # Get git branch (same logic as qbit_manage.py:275-280)
     git_branch = None
     try:
-        try:
-            from git import InvalidGitRepositoryError
-            from git import Repo
+        from git import InvalidGitRepositoryError
+        from git import Repo
 
-            git_branch = Repo(path=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))).head.ref.name
+        try:
+            git_branch = Repo(path=".").head.ref.name  # noqa
         except InvalidGitRepositoryError:
             git_branch = None
     except ImportError:
