@@ -139,25 +139,25 @@
 }
 
 [data-theme="dark"] .toast-success {
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: var(--bg-secondary);
   border-color: rgba(16, 185, 129, 0.3);
   color: #34d399;
 }
 
 [data-theme="dark"] .toast-warning {
-  background-color: rgba(245, 158, 11, 0.1);
+  background-color: var(--bg-secondary);
   border-color: rgba(245, 158, 11, 0.3);
   color: #fbbf24;
 }
 
 [data-theme="dark"] .toast-error {
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: var(--bg-secondary);
   border-color: rgba(239, 68, 68, 0.3);
   color: #f87171;
 }
 
 [data-theme="dark"] .toast-info {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: var(--bg-secondary);
   border-color: rgba(59, 130, 246, 0.3);
   color: #60a5fa;
 }

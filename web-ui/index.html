@@ -24,20 +24,17 @@
             </div>
 
             <div class="header-center">
-                <div class="config-selector">
-                    <label for="config-select">Configuration:</label>
-                    <select id="config-select" class="config-select">
-                        <option value="">Loading...</option>
-                    </select>
-                    <button id="new-config-btn" class="btn btn-secondary" title="Create New Configuration">
-                        <svg class="icon" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-                        </svg>
-                    </button>
-                </div>
+                <!-- Config selector moved to sidebar -->
             </div>
 
             <div class="header-right">
+                <!-- Mobile Menu Toggle Button -->
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                    </svg>
+                </button>
+
                 <div class="header-actions">
                     <div class="history-controls">
                         <button id="undo-btn" class="btn btn-icon" title="Undo (Ctrl+Z)" disabled>
@@ -69,6 +66,11 @@
                         </svg>
                         Backup
                     </button>
+                    <button id="help-btn" class="btn btn-icon" title="Help">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                        </svg>
+                    </button>
                     <button id="theme-toggle" class="btn btn-icon" title="Toggle Theme">
                         <svg class="icon" viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -81,15 +83,33 @@
 
         <!-- Main Content -->
         <div class="main-content">
+            <!-- Content Actions -->
+            <div class="content-actions">
+                <button id="yaml-preview-btn" class="btn btn-secondary">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    Preview YAML
+                </button>
+            </div>
+
             <!-- Sidebar Navigation -->
             <nav class="sidebar">
                 <div class="sidebar-header">
                     <h3>Configuration Sections</h3>
-                    <div class="progress-indicator">
-                        <div class="progress-bar">
-                            <div id="config-progress" class="progress-fill"></div>
-                        </div>
-                        <span id="progress-text">0/12 sections</span>
+                </div>
+
+                <!-- Config selector moved from header -->
+                <div class="sidebar-config-selector">
+                    <div class="config-selector">
+                        <select id="config-select" class="config-select">
+                            <option value="">Loading...</option>
+                        </select>
+                        <button id="new-config-btn" class="btn btn-secondary btn-square" title="Create New Configuration">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
@@ -214,26 +234,11 @@
                 </ul>
             </nav>
 
+            <!-- Mobile Sidebar Overlay -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
             <!-- Content Area -->
             <main class="content">
-                <div class="content-header">
-                    <h2 id="section-title">Category Changes</h2>
-                    <div class="content-actions">
-                        <button id="yaml-preview-btn" class="btn btn-secondary">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                            </svg>
-                            Preview YAML
-                        </button>
-                        <button id="help-btn" class="btn btn-secondary">
-                            <svg class="icon" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-                            </svg>
-                            Help
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Dynamic Content Container -->
                 <div id="section-content" class="section-content">
                     <div class="loading-spinner">

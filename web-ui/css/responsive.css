@@ -3,7 +3,7 @@
 /* Small devices (landscape phones, 576px and up) */
 @media (max-width: 575.98px) {
   :root {
-    --header-height: 3.5rem;
+    --header-height: 5.5rem;
     --sidebar-width: 100%;
     --footer-height: 4.5rem;
     --spacing-md: 0.75rem;
@@ -15,42 +15,64 @@
     grid-template-rows: var(--header-height) 1fr auto;
   }
 
-  /* Header adjustments */
+  /* Header adjustments - Simplified layout for mobile */
   .header {
-    padding: 0 var(--spacing-md);
-    flex-wrap: wrap;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "left right";
+    padding: var(--spacing-sm) var(--spacing-md);
     gap: var(--spacing-sm);
+    min-height: var(--header-height);
+    align-items: center;
   }
 
   .header-left {
-    order: 1;
-    flex: 1;
-  }
-
-  .header-center {
-    order: 3;
-    flex: 1 1 100%;
-    max-width: none;
-    margin-top: var(--spacing-sm);
-  }
-
-  .header-right {
-    order: 2;
+    justify-self: start;
     gap: var(--spacing-sm);
   }
 
+  .header-center {
+    display: none; /* Hide center area since config selector moved to sidebar */
+  }
+
+  .header-right {
+    justify-self: end;
+    gap: var(--spacing-sm);
+  }
+
+  /* Hide app title on mobile to save space */
   .app-title {
-    font-size: var(--font-size-lg);
+    display: none;
   }
 
-  .config-selector {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-xs);
+  /* Adjust logo size for mobile */
+  .logo {
+    width: 1.8rem;
+    height: 1.8rem;
   }
 
-  .config-select {
-    min-width: auto;
+  /* Config selector styles in sidebar for mobile */
+  .sidebar-config-selector .config-selector {
+    flex-direction: row;
+    gap: var(--spacing-sm);
+    align-items: center;
+  }
+
+  .sidebar-config-selector .config-select {
+    flex: 1;
+  }
+
+  .sidebar-config-selector #new-config-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-config-selector #new-config-btn .icon {
+    width: 1rem;
+    height: 1rem;
   }
 
   .header-actions {
@@ -63,19 +85,19 @@
 
   /* Main content - stack sidebar and content */
   .main-content {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    display: block;
     padding-bottom: var(--footer-height); /* Add padding to account for sticky footer */
+    overflow: visible;
   }
 
   .sidebar {
-    order: 2;
     position: fixed;
     top: var(--header-height);
     left: 0;
     right: 0;
     bottom: var(--footer-height);
-    z-index: var(--z-fixed);
+    width: 100%;
+    z-index: var(--z-modal);
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
     background-color: var(--bg-primary);
@@ -84,12 +106,34 @@
     box-shadow: var(--shadow-lg);
   }
 
+  .sidebar.show,
   .sidebar.open {
     transform: translateX(0);
   }
 
+  /* Mobile sidebar overlay */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: calc(var(--z-modal) - 1);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .sidebar.show ~ .sidebar-overlay,
+  .sidebar.open ~ .sidebar-overlay {
+    display: block;
+    opacity: 1;
+  }
+
   .content {
-    order: 1;
+    margin-left: 0;
+    width: 100%;
   }
 
   .sidebar-header {
@@ -109,9 +153,9 @@
     gap: var(--spacing-md);
   }
 
-  .content-actions {
+   .content-actions {
     justify-content: center;
-  }
+   }
 
   .section-content {
     padding: var(--spacing-md);
@@ -173,9 +217,10 @@
 
   /* Toast adjustments */
   .toast-container {
-    top: var(--spacing-sm);
+    bottom: var(--spacing-sm);
     right: var(--spacing-sm);
     left: var(--spacing-sm);
+    top: auto;
   }
 
   .toast {
@@ -215,17 +260,26 @@
 
   /* Add mobile menu toggle */
   .mobile-menu-toggle {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     padding: var(--spacing-sm);
     color: var(--text-primary);
     cursor: pointer;
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-fast);
+  }
+
+  .mobile-menu-toggle:hover {
+    background-color: var(--bg-accent);
   }
 
   .mobile-menu-toggle .icon {
     width: 1.5rem;
     height: 1.5rem;
+    fill: currentColor;
   }
 }
 
@@ -237,11 +291,39 @@
   }
 
   .header {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "left center right";
     padding: 0 var(--spacing-lg);
+    gap: var(--spacing-md);
   }
 
-  .config-selector {
+  .header-left {
+    justify-self: start;
+  }
+
+  .header-center {
+    display: none; /* Hide center area since config selector moved to sidebar */
+  }
+
+  .header-right {
+    justify-self: end;
+  }
+
+  .app-title {
+    display: block;
+    font-size: var(--font-size-lg);
+  }
+
+  .logo {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  /* Config selector in sidebar for tablets */
+  .sidebar-config-selector .config-selector {
     flex-direction: row;
+    gap: var(--spacing-sm);
+    align-items: center;
   }
 
   .status-indicator {
@@ -249,17 +331,33 @@
   }
 
   .main-content {
-    grid-template-columns: var(--sidebar-width) 1fr;
+    display: block;
   }
 
   .sidebar {
-    position: static;
+    position: fixed;
+    top: var(--header-height);
+    bottom: var(--footer-height);
+    left: 0;
+    width: var(--sidebar-width);
     transform: none;
-    order: 1;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    box-shadow: none;
+    z-index: var(--z-fixed);
   }
 
   .content {
-    order: 2;
+    margin-left: var(--sidebar-width);
+    width: auto;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  .mobile-menu-toggle {
+    display: none;
   }
 
   .content-header {

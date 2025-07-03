@@ -205,6 +205,9 @@ class QbitManageApp {
                 e.preventDefault();
                 const section = navLink.getAttribute('href').substring(1);
                 this.showSection(section);
+
+                // Close mobile menu when navigation item is clicked
+                this.closeMobileMenu();
             }
         });
     }
@@ -243,10 +246,18 @@ class QbitManageApp {
         });
 
         // Mobile menu toggle (for responsive design)
-        const mobileMenuToggle = query('.mobile-menu-toggle');
+        const mobileMenuToggle = get('mobile-menu-toggle');
         if (mobileMenuToggle) {
             mobileMenuToggle.addEventListener('click', () => {
                 this.toggleMobileMenu();
+            });
+        }
+
+        // Mobile sidebar overlay click to close
+        const sidebarOverlay = get('sidebar-overlay');
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                this.closeMobileMenu();
             });
         }
 
@@ -563,25 +574,7 @@ class QbitManageApp {
             activeLink.classList.add('active');
         }
 
-        // Update section title
-        const sectionTitle = get('section-title');
-        const sectionNames = {
-            commands: 'Commands',
-            qbt: 'qBittorrent Connection',
-            settings: 'Settings',
-            directory: 'Directory Paths',
-            cat: 'Categories',
-            cat_change: 'Category Changes',
-            tracker: 'Tracker Configuration',
-            nohardlinks: 'No Hard Links',
-            share_limits: 'Share Limits',
-            recyclebin: 'Recycle Bin',
-            orphaned: 'Orphaned Files',
-            notifications: 'Notifications',
-            logs: 'Logs'
-        };
-
-        sectionTitle.textContent = sectionNames[sectionName] || 'Configuration';
+        // Section title removed - no longer needed since content header was removed
 
         // Toggle visibility of content sections
         const mainContentSection = get('section-content');
@@ -643,22 +636,8 @@ class QbitManageApp {
     }
 
     updateProgressIndicator() {
-        const sections = ['commands', 'qbt', 'settings', 'directory', 'cat', 'cat_change',
-                         'tracker', 'nohardlinks', 'share_limits', 'recyclebin', 'orphaned', 'notifications'];
-
-        let completedSections = 0;
-        sections.forEach(section => {
-            if (this.configData[section] && Object.keys(this.configData[section]).length > 0) {
-                completedSections++;
-            }
-        });
-
-        const progressFill = get('config-progress');
-        const progressText = get('progress-text');
-
-        const percentage = (completedSections / sections.length) * 100;
-        progressFill.style.width = `${percentage}%`;
-        progressText.textContent = `${completedSections}/${sections.length} sections`;
+        // Progress indicator removed from UI - function kept for compatibility
+        // but no longer updates any visual elements
     }
 
     updateValidationIndicators() {
@@ -764,6 +743,11 @@ class QbitManageApp {
     toggleMobileMenu() {
         const sidebar = query('.sidebar');
         sidebar.classList.toggle('show');
+    }
+
+    closeMobileMenu() {
+        const sidebar = query('.sidebar');
+        sidebar.classList.remove('show');
     }
 
     /**
