@@ -291,11 +291,11 @@ export class HistoryManager {
                     isSavePoint: true,
                     id: this._generateStateId()
                 };
-                
+
                 history.states.push(currentStateEntry);
                 history.currentIndex = history.states.length - 1; // Point to current state
                 history.savedIndex = history.currentIndex;
-                
+
             } else {
                 // Create initial state if no backups found
                 this._createInitialState(history, initialData);
@@ -327,7 +327,7 @@ export class HistoryManager {
             isSavePoint: true,
             id: this._generateStateId()
         };
-        
+
         // Create current state entry
         const currentStateEntry = {
             data: initialData,
@@ -336,12 +336,12 @@ export class HistoryManager {
             isSavePoint: true,
             id: this._generateStateId()
         };
-        
+
         history.states.push(initialStateEntry);
         history.states.push(currentStateEntry);
         history.currentIndex = 1; // Point to current state
         history.savedIndex = 1;
-        
+
         console.log('Created initial history state with current state beyond initial backup');
     }
 

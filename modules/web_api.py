@@ -15,7 +15,7 @@ from multiprocessing.sharedctypes import Synchronized
 from pathlib import Path
 from typing import Any
 
-import yaml
+import ruamel.yaml
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -510,7 +510,7 @@ class WebAPI:
             yaml_writer.save()
 
             logger.info(f"Successfully wrote config to: {config_path}")
-        except yaml.YAMLError as e:
+        except ruamel.yaml.YAMLError as e:
             logger.error(f"YAML Error writing config to {config_path}: {e}")
             raise HTTPException(status_code=500, detail=f"YAML serialization error: {e}")
         except Exception as e:
@@ -645,22 +645,18 @@ class WebAPI:
         """Create a manual backup of a configuration file."""
         try:
             config_file_path = self.config_path / filename
-            
+
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
 
             # Create backup
             await self._create_backup(config_file_path)
-            
+
             # Generate backup filename for response
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_name = f"{config_file_path.stem}_{timestamp}{config_file_path.suffix}"
-            
-            return {
-                "status": "success",
-                "message": f"Manual backup created successfully",
-                "backup_file": backup_name
-            }
+
+            return {"status": "success", "message": "Manual backup created successfully", "backup_file": backup_name}
 
         except HTTPException:
             raise

@@ -851,7 +851,7 @@ class QbitManageApp {
             });
 
             this.logViewer.log('info', 'Commands executed successfully.');
-            
+
             // Display the API response in the log viewer
             if (response) {
                 this.logViewer.log('info', `Response: ${JSON.stringify(response, null, 2)}`);
@@ -859,7 +859,7 @@ class QbitManageApp {
         } catch (error) {
             console.error('Command execution failed:', error);
             this.logViewer.log('error', `Command execution failed: ${error.message}`);
-            
+
             // Refresh logs even on error to show any server-side logs
             await this.logViewer.loadRecentLogs();
         }
@@ -872,13 +872,13 @@ class QbitManageApp {
                 <input type="text" id="new-config-name" class="form-input" placeholder="e.g., config_new.yml">
             </div>
         `;
-        
+
         const confirmed = await showModal('Create New Configuration', modalContent, {
             confirmText: 'Create',
             cancelText: 'Cancel',
             showCancel: true
         });
-        
+
         if (confirmed) {
             const newConfigName = get('new-config-name').value;
             if (newConfigName) {
