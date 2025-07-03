@@ -143,7 +143,6 @@ class WebAPI:
         # Initialize routes
         self.app.post("/api/commands/run")(self.run_command)
         self.app.post("/api/run-command")(self.run_command)  # Legacy alias for backward compatibility
-        self.app.get("/api/commands/history")(self.get_command_history)  # New route
 
         # Configuration management routes
         self.app.get("/api/configs")(self.list_configs)
@@ -593,15 +592,6 @@ class WebAPI:
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
-
-    async def get_command_history(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Get command execution history."""
-        # Placeholder: In a real application, this would fetch from a database or log file.
-        # For now, return dummy data.
-        return [
-            {"id": "cmd_123", "command": "recheck", "status": "completed", "timestamp": "2023-10-26T10:00:00Z"},
-            {"id": "cmd_124", "command": "tag_update", "status": "failed", "timestamp": "2023-10-26T10:05:00Z"},
-        ][:limit]
 
     async def get_logs(self, limit: int | None = None, log_filename: str | None = None) -> dict[str, Any]:
         """Get recent logs from the log file."""
