@@ -71,6 +71,19 @@ class ValidationResponse(BaseModel):
     warnings: list[str] = []
 
 
+class HealthCheckResponse(BaseModel):
+    """Health check response model."""
+
+    status: str  # healthy, degraded, busy, unhealthy
+    timestamp: str
+    version: str = "Unknown"
+    branch: str = "Unknown"
+    application: dict = {}  # web_api_responsive, can_accept_requests, queue_size, etc.
+    directories: dict = {}  # config/logs directory status and activity info
+    issues: list[str] = []
+    error: str = None
+
+
 async def process_queue_periodically(web_api: WebAPI) -> None:
     """Continuously check and process queued requests."""
     try:
@@ -157,6 +170,7 @@ class WebAPI:
         self.app.get("/api/logs")(self.get_logs)
         self.app.get("/api/log_files")(self.list_log_files)
         self.app.get("/api/version")(self.get_version)
+        self.app.get("/api/health")(self.health_check)
 
         # Root route to serve web UI
         @self.app.get("/")
@@ -238,6 +252,140 @@ class WebAPI:
         except Exception as e:
             logger.error(f"Error getting version: {str(e)}")
             return {"version": "Unknown"}
+
+    async def health_check(self) -> HealthCheckResponse:
+        """Health check endpoint providing application status information."""
+        try:
+            # Get basic application info
+            version, branch = util.get_current_version()
+
+            # Check queue status - this is more meaningful than the running flag
+            # since the health check itself can't run while commands are executing
+            queue_size = 0
+            has_queued_requests = False
+            try:
+                queue_size = self.web_api_queue.qsize()
+                has_queued_requests = queue_size > 0
+            except Exception:
+                queue_size = None
+                has_queued_requests = None
+
+            # Check if we can acquire the lock (indicates if something is running)
+            # This is a non-blocking check that won't interfere with operations
+            can_acquire_lock = False
+            try:
+                can_acquire_lock = self.is_running_lock.acquire(timeout=0.001)  # Very short timeout
+                if can_acquire_lock:
+                    self.is_running_lock.release()
+            except Exception:
+                can_acquire_lock = None
+
+            # Check if config directory exists and has configs
+            config_files_count = 0
+            config_dir_exists = self.config_path.exists()
+            if config_dir_exists:
+                try:
+                    config_files = []
+                    for pattern in ["*.yml", "*.yaml"]:
+                        config_files.extend([f.name for f in self.config_path.glob(pattern)])
+                    config_files_count = len(config_files)
+                except Exception:
+                    config_files_count = None
+
+            # Check if logs directory exists
+            logs_dir_exists = self.logs_path.exists()
+
+            # Check if we can read the most recent log file for additional health info
+            recent_log_entries = 0
+            last_log_time = None
+            if logs_dir_exists:
+                try:
+                    log_file_path = self.logs_path / "qbit_manage.log"
+                    if log_file_path.exists():
+                        # Get last few lines to check recent activity
+                        with open(log_file_path, encoding="utf-8", errors="ignore") as f:
+                            lines = f.readlines()
+                            recent_log_entries = len(lines)
+                            if lines:
+                                # Try to extract timestamp from last log entry
+                                last_line = lines[-1].strip()
+                                if last_line:
+                                    # Basic check for recent activity (last line exists)
+                                    last_log_time = "Recent activity detected"
+                except Exception:
+                    pass
+
+            # Determine overall health status
+            status = "healthy"
+            issues = []
+
+            if not config_dir_exists:
+                status = "degraded"
+                issues.append("Config directory not found")
+            elif config_files_count == 0:
+                status = "degraded"
+                issues.append("No configuration files found")
+
+            if not logs_dir_exists:
+                if status == "healthy":
+                    status = "degraded"
+                issues.append("Logs directory not found")
+
+            # If we can't acquire the lock, it likely means something is running
+            if can_acquire_lock is False:
+                if status == "healthy":
+                    status = "busy"  # New status to indicate active processing
+
+            # Get current timestamp
+            current_time = datetime.now().isoformat()
+
+            # Extract next scheduled run information
+            next_run_text = None
+            next_run_timestamp = None
+            if self.next_scheduled_run_info:
+                next_run_text = self.next_scheduled_run_info.get("next_run_str")
+                # Get the actual datetime object for the next run
+                next_run_datetime = self.next_scheduled_run_info.get("next_run")
+                if next_run_datetime:
+                    try:
+                        next_run_timestamp = next_run_datetime.isoformat()
+                    except Exception:
+                        # If it's not a datetime object, try to parse it
+                        pass
+
+            health_info = {
+                "status": status,
+                "timestamp": current_time,
+                "version": version[0] if version else "Unknown",
+                "branch": branch if branch else "Unknown",
+                "application": {
+                    "web_api_responsive": True,  # If we're responding, the web API is working
+                    "can_accept_requests": can_acquire_lock,  # Whether new requests can be processed immediately
+                    "queue_size": queue_size,
+                    "has_queued_requests": has_queued_requests,
+                    "next_scheduled_run": next_run_timestamp,
+                    "next_scheduled_run_text": next_run_text,
+                },
+                "directories": {
+                    "config_dir_exists": config_dir_exists,
+                    "config_files_count": config_files_count,
+                    "logs_dir_exists": logs_dir_exists,
+                    "recent_log_entries": recent_log_entries,
+                    "last_activity": last_log_time,
+                },
+                "issues": issues,
+            }
+
+            return health_info
+
+        except Exception as e:
+            logger.error(f"Error in health check: {str(e)}")
+            return {
+                "status": "unhealthy",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+                "issues": ["Health check failed"],
+            }
 
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""
