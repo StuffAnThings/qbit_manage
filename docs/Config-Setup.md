@@ -20,7 +20,7 @@ You can reference environment variables inside your `config.yml` by `!ENV VAR_NA
 ## **commands:**
 
 ---
-This section will ignore any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
+This section will override any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
 
 | Variable  | Definition                                            | Required           |
 | :-------- | :---------------------------------------------------- | :----------------- |
