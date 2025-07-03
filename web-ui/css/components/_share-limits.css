@@ -1,0 +1,243 @@
+/* Share Limits Configuration Styles */
+.share-limits-config {
+  margin-bottom: var(--spacing-lg);
+}
+
+.share-limits-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.share-limits-header h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.share-limits-description {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.share-limits-list {
+  min-height: 100px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+}
+
+.share-limits-list.drag-over {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color-light);
+}
+
+.share-limit-group-item {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-sm);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.share-limit-group-item:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.share-limit-group-item.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+}
+
+.share-limit-group-item:last-child {
+  margin-bottom: 0;
+}
+
+.share-limit-group-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: var(--spacing-md);
+  cursor: grab;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+}
+
+.share-limit-group-handle:hover {
+  color: var(--text-primary);
+}
+
+.share-limit-group-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle-icon {
+  fill: currentColor;
+}
+
+.share-limit-group-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  cursor: pointer;
+}
+
+.share-limit-group-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-limit-group-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+}
+
+.share-limit-group-name {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.share-limit-group-priority {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  background-color: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+}
+
+.share-limit-group-summary {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.remove-share-limit-group {
+  margin-left: var(--spacing-md);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+
+.remove-share-limit-group:hover {
+  opacity: 1;
+}
+
+/* Modal styles for share limit group configuration */
+.share-limit-modal {
+  max-width: 600px;
+  width: 95%;
+  margin: 0 auto; /* Ensure horizontal centering */
+}
+
+.share-limit-modal .modal-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-limit-modal .modal {
+  min-height: 400px;
+  max-height: 90vh !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  /* FIX: Prevent modal collapse by ensuring stable dimensions */
+  min-width: 500px !important;
+  width: auto !important;
+}
+
+.share-limit-modal .modal-header {
+  flex-shrink: 0 !important;
+}
+
+.share-limit-modal .modal-content {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  min-height: 200px !important; /* Prevent content collapse */
+  max-height: calc(90vh - 200px) !important; /* Account for header/footer */
+  padding: var(--spacing-lg) !important;
+  /* FIX: Ensure content maintains stable dimensions */
+  contain: layout style !important;
+}
+
+.share-limit-modal .modal-footer {
+  flex-shrink: 0 !important;
+}
+
+.share-limit-modal .form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.share-limit-modal .form-section {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.share-limit-modal .form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.share-limit-modal .form-section-title {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* Drop placeholder */
+.share-limit-group-placeholder {
+    height: 2px;
+    background-color: var(--primary-color);
+    margin: 5px 0;
+    border-radius: 2px;
+}
+
+/* Drop target highlight */
+.share-limit-group-item.drop-target {
+    border-left: 3px solid var(--primary-color);
+    background-color: var(--primary-color-light);
+}
+
+/* Empty state */
+.share-limits-list:empty::after {
+  content: "No share limit groups configured. Click 'Add New Group' to get started.";
+  display: block;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: var(--spacing-xl);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .share-limit-group-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .share-limit-modal {
+    width: 98%;
+    margin: 1%;
+  }
+}

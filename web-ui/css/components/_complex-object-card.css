@@ -1,0 +1,36 @@
+/* Complex Object Entry Card Styling */
+.complex-object-entry-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md); /* Add some padding inside the border */
+  margin-bottom: var(--spacing-lg); /* Add space between entries */
+  background-color: var(--bg-secondary); /* Changed background color */
+}
+
+.complex-object-entry-card .form-group {
+    margin-bottom: var(--spacing-md); /* Reduce margin for form groups within the card */
+}
+
+.complex-object-entry-card .form-group:last-child {
+    margin-bottom: 0; /* Remove bottom margin for the last form group */
+}
+
+.complex-object-key-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.complex-object-key-group .form-input {
+    flex-grow: 1; /* Allow the input to take up available space */
+}
+
+.array-item-input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm); /* Space between input and button */
+}
+
+.array-item-input-group .form-input {
+    flex-grow: 1; /* Allow input to take up space */
+}

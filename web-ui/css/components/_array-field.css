@@ -1,0 +1,41 @@
+/* Array Field Styling */
+.array-field .array-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.array-item {
+    display: flex;
+    align-items: center; /* Align items vertically in the middle */
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md); /* Adjust padding as needed */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+}
+
+.array-item .form-input {
+    flex-grow: 1; /* Allow input to take up available space */
+    margin-bottom: 0; /* Remove default form-group margin */
+}
+
+.array-item .remove-array-item {
+    /* Mimic .remove-category-btn styling */
+    background-color: var(--error-color);
+    color: var(--text-inverse);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.array-item .remove-array-item:hover {
+    background-color: #dc2626; /* Darker red on hover */
+}

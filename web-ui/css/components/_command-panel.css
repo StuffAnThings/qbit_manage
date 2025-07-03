@@ -1,0 +1,115 @@
+/* Command Panel Component */
+.command-panel-drawer {
+  position: fixed;
+  bottom: var(--footer-height);
+  left: 0;
+  right: 0;
+  height: 24rem;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-fixed);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform var(--transition-normal);
+  max-height: 280px;
+  overflow-y: auto; /* Add scroll if content exceeds max-height */
+}
+
+.command-panel-drawer:not(.hidden) {
+  transform: translateY(0);
+}
+
+.command-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.command-panel-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.command-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.command-panel-drawer.hidden {
+  transform: translateY(100%); /* Hide by moving it off-screen */
+}
+
+.command-panel-drawer:not(.hidden) {
+  transform: translateY(0); /* Show by moving it back */
+}
+
+.command-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md); /* Reduced gap */
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+.quick-actions {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+}
+
+.quick-actions h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.quick-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+
+.command-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.command-panel-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.command-panel-toggle-btn:hover {
+  background-color: var(--bg-secondary);
+}
+
+.command-panel-toggle-btn .icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--transition-fast);
+}
+
+.command-panel-toggle-btn.active .icon {
+  transform: rotate(180deg);
+}

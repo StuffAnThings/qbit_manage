@@ -4,19 +4,28 @@ from __future__ import annotations
 
 import asyncio
 import glob
+import json
 import os
+import shutil
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from multiprocessing import Queue
-from multiprocessing import Value
+from multiprocessing.sharedctypes import Synchronized
+from pathlib import Path
+from typing import Any
 
+import yaml
 from fastapi import FastAPI
 from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from modules import util
 from modules.config import Config
+from modules.util import YAML
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
@@ -30,6 +39,36 @@ class CommandRequest(BaseModel):
     commands: list[str]
     hashes: list[str] = field(default_factory=list)
     dry_run: bool = False
+
+
+class ConfigRequest(BaseModel):
+    """Configuration request model."""
+
+    data: dict[str, Any]
+
+
+class ConfigListResponse(BaseModel):
+    """Configuration list response model."""
+
+    configs: list[str]
+    default_config: str
+
+
+class ConfigResponse(BaseModel):
+    """Configuration response model."""
+
+    filename: str
+    data: dict[str, Any]
+    last_modified: str
+    size: int
+
+
+class ValidationResponse(BaseModel):
+    """Configuration validation response model."""
+
+    valid: bool
+    errors: list[str] = []
+    warnings: list[str] = []
 
 
 async def process_queue_periodically(web_api: WebAPI) -> None:
@@ -80,15 +119,57 @@ class WebAPI:
     )
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default_factory=FastAPI)
-    is_running: Value = field(default=None)
+    is_running: Synchronized[bool] = field(default=None)
     is_running_lock: object = field(default=None)  # multiprocessing.Lock
     web_api_queue: Queue = field(default=None)
     next_scheduled_run_info: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Initialize routes and events."""
+        # Initialize paths during startup
+        object.__setattr__(self, "config_path", Path(self.default_dir))
+        object.__setattr__(self, "logs_path", Path(self.default_dir) / "logs")
+        object.__setattr__(self, "backup_path", Path(self.default_dir) / ".backups")
+
+        # Configure CORS
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         # Initialize routes
-        self.app.post("/api/run-command")(self.run_command)
+        self.app.post("/api/commands/run")(self.run_command)
+        self.app.post("/api/run-command")(self.run_command)  # Legacy alias for backward compatibility
+        self.app.get("/api/commands/history")(self.get_command_history)  # New route
+
+        # Configuration management routes
+        self.app.get("/api/configs")(self.list_configs)
+        self.app.get("/api/configs/{filename}")(self.get_config)
+        self.app.post("/api/configs/{filename}")(self.create_config)
+        self.app.put("/api/configs/{filename}")(self.update_config)
+        self.app.delete("/api/configs/{filename}")(self.delete_config)
+        self.app.post("/api/configs/{filename}/validate")(self.validate_config)
+        self.app.post("/api/configs/{filename}/backup")(self.backup_config)
+        self.app.get("/api/configs/{filename}/backups")(self.list_config_backups)
+        self.app.post("/api/configs/{filename}/restore")(self.restore_config_from_backup)
+        self.app.get("/api/logs")(self.get_logs)
+        self.app.get("/api/log_files")(self.list_log_files)
+
+        # Root route to serve web UI
+        @self.app.get("/")
+        async def serve_index():
+            web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+            if web_ui_path.exists():
+                return FileResponse(str(web_ui_path))
+            raise HTTPException(status_code=404, detail="Web UI not found")
+
+        # Mount static files for web UI
+        web_ui_dir = Path(__file__).parent.parent / "web-ui"
+        if web_ui_dir.exists():
+            self.app.mount("/", StaticFiles(directory=str(web_ui_dir), html=True), name="web-ui")
 
         # Store reference to self in app state for access in event handlers
         self.app.state.web_api = self
@@ -156,7 +237,7 @@ class WebAPI:
             logger.info(f"Config File: {request.config_file}")
             logger.info(f"Commands: {', '.join(request.commands)}")
             logger.info(f"Dry Run: {request.dry_run}")
-            logger.info(f"Hashes: {', '.join(request.hashes) if request.hashes else 'None'}")
+            logger.info(f"Hashes: {', '.join(request.hashes) if request.hashes else ''}")
 
             config_files = get_matching_config_files(request.config_file, self.default_dir)
             logger.info(f"Found config files: {', '.join(config_files)}")
@@ -253,6 +334,200 @@ class WebAPI:
                 logger.error(f"Could not acquire lock in finally block: {e}. Force resetting is_running.value")
                 self.is_running.value = False
 
+    async def list_configs(self) -> ConfigListResponse:
+        """list available configuration files."""
+        try:
+            config_files = []
+
+            # Find all .yml and .yaml files in config directory
+            for pattern in ["*.yml", "*.yaml"]:
+                config_files.extend([f.name for f in self.config_path.glob(pattern)])
+
+            # Determine default config
+            default_config = "config.yml"
+            if "config.yml" not in config_files and config_files:
+                default_config = config_files[0]
+
+            return ConfigListResponse(configs=sorted(config_files), default_config=default_config)
+        except Exception as e:
+            logger.error(f"Error listing configs: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_config(self, filename: str) -> ConfigResponse:
+        """Get a specific configuration file."""
+        try:
+            config_file_path = self.config_path / filename
+
+            if not config_file_path.exists():
+                raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
+
+            # Load YAML data
+            yaml_loader = YAML(str(config_file_path))
+            config_data = yaml_loader.data
+
+            # Convert EnvStr objects back to !ENV syntax for frontend display
+            config_data_for_frontend = self._preserve_env_syntax(config_data)
+
+            # Get file stats
+            stat = config_file_path.stat()
+
+            return ConfigResponse(
+                filename=filename,
+                data=config_data_for_frontend,
+                last_modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                size=stat.st_size,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting config '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def create_config(self, filename: str, request: ConfigRequest) -> dict:
+        """Create a new configuration file."""
+        try:
+            config_file_path = self.config_path / filename
+
+            if config_file_path.exists():
+                raise HTTPException(status_code=409, detail=f"Configuration file '{filename}' already exists")
+
+            # Create backup directory if it doesn't exist
+            self.backup_path.mkdir(exist_ok=True)
+
+            # Write YAML file
+            self._write_yaml_config(config_file_path, request.data)
+
+            return {"status": "success", "message": f"Configuration '{filename}' created successfully"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating config '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def update_config(self, filename: str, request: ConfigRequest) -> dict:
+        """Update an existing configuration file."""
+        try:
+            config_file_path = self.config_path / filename
+
+            if not config_file_path.exists():
+                raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
+
+            # Create backup
+            await self._create_backup(config_file_path)
+
+            # Debug: Log what we received from frontend
+            logger.trace(f"[DEBUG] Raw data received from frontend: {json.dumps(request.data, indent=2, default=str)}")
+
+            # Convert !ENV syntax back to EnvStr objects for proper YAML serialization
+            config_data_for_save = self._restore_env_objects(request.data)
+
+            # Debug: Log what we have after restoration
+            logger.trace(f"[DEBUG] Data after _restore_env_objects: {json.dumps(config_data_for_save, indent=2, default=str)}")
+
+            # Write updated YAML file
+            self._write_yaml_config(config_file_path, config_data_for_save)
+
+            return {"status": "success", "message": f"Configuration '{filename}' updated successfully"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error updating config '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def delete_config(self, filename: str) -> dict:
+        """Delete a configuration file."""
+        try:
+            config_file_path = self.config_path / filename
+
+            if not config_file_path.exists():
+                raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
+
+            # Create backup before deletion
+            await self._create_backup(config_file_path)
+
+            # Delete file
+            config_file_path.unlink()
+
+            return {"status": "success", "message": f"Configuration '{filename}' deleted successfully"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting config '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def validate_config(self, filename: str, request: ConfigRequest) -> ValidationResponse:
+        """Validate a configuration."""
+        try:
+            errors = []
+            warnings = []
+
+            # Create temporary config for validation
+            now = datetime.now()
+            temp_args = self.args.copy()
+            temp_args["config_file"] = filename
+            temp_args["_from_web_api"] = True
+            temp_args["time"] = now.strftime("%H:%M")
+            temp_args["time_obj"] = now
+            temp_args["run"] = True
+
+            # Write temporary config file for validation
+            temp_config_path = self.config_path / f".temp_{filename}"
+            try:
+                self._write_yaml_config(temp_config_path, request.data)
+
+                # Try to load config using existing validation logic
+                try:
+                    Config(self.default_dir, temp_args)
+                except Exception as e:
+                    errors.append(str(e))
+
+            finally:
+                # Clean up temporary file
+                if temp_config_path.exists():
+                    temp_config_path.unlink()
+
+            return ValidationResponse(valid=len(errors) == 0, errors=errors, warnings=warnings)
+        except Exception as e:
+            logger.error(f"Error validating config '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def _write_yaml_config(self, config_path: Path, data: dict[str, Any]):
+        """Write configuration data to YAML file."""
+        from modules.util import YAML
+
+        try:
+            logger.debug(f"Attempting to write config to: {config_path}")
+            logger.trace(f"[DEBUG] Full data structure being written: {json.dumps(data, indent=2, default=str)}")
+
+            logger.trace(f"Data to write: {data}")
+
+            # Use the custom YAML class with !ENV representer
+            # Create YAML instance without loading existing file (we're writing new data)
+            yaml_writer = YAML(input_data="")  # Pass empty string to avoid file loading
+            yaml_writer.data = data
+            yaml_writer.path = str(config_path)
+            logger.debug(f"[DEBUG] yaml_writer.path set to: {repr(yaml_writer.path)}")
+            yaml_writer.save()
+
+            logger.info(f"Successfully wrote config to: {config_path}")
+        except yaml.YAMLError as e:
+            logger.error(f"YAML Error writing config to {config_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"YAML serialization error: {e}")
+        except Exception as e:
+            logger.error(f"Error writing config to {config_path}: {e}")
+            raise HTTPException(status_code=500, detail=f"File write error: {e}")
+
+    async def _create_backup(self, config_path: Path):
+        """Create a backup of the configuration file."""
+        self.backup_path.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"{config_path.stem}_{timestamp}{config_path.suffix}"
+        backup_file_path = self.backup_path / backup_name
+
+        shutil.copy2(config_path, backup_file_path)
+        logger.info(f"Created backup: {backup_file_path}")
+
     async def run_command(self, request: CommandRequest) -> dict:
         """Handle incoming command requests."""
         # Use atomic check-and-set operation
@@ -308,6 +583,216 @@ class WebAPI:
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_command_history(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Get command execution history."""
+        # Placeholder: In a real application, this would fetch from a database or log file.
+        # For now, return dummy data.
+        return [
+            {"id": "cmd_123", "command": "recheck", "status": "completed", "timestamp": "2023-10-26T10:00:00Z"},
+            {"id": "cmd_124", "command": "tag_update", "status": "failed", "timestamp": "2023-10-26T10:05:00Z"},
+        ][:limit]
+
+    async def get_logs(self, limit: int | None = None, log_filename: str | None = None) -> dict[str, Any]:
+        """Get recent logs from the log file."""
+        if not self.logs_path.exists():
+            logger.warning(f"Log directory not found: {self.logs_path}")
+            return {"logs": []}
+
+        # If no specific log_filename is provided, default to qbit_manage.log
+        if log_filename is None:
+            log_filename = "qbit_manage.log"
+
+        log_file_path = self.logs_path / log_filename
+
+        if not log_file_path.exists():
+            logger.warning(f"Log file not found: {log_file_path}")
+            return {"logs": []}
+
+        logs = []
+        try:
+            with open(log_file_path, encoding="utf-8", errors="ignore") as f:
+                # Read lines in reverse to get recent logs efficiently
+                for line in reversed(f.readlines()):
+                    logs.append(line.strip())
+                    if limit is not None and len(logs) >= limit:
+                        break
+            logs.reverse()  # Put them in chronological order
+            return {"logs": logs}
+        except Exception as e:
+            logger.error(f"Error reading log file {log_file_path}: {str(e)}")
+            logger.stacktrace()
+            raise HTTPException(status_code=500, detail=f"Failed to read log file: {str(e)}")
+
+    async def list_log_files(self) -> dict:
+        """List available log files."""
+        if not self.logs_path.exists():
+            logger.warning(f"Log directory not found: {self.logs_path}")
+            return {"log_files": []}
+
+        log_files = []
+        try:
+            for file_path in self.logs_path.iterdir():
+                if file_path.is_file() and file_path.suffix == ".log":
+                    log_files.append(file_path.name)
+            return {"log_files": sorted(log_files)}
+        except Exception as e:
+            logger.error(f"Error listing log files in {self.logs_path}: {str(e)}")
+            logger.stacktrace()
+            raise HTTPException(status_code=500, detail=f"Error listing log files: {str(e)}")
+
+    async def backup_config(self, filename: str) -> dict:
+        """Create a manual backup of a configuration file."""
+        try:
+            config_file_path = self.config_path / filename
+            
+            if not config_file_path.exists():
+                raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
+
+            # Create backup
+            await self._create_backup(config_file_path)
+            
+            # Generate backup filename for response
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"{config_file_path.stem}_{timestamp}{config_file_path.suffix}"
+            
+            return {
+                "status": "success",
+                "message": f"Manual backup created successfully",
+                "backup_file": backup_name
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating backup for '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def list_config_backups(self, filename: str) -> dict:
+        """List available backups for a configuration file."""
+        try:
+            if not self.backup_path.exists():
+                return {"backups": []}
+
+            # Find backup files for this config
+            config_base = Path(filename).stem
+            backup_pattern = f"{config_base}_*{Path(filename).suffix}"
+            backup_files = list(self.backup_path.glob(backup_pattern))
+
+            backups = []
+            for backup_file in sorted(backup_files, key=lambda x: x.stat().st_mtime, reverse=True):
+                # Extract timestamp from filename (format: config_YYYYMMDD_HHMMSS.yml)
+                try:
+                    name_parts = backup_file.stem.split("_")
+                    if len(name_parts) >= 3:
+                        date_str = name_parts[-2]  # YYYYMMDD
+                        time_str = name_parts[-1]  # HHMMSS
+                        timestamp_str = f"{date_str}_{time_str}"
+                        timestamp = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+                    else:
+                        # Fallback to file modification time
+                        timestamp = datetime.fromtimestamp(backup_file.stat().st_mtime)
+
+                    backups.append(
+                        {"filename": backup_file.name, "timestamp": timestamp.isoformat(), "size": backup_file.stat().st_size}
+                    )
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Could not parse backup timestamp from {backup_file.name}: {e}")
+                    # Include backup with file modification time as fallback
+                    timestamp = datetime.fromtimestamp(backup_file.stat().st_mtime)
+                    backups.append(
+                        {"filename": backup_file.name, "timestamp": timestamp.isoformat(), "size": backup_file.stat().st_size}
+                    )
+
+            return {"backups": backups}
+
+        except Exception as e:
+            logger.error(f"Error listing backups for '{filename}': {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def restore_config_from_backup(self, filename: str, request: dict) -> dict:
+        """Restore configuration from a backup file."""
+        try:
+            backup_filename = request.get("backup_id")
+            if not backup_filename:
+                raise HTTPException(status_code=400, detail="backup_id is required")
+
+            backup_file_path = self.backup_path / backup_filename
+
+            if not backup_file_path.exists():
+                raise HTTPException(status_code=404, detail=f"Backup file '{backup_filename}' not found")
+
+            # Load backup data
+            yaml_loader = YAML(str(backup_file_path))
+            backup_data = yaml_loader.data
+
+            # Convert EnvStr objects back to !ENV syntax for frontend display
+            backup_data_for_frontend = self._preserve_env_syntax(backup_data)
+
+            return {
+                "status": "success",
+                "message": f"Backup '{backup_filename}' loaded successfully",
+                "data": backup_data_for_frontend,
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error restoring config '{filename}' from backup: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def _preserve_env_syntax(self, data):
+        """Convert EnvStr objects back to !ENV syntax for frontend display"""
+        from modules.util import EnvStr
+
+        if isinstance(data, EnvStr):
+            # Return the original !ENV syntax
+            return f"!ENV {data.env_var}"
+        elif isinstance(data, dict):
+            # Recursively process dictionary values
+            return {key: self._preserve_env_syntax(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            # Recursively process list items
+            return [self._preserve_env_syntax(item) for item in data]
+        else:
+            # Return other types as-is
+            return data
+
+    def _restore_env_objects(self, data):
+        """Convert !ENV syntax back to EnvStr objects for proper YAML serialization."""
+        import os
+
+        from modules.util import EnvStr
+
+        if isinstance(data, str) and data.startswith("!ENV "):
+            env_var = data[5:]  # Remove "!ENV " prefix
+            env_value = os.getenv(env_var, "")
+            return EnvStr(env_var, env_value)
+        elif isinstance(data, dict):
+            return {key: self._restore_env_objects(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [self._restore_env_objects(item) for item in data]
+        else:
+            return data
+
+    def _log_env_str_values(self, data, path):
+        """Helper method to log EnvStr values for debugging"""
+        from modules.util import EnvStr
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                current_path = f"{path}.{key}" if path else key
+                if isinstance(value, EnvStr):
+                    logger.debug(f"  {current_path}: EnvStr(env_var='{value.env_var}', resolved='{str(value)}')")
+                elif isinstance(value, (dict, list)):
+                    self._log_env_str_values(value, current_path)
+        elif isinstance(data, list):
+            for i, item in enumerate(data):
+                current_path = f"{path}[{i}]"
+                if isinstance(item, EnvStr):
+                    logger.debug(f"  {current_path}: EnvStr(env_var='{item.env_var}', resolved='{str(item)}')")
+                elif isinstance(item, (dict, list)):
+                    self._log_env_str_values(item, current_path)
 
 
 def create_app(

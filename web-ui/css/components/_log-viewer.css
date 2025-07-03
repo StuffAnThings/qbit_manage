@@ -1,0 +1,268 @@
+/* Log Viewer Styles */
+.log-viewer {
+    display: flex;
+    flex-direction: column;
+    height: 70vh !important; /* 70% of viewport height */
+    max-height: 70vh !important; /* Maximum height constraint */
+    width: 100%;
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.log-viewer-header {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    gap: var(--spacing-md); /* Spacing between main header elements */
+}
+
+.log-viewer-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.log-viewer-title h4 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.log-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.log-viewer-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md); /* Spacing between filter and action groups */
+}
+
+.log-filters,
+.log-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm); /* Spacing between individual controls */
+}
+
+.log-floating-scroll-buttons {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 10; /* Ensure it's above log content */
+}
+
+.log-floating-scroll-buttons.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.log-scroll-buttons {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: var(--spacing-sm); /* Space between buttons */
+}
+
+.log-scroll-buttons .btn {
+    /* Adjust button styles if needed, e.g., padding, size */
+}
+
+.log-viewer-content {
+    flex: 1; /* Takes up remaining vertical space */
+    overflow: auto; /* Add scrollbars when content overflows */
+    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: calc(70vh - 100px) !important; /* Account for header/footer height */
+    height: calc(70vh - 100px) !important; /* Height accounting for header/footer */
+    min-height: 0; /* Allow content to shrink within flex container */
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--bg-tertiary); /* Slightly different background for log area */
+    font-family: var(--font-mono); /* Monospace font for logs */
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.log-container {
+    /* No specific styles needed here, it's just a wrapper for log entries */
+}
+
+.log-entry {
+    display: flex;
+    align-items: baseline; /* Align text baselines */
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px dotted var(--border-color); /* Subtle separator */
+    white-space: pre; /* Preserve whitespace and don't wrap */
+    word-break: normal; /* Don't break words */
+}
+
+.log-entry:last-child {
+    border-bottom: none; /* No border for the last entry */
+}
+
+.log-entry.word-wrap {
+    white-space: normal; /* Override pre-wrap if word wrap is enabled */
+}
+
+.log-timestamp {
+    flex-shrink: 0; /* Prevent timestamp from shrinking */
+    margin-right: var(--spacing-sm);
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+}
+
+.log-level {
+    flex-shrink: 0;
+    margin-right: var(--spacing-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.log-icon {
+    font-size: var(--font-size-xs); /* Adjust icon size */
+}
+
+.log-level-text {
+    font-size: var(--font-size-xs);
+}
+
+.log-message {
+    flex-grow: 1; /* Allow message to take up remaining space */
+    min-width: 0; /* Allow content to shrink */
+    overflow: visible; /* Allow content to overflow */
+}
+
+.log-source {
+    flex-shrink: 0;
+    margin-left: var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+/* Log Level Colors (from LogViewer JS) - ensure these match the JS for consistency */
+.log-entry.log-debug .log-level { color: #6c757d; }
+.log-entry.log-info .log-level { color: #17a2b8; }
+.log-entry.log-warning .log-level { color: #ffc107; }
+.log-entry.log-error .log-level { color: #dc3545; }
+.log-entry.log-critical .log-level { color: #721c24; }
+
+/* Log Placeholder */
+.log-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: var(--spacing-2xl);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.placeholder-icon {
+    font-size: 3rem; /* Larger icon */
+    margin-bottom: var(--spacing-md);
+}
+
+.placeholder-text {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm);
+}
+
+.placeholder-subtext {
+    font-size: var(--font-size-sm);
+}
+
+/* Log Viewer Footer (Stats and Settings) */
+.log-viewer-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    gap: var(--spacing-md);
+}
+
+.log-stats {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.stat-item {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.stat-label {
+    font-weight: 500;
+}
+
+.stat-value {
+    font-weight: 600;
+}
+
+.error-count {
+    color: var(--error-color);
+}
+
+.warning-count {
+    color: var(--warning-color);
+}
+
+.log-settings {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+/* Log Viewer Refresh Interval Control */
+.refresh-interval-control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.refresh-interval-control .form-label {
+  margin-bottom: 0; /* Remove default margin-bottom from label */
+  white-space: nowrap; /* Prevent text from wrapping */
+}
+
+/* Log Viewer Header and Status */
+.log-viewer-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: var(--spacing-md);
+}
+
+.log-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+
+}

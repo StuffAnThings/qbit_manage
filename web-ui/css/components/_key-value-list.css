@@ -1,0 +1,62 @@
+/* Category Key-Value List */
+.key-value-list .key-value-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg); /* Increased space below header */
+}
+
+.category-row {
+    display: flex;
+    align-items: flex-start; /* Align items to the top */
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+    position: relative; /* For positioning the remove button */
+}
+
+.category-inputs {
+    flex-grow: 1;
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.category-name-group {
+    flex: 1; /* 1/4 of the available space */
+    min-width: 150px; /* Minimum width before wrapping */
+    margin-bottom: 0; /* Remove default form-group margin */
+}
+
+.category-path-group {
+    flex: 3; /* 3/4 of the available space */
+    min-width: 250px; /* Adjust minimum width as needed */
+    margin-bottom: 0; /* Remove default form-group margin */
+}
+
+.category-row .remove-category-btn {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background-color: var(--error-color);
+    color: var(--text-inverse);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    z-index: 1; /* Ensure it's above inputs */
+}
+
+.category-row .remove-category-btn:hover {
+    background-color: #dc2626; /* Darker red on hover */
+}
+
+/* Adjust form-group margin within category-row */
+.category-row .form-group {
+    margin-bottom: 0;
+}

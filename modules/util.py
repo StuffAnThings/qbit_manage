@@ -13,7 +13,6 @@ from pathlib import Path
 import requests
 import ruamel.yaml
 from pytimeparse2 import parse
-from ruamel.yaml.constructor import ConstructorError
 
 logger = logging.getLogger("qBit Manage")
 
@@ -885,8 +884,12 @@ class YAML:
         self.yaml.Representer.add_representer(EnvStr, self._env_representer)
 
         try:
-            if input_data:
-                self.data = self.yaml.load(input_data)
+            if input_data is not None:
+                if input_data == "":
+                    # Empty string means initialize with empty data for writing
+                    self.data = {}
+                else:
+                    self.data = self.yaml.load(input_data)
             else:
                 if create and not os.path.exists(self.path):
                     with open(self.path, "w"):
@@ -910,8 +913,10 @@ class YAML:
         value = loader.construct_scalar(node)
         # Resolve the environment variable at runtime
         env_value = os.getenv(value)
+        # If environment variable is not found, use an empty string as default for schema generation
         if env_value is None:
-            raise ConstructorError(f"Environment variable '{value}' not found")
+            logger.warning(f"Environment variable '{value}' not found. Using empty string for schema generation.")
+            env_value = ""
         # Return a custom string subclass that preserves the !ENV tag
         return EnvStr(value, env_value)
 
@@ -924,6 +929,8 @@ class YAML:
         if self.path:
             with open(self.path, "w", encoding="utf-8") as filepath:
                 self.yaml.dump(self.data, filepath)
+        else:
+            raise ValueError("YAML path is None or empty")
 
 
 class EnvStr(str):

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qBit Manage - Configuration Manager</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="img/site.webmanifest">
+    <link rel="shortcut icon" href="img/favicon.ico">
+</head>
+<body>
+    <div id="app" class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <img src="img/qbm_logo.png" alt="qBit Manage" class="logo">
+                <h1 class="app-title">qBit Manage</h1>
+            </div>
+
+            <div class="header-center">
+                <div class="config-selector">
+                    <label for="config-select">Configuration:</label>
+                    <select id="config-select" class="config-select">
+                        <option value="">Loading...</option>
+                    </select>
+                    <button id="new-config-btn" class="btn btn-secondary" title="Create New Configuration">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="header-actions">
+                    <div class="history-controls">
+                        <button id="undo-btn" class="btn btn-icon" title="Undo (Ctrl+Z)" disabled>
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+                            </svg>
+                        </button>
+                        <button id="redo-btn" class="btn btn-icon" title="Redo (Ctrl+Y)" disabled>
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <button id="save-config-btn" class="btn btn-primary" disabled>
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                        </svg>
+                        Save
+                    </button>
+                    <button id="validate-config-btn" class="btn btn-secondary">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                        Validate
+                    </button>
+                    <button id="backup-config-btn" class="btn btn-secondary" title="Create Manual Backup">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        Backup
+                    </button>
+                    <button id="theme-toggle" class="btn btn-icon" title="Toggle Theme">
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </button>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Configuration Sections</h3>
+                    <div class="progress-indicator">
+                        <div class="progress-bar">
+                            <div id="config-progress" class="progress-fill"></div>
+                        </div>
+                        <span id="progress-text">0/12 sections</span>
+                    </div>
+                </div>
+
+                <ul class="nav-menu" id="nav-menu">
+                    <li class="nav-item" data-section="commands">
+                        <a href="#commands" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M9 5v4H5V5h4m0 14v-4H5v4h4m10-10v4h-4V9h4m0 10v-4h-4v4h4m2-16H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                            Commands
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="qbt">
+                        <a href="#qbt" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            qBittorrent Connection
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="settings">
+                        <a href="#settings" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                            </svg>
+                            Settings
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="directory">
+                        <a href="#directory" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                            </svg>
+                            Directory Paths
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="cat">
+                        <a href="#cat" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                            Categories
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="cat_change">
+                        <a href="#cat_change" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+                            </svg>
+                            Category Changes
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="tracker">
+                        <a href="#tracker" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                            Tracker Configuration
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="nohardlinks">
+                        <a href="#nohardlinks" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H6.99c-2.76 0-5 2.24-5 5s2.24 5 5 5H11v-1.9H6.99c-1.71 0-3.09-1.39-3.09-3.1zM8 13h8v-2H8v2zm5-6h4.01c2.76 0 5 2.24 5 5s-2.24 5-5 5H13v1.9h4.01c1.71 0 3.09-1.39 3.09-3.1 0-1.71-1.39-3.1-3.1-3.1H13V7z"/>
+                            </svg>
+                            No Hard Links
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="share_limits">
+                        <a href="#share_limits" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-1 9H9v-2h9v2z"/>
+                            </svg>
+                            Share Limits
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="recyclebin">
+                        <a href="#recyclebin" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                            Recycle Bin
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="orphaned">
+                        <a href="#orphaned" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                            </svg>
+                            Orphaned Files
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="notifications">
+                        <a href="#notifications" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                            </svg>
+                            Notifications
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="logs">
+                        <a href="#logs" class="nav-link">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                            </svg>
+                            Logs
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="content">
+                <div class="content-header">
+                    <h2 id="section-title">Category Changes</h2>
+                    <div class="content-actions">
+                        <button id="yaml-preview-btn" class="btn btn-secondary">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                            </svg>
+                            Preview YAML
+                        </button>
+                        <button id="help-btn" class="btn btn-secondary">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                            </svg>
+                            Help
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Content Container -->
+                <div id="section-content" class="section-content">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading configuration...</p>
+                    </div>
+                </div>
+<!-- Logs Section -->
+                <div id="logs-section" class="section-content hidden">
+                    <!-- LogViewer component will be rendered here by app.js -->
+                </div>
+
+                <!-- YAML Preview Panel -->
+                <div id="yaml-preview" class="yaml-preview hidden">
+                    <div class="yaml-preview-header">
+                        <h3>YAML Preview</h3>
+                        <button id="close-preview-btn" class="btn btn-icon">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre id="yaml-content" class="yaml-content"></pre>
+                </div>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-left">
+                <div class="command-panel">
+                    <button id="run-commands-btn" class="btn btn-primary" disabled>
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        Run Commands
+                    </button>
+                </div>
+            </div>
+
+            <div class="footer-center">
+<!-- Log viewer toggle removed as logs are now a separate page -->
+            </div>
+
+            <div class="footer-right">
+                <div class="version-info">
+                    <span id="version-text">qBit Manage v4.0.0</span>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Command Panel Drawer -->
+    <div id="command-panel-drawer" class="command-panel-drawer hidden"></div>
+
+    <!-- Modals (Dynamically managed by JS) -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button id="modal-close-btn" class="btn btn-icon btn-close-icon">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="modal-content" class="modal-content"></div>
+            <div class="modal-footer">
+                <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="modal-confirm-btn" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications (Dynamically managed by JS) -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -569,7 +569,7 @@ requires-dist = [
     { name = "pytimeparse2", specifier = "==1.7.1" },
     { name = "qbittorrent-api", specifier = "==2025.5.0" },
     { name = "requests", specifier = "==2.32.4" },
-    { name = "retrying", specifier = "==1.3.4" },
+    { name = "retrying", specifier = "==1.4.0" },
     { name = "ruamel-yaml", specifier = "==0.18.14" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.12.0" },
     { name = "schedule", specifier = "==1.2.2" },
@@ -608,14 +608,11 @@ wheels = [
 
 [[package]]
 name = "retrying"
-version = "1.3.4"
+version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/70/15ce8551d65b324e18c5aa6ef6998880f21ead51ebe5ed743c0950d7d9dd/retrying-1.3.4.tar.gz", hash = "sha256:345da8c5765bd982b1d1915deb9102fd3d1f7ad16bd84a9700b85f64d24e8f3e", size = 10929, upload-time = "2022-11-25T09:57:49.43Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/e5/986cabb44cc073a8bf50c3d8d4c85514c6741fff78ebf853a0ebcd441a97/retrying-1.4.0.tar.gz", hash = "sha256:efa99c78bf4fbdbe6f0cba4101470fbc684b93d30ca45ffa1288443a9805172f", size = 11202, upload-time = "2025-06-24T10:08:59.091Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/04/9e36f28be4c0532c0e9207ff9dc01fb13a2b0eb036476a213b0000837d0e/retrying-1.3.4-py3-none-any.whl", hash = "sha256:8cc4d43cb8e1125e0ff3344e9de678fefd85db3b750b81b2240dc0183af37b35", size = 11602, upload-time = "2022-11-25T09:57:47.494Z" },
+    { url = "https://files.pythonhosted.org/packages/96/7e/5a83e2c56761d347128e58b3f23af829fd145bfb1afeff18927bc5915459/retrying-1.4.0-py3-none-any.whl", hash = "sha256:6509d829c70271937605bce361c8f76e91f9123d355d14df7dc6972b1518064a", size = 11972, upload-time = "2025-06-24T10:08:57.794Z" },
 ]
 
 [[package]]

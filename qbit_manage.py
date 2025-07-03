@@ -617,7 +617,7 @@ if __name__ == "__main__":
                 app = create_app(process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared)
 
                 # Configure uvicorn settings
-                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
+                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
 
                 # Run the server
                 server = uvicorn.Server(config)
@@ -636,9 +636,10 @@ if __name__ == "__main__":
 
         # Start web server if enabled and not in run mode
         web_process = None
-        if web_server and not run:
+        if web_server:
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
+            logger.info(f"Access the WebUI at http://localhost:{port}")
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
