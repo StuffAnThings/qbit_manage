@@ -1,83 +1,141 @@
-/* Share Limits Configuration Styles */
+/* Share Limits Configuration Styles - Modernized */
 .share-limits-config {
   margin-bottom: var(--spacing-lg);
 }
 
+/* Modern Card-based Header */
 .share-limits-header {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-fast);
+}
+
+.share-limits-header:hover {
+  box-shadow: var(--card-hover-shadow);
+  transform: translateY(-1px);
 }
 
 .share-limits-header h3 {
   margin: 0 0 var(--spacing-sm) 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.share-limits-header h3::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  border-radius: 2px;
 }
 
 .share-limits-description {
-  margin: 0 0 var(--spacing-md) 0;
-  color: var(--text-muted);
+  margin: 0;
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
+  line-height: 1.5;
+  padding-bottom: 0.5rem;
 }
 
+/* Modern Drop Zone */
 .share-limits-list {
-  min-height: 100px;
+  min-height: 120px;
   border: 2px dashed var(--border-color);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-md);
-  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  background: var(--card-bg);
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.share-limits-list::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, var(--primary-light) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  pointer-events: none;
 }
 
 .share-limits-list.drag-over {
-  border-color: var(--primary-color);
-  background-color: var(--primary-color-light);
+  border-color: var(--primary);
+  background-color: var(--primary-light);
 }
 
+/* Modern Card-based Group Items */
 .share-limit-group-item {
   display: flex;
   align-items: center;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-sm);
-  padding: var(--spacing-md);
+  background: var(--bg-primary);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-lg);
   cursor: pointer;
   transition: all var(--transition-fast);
   position: relative;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.share-limit-group-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .share-limit-group-item:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--primary);
+  box-shadow: var(--card-hover-shadow);
+  transform: translateY(-2px);
+}
+
+.share-limit-group-item:hover::before {
+  opacity: 1;
 }
 
 .share-limit-group-item.dragging {
   opacity: 0.5;
-  transform: rotate(2deg);
-}
-
-.share-limit-group-item.touch-dragging {
-  opacity: 0.8;
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  position: relative;
+  background: var(--primary-light);
 }
 
 .share-limit-group-item:last-child {
   margin-bottom: 0;
 }
 
+/* Enhanced Drag Handle */
 .share-limit-group-handle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   margin-right: var(--spacing-md);
   cursor: grab;
   color: var(--text-muted);
-  transition: color var(--transition-fast);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
   /* Prevent text selection on mobile */
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -85,14 +143,35 @@
   user-select: none;
   /* Improve touch target size on mobile */
   touch-action: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.share-limit-group-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
+  opacity: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .share-limit-group-handle:hover {
-  color: var(--text-primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  transform: scale(1.1);
+}
+
+.share-limit-group-handle:hover::before {
+  opacity: 0.1;
 }
 
 .share-limit-group-handle:active {
   cursor: grabbing;
+  transform: scale(0.95);
 }
 
 .drag-handle-icon {
@@ -121,134 +200,286 @@
 
 .share-limit-group-name {
   font-weight: 600;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-lg);
   color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
 }
 
+/* Modern Badge Design */
 .share-limit-group-priority {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  background-color: var(--bg-secondary);
-  padding: 2px 8px;
-  border-radius: var(--border-radius-sm);
-  font-weight: 500;
+  font-size: var(--font-size-xs);
+  color: var(--primary);
+  background: linear-gradient(135deg, var(--primary-light), var(--primary-light));
+  padding: 4px 12px;
+  border-radius: var(--border-radius-full);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.share-limit-group-priority::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.share-limit-group-item:hover .share-limit-group-priority::before {
+  left: 100%;
 }
 
 .share-limit-group-summary {
   font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  line-height: 1.4;
+  color: var(--text-secondary);
+  line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
 }
 
+/* Enhanced Remove Button */
 .remove-share-limit-group {
   margin-left: var(--spacing-md);
   opacity: 0.6;
-  transition: opacity var(--transition-fast);
+  transition: all var(--transition-fast);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius);
+  background: transparent;
+  color: var(--text-muted);
 }
 
 .remove-share-limit-group:hover {
   opacity: 1;
+  background: var(--error-light);
+  color: var(--error);
+  transform: scale(1.1);
 }
 
-/* Modal styles for share limit group configuration */
+.remove-share-limit-group:active {
+  transform: scale(0.95);
+}
+
+/* Enhanced Modal Design */
 .share-limit-modal {
-  max-width: 600px;
+  max-width: 700px;
   width: 95%;
-  margin: 0 auto; /* Ensure horizontal centering */
+  margin: 0 auto;
 }
 
 .share-limit-modal .modal-overlay {
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(8px);
+  background: var(--bg-overlay);
 }
 
 .share-limit-modal .modal {
-  min-height: 400px;
+  min-height: 500px;
   max-height: 90vh !important;
   height: auto !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  /* FIX: Prevent modal collapse by ensuring stable dimensions */
-  min-width: 500px !important;
+  min-width: 600px !important;
   width: auto !important;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: var(--border-radius-xl);
+  animation: modalSlideIn 0.3s ease-out;
 }
 
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Enhanced Modal Sections */
 .share-limit-modal .modal-header {
   flex-shrink: 0 !important;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--spacing-xl);
+  border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
+}
+
+.share-limit-modal .modal-header h3 {
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.share-limit-modal .modal-header h3::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  border-radius: 2px;
 }
 
 .share-limit-modal .modal-content {
   flex: 1 1 auto !important;
   overflow-y: auto !important;
-  min-height: 200px !important; /* Prevent content collapse */
-  max-height: calc(90vh - 200px) !important; /* Account for header/footer */
-  padding: var(--spacing-lg) !important;
-  /* FIX: Ensure content maintains stable dimensions */
+  min-height: 300px !important;
+  max-height: calc(90vh - 200px) !important;
+  padding: var(--spacing-xl) !important;
   contain: layout style !important;
+  background: var(--card-bg);
 }
 
 .share-limit-modal .modal-footer {
   flex-shrink: 0 !important;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-radius: 0 0 var(--border-radius-xl) var(--border-radius-xl);
 }
 
+/* Enhanced Form Sections */
 .share-limit-modal .form-group {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
 .share-limit-modal .form-section {
-  margin-bottom: var(--spacing-lg);
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.share-limit-modal .form-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
 }
 
 .share-limit-modal .form-section:last-child {
-  border-bottom: none;
   margin-bottom: 0;
-  padding-bottom: 0;
 }
 
 .share-limit-modal .form-section-title {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 var(--spacing-md) 0;
+  margin: 0 0 var(--spacing-lg) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
-/* Drop placeholder */
-.share-limit-group-placeholder {
-    height: 2px;
-    background-color: var(--primary-color);
-    margin: 5px 0;
-    border-radius: 2px;
+.share-limit-modal .form-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-color), transparent);
 }
 
-.share-limit-group-placeholder.touch-placeholder {
-    height: 3px;
-    background-color: var(--primary-color);
-    margin: 8px 0;
-    border-radius: 3px;
-    box-shadow: 0 0 4px var(--primary-color);
-}
-
-/* Drop target highlight */
-.share-limit-group-item.drop-target {
-    border-left: 3px solid var(--primary-color);
-    background-color: var(--primary-color-light);
-}
-
-/* Empty state */
-.share-limits-list:empty::after {
-  content: "No share limit groups configured. Click 'Add New Group' to get started.";
-  display: block;
-  text-align: center;
+/* Modern Form Help Text - Fix Clipping Issue */
+.share-limit-modal .modern-form-help {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
-  font-style: italic;
-  padding: var(--spacing-xl);
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--primary-light);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
+  clear: both;
+  overflow: visible;
+}
+
+.share-limit-modal .modern-form-help .material-icons {
+  font-size: 16px;
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Ensure form groups have proper spacing */
+.share-limit-modal .modern-form-group {
+  margin-bottom: var(--spacing-lg);
+  position: relative;
+  overflow: visible;
+}
+
+/* Fix floating label positioning */
+.share-limit-modal .floating-label-group {
+  position: relative;
+  margin-bottom: var(--spacing-md);
+  overflow: visible;
+}
+
+.share-limit-modal .floating-label {
+  position: absolute;
+  top: 50%;
+  left: var(--spacing-sm);
+  transform: translateY(-50%);
+  background: var(--bg-primary);
+  padding: 0 var(--spacing-xs);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.share-limit-modal .modern-input:focus + .floating-label,
+.share-limit-modal .modern-input:not(:placeholder-shown) + .floating-label {
+  top: 0;
+  transform: translateY(-50%);
+  font-size: var(--font-size-xs);
+  color: var(--primary);
+}
+
+/* Ensure input icons don't interfere */
+.share-limit-modal .input-icon {
+  position: absolute;
+  right: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+.share-limit-group-item.drag-over {
+  background-color: var(--primary-light);
+  border-color: var(--primary);
 }
 
 /* Responsive adjustments */
@@ -264,48 +495,24 @@
     margin: 1%;
   }
 
-  /* Improve touch targets on mobile */
   .share-limit-group-handle {
-    width: 32px;
-    height: 32px;
-    margin-right: var(--spacing-sm);
+    width: 40px;
+    height: 40px;
   }
 
   .share-limit-group-item {
-    padding: var(--spacing-md) var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-  }
-
-  /* Prevent text selection during touch drag */
-  .share-limit-group-item.touch-dragging,
-  .share-limit-group-item.touch-dragging * {
-    -webkit-user-select: none !important;
-    -moz-user-select: none !important;
-    -ms-user-select: none !important;
-    user-select: none !important;
-  }
-
-  /* Better visual feedback for touch interactions */
-  .share-limit-group-item.touch-dragging {
-    opacity: 0.9;
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    padding: var(--spacing-md);
   }
 }
 
-/* Touch-specific styles for very small screens */
+/* Responsive adjustments for smaller screens */
 @media (max-width: 480px) {
   .share-limit-group-handle {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .share-limit-group-item {
-    padding: var(--spacing-lg) var(--spacing-sm);
-  }
-
-  .share-limit-group-placeholder.touch-placeholder {
-    height: 4px;
-    margin: 10px 0;
+    padding: var(--spacing-sm);
   }
 }

@@ -653,7 +653,7 @@ class WebAPI:
         from modules.util import YAML
 
         try:
-            logger.debug(f"Attempting to write config to: {config_path}")
+            logger.trace(f"Attempting to write config to: {config_path}")
             logger.trace(f"[DEBUG] Full data structure being written: {json.dumps(data, indent=2, default=str)}")
 
             logger.trace(f"Data to write: {data}")
@@ -663,7 +663,6 @@ class WebAPI:
             yaml_writer = YAML(input_data="")  # Pass empty string to avoid file loading
             yaml_writer.data = data
             yaml_writer.path = str(config_path)
-            logger.debug(f"[DEBUG] yaml_writer.path set to: {repr(yaml_writer.path)}")
             yaml_writer.save()
 
             logger.info(f"Successfully wrote config to: {config_path}")

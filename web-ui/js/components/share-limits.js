@@ -1,12 +1,12 @@
 /**
- * Share Limits Component
- * Handles the specialized Share Limits configuration interface with drag-and-drop and modal editing
+ * Share Limits Component - Modernized
+ * Handles the specialized Share Limits configuration interface with enhanced drag-and-drop and modal editing
+ * Features: Modern animations, improved UX, better accessibility, and enhanced visual feedback
  */
 
-import { showModal, hideModal } from '../utils/modal.js';
+import { showModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
-import { get, query, queryAll } from '../utils/dom.js';
-import { generateFieldHTML, generateShareLimitsHTML } from '../utils/form-renderer.js';
+import { generateShareLimitsHTML } from '../utils/form-renderer.js';
 import { shareLimitsSchema } from '../config-schemas/share_limits.js';
 
 export class ShareLimitsComponent {
@@ -26,6 +26,73 @@ export class ShareLimitsComponent {
     init() {
         this.bindEvents();
         this.initializeSortable();
+        this.addModernEnhancements();
+    }
+
+    addModernEnhancements() {
+        // Add smooth scroll behavior for better UX
+        if (this.container.querySelector('.share-limits-list')) {
+            this.container.querySelector('.share-limits-list').style.scrollBehavior = 'smooth';
+        }
+
+        // Add keyboard navigation support
+        this.addKeyboardSupport();
+
+        // Add modern loading states
+        this.addLoadingStates();
+    }
+
+    addKeyboardSupport() {
+        this.container.addEventListener('keydown', (e) => {
+            const focusedItem = document.activeElement.closest('.share-limit-group-item');
+            if (!focusedItem) return;
+
+            switch (e.key) {
+                case 'Enter':
+                case ' ':
+                    e.preventDefault();
+                    const key = focusedItem.querySelector('.share-limit-group-content').dataset.key;
+                    this.editGroup(key);
+                    break;
+                case 'Delete':
+                case 'Backspace':
+                    e.preventDefault();
+                    const deleteKey = focusedItem.querySelector('.remove-share-limit-group').dataset.key;
+                    this.removeGroup(deleteKey);
+                    break;
+                case 'ArrowUp':
+                case 'ArrowDown':
+                    e.preventDefault();
+                    this.navigateItems(focusedItem, e.key === 'ArrowUp' ? -1 : 1);
+                    break;
+            }
+        });
+    }
+
+    navigateItems(currentItem, direction) {
+        const items = Array.from(this.container.querySelectorAll('.share-limit-group-item'));
+        const currentIndex = items.indexOf(currentItem);
+        const nextIndex = currentIndex + direction;
+
+        if (nextIndex >= 0 && nextIndex < items.length) {
+            items[nextIndex].focus();
+        }
+    }
+
+    addLoadingStates() {
+        // Add loading state management for async operations
+        this.isLoading = false;
+    }
+
+    setLoadingState(loading) {
+        this.isLoading = loading;
+        const addButton = this.container.querySelector('.add-share-limit-group-btn');
+        if (addButton) {
+            addButton.disabled = loading;
+            addButton.innerHTML = loading ?
+                '<span class="loading-spinner"></span> Creating...' :
+                'Add New Group';
+        }
     }
 
     bindEvents() {
@@ -57,278 +124,102 @@ export class ShareLimitsComponent {
         const sortableList = this.container.querySelector('#share-limits-sortable');
         if (!sortableList) return;
 
-        // Add drag event listeners to all group items
         this.updateDragListeners();
     }
 
     updateDragListeners() {
         const groupItems = this.container.querySelectorAll('.share-limit-group-item');
 
-        groupItems.forEach(item => {
+        groupItems.forEach((item, index) => {
+            // Make the handle draggable
             const handle = item.querySelector('.share-limit-group-handle');
-
-            // Remove existing listeners
-            handle.removeEventListener('mousedown', this.handleMouseDown);
-            handle.removeEventListener('touchstart', this.handleTouchStart);
-            handle.removeEventListener('touchmove', this.handleTouchMove);
-            handle.removeEventListener('touchend', this.handleTouchEnd);
-
-            // Add mouse listeners
-            handle.addEventListener('mousedown', (e) => this.handleMouseDown(e, item));
-
-            // Add touch listeners for mobile support
-            handle.addEventListener('touchstart', (e) => this.handleTouchStart(e, item), { passive: false });
-            handle.addEventListener('touchmove', (e) => this.handleTouchMove(e, item), { passive: false });
-            handle.addEventListener('touchend', (e) => this.handleTouchEnd(e, item), { passive: false });
-
-            // Make items draggable for desktop
-            item.draggable = true;
-            item.addEventListener('dragstart', (e) => this.handleDragStart(e, item));
-            item.addEventListener('dragover', (e) => this.handleDragOver(e));
-            item.addEventListener('drop', (e) => this.handleDrop(e, item));
-            item.addEventListener('dragend', (e) => this.handleDragEnd(e));
-        });
-    }
-
-    handleMouseDown(e, item) {
-        e.preventDefault();
-        this.draggedElement = item;
-    }
-
-    handleTouchStart(e, item) {
-        e.preventDefault();
-        this.isDragging = false;
-        this.draggedElement = item;
-        this.touchStartTime = Date.now();
-        this.touchStartY = e.touches[0].clientY;
-        this.initialTouchY = e.touches[0].clientY;
-        this.lastTouchY = e.touches[0].clientY;
-
-        // Add visual feedback
-        item.classList.add('touch-dragging');
-
-        // Prevent text selection during drag
-        document.body.style.userSelect = 'none';
-        document.body.style.webkitUserSelect = 'none';
-    }
-
-    handleTouchMove(e, item) {
-        if (!this.draggedElement) return;
-
-        e.preventDefault();
-
-        const touch = e.touches[0];
-        const currentY = touch.clientY;
-        const deltaY = Math.abs(currentY - this.initialTouchY);
-
-        // Start dragging if moved more than 10px
-        if (!this.isDragging && deltaY > 10) {
-            this.isDragging = true;
-            this.draggedElement.classList.add('dragging');
-            this.createTouchPlaceholder();
-        }
-
-        if (this.isDragging) {
-            this.lastTouchY = currentY;
-            this.updateTouchPlaceholder(currentY);
-        }
-    }
-
-    handleTouchEnd(e, item) {
-        if (!this.draggedElement) return;
-
-        e.preventDefault();
-
-        // Clean up visual feedback
-        item.classList.remove('touch-dragging');
-        document.body.style.userSelect = '';
-        document.body.style.webkitUserSelect = '';
-
-        if (this.isDragging) {
-            this.completeTouchDrop();
-            this.isDragging = false;
-        }
-
-        // Clean up
-        this.draggedElement.classList.remove('dragging');
-        this.draggedElement = null;
-        this.removeTouchPlaceholder();
-    }
-
-    createTouchPlaceholder() {
-        if (this.touchPlaceholder) return;
-
-        this.touchPlaceholder = document.createElement('div');
-        this.touchPlaceholder.classList.add('share-limit-group-placeholder', 'touch-placeholder');
-
-        const container = this.container.querySelector('#share-limits-sortable');
-        container.appendChild(this.touchPlaceholder);
-    }
-
-    updateTouchPlaceholder(touchY) {
-        if (!this.touchPlaceholder) return;
-
-        const container = this.container.querySelector('#share-limits-sortable');
-        const items = Array.from(container.querySelectorAll('.share-limit-group-item:not(.dragging)'));
-
-        let closestItem = null;
-        let closestOffset = Number.POSITIVE_INFINITY;
-
-        items.forEach(item => {
-            const rect = item.getBoundingClientRect();
-            const itemCenter = rect.top + rect.height / 2;
-            const offset = Math.abs(touchY - itemCenter);
-
-            if (offset < closestOffset) {
-                closestOffset = offset;
-                closestItem = item;
+            if (handle) {
+                handle.setAttribute('draggable', 'true');
+                handle.setAttribute('aria-label', 'Drag handle to reorder');
             }
+
+            // Set accessibility attributes on the item
+            item.setAttribute('tabindex', '0');
+            item.setAttribute('role', 'listitem');
+            item.setAttribute('aria-label', `Share limit group ${index + 1}. Press Enter to edit, Delete to remove.`);
+
+            // Add all drag event listeners to the handle
+            handle.addEventListener('dragstart', e => this.handleDragStart(e, item));
+
+            // Add listeners to the item for drop zone behavior
+            item.addEventListener('dragover', e => this.handleDragOver(e, item));
+            item.addEventListener('dragleave', e => this.handleDragLeave(e, item));
+            item.addEventListener('drop', e => this.handleDrop(e, item));
+            item.addEventListener('dragend', e => this.handleDragEnd(e, item));
         });
-
-        // Position placeholder
-        if (closestItem) {
-            const rect = closestItem.getBoundingClientRect();
-            const itemCenter = rect.top + rect.height / 2;
-
-            if (touchY < itemCenter) {
-                container.insertBefore(this.touchPlaceholder, closestItem);
-            } else {
-                container.insertBefore(this.touchPlaceholder, closestItem.nextSibling);
-            }
-        } else {
-            container.appendChild(this.touchPlaceholder);
-        }
-
-        // Highlight drop targets
-        items.forEach(item => item.classList.remove('drop-target'));
-        if (closestItem) {
-            closestItem.classList.add('drop-target');
-        }
-    }
-
-    completeTouchDrop() {
-        if (!this.draggedElement || !this.touchPlaceholder) return;
-
-        const container = this.touchPlaceholder.parentNode;
-        container.insertBefore(this.draggedElement, this.touchPlaceholder);
-
-        this.updatePriorities();
-
-        // Clean up drop target highlights
-        this.container.querySelectorAll('.share-limit-group-item').forEach(item => {
-            item.classList.remove('drop-target');
-        });
-    }
-
-    removeTouchPlaceholder() {
-        if (this.touchPlaceholder && this.touchPlaceholder.parentNode) {
-            this.touchPlaceholder.parentNode.removeChild(this.touchPlaceholder);
-        }
-        this.touchPlaceholder = null;
     }
 
     handleDragStart(e, item) {
         this.draggedElement = item;
-        item.classList.add('dragging');
+        // Use a timeout to avoid the dragged element disappearing
+        setTimeout(() => item.classList.add('dragging'), 0);
+
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', item.outerHTML);
+        // You can set drag data, though we'll rely on the `this.draggedElement` reference
+        e.dataTransfer.setData('text/plain', item.dataset.key);
     }
 
-    handleDragOver(e) {
+    handleDragOver(e, item) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
 
-        // Create placeholder if it doesn't exist
-        if (!this.placeholder) {
-            this.placeholder = document.createElement('div');
-            this.placeholder.classList.add('share-limit-group-placeholder');
-            this.container.querySelector('#share-limits-sortable').appendChild(this.placeholder);
-        }
+        // Add a class for visual feedback
+        item.classList.add('drag-over');
 
-        // Find closest item to mouse position
         const container = this.container.querySelector('#share-limits-sortable');
-        const items = Array.from(container.querySelectorAll('.share-limit-group-item:not(.dragging)'));
-        const mouseY = e.clientY;
+        const afterElement = this.getDragAfterElement(container, e.clientY);
 
-        let closestItem = null;
-        let closestOffset = Number.NEGATIVE_INFINITY;
-
-        items.forEach(item => {
-            const rect = item.getBoundingClientRect();
-            const offset = mouseY - rect.top - rect.height / 2;
-
-            if (offset < 0 && offset > closestOffset) {
-                closestOffset = offset;
-                closestItem = item;
-            }
-        });
-
-        // Position placeholder before closest item or at end
-        if (closestItem) {
-            container.insertBefore(this.placeholder, closestItem);
+        // Insert the dragged element at the new position
+        if (afterElement == null) {
+            container.appendChild(this.draggedElement);
         } else {
-            container.appendChild(this.placeholder);
-        }
-
-        // Highlight potential drop targets
-        items.forEach(item => {
-            item.classList.remove('drop-target');
-        });
-        if (closestItem) {
-            closestItem.classList.add('drop-target');
+            container.insertBefore(this.draggedElement, afterElement);
         }
     }
 
-    handleDrop(e, targetItem) {
+    handleDragLeave(e, item) {
+        // Remove visual feedback when leaving a potential drop zone
+        item.classList.remove('drag-over');
+    }
+
+    handleDrop(e, item) {
         e.preventDefault();
-
-        // Remove placeholder and drop target highlights
-        if (this.placeholder && this.placeholder.parentNode) {
-            this.placeholder.parentNode.removeChild(this.placeholder);
-        }
-        this.placeholder = null;
-        this.container.querySelectorAll('.share-limit-group-item').forEach(item => {
-            item.classList.remove('drop-target');
-        });
-
-        if (this.draggedElement) {
-            // If placeholder exists, drop before it
-            if (this.placeholder) {
-                const container = this.placeholder.parentNode;
-                container.insertBefore(this.draggedElement, this.placeholder);
-                container.removeChild(this.placeholder);
-            }
-            // Otherwise use existing logic
-            else if (this.draggedElement !== targetItem) {
-                const container = targetItem.parentNode;
-                const draggedIndex = Array.from(container.children).indexOf(this.draggedElement);
-                const targetIndex = Array.from(container.children).indexOf(targetItem);
-
-                if (draggedIndex < targetIndex) {
-                    container.insertBefore(this.draggedElement, targetItem.nextSibling);
-                } else {
-                    container.insertBefore(this.draggedElement, targetItem);
-                }
-            }
-
-            this.updatePriorities();
-        }
+        item.classList.remove('drag-over');
+        // The reordering is handled in `dragover`, so we just need to update priorities
+        this.updatePriorities();
     }
 
-    handleDragEnd(e) {
-        e.target.classList.remove('dragging');
+    handleDragEnd(e, item) {
+        // Always remove the dragging class to restore visibility
+        this.draggedElement.classList.remove('dragging');
+
+        // Clean up any remaining drag-over classes
+        this.container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+        // Final priority update
+        this.updatePriorities();
         this.draggedElement = null;
+    }
 
-        // Clean up placeholder if exists
-        if (this.placeholder && this.placeholder.parentNode) {
-            this.placeholder.parentNode.removeChild(this.placeholder);
-        }
-        this.placeholder = null;
+    getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.share-limit-group-item:not(.dragging)')];
 
-        // Remove drop target highlights
-        this.container.querySelectorAll('.share-limit-group-item').forEach(item => {
-            item.classList.remove('drop-target');
-        });
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            // Calculate the midpoint of the item
+            const offset = y - box.top - box.height / 2;
+
+            // We are looking for the element we are hovering over
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
     updatePriorities() {
@@ -352,45 +243,70 @@ export class ShareLimitsComponent {
     }
 
     async addNewGroup() {
-        const groupName = await this.promptForGroupName();
-        if (!groupName) return;
+        if (this.isLoading) return;
 
-        if (this.data[groupName]) {
-            showToast('A group with this name already exists', 'error');
-            return;
+        this.setLoadingState(true);
+
+        try {
+            const groupName = await this.promptForGroupName();
+            if (!groupName) {
+                this.setLoadingState(false);
+                return;
+            }
+
+            if (this.data[groupName]) {
+                showToast('A group with this name already exists', 'error');
+                this.setLoadingState(false);
+                return;
+            }
+
+            // Find the next available priority
+            const priorities = Object.values(this.data).map(group => group.priority || 999);
+            const nextPriority = priorities.length > 0 ? Math.max(...priorities) + 1 : 1;
+
+            // Create empty group - defaults will be applied when user saves
+            // Only set priority as it's needed for ordering
+            const newGroup = {
+                priority: nextPriority
+            };
+
+            this.data[groupName] = newGroup;
+            this.onDataChange(this.data);
+
+            // Add smooth animation for new group
+            await this.refreshDisplayWithAnimation();
+
+            // Show success message
+            showToast(`Share limit group "${groupName}" created successfully`, 'success');
+
+            // Open the edit modal for the new group with a slight delay for better UX
+            setTimeout(() => this.editGroup(groupName), 300);
+
+        } catch (error) {
+            console.error('Error adding new group:', error);
+            showToast('Failed to create new group', 'error');
+        } finally {
+            this.setLoadingState(false);
         }
+    }
 
-        // Find the next available priority
-        const priorities = Object.values(this.data).map(group => group.priority || 999);
-        const nextPriority = priorities.length > 0 ? Math.max(...priorities) + 1 : 1;
+    async refreshDisplayWithAnimation() {
+        return new Promise((resolve) => {
+            // Add fade-out animation
+            this.container.style.opacity = '0.7';
+            this.container.style.transform = 'scale(0.98)';
+            this.container.style.transition = 'all 0.2s ease';
 
-        const newGroup = {
-            priority: nextPriority,
-            max_ratio: -1,
-            max_seeding_time: '-1',
-            max_last_active: '-1',
-            min_seeding_time: '0',
-            min_last_active: '0',
-            limit_upload_speed: -1,
-            enable_group_upload_speed: false,
-            cleanup: false,
-            resume_torrent_after_change: true,
-            add_group_to_tag: true,
-            min_num_seeds: 0,
-            custom_tag: '',
-            include_all_tags: [],
-            include_any_tags: [],
-            exclude_all_tags: [],
-            exclude_any_tags: [],
-            categories: []
-        };
+            setTimeout(() => {
+                this.refreshDisplay();
 
-        this.data[groupName] = newGroup;
-        this.onDataChange(this.data);
-        this.refreshDisplay();
+                // Add fade-in animation
+                this.container.style.opacity = '1';
+                this.container.style.transform = 'scale(1)';
 
-        // Open the edit modal for the new group
-        setTimeout(() => this.editGroup(groupName), 100);
+                setTimeout(resolve, 200);
+            }, 100);
+        });
     }
 
     async promptForGroupName() {
@@ -398,32 +314,109 @@ export class ShareLimitsComponent {
             const modalContent = `
                 <div class="form-group">
                     <label for="group-name-input" class="form-label">Group Name</label>
-                    <input type="text" id="group-name-input" class="form-input" placeholder="Enter group name" autofocus>
+                    <div class="floating-label-group">
+                        <input type="text" id="group-name-input" class="form-input"
+                               placeholder=" " autofocus maxlength="50"
+                               pattern="[a-zA-Z0-9_\\-]+"
+                               title="Only letters, numbers, underscores, and hyphens are allowed">
+                        <label for="group-name-input" class="floating-label">Enter a unique group name</label>
+                    </div>
+                    <div class="form-help">
+                        <span class="material-icons" style="font-size: 16px; vertical-align: middle;">info</span>
+                        Use descriptive names like "High Priority", "Long Term", or "Quick Seed"
+                    </div>
                 </div>
             `;
 
-            showModal('Add New Share Limit Group', modalContent, {
-                confirmText: 'Create',
-                cancelText: 'Cancel'
+            showModal('🎯 Add New Share Limit Group', modalContent, {
+                confirmText: 'Create Group',
+                cancelText: 'Cancel',
+                className: 'modern-modal'
             }).then((confirmed) => {
                 if (confirmed) {
                     const input = document.getElementById('group-name-input');
                     const value = input ? input.value.trim() : '';
+
+                    // Validate input
+                    if (value && !/^[a-zA-Z0-9_-]+$/.test(value)) {
+                        showToast('Group name can only contain letters, numbers, underscores, and hyphens', 'error');
+                        resolve(null);
+                        return;
+                    }
+
                     resolve(value || null);
                 } else {
                     resolve(null);
                 }
             });
+
+            // Add real-time validation
+            setTimeout(() => {
+                const input = document.getElementById('group-name-input');
+                if (input) {
+                    input.addEventListener('input', (e) => {
+                        const value = e.target.value;
+                        const isValid = /^[a-zA-Z0-9_-]*$/.test(value);
+
+                        if (!isValid && value) {
+                            e.target.style.borderColor = 'var(--error)';
+                            e.target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                        } else {
+                            e.target.style.borderColor = '';
+                            e.target.style.boxShadow = '';
+                        }
+                    });
+                }
+            }, 100);
         });
     }
 
     removeGroup(key) {
-        if (confirm(`Are you sure you want to remove the "${key}" share limit group?`)) {
-            delete this.data[key];
-            this.onDataChange(this.data);
-            this.refreshDisplay();
-            showToast(`Share limit group "${key}" removed`, 'success');
-        }
+        // Create a modern confirmation dialog
+        const modalContent = `
+            <div class="confirmation-dialog">
+                <div class="confirmation-icon">
+                    <span class="material-icons" style="font-size: 48px; color: var(--warning);">warning</span>
+                </div>
+                <div class="confirmation-message">
+                    <h4>Remove Share Limit Group</h4>
+                    <p>Are you sure you want to remove the <strong>"${key}"</strong> share limit group?</p>
+                    <p class="warning-text">
+                        <span class="material-icons" style="font-size: 16px; vertical-align: middle;">info</span>
+                        This action cannot be undone and will affect any torrents currently using this configuration.
+                    </p>
+                </div>
+            </div>
+        `;
+
+        showModal('⚠️ Confirm Removal', modalContent, {
+            confirmText: 'Remove Group',
+            cancelText: 'Keep Group',
+            className: 'danger-modal',
+            confirmClass: 'btn-danger'
+        }).then((confirmed) => {
+            if (confirmed) {
+                // Add removal animation
+                const groupItem = this.container.querySelector(`[data-key="${key}"]`)?.closest('.share-limit-group-item');
+                if (groupItem) {
+                    groupItem.style.transition = 'all 0.3s ease';
+                    groupItem.style.opacity = '0';
+                    groupItem.style.transform = 'translateX(-100%) scale(0.8)';
+
+                    setTimeout(() => {
+                        delete this.data[key];
+                        this.onDataChange(this.data);
+                        this.refreshDisplay();
+                        showToast(`Share limit group "${key}" removed successfully`, 'success');
+                    }, 300);
+                } else {
+                    delete this.data[key];
+                    this.onDataChange(this.data);
+                    this.refreshDisplay();
+                    showToast(`Share limit group "${key}" removed successfully`, 'success');
+                }
+            }
+        });
     }
 
     async editGroup(key) {
@@ -527,21 +520,32 @@ export class ShareLimitsComponent {
                     return;
                 }
 
-                // Filter out empty values and default values before saving
-                const filteredData = this.filterFormData(formData);
+                // Check if this is a new group (only has priority field)
+                const originalData = this.data[key];
+                const isNewGroup = Object.keys(originalData).length === 1 && originalData.priority !== undefined;
 
-                // Start with a clean object and only add non-default, non-empty values
-                const cleanedData = {};
+                let cleanedData;
 
-                // Always preserve priority as it's required
-                cleanedData.priority = filteredData.priority || formData.priority || originalData.priority || 1;
+                if (isNewGroup) {
+                    // For new groups, apply defaults for empty fields
+                    cleanedData = this.applyDefaultsForNewGroup(formData);
+                } else {
+                    // For existing groups, filter out empty values and default values
+                    const filteredData = this.filterFormData(formData);
 
-                // Add other filtered values
-                Object.keys(filteredData).forEach(fieldKey => {
-                    if (fieldKey !== 'priority') {
-                        cleanedData[fieldKey] = filteredData[fieldKey];
-                    }
-                });
+                    // Start with a clean object and only add non-default, non-empty values
+                    cleanedData = {};
+
+                    // Always preserve priority as it's required
+                    cleanedData.priority = filteredData.priority || formData.priority || originalData.priority || 1;
+
+                    // Add other filtered values
+                    Object.keys(filteredData).forEach(fieldKey => {
+                        if (fieldKey !== 'priority') {
+                            cleanedData[fieldKey] = filteredData[fieldKey];
+                        }
+                    });
+                }
 
                 this.data[key] = cleanedData;
                 this.onDataChange(this.data);
@@ -666,6 +670,57 @@ export class ShareLimitsComponent {
         });
 
         return filteredData;
+    }
+
+    applyDefaultsForNewGroup(formData) {
+        // For new groups: priority always included, other fields only if non-default
+
+        // Define all possible fields with their default values for comparison
+        const allFieldDefaults = {
+            priority: 1, // This will be overridden by form value which has the correct calculated priority
+            max_ratio: -1,
+            cleanup: false,
+            max_seeding_time: '-1',
+            resume_torrent_after_change: true,
+            add_group_to_tag: true,
+            max_last_active: '-1',
+            min_seeding_time: '0',
+            min_last_active: '0',
+            min_num_seeds: 0,
+            limit_upload_speed: -1,
+            enable_group_upload_speed: false,
+            custom_tag: '',
+            include_all_tags: [],
+            include_any_tags: [],
+            exclude_all_tags: [],
+            exclude_any_tags: [],
+            categories: []
+        };
+
+        const processedData = {};
+
+        // Process each field
+        Object.keys(allFieldDefaults).forEach(key => {
+            const formValue = formData[key];
+
+            if (key === 'priority') {
+                // Priority always gets included (required for functionality)
+                processedData[key] = formValue || allFieldDefaults[key];
+            } else {
+                // All other fields: only include if user provided a non-default value
+                if (!this.isEmptyValue(formValue) && formValue !== undefined) {
+                    const defaultValue = allFieldDefaults[key];
+                    // Only include if the value is different from the default
+                    if (formValue !== defaultValue &&
+                        !(Array.isArray(formValue) && Array.isArray(defaultValue) && formValue.length === 0 && defaultValue.length === 0)) {
+                        processedData[key] = formValue;
+                    }
+                }
+                // Don't include the field at all if it's empty or matches default
+            }
+        });
+
+        return processedData;
     }
 
     isEmptyValue(value) {
@@ -829,7 +884,31 @@ export class ShareLimitsComponent {
                 const fieldSchema = this.schema[fieldName];
                 if (!fieldSchema) return;
 
-                const value = groupData[fieldName] ?? fieldSchema.default ?? '';
+                // For new groups (only have priority field), pre-populate basic configuration with defaults
+                const isNewGroup = Object.keys(groupData).length === 1 && groupData.priority !== undefined;
+
+                // Define which fields should get defaults for new groups (basic configuration)
+                const basicConfigFields = ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag'];
+
+                let value;
+                if (isNewGroup) {
+                    // For new groups: pre-populate basic configuration fields with defaults, leave others blank
+                    if (basicConfigFields.includes(fieldName)) {
+                        if (fieldName === 'priority') {
+                            // Use the priority that was already calculated and set in addGroup
+                            value = groupData.priority;
+                        } else {
+                            // Use schema defaults for other basic fields
+                            value = fieldSchema.default ?? '';
+                        }
+                    } else {
+                        // All other fields start blank for new groups
+                        value = '';
+                    }
+                } else {
+                    // For existing groups: use current value or default
+                    value = groupData[fieldName] ?? fieldSchema.default ?? '';
+                }
                 html += this.generateModalFieldHTML(fieldSchema, value, fieldName);
             });
 
@@ -845,53 +924,64 @@ export class ShareLimitsComponent {
         const requiredMark = field.required ? '<span class="required-mark">*</span>' : '';
 
         let inputHTML = '';
+        let fieldIcon = this.getFieldIcon(fieldName);
 
         switch (field.type) {
             case 'boolean':
                 inputHTML = `
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="${fieldId}" name="${fieldName}"
-                               ${value === true ? 'checked' : ''} class="form-checkbox">
-                        <span class="checkmark"></span>
-                        ${field.label}
-                    </label>
+                    <div class="modern-checkbox-wrapper">
+                        <label class="modern-checkbox-label">
+                            <input type="checkbox" id="${fieldId}" name="${fieldName}"
+                                   ${value === true || value === 'true' ? 'checked' : ''} class="modern-checkbox">
+                            <span class="checkbox-text">
+                                ${fieldIcon} ${field.label}
+                            </span>
+                        </label>
+                    </div>
                 `;
                 break;
 
             case 'number':
                 inputHTML = `
-                    <label for="${fieldId}" class="form-label ${isRequired}">
-                        ${field.label} ${requiredMark}
-                    </label>
-                    <input type="number" id="${fieldId}" name="${fieldName}"
-                           class="form-input" value="${value}"
-                           ${field.min !== undefined ? `min="${field.min}"` : ''}
-                           ${field.max !== undefined ? `max="${field.max}"` : ''}
-                           ${field.step !== undefined ? `step="${field.step}"` : ''}
-                           data-default="${field.default || ''}"
-                           ${isRequired}>
+                    <div class="floating-label-group">
+                        <input type="number" id="${fieldId}" name="${fieldName}"
+                               class="form-input modern-input" ${value !== '' ? `value="${value}"` : ''} placeholder=" "
+                               ${field.min !== undefined ? `min="${field.min}"` : ''}
+                               ${field.max !== undefined ? `max="${field.max}"` : ''}
+                               ${field.step !== undefined ? `step="${field.step}"` : ''}
+                               data-default="${field.default || ''}"
+                               ${isRequired}>
+                        <label for="${fieldId}" class="floating-label">
+                            ${fieldIcon} ${field.label} ${requiredMark}
+                        </label>
+                        <div class="input-icon">
+                            <span class="material-icons">tag</span>
+                        </div>
+                    </div>
                 `;
                 break;
 
             case 'array':
                 const arrayValue = Array.isArray(value) ? value : [];
                 inputHTML = `
-                    <label class="form-label ${isRequired}">
-                        ${field.label} ${requiredMark}
-                    </label>
-                    <div class="array-field" data-field="${fieldName}">
-                        <div class="array-items">
+                    <div class="array-field-wrapper">
+                        <label class="form-label ${isRequired}">
+                            ${fieldIcon} ${field.label} ${requiredMark}
+                        </label>
+                        <div class="array-field modern-array-field" data-field="${fieldName}">
+                            <div class="array-items">
                 `;
 
                 arrayValue.forEach((item, index) => {
                     inputHTML += `
-                        <div class="array-item" data-index="${index}">
+                        <div class="array-item modern-array-item" data-index="${index}">
                             <div class="array-item-input-group">
                                 <input type="text" class="form-input array-item-input"
                                        value="${item}" data-field="${fieldName}" data-index="${index}"
-                                       name="${fieldName}[${index}]">
-                                <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
-                                    <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                                       name="${fieldName}[${index}]" placeholder="Enter value">
+                                <button type="button" class="btn btn-icon btn-close-icon remove-array-item"
+                                        aria-label="Remove item">
+                                    <span class="material-icons">close</span>
                                 </button>
                             </div>
                         </div>
@@ -899,35 +989,69 @@ export class ShareLimitsComponent {
                 });
 
                 inputHTML += `
+                            </div>
+                            <button type="button" class="btn btn-secondary add-array-item modern-add-btn"
+                                    data-field="${fieldName}">
+                                <span class="material-icons">add</span>
+                                Add Item
+                            </button>
                         </div>
-                        <button type="button" class="btn btn-secondary add-array-item"
-                                data-field="${fieldName}">
-                            Add Item
-                        </button>
                     </div>
                 `;
                 break;
 
             default: // text
                 inputHTML = `
-                    <label for="${fieldId}" class="form-label ${isRequired}">
-                        ${field.label} ${requiredMark}
-                    </label>
-                    <input type="text" id="${fieldId}" name="${fieldName}"
-                           class="form-input" value="${value}"
-                           data-default="${field.default || ''}"
-                           ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
-                           ${isRequired}>
+                    <div class="floating-label-group">
+                        <input type="text" id="${fieldId}" name="${fieldName}"
+                               class="form-input modern-input" ${value !== '' ? `value="${value}"` : ''} placeholder=" "
+                               data-default="${field.default || ''}"
+                               ${isRequired}>
+                        <label for="${fieldId}" class="floating-label">
+                            ${fieldIcon} ${field.label} ${requiredMark}
+                        </label>
+                        <div class="input-icon">
+                            <span class="material-icons">edit</span>
+                        </div>
+                    </div>
                 `;
                 break;
         }
 
         return `
-            <div class="form-group" data-field="${fieldName}">
+            <div class="form-group modern-form-group" data-field="${fieldName}">
                 ${inputHTML}
-                ${field.description ? `<div class="form-help">${field.description}</div>` : ''}
+                ${field.description ? `<div class="form-help modern-form-help">
+                    <span class="material-icons">info</span>
+                    ${field.description}
+                </div>` : ''}
             </div>
         `;
+    }
+
+    getFieldIcon(fieldName) {
+        const iconMap = {
+            'priority': '<span class="material-icons">priority_high</span>',
+            'max_ratio': '<span class="material-icons">share</span>',
+            'max_seeding_time': '<span class="material-icons">schedule</span>',
+            'min_seeding_time': '<span class="material-icons">timer</span>',
+            'limit_upload_speed': '<span class="material-icons">upload</span>',
+            'cleanup': '<span class="material-icons">cleaning_services</span>',
+            'categories': '<span class="material-icons">category</span>',
+            'custom_tag': '<span class="material-icons">label</span>',
+            'include_all_tags': '<span class="material-icons">check_circle</span>',
+            'include_any_tags': '<span class="material-icons">radio_button_checked</span>',
+            'exclude_all_tags': '<span class="material-icons">block</span>',
+            'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
+            'min_num_seeds': '<span class="material-icons">group</span>',
+            'enable_group_upload_speed': '<span class="material-icons">speed</span>',
+            'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
+            'add_group_to_tag': '<span class="material-icons">add_circle</span>',
+            'max_last_active': '<span class="material-icons">access_time</span>',
+            'min_last_active': '<span class="material-icons">history</span>'
+        };
+
+        return iconMap[fieldName] || '<span class="material-icons">settings</span>';
     }
 
     refreshDisplay() {

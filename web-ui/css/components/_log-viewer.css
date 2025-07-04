@@ -94,7 +94,7 @@
     height: calc(70vh - 100px) !important; /* Height accounting for header/footer */
     min-height: 0; /* Allow content to shrink within flex container */
     padding: var(--spacing-md) var(--spacing-lg);
-    background-color: var(--bg-tertiary); /* Slightly different background for log area */
+    background-color: var(--bg-primary); /* Slightly different background for log area */
     font-family: var(--font-mono); /* Monospace font for logs */
     font-size: var(--font-size-sm);
     line-height: 1.4;

@@ -294,15 +294,12 @@ class ConfigForm {
         }
 
         if (isComplexObjectField) {
-            if (!this.currentData[entryKey]) {
-                this.currentData[entryKey] = {};
-            }
-            this.currentData[entryKey][propName] = value;
-        } else {
-
-            // Handle complex object fields (containing ::) directly
-            if (fieldName.includes('::')) {
-                const [entryKey, propName] = fieldName.split('::');
+            // Handle flat string values (like categories)
+            if (propName === 'value' && this.schemas[this.currentSection].flatStringValues) {
+                // For flat string values, store the value directly
+                this.currentData[entryKey] = value;
+            } else {
+                // Handle object-based complex fields
                 if (!this.currentData[entryKey]) {
                     this.currentData[entryKey] = {};
                 }
@@ -317,14 +314,14 @@ class ConfigForm {
                 } else {
                     this.currentData[entryKey][propName] = value;
                 }
+            }
+        } else {
+            // For regular fields, remove empty values instead of setting them
+            if (value === '' || value === null || value === undefined) {
+                // Use the existing setNestedValue logic to delete the field
+                setNestedValue(this.currentData, fieldName, null);
             } else {
-                // For regular fields, remove empty values instead of setting them
-                if (value === '' || value === null || value === undefined) {
-                    // Use the existing setNestedValue logic to delete the field
-                    setNestedValue(this.currentData, fieldName, null);
-                } else {
-                    setNestedValue(this.currentData, fieldName, value);
-                }
+                setNestedValue(this.currentData, fieldName, value);
             }
         }
 
@@ -486,6 +483,16 @@ class ConfigForm {
     }
 
     addCategory() {
+        // Check if this is a complex-object type (new category schema) or dynamic-key-value-list (old schema)
+        const sectionConfig = this.schemas[this.currentSection];
+
+        if (sectionConfig.type === 'complex-object') {
+            // Use the same pattern as addComplexObjectItem for consistency
+            this.addComplexObjectItem();
+            return;
+        }
+
+        // Legacy code for dynamic-key-value-list type (cat_change schema)
         const categoriesContainer = this.container.querySelector('.key-value-items');
         const newKey = `category-${Date.now()}`;
 
@@ -600,34 +607,41 @@ class ConfigForm {
             return;
         }
 
-        // Initialize with default values based on schema
-        const newEntry = {};
-        if (this.currentSection === 'nohardlinks') {
-            newEntry.exclude_tags = [];
-            newEntry.ignore_root_dir = true;
+        // Handle flat string values (like categories)
+        if (sectionConfig.flatStringValues) {
+            const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties[".*"];
+            const defaultValue = defaultSchema?.default || '';
+            this.currentData[newKey] = defaultValue;
         } else {
-            const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties["^(?!other$).*$"];
-            if (defaultSchema && defaultSchema.properties) {
-                Object.entries(defaultSchema.properties).forEach(([propName, propSchema]) => {
-                    if (propSchema.default !== undefined) {
-                        newEntry[propName] = propSchema.default;
-                    } else if (propSchema.type === 'array') {
-                        newEntry[propName] = [];
-                    } else if (propSchema.oneOf) { // For 'tag' field
-                        const stringSchema = propSchema.oneOf.find(s => s.type === 'string');
-                        if (stringSchema && stringSchema.default !== undefined) {
-                            newEntry[propName] = stringSchema.default;
+            // Initialize with default values based on schema for object entries
+            const newEntry = {};
+            if (this.currentSection === 'nohardlinks') {
+                newEntry.exclude_tags = [];
+                newEntry.ignore_root_dir = true;
+            } else {
+                const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties["^(?!other$).*$"];
+                if (defaultSchema && defaultSchema.properties) {
+                    Object.entries(defaultSchema.properties).forEach(([propName, propSchema]) => {
+                        if (propSchema.default !== undefined) {
+                            newEntry[propName] = propSchema.default;
+                        } else if (propSchema.type === 'array') {
+                            newEntry[propName] = [];
+                        } else if (propSchema.oneOf) { // For 'tag' field
+                            const stringSchema = propSchema.oneOf.find(s => s.type === 'string');
+                            if (stringSchema && stringSchema.default !== undefined) {
+                                newEntry[propName] = stringSchema.default;
+                            } else {
+                                newEntry[propName] = ''; // Default to empty string for 'tag'
+                            }
                         } else {
-                            newEntry[propName] = ''; // Default to empty string for 'tag'
+                            newEntry[propName] = ''; // Default to empty string for other types
                         }
-                    } else {
-                        newEntry[propName] = ''; // Default to empty string for other types
-                    }
-                });
+                    });
+                }
             }
+            this.currentData[newKey] = newEntry;
         }
 
-        this.currentData[newKey] = newEntry;
         await this.renderSection(); // Re-render to show the new item
         this.onDataChange(this.currentData);
         this._dispatchDirtyEvent();

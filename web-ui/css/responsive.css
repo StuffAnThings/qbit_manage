@@ -17,14 +17,14 @@
   }
 
   /* Better touch feedback */
-  .btn:active, .clickable:active {
+  .btn:active {
     transform: scale(0.98);
     transition: transform 0.1s ease;
   }
 }
 
 /* Small devices (landscape phones, 576px and up) */
-@media (max-width: 575.98px) {
+@media (max-width: 768px) {
   :root {
     --header-height: 5.5rem;
     --sidebar-width: 100%;
@@ -102,9 +102,6 @@
     gap: var(--spacing-xs);
   }
 
-  .status-indicator {
-    display: none; /* Hide on very small screens */
-  }
 
   /* Main content - stack sidebar and content */
   .main-content {
@@ -114,24 +111,40 @@
   }
 
   .sidebar {
-    position: fixed;
-    top: var(--header-height);
-    left: 0;
+    position: fixed !important;
+    top: var(--header-height) !important;
+    left: 0 !important;
     right: 0;
-    bottom: var(--footer-height);
-    width: 100%;
+    bottom: var(--footer-height) !important;
+    width: 100% !important;
     z-index: var(--z-fixed);
-    transform: translateX(-100%);
-    transition: transform var(--transition-normal);
-    background-color: var(--bg-primary);
-    border-right: none;
+    transform: translateX(-100%) !important;
+    transition: transform var(--transition-normal) !important;
+    background-color: var(--sidebar-bg);
+    border-right: none !important;
     border-bottom: 1px solid var(--border-color);
     box-shadow: var(--shadow-lg);
   }
 
   .sidebar.show,
   .sidebar.open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
+  }
+
+  /* Override collapsed state in mobile - always show text when sidebar is open */
+  .sidebar.show .nav-text,
+  .sidebar.show .nav-title,
+  .sidebar.show .validation-indicator {
+    opacity: 1 !important;
+    width: auto !important;
+    margin-left: 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .sidebar.show .app-title,
+  .sidebar.show .sidebar-header h3,
+  .sidebar.show .sidebar-config-selector {
+    display: block !important;
   }
 
   /* Mobile sidebar overlay */
@@ -155,7 +168,7 @@
   }
 
   .content {
-    margin-left: 0;
+    margin-left: 0 !important;
     width: 100%;
   }
 
@@ -186,10 +199,10 @@
 
   /* Footer adjustments */
   .footer {
-    padding: 0 var(--spacing-md);
     flex-direction: column;
-    gap: var(--spacing-sm);
     height: auto;
+    justify-content: center;
+    padding: var(--spacing-sm) 0;
     min-height: var(--footer-height);
     position: sticky;
     bottom: 0;
@@ -221,10 +234,7 @@
     left: 0;
   }
 
-  /* Log Panel adjustments */
-  .log-panel {
-    height: 50vh;
-  }
+
 
   /* Modal adjustments */
   .modal-overlay {
@@ -270,6 +280,11 @@
     font-size: var(--font-size-sm);
   }
 
+  .btn.btn-close-icon {
+      min-height: auto;
+      padding: 2px;
+  }
+
   .btn-sm {
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: var(--font-size-xs);
@@ -294,29 +309,6 @@
     padding: var(--spacing-md);
   }
 
-  /* Add mobile menu toggle */
-  .mobile-menu-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: var(--spacing-sm);
-    color: var(--text-primary);
-    cursor: pointer;
-    border-radius: var(--border-radius);
-    transition: background-color var(--transition-fast);
-  }
-
-  .mobile-menu-toggle:hover {
-    background-color: var(--bg-accent);
-  }
-
-  .mobile-menu-toggle .icon {
-    width: 1.5rem;
-    height: 1.5rem;
-    fill: currentColor;
-  }
 }
 
 /* Medium devices (tablets, 768px and up) */
@@ -362,9 +354,7 @@
     align-items: center;
   }
 
-  .status-indicator {
-    display: flex;
-  }
+
 
   .main-content {
     display: block;
@@ -516,9 +506,7 @@
     padding: var(--spacing-sm) var(--spacing-md);
   }
 
-  .log-panel {
-    height: 40vh;
-  }
+
 }
 
 /* Touch device optimizations */
@@ -667,7 +655,6 @@
 
   /* Hide interactive elements */
   .yaml-preview,
-  .log-panel,
   .modal-overlay,
   .toast-container,
   .dropdown-menu {
@@ -780,7 +767,7 @@
 }
 
 /* Mobile menu overlay */
-@media (max-width: 575.98px) {
+@media (max-width: 768px) {
   .sidebar-overlay {
     position: fixed;
     top: 0;

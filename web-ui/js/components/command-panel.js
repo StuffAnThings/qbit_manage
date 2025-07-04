@@ -74,7 +74,16 @@ class CommandPanel {
             <div class="command-panel-content">
                 <!-- Quick Actions -->
                 <div class="quick-actions">
-                    <h4>Quick Actions</h4>
+                    <div class="quick-actions-header">
+                        <h4>Quick Actions</h4>
+                        <div class="dry-run-toggle">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="dry-run-checkbox">
+                                <span class="checkmark"></span>
+                                Dry Run
+                            </label>
+                        </div>
+                    </div>
                     <div class="quick-action-buttons">
                         <button type="button" class="btn btn-outline quick-action-btn"
                                 data-command="recheck">
@@ -102,11 +111,7 @@ class CommandPanel {
                         </button>
                     </div>
                 </div>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="dry-run-checkbox">
-                    <span class="checkmark"></span>
-                    Dry Run
-                </label>
+
             </div>
         `;
     }
@@ -228,7 +233,6 @@ class CommandPanel {
                             <span class="checkmark"></span>
                             Dry run (preview changes without executing)
                         </label>
-
                         <div class="form-group">
                             <label for="torrent-hashes" class="form-label">
                                 Specific Torrent Hashes (optional)
@@ -350,6 +354,12 @@ class CommandPanel {
         this.isVisible = true;
         this.drawerContainer.classList.remove('hidden');
 
+        // Allow the display property to take effect before starting the transition
+        setTimeout(() => {
+            this.drawerContainer.classList.add('active');
+        }, 10);
+
+
         // Update toggle button state
         const toggleBtn = this.container.querySelector('#toggle-command-panel-btn');
         if (toggleBtn) {
@@ -362,7 +372,12 @@ class CommandPanel {
         if (!this.drawerContainer) return;
 
         this.isVisible = false;
-        this.drawerContainer.classList.add('hidden');
+        this.drawerContainer.classList.remove('active');
+
+        // Hide with delay to allow transition to complete
+        setTimeout(() => {
+            this.drawerContainer.classList.add('hidden');
+        }, 300); // Should match the transition duration in CSS
 
         // Update toggle button state
         const toggleBtn = this.container.querySelector('#toggle-command-panel-btn');

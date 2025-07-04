@@ -12,6 +12,7 @@ import { initModal, showModal, hideModal } from './utils/modal.js';
 import { showToast } from './utils/toast.js';
 import { debounce } from './utils/utils.js';
 import { HistoryManager } from './utils/history-manager.js';
+import { themeManager } from './utils/theme-manager.js';
 
 class QbitManageApp {
     constructor() {
@@ -30,16 +31,12 @@ class QbitManageApp {
         this.helpModal = null; // To store the reference to the help modal
         this.historyManager = new HistoryManager(this.api); // Initialize history manager
 
-        // Theme management
-        this.theme = localStorage.getItem('qbm-theme') || 'auto';
-
         this.init();
     }
 
     async init() {
         try {
-            // Initialize theme
-            this.initTheme();
+            // Theme manager is automatically initialized on import
 
             // Initialize modal system
             initModal();
@@ -70,6 +67,13 @@ class QbitManageApp {
             });
 
             console.log('qBit Manage Web UI initialized successfully');
+
+            // Restore sidebar state from localStorage
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                this.toggleSidebar(true); // Call with force=true to avoid animation on load
+            }
+
+            this.updateSidebarToggleIcon();
         } catch (error) {
             console.error('Failed to initialize application:', error);
             showToast('Failed to initialize application', 'error');
@@ -87,22 +91,6 @@ class QbitManageApp {
         }
     }
 
-    initTheme() {
-        // Apply saved theme or detect system preference
-        if (this.theme === 'auto') {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-        } else {
-            document.documentElement.setAttribute('data-theme', this.theme);
-        }
-
-        // Listen for system theme changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (this.theme === 'auto') {
-                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-            }
-        });
-    }
 
     initComponents() {
         // Initialize form component
@@ -175,10 +163,7 @@ class QbitManageApp {
             this.backupConfig();
         });
 
-        // Theme toggle
-        get('theme-toggle').addEventListener('click', debounce(() => {
-            this.toggleTheme();
-        }, 300)); // Debounce with 300ms delay
+        // Theme toggle is handled by ThemeManager
 
         // Undo button
         const undoBtn = get('undo-btn');
@@ -193,6 +178,18 @@ class QbitManageApp {
         if (redoBtn) {
             redoBtn.addEventListener('click', () => {
                 this.redoConfig();
+            });
+        }
+
+        // Sidebar toggle button
+        const sidebarToggle = get('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    this.toggleMobileMenu();
+                } else {
+                    this.toggleSidebar();
+                }
             });
         }
     }
@@ -245,13 +242,6 @@ class QbitManageApp {
             }
         });
 
-        // Mobile menu toggle (for responsive design)
-        const mobileMenuToggle = get('mobile-menu-toggle');
-        if (mobileMenuToggle) {
-            mobileMenuToggle.addEventListener('click', () => {
-                this.toggleMobileMenu();
-            });
-        }
 
         // Mobile sidebar overlay click to close
         const sidebarOverlay = get('sidebar-overlay');
@@ -269,6 +259,14 @@ class QbitManageApp {
                 this.updateHistoryButtons();
             }
         });
+
+        window.addEventListener('resize', debounce(() => {
+            const sidebar = query('.sidebar');
+            if (sidebar) {
+                sidebar.style.transition = '';
+            }
+            this.updateSidebarToggleIcon();
+        }, 100));
     }
 
     async loadConfigs() {
@@ -421,8 +419,15 @@ class QbitManageApp {
             const result = await this.historyManager.undo(this.currentConfig);
 
             if (result) {
-                // Update the configuration data directly without creating a backup
+                // Update the configuration data and save to file without creating a backup
                 this.configData = result.data || {};
+
+                // Clean up empty values before saving
+                const cleanedConfigData = this.configForm.cleanupEmptyValues(this.configData);
+
+                // Save the undone state to the config file (overwrite without backup)
+                await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+
                 this.initialConfigData = JSON.parse(JSON.stringify(this.configData));
                 this.isDirty = false;
                 this.updateSaveButton();
@@ -463,8 +468,15 @@ class QbitManageApp {
             const result = await this.historyManager.redo(this.currentConfig);
 
             if (result) {
-                // Update the configuration data directly without creating a backup
+                // Update the configuration data and save to file without creating a backup
                 this.configData = result.data || {};
+
+                // Clean up empty values before saving
+                const cleanedConfigData = this.configForm.cleanupEmptyValues(this.configData);
+
+                // Save the redone state to the config file (overwrite without backup)
+                await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+
                 this.initialConfigData = JSON.parse(JSON.stringify(this.configData));
                 this.isDirty = false;
                 this.updateSaveButton();
@@ -677,30 +689,10 @@ class QbitManageApp {
         });
     }
 
-    toggleTheme() {
-        const oldTheme = this.theme;
-        if (this.theme === 'light') {
-            this.theme = 'dark';
-        } else if (this.theme === 'dark') {
-            this.theme = 'auto';
-        } else { // current theme is 'auto'
-            this.theme = 'light';
-        }
-        localStorage.setItem('qbm-theme', this.theme);
-        this.initTheme(); // Re-apply theme based on new setting
-
-        let toastMessage = `Theme set to ${this.theme.charAt(0).toUpperCase() + this.theme.slice(1)}`;
-        if (this.theme === 'auto') {
-            toastMessage += ' (system preference)';
-        }
-        showToast(toastMessage, 'info');
-    }
 
     toggleYamlPreview() {
         const previewContainer = get('yaml-preview');
-        const mainContent = query('.main-content');
-
-        if (!previewContainer.classList.contains('hidden')) {
+        if (previewContainer.classList.contains('active')) {
             this.hideYamlPreview();
         } else {
             this.showYamlPreview();
@@ -712,22 +704,32 @@ class QbitManageApp {
         const yamlContent = get('yaml-content');
         const mainContent = query('.main-content');
         const yamlString = this.generateYamlString(this.configData);
+        const yamlPreviewBtn = get('yaml-preview-btn');
 
         yamlContent.textContent = yamlString;
         previewContainer.classList.remove('hidden');
-        if (mainContent) {
-            mainContent.classList.add('yaml-preview-active');
-        }
+
+        // Allow the display property to take effect before starting the transition
+        setTimeout(() => {
+            if (mainContent) mainContent.classList.add('yaml-preview-active');
+            previewContainer.classList.add('active');
+            yamlPreviewBtn.classList.add('active');
+        }, 10);
     }
 
     hideYamlPreview() {
         const previewContainer = get('yaml-preview');
         const mainContent = query('.main-content');
+        const yamlPreviewBtn = get('yaml-preview-btn');
 
-        previewContainer.classList.add('hidden');
-        if (mainContent) {
-            mainContent.classList.remove('yaml-preview-active');
-        }
+        if (mainContent) mainContent.classList.remove('yaml-preview-active');
+        previewContainer.classList.remove('active');
+        yamlPreviewBtn.classList.remove('active');
+
+        // Hide with delay to allow transition to complete
+        setTimeout(() => {
+            previewContainer.classList.add('hidden');
+        }, 300); // Should match the transition duration in CSS
     }
 
     toggleLogPanel() {
@@ -740,14 +742,43 @@ class QbitManageApp {
         logDrawer.classList.remove('show');
     }
 
+
+    toggleSidebar(force = false) {
+        const sidebar = query('.sidebar');
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        localStorage.setItem('sidebar-collapsed', isCollapsed);
+
+        const content = query('.content');
+        if (isCollapsed) {
+            content.style.marginLeft = 'var(--sidebar-width-collapsed)';
+        } else {
+            content.style.marginLeft = 'var(--sidebar-width-expanded)';
+        }
+
+        if (!force) {
+            sidebar.style.transition = 'width var(--transition-normal)';
+            content.style.transition = 'margin-left var(--transition-normal)';
+        } else {
+            sidebar.style.transition = 'none';
+            content.style.transition = 'none';
+        }
+
+        this.updateSidebarToggleIcon();
+
+        // Dispatch a resize event to make sure any components that rely on container width are redrawn (e.g., charts)
+        window.dispatchEvent(new Event('resize'));
+    }
+
     toggleMobileMenu() {
         const sidebar = query('.sidebar');
         sidebar.classList.toggle('show');
+        this.updateSidebarToggleIcon();
     }
 
     closeMobileMenu() {
         const sidebar = query('.sidebar');
         sidebar.classList.remove('show');
+        this.updateSidebarToggleIcon();
     }
 
     /**
@@ -781,6 +812,30 @@ class QbitManageApp {
             .join('\n');
     }
 
+    updateSidebarToggleIcon() {
+        const sidebarToggle = get('sidebar-toggle');
+        if (sidebarToggle) {
+            const icon = sidebarToggle.querySelector('.material-icons');
+            const sidebar = query('.sidebar');
+
+            if (window.innerWidth <= 768) {
+                // Mobile: check if sidebar has 'show' class (open state)
+                if (sidebar.classList.contains('show')) {
+                    icon.textContent = 'menu_open';
+                } else {
+                    icon.textContent = 'menu';
+                }
+            } else {
+                // Desktop: check if sidebar has 'collapsed' class
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.textContent = 'menu';
+                } else {
+                    icon.textContent = 'menu_open';
+                }
+            }
+        }
+    }
+
     handleKeyboardShortcuts(e) {
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
@@ -807,6 +862,12 @@ class QbitManageApp {
             this.toggleYamlPreview();
         }
         if (e.key === 'Escape') {
+            // Attempt to close the run commands modal if it's open
+            if (this.commandPanel && this.commandPanel.runCommandsModal && this.commandPanel.runCommandsModal.parentNode) {
+                this.commandPanel.hideRunCommandsModal();
+                return; // Exit early since we handled the modal
+            }
+
             // Attempt to close the share limits edit modal if it's open
             const shareLimitsModal = document.querySelector('.share-limit-modal');
             if (shareLimitsModal && shareLimitsModal.parentNode) {

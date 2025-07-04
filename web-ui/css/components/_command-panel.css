@@ -1,7 +1,7 @@
 /* Command Panel Component */
 .command-panel-drawer {
   position: fixed;
-  bottom: var(--footer-height);
+  bottom: 0; /* Changed from var(--footer-height) to remove gap */
   left: 0;
   right: 0;
   height: 24rem;
@@ -15,10 +15,6 @@
   transition: transform var(--transition-normal);
   max-height: 280px;
   overflow-y: auto; /* Add scroll if content exceeds max-height */
-}
-
-.command-panel-drawer:not(.hidden) {
-  transform: translateY(0);
 }
 
 .command-panel-header {
@@ -41,13 +37,29 @@
   align-items: center;
   gap: var(--spacing-sm);
 }
+.dry-run-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: var(--spacing-sm);
+}
+
+.dry-run-toggle .checkbox-label {
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.dry-run-toggle .checkbox-label:hover {
+  background-color: var(--bg-accent);
+}
+
+.command-panel-drawer.active {
+    transform: translateY(0);
+}
 
 .command-panel-drawer.hidden {
   transform: translateY(100%); /* Hide by moving it off-screen */
-}
-
-.command-panel-drawer:not(.hidden) {
-  transform: translateY(0); /* Show by moving it back */
 }
 
 .command-panel-content {
@@ -66,17 +78,47 @@
     background-color: var(--bg-secondary);
 }
 
-.quick-actions h4 {
-    margin-top: 0;
+.quick-actions-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
+}
+
+.quick-actions h4 {
+    margin: 0;
     font-size: var(--font-size-lg);
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .quick-action-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+}
+
+.dry-run-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.dry-run-toggle .checkbox-label {
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.dry-run-toggle .checkbox-label:hover {
+  background-color: var(--bg-accent);
+}
+
+.quick-action-btn:hover:not(:disabled) {
+  background-color: var(--btn-secondary-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 

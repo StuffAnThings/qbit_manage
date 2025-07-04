@@ -362,7 +362,7 @@ function generateComplexObjectHTML(config, data) {
     let html = `
         <div class="complex-object">
             <div class="complex-object-header">
-                <h3>${config.title} Entries</h3>
+                <h3>${config.title}</h3>
                 <button type="button" class="btn btn-primary add-complex-object-item-btn">
                     Add New Entry
                 </button>
@@ -391,6 +391,47 @@ function generateComplexObjectHTML(config, data) {
 function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
 
     const isOther = entryKey === 'other';
+
+    // Handle flat string values (like categories: "category_name": "/path/to/save")
+    if (config.flatStringValues && typeof entryValue === 'string') {
+        const keyLabel = config.keyLabel || 'Key';
+        const valueSchema = config.patternProperties?.[".*"] || config.additionalProperties;
+        const valueLabel = valueSchema?.label || 'Value';
+        const valueDescription = valueSchema?.description || '';
+
+        let html = `
+            <div class="complex-object-item complex-object-entry-card" data-key="${entryKey}">
+                <div class="complex-object-item-content">
+                    <div class="category-inputs">
+                        <div class="category-labels-row">
+                            <div class="category-name-group">
+                                <label class="form-label">${keyLabel}</label>
+                            </div>
+                            <div class="category-path-group">
+                                <label class="form-label">${valueLabel}</label>
+                            </div>
+                        </div>
+                        <div class="category-inputs-row">
+                            <div class="form-group category-name-group">
+                                <input type="text" class="form-input complex-object-key" value="${entryKey}" data-original-key="${entryKey}" ${isOther ? 'readonly' : ''}>
+                            </div>
+                            <div class="form-group category-path-group">
+                                <input type="text" class="form-input" name="${entryKey}::value" value="${entryValue}">
+                                ${valueDescription ? `<div class="form-help">${valueDescription}</div>` : ''}
+                                <div class="field-validation"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-icon btn-close-icon remove-complex-object-item" data-key="${entryKey}">
+                        ${CLOSE_ICON_SVG}
+                    </button>
+                </div>
+            </div>
+        `;
+        return html;
+    }
+
+    // Original logic for object-based entries
     let schemaProperties;
     if (config.patternProperties) {
         if (isOther && config.patternProperties.other) {
@@ -433,15 +474,10 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
         const fieldName = `${entryKey}::${propName}`;
         const value = entryValue[propName] ?? propSchema.default ?? '';
 
-        if (propName === 'tag') { // Special handling for 'tag' field
-            const tagValue = Array.isArray(value) ? value : (value ? [value] : []); // Ensure it's always an array
-            html += generateArrayFieldHTML({ ...propSchema, type: 'array', label: propSchema.label }, tagValue, fieldName);
-        } else if (propSchema.type === 'array') {
+        if (propSchema.type === 'array') {
             html += generateArrayFieldHTML(propSchema, value, fieldName);
-        } else if (propSchema.type === 'boolean') {
-            html += generateFieldHTML(propSchema, value, fieldName);
         } else {
-            html += generateFieldHTML({ ...propSchema, type: 'text' }, value, fieldName);
+            html += generateFieldHTML(propSchema, value, fieldName);
         }
     });
 
