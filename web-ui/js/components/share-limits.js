@@ -113,6 +113,9 @@ export class ShareLimitsComponent {
 
         // Edit group (click on group content)
         this.container.addEventListener('click', (e) => {
+            // Skip if click originated from drag handle
+            if (e.target.closest('.share-limit-group-handle')) return;
+
             if (e.target.closest('.share-limit-group-content') && !e.target.closest('.remove-share-limit-group')) {
                 const key = e.target.closest('.share-limit-group-content').dataset.key;
                 this.editGroup(key);
@@ -136,10 +139,15 @@ export class ShareLimitsComponent {
             if (handle) {
                 handle.setAttribute('draggable', 'true');
                 handle.setAttribute('aria-label', 'Drag handle to reorder');
+
+                // Add touch events for mobile drag support
+                handle.addEventListener('touchstart', e => this.handleTouchStart(e, item), { passive: false });
+                handle.addEventListener('touchmove', e => this.handleTouchMove(e, item), { passive: false });
+                handle.addEventListener('touchend', e => this.handleTouchEnd(e, item), { passive: false });
             }
 
-            // Set accessibility attributes on the item
-            item.setAttribute('tabindex', '0');
+            // Set accessibility attributes on the item (remove tabindex to prevent mobile selection)
+            item.removeAttribute('tabindex');
             item.setAttribute('role', 'listitem');
             item.setAttribute('aria-label', `Share limit group ${index + 1}. Press Enter to edit, Delete to remove.`);
 
@@ -203,6 +211,67 @@ export class ShareLimitsComponent {
         // Final priority update
         this.updatePriorities();
         this.draggedElement = null;
+    }
+
+    // Touch event handlers for mobile drag support
+    handleTouchStart(e, item) {
+        e.preventDefault();
+        this.draggedElement = item;
+        this.touchStartY = e.touches[0].clientY;
+        this.touchStartX = e.touches[0].clientX;
+        this.isDragging = false;
+
+        // Add visual feedback
+        setTimeout(() => item.classList.add('dragging'), 0);
+
+        // Store initial position
+        this.initialTouchPosition = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+    }
+
+    handleTouchMove(e, item) {
+        if (!this.draggedElement) return;
+
+        e.preventDefault();
+
+        const touch = e.touches[0];
+        const deltaY = Math.abs(touch.clientY - this.touchStartY);
+        const deltaX = Math.abs(touch.clientX - this.touchStartX);
+
+        // Only start dragging if moved more than 10px vertically
+        if (deltaY > 10 && deltaY > deltaX) {
+            this.isDragging = true;
+
+            const container = this.container.querySelector('#share-limits-sortable');
+            const afterElement = this.getDragAfterElement(container, touch.clientY);
+
+            // Insert the dragged element at the new position
+            if (afterElement == null) {
+                container.appendChild(this.draggedElement);
+            } else {
+                container.insertBefore(this.draggedElement, afterElement);
+            }
+        }
+    }
+
+    handleTouchEnd(e, item) {
+        if (!this.draggedElement) return;
+
+        // If we were dragging, update priorities
+        if (this.isDragging) {
+            this.updatePriorities();
+        }
+
+        // Clean up
+        this.draggedElement.classList.remove('dragging');
+        this.container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+        this.draggedElement = null;
+        this.isDragging = false;
+        this.touchStartY = null;
+        this.touchStartX = null;
     }
 
     getDragAfterElement(container, y) {

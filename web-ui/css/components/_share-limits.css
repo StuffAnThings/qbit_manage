@@ -14,11 +14,6 @@
   transition: all var(--transition-fast);
 }
 
-.share-limits-header:hover {
-  box-shadow: var(--card-hover-shadow);
-  transform: translateY(-1px);
-}
-
 .share-limits-header h3 {
   margin: 0 0 var(--spacing-sm) 0;
   font-size: var(--font-size-xl);
@@ -26,7 +21,6 @@
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
 }
 
 .share-limits-header h3::before {
@@ -123,13 +117,24 @@
   margin-bottom: 0;
 }
 
+/* Prevent focus styles on group items to avoid selection appearance */
+.share-limit-group-item:focus {
+  outline: none !important;
+  border-color: var(--card-border) !important;
+}
+
+/* Ensure drag handle doesn't show focus styles */
+.share-limit-group-handle:focus {
+  outline: none !important;
+}
+
 /* Enhanced Drag Handle */
 .share-limit-group-handle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   margin-right: var(--spacing-md);
   cursor: grab;
   color: var(--text-muted);
@@ -145,6 +150,16 @@
   touch-action: none;
   position: relative;
   overflow: hidden;
+}
+
+/* Add transparent hit area for better touch */
+.share-limit-group-handle::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
 }
 
 .share-limit-group-handle::before {
@@ -502,6 +517,19 @@
 
   .share-limit-group-item {
     padding: var(--spacing-md);
+  }
+
+  /* Prevent hover effects on touch devices */
+  @media (hover: none) {
+    .share-limit-group-item:hover {
+      border-color: var(--card-border);
+      box-shadow: var(--card-shadow);
+      transform: none;
+    }
+
+    .share-limit-group-item:hover::before {
+      opacity: 0;
+    }
   }
 }
 
