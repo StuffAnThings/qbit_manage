@@ -247,6 +247,7 @@
     max-width: none;
     max-height: 85vh;
     margin: auto;
+    min-width: 0 !important; /* Override any component-specific min-width */
   }
 
   .modal-header,
@@ -259,6 +260,13 @@
   .modal-content {
     max-height: 60vh;
     overflow-y: auto;
+  }
+
+  /* Specific adjustments for share limits modal on mobile */
+  .share-limit-modal .modal {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
   }
 
   /* Toast adjustments */

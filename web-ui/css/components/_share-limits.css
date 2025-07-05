@@ -506,8 +506,39 @@
   }
 
   .share-limit-modal {
-    width: 98%;
-    margin: 1%;
+    width: 98% !important;
+    margin: 1% !important;
+    max-width: none !important;
+  }
+
+  .share-limit-modal .modal {
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 400px !important;
+    max-height: 85vh !important;
+    margin: 0 !important;
+  }
+
+  .share-limit-modal .modal-header {
+    padding: var(--spacing-md) !important;
+  }
+
+  .share-limit-modal .modal-content {
+    padding: var(--spacing-md) !important;
+    max-height: calc(85vh - 160px) !important;
+  }
+
+  .share-limit-modal .modal-footer {
+    padding: var(--spacing-md) !important;
+  }
+
+  .share-limit-modal .form-section {
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .share-limit-modal .form-section-title {
+    font-size: var(--font-size-base);
   }
 
   .share-limit-group-handle {
@@ -535,6 +566,48 @@
 
 /* Responsive adjustments for smaller screens */
 @media (max-width: 480px) {
+  .share-limit-modal {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: var(--spacing-xs) !important;
+  }
+
+  .share-limit-modal .modal {
+    min-height: 350px !important;
+    max-height: 90vh !important;
+    border-radius: var(--border-radius) !important;
+  }
+
+  .share-limit-modal .modal-header {
+    padding: var(--spacing-sm) !important;
+  }
+
+  .share-limit-modal .modal-header h3 {
+    font-size: var(--font-size-lg);
+  }
+
+  .share-limit-modal .modal-content {
+    padding: var(--spacing-sm) !important;
+    max-height: calc(90vh - 140px) !important;
+  }
+
+  .share-limit-modal .modal-footer {
+    padding: var(--spacing-sm) !important;
+  }
+
+  .share-limit-modal .form-section {
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .share-limit-modal .form-group {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .share-limit-modal .modern-form-group {
+    margin-bottom: var(--spacing-sm);
+  }
+
   .share-limit-group-handle {
     width: 32px;
     height: 32px;
@@ -542,5 +615,13 @@
 
   .share-limit-group-item {
     padding: var(--spacing-sm);
+  }
+
+  .share-limit-group-name {
+    font-size: var(--font-size-base);
+  }
+
+  .share-limit-group-summary {
+    font-size: var(--font-size-xs);
   }
 }
