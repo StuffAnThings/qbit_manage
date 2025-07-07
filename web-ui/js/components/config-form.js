@@ -9,6 +9,7 @@ import { get, query, queryAll } from '../utils/dom.js';
 import { CLOSE_ICON_SVG, EYE_ICON_SVG, EYE_SLASH_ICON_SVG } from '../utils/icons.js';
 import { generateSectionHTML } from '../utils/form-renderer.js';
 import { getNestedValue, setNestedValue, isValidHost } from '../utils/utils.js';
+import { getAvailableCategories, populateCategoryDropdowns } from '../utils/categories.js';
 
 // Import all section schemas
 import { commandsSchema } from '../config-schemas/commands.js';
@@ -121,6 +122,9 @@ class ConfigForm {
                 );
             }
         }
+
+        // Populate category dropdowns after rendering is complete
+        await this.populateCategoryDropdowns();
     }
 
     bindEvents() {
@@ -249,8 +253,8 @@ class ConfigForm {
             return;
         }
 
-        // Handle complex object key input specifically
-        if (e.target.classList.contains('complex-object-key')) {
+        // Handle complex object key input and dropdown specifically
+        if (e.target.classList.contains('complex-object-key') || e.target.classList.contains('complex-object-key-dropdown')) {
             this.updateComplexObjectKey(e.target);
             return; // Exit after handling complex object key specific logic
         }
@@ -300,19 +304,21 @@ class ConfigForm {
                 this.currentData[entryKey] = value;
             } else {
                 // Handle object-based complex fields
-                if (!this.currentData[entryKey]) {
-                    this.currentData[entryKey] = {};
-                }
-
-                // Remove empty string values instead of setting them
-                if (value === '' || value === null || value === undefined) {
-                    delete this.currentData[entryKey][propName];
-                    // If the entry object is now empty, remove it entirely
-                    if (Object.keys(this.currentData[entryKey]).length === 0) {
-                        delete this.currentData[entryKey];
+                // Only create the object if we have a non-empty value to set
+                if (value !== '' && value !== null && value !== undefined) {
+                    if (!this.currentData[entryKey]) {
+                        this.currentData[entryKey] = {};
                     }
-                } else {
                     this.currentData[entryKey][propName] = value;
+                } else {
+                    // Remove empty string values instead of setting them
+                    if (this.currentData[entryKey]) {
+                        delete this.currentData[entryKey][propName];
+                        // If the entry object is now empty, remove it entirely
+                        if (Object.keys(this.currentData[entryKey]).length === 0) {
+                            delete this.currentData[entryKey];
+                        }
+                    }
                 }
             }
         } else {
@@ -408,6 +414,46 @@ class ConfigForm {
         this._dispatchDirtyEvent();
     }
 
+    shouldArrayItemUseCategoryDropdown(fieldName) {
+        // Get the field schema to check if array items should use category dropdown
+        const fieldSchema = this.getFieldSchema(fieldName);
+        if (!fieldSchema || fieldSchema.type !== 'array') {
+            return false;
+        }
+
+        // Check if the array items have useCategoryDropdown flag
+        return fieldSchema.items && fieldSchema.items.useCategoryDropdown === true;
+    }
+
+    getFieldSchema(fieldName) {
+        if (!this.schema || !this.schema.fields) {
+            return null;
+        }
+
+        // Handle complex object fields (containing ::)
+        if (fieldName.includes('::')) {
+            const [entryKey, propName] = fieldName.split('::');
+
+            // Find the complex object field in schema
+            // For share limits, we need to find the field that has the matching name
+            for (const field of this.schema.fields) {
+                if (field.name === entryKey && field.type === 'object' && field.properties && field.properties[propName]) {
+                    return field.properties[propName];
+                }
+            }
+            return null;
+        }
+
+        // Handle regular fields
+        for (const field of this.schema.fields) {
+            if (field.name === fieldName) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
     addArrayItem(fieldName) {
         const arrayField = this.container.querySelector(`[data-field="${fieldName}"] .array-items`);
         let currentArray;
@@ -433,17 +479,47 @@ class ConfigForm {
 
         const newIndex = currentArray.length - 1;
 
+        // Check if this array field should use category dropdowns
+        const shouldUseCategoryDropdown = this.shouldArrayItemUseCategoryDropdown(fieldName);
+
+        let inputHTML;
+        if (shouldUseCategoryDropdown) {
+            inputHTML = `
+                <select class="form-select category-dropdown array-item-input"
+                        id="${fieldName}-item-${newIndex}"
+                        data-field="${fieldName}" data-index="${newIndex}"
+                        name="${fieldName}[${newIndex}]">
+                    <option value="">Select a category...</option>
+                </select>
+            `;
+        } else {
+            inputHTML = `
+                <input type="text" class="form-input array-item-input"
+                       id="${fieldName}-item-${newIndex}"
+                       value="" data-field="${fieldName}" data-index="${newIndex}"
+                       name="${fieldName}[${newIndex}]">
+            `;
+        }
+
         const itemHTML = `
             <div class="array-item" data-index="${newIndex}">
-                <input type="text" class="form-input array-item-input"
-                       value="" data-field="${fieldName}" data-index="${newIndex}">
-                <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
-                    ${CLOSE_ICON_SVG}
-                </button>
+                <label for="${fieldName}-item-${newIndex}" class="form-label sr-only">Item ${newIndex + 1}</label>
+                <div class="array-item-input-group">
+                    ${inputHTML}
+                    <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
+                        ${CLOSE_ICON_SVG}
+                    </button>
+                </div>
             </div>
         `;
 
         arrayField.insertAdjacentHTML('beforeend', itemHTML);
+
+        // If we added a category dropdown, populate it
+        if (shouldUseCategoryDropdown) {
+            this.populateCategoryDropdowns();
+        }
+
         this.onDataChange(this.currentData);
         this._dispatchDirtyEvent();
     }
@@ -496,20 +572,55 @@ class ConfigForm {
         const categoriesContainer = this.container.querySelector('.key-value-items');
         const newKey = `category-${Date.now()}`;
 
+        // Check if this config should use category dropdowns
+        const isCatChange = this.currentSection === 'cat_change';
+        const useDropdownForKey = sectionConfig.useCategoryDropdown && isCatChange;
+        const useDropdownForValue = isCatChange && sectionConfig.fields && sectionConfig.fields[0] &&
+                                   sectionConfig.fields[0].properties && sectionConfig.fields[0].properties.new_category &&
+                                   sectionConfig.fields[0].properties.new_category.useCategoryDropdown;
+
+        let keyInputHTML, valueInputHTML;
+
+        // Generate key input (old category)
+        if (useDropdownForKey) {
+            keyInputHTML = `
+                <select class="form-select category-dropdown category-key" name="category-key-${newKey}">
+                    <option value="">Select Category</option>
+                </select>
+            `;
+        } else {
+            keyInputHTML = `
+                <input type="text" class="form-input category-key" value=""
+                       name="category-key-${newKey}">
+            `;
+        }
+
+        // Generate value input (new category or save path)
+        if (useDropdownForValue) {
+            valueInputHTML = `
+                <select class="form-select category-dropdown category-value" name="category-value-${newKey}">
+                    <option value="">Select Category</option>
+                </select>
+            `;
+        } else {
+            valueInputHTML = `
+                <input type="text" class="form-input category-value"
+                       value=""
+                       placeholder="${isCatChange ? 'New Category Name' : '/path/to/category'}"
+                       name="category-value-${newKey}">
+            `;
+        }
+
         const itemHTML = `
             <div class="key-value-item category-row" data-key="${newKey}">
                 <div class="category-inputs">
                     <div class="form-group category-name-group">
-                        <label class="form-label">${this.currentSection === 'cat_change' ? 'Old Category' : 'Category Name'}</label>
-                        <input type="text" class="form-input category-key" value=""
-                               name="category-key-${newKey}">
+                        <label class="form-label">${isCatChange ? 'Old Category' : 'Category Name'}</label>
+                        ${keyInputHTML}
                     </div>
                     <div class="form-group category-path-group">
-                        <label class="form-label">${this.currentSection === 'cat_change' ? 'New Category' : 'Save Path'}</label>
-                        <input type="text" class="form-input category-value"
-                               value=""
-                               placeholder="${this.currentSection === 'cat_change' ? 'New Category Name' : '/path/to/category'}"
-                               name="category-value-${newKey}">
+                        <label class="form-label">${isCatChange ? 'New Category' : 'Save Path'}</label>
+                        ${valueInputHTML}
                     </div>
                 </div>
                 <button type="button" class="btn btn-icon btn-close-icon remove-category-btn">
@@ -524,6 +635,11 @@ class ConfigForm {
             this.currentData = {};
         }
         this.currentData[newKey] = '';
+
+        // Populate dropdowns for the newly added item if needed
+        if (useDropdownForKey || useDropdownForValue) {
+            this.populateCategoryDropdowns();
+        }
 
         this.onDataChange(this.currentData);
         this._dispatchDirtyEvent();
@@ -594,16 +710,30 @@ class ConfigForm {
             return;
         }
 
-        // Use schema's keyLabel and keyDescription for dynamic prompt text
-        const keyLabel = sectionConfig.keyLabel || 'Tracker URL';
-        const keyDescription = sectionConfig.keyDescription || keyLabel;
-        const promptText = `Enter ${keyDescription}:`;
+        let newKey;
 
-        const newKey = prompt(promptText);
-        if (!newKey || this.currentData[newKey]) {
-            if (this.currentData[newKey]) {
-                showToast(`A ${keyLabel} with this name already exists.`, 'error');
+        // Check if this schema should use category dropdown
+        if (sectionConfig.useCategoryDropdown) {
+            newKey = await this.showCategoryDropdownModal();
+            if (!newKey) {
+                return; // User cancelled or no selection made
             }
+        } else {
+            // Use schema's keyLabel and keyDescription for dynamic prompt text
+            const keyLabel = sectionConfig.keyLabel || 'Tracker URL';
+            const keyDescription = sectionConfig.keyDescription || keyLabel;
+            const promptText = `Enter ${keyDescription}:`;
+
+            newKey = prompt(promptText);
+            if (!newKey) {
+                return;
+            }
+        }
+
+        // Check if key already exists
+        if (this.currentData[newKey]) {
+            const keyLabel = sectionConfig.keyLabel || 'Entry';
+            showToast(`A ${keyLabel} with this name already exists.`, 'error');
             return;
         }
 
@@ -633,9 +763,11 @@ class ConfigForm {
                             } else {
                                 newEntry[propName] = ''; // Default to empty string for 'tag'
                             }
-                        } else {
-                            newEntry[propName] = ''; // Default to empty string for other types
+                        } else if (defaultSchema.required && defaultSchema.required.includes(propName)) {
+                            // Only set required fields to empty string, leave optional fields undefined
+                            newEntry[propName] = '';
                         }
+                        // Optional fields are left undefined and will not be included in the object
                     });
                 }
             }
@@ -654,6 +786,134 @@ class ConfigForm {
             this.onDataChange(this.currentData);
             this._dispatchDirtyEvent();
         }
+    }
+
+    async showCategoryDropdownModal() {
+        return new Promise((resolve) => {
+            // Get available categories from the API or stored data
+            this.getAvailableCategories().then(categories => {
+                if (!categories || categories.length === 0) {
+                    showToast('No categories available. Please configure categories first.', 'warning');
+                    resolve(null);
+                    return;
+                }
+
+                // Create modal HTML
+                const modalHTML = `
+                    <div class="modal-overlay" id="category-dropdown-modal">
+                        <div class="modal">
+                            <div class="modal-header">
+                                <h3>Select Category</h3>
+                                <button type="button" class="btn btn-icon btn-close-icon modal-close">
+                                    ${CLOSE_ICON_SVG}
+                                </button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="form-group">
+                                    <label for="category-select" class="form-label">Choose a category:</label>
+                                    <select id="category-select" class="form-select">
+                                        <option value="">Select a category...</option>
+                                        ${categories.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button type="button" class="btn btn-primary modal-confirm" disabled>Add Category</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Add modal to DOM
+                document.body.insertAdjacentHTML('beforeend', modalHTML);
+                const modal = document.getElementById('category-dropdown-modal');
+                const select = document.getElementById('category-select');
+                const confirmBtn = modal.querySelector('.modal-confirm');
+                const cancelBtn = modal.querySelector('.modal-cancel');
+                const closeBtn = modal.querySelector('.modal-close');
+
+                // Enable/disable confirm button based on selection
+                select.addEventListener('change', () => {
+                    confirmBtn.disabled = !select.value;
+                });
+
+                // Handle confirm
+                confirmBtn.addEventListener('click', () => {
+                    const selectedCategory = select.value;
+                    modal.remove();
+                    resolve(selectedCategory);
+                });
+
+                // Handle cancel/close
+                const closeModal = () => {
+                    modal.remove();
+                    resolve(null);
+                };
+
+                cancelBtn.addEventListener('click', closeModal);
+                closeBtn.addEventListener('click', closeModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal();
+                    }
+                });
+
+                // Handle escape key
+                const handleEscape = (e) => {
+                    if (e.key === 'Escape') {
+                        closeModal();
+                        document.removeEventListener('keydown', handleEscape);
+                    }
+                };
+                document.addEventListener('keydown', handleEscape);
+            });
+        });
+    }
+
+    async getAvailableCategories() {
+        return getAvailableCategories();
+    }
+
+    async populateCategoryDropdowns() {
+        // Find all category dropdowns in the current form
+        const complexObjectDropdowns = this.container.querySelectorAll('.complex-object-key-dropdown');
+
+        // Handle complex object key dropdowns (these have special logic)
+        if (complexObjectDropdowns.length > 0) {
+            try {
+                const categories = await this.getAvailableCategories();
+
+                complexObjectDropdowns.forEach(dropdown => {
+                    const currentValue = dropdown.dataset.originalKey;
+
+                    // Clear existing options except the current one
+                    dropdown.innerHTML = '';
+
+                    // Add current value as selected option
+                    const currentOption = document.createElement('option');
+                    currentOption.value = currentValue;
+                    currentOption.textContent = currentValue;
+                    currentOption.selected = true;
+                    dropdown.appendChild(currentOption);
+
+                    // Add other available categories
+                    categories.forEach(category => {
+                        if (category !== currentValue) {
+                            const option = document.createElement('option');
+                            option.value = category;
+                            option.textContent = category;
+                            dropdown.appendChild(option);
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Error populating complex object category dropdowns:', error);
+            }
+        }
+
+        // Handle regular field category dropdowns using the utility function
+        await populateCategoryDropdowns(this.container);
     }
 
     updateComplexObjectKey(input) {
@@ -723,7 +983,6 @@ class ConfigForm {
         const hiddenInput = container.querySelector('.dynamic-hidden-input');
 
         if (!textInput || !hiddenInput) {
-            console.log('Missing inputs:', { textInput, hiddenInput });
             return;
         }
 
@@ -904,6 +1163,9 @@ class ConfigForm {
                                     if (isArray && !Array.isArray(entryValue[propName])) {
                                         entryValue[propName] = entryValue[propName] ? [entryValue[propName]] : [];
                                     }
+                                } else if (propSchema.type === 'string' && (entryValue[propName] === null || entryValue[propName] === undefined || (typeof entryValue[propName] === 'object' && Object.keys(entryValue[propName]).length === 0))) {
+                                    // Handle optional string fields that might be empty objects - convert to empty string
+                                    entryValue[propName] = '';
                                 }
                             });
                         }

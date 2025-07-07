@@ -4,6 +4,7 @@ export const nohardlinksSchema = {
     type: 'complex-object',
     keyLabel: 'Category',
     keyDescription: 'Category name to check for no hardlinks',
+    useCategoryDropdown: true, // Flag to indicate this should use category dropdown
     patternProperties: {
         ".*": { // Matches any category name
             type: 'object',

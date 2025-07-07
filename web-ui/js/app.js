@@ -1147,5 +1147,5 @@ class QbitManageApp {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    new QbitManageApp();
+    window.app = new QbitManageApp();
 });

@@ -44,7 +44,10 @@ export const shareLimitsSchema = {
                     type: 'array',
                     label: 'Categories',
                     description: 'Filter by including one or more categories.',
-                    items: { type: 'text' }
+                    items: {
+                        type: 'text',
+                        useCategoryDropdown: true // Flag to indicate array items should use category dropdown
+                    }
                 },
                 cleanup: {
                     type: 'boolean',

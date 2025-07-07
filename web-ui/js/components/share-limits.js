@@ -8,6 +8,7 @@ import { showModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
 import { generateShareLimitsHTML } from '../utils/form-renderer.js';
 import { shareLimitsSchema } from '../config-schemas/share_limits.js';
+import { getAvailableCategories, generateCategoryDropdownHTML } from '../utils/categories.js';
 
 export class ShareLimitsComponent {
     constructor(container, data = {}, onDataChange = () => {}) {
@@ -861,14 +862,6 @@ export class ShareLimitsComponent {
         const minSeedingTime = parseTimeToMinutes(minSeedingTimeStr);
         const maxSeedingTime = parseTimeToMinutes(maxSeedingTimeStr);
 
-        console.log('Validation Debug:', {
-            minSeedingTimeStr,
-            maxSeedingTimeStr,
-            maxRatio,
-            minSeedingTime,
-            maxSeedingTime
-        });
-
         // Rule 1: If min_seeding_time > 0, then max_ratio must be > 0
         if (minSeedingTime > 0 && (isNaN(maxRatio) || maxRatio <= 0)) {
             return 'MANDATORY: When minimum seeding time is greater than 0, maximum share ratio must also be set to a value greater than 0.';
@@ -890,17 +883,41 @@ export class ShareLimitsComponent {
                 const arrayField = modalElement.querySelector(`.array-field[data-field="${fieldName}"]`);
                 const itemsContainer = arrayField.querySelector('.array-items');
                 const newIndex = itemsContainer.children.length;
+                const shouldUseCategoryDropdown = arrayField.dataset.useCategoryDropdown === 'true';
 
                 const newItem = document.createElement('div');
-                newItem.className = 'array-item';
-                newItem.innerHTML = `
-                    <div class="array-item-input-group">
-                        <input type="text" class="form-input array-item-input" value="" data-field="${fieldName}" data-index="${newIndex}" name="${fieldName}[${newIndex}]">
-                        <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                        </button>
-                    </div>
-                `;
+                newItem.className = 'array-item modern-array-item';
+                newItem.dataset.index = newIndex;
+
+                if (shouldUseCategoryDropdown) {
+                    const categories = getAvailableCategories();
+                    const dropdownHTML = generateCategoryDropdownHTML(
+                        `${fieldName}[${newIndex}]`,
+                        '',
+                        categories,
+                        `form-input array-item-input`,
+                        fieldName,
+                        newIndex
+                    );
+                    newItem.innerHTML = `
+                        <div class="array-item-input-group">
+                            ${dropdownHTML}
+                            <button type="button" class="btn btn-icon btn-close-icon remove-array-item"
+                                    aria-label="Remove item">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    newItem.innerHTML = `
+                        <div class="array-item-input-group">
+                            <input type="text" class="form-input array-item-input" value="" data-field="${fieldName}" data-index="${newIndex}" name="${fieldName}[${newIndex}]">
+                            <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
+                                <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </button>
+                        </div>
+                    `;
+                }
 
                 itemsContainer.appendChild(newItem);
             }
@@ -1032,29 +1049,54 @@ export class ShareLimitsComponent {
 
             case 'array':
                 const arrayValue = Array.isArray(value) ? value : [];
+                const shouldUseCategoryDropdown = field.items && field.items.useCategoryDropdown;
+
                 inputHTML = `
                     <div class="array-field-wrapper">
                         <label class="form-label ${isRequired}">
                             ${fieldIcon} ${field.label} ${requiredMark}
                         </label>
-                        <div class="array-field modern-array-field" data-field="${fieldName}">
+                        <div class="array-field modern-array-field" data-field="${fieldName}" ${shouldUseCategoryDropdown ? 'data-use-category-dropdown="true"' : ''}>
                             <div class="array-items">
                 `;
 
                 arrayValue.forEach((item, index) => {
-                    inputHTML += `
-                        <div class="array-item modern-array-item" data-index="${index}">
-                            <div class="array-item-input-group">
-                                <input type="text" class="form-input array-item-input"
-                                       value="${item}" data-field="${fieldName}" data-index="${index}"
-                                       name="${fieldName}[${index}]" placeholder="Enter value">
-                                <button type="button" class="btn btn-icon btn-close-icon remove-array-item"
-                                        aria-label="Remove item">
-                                    <span class="material-icons">close</span>
-                                </button>
+                    if (shouldUseCategoryDropdown) {
+                        const categories = getAvailableCategories();
+                        const dropdownHTML = generateCategoryDropdownHTML(
+                            `${fieldName}[${index}]`,
+                            item,
+                            categories,
+                            `form-input array-item-input`,
+                            fieldName,
+                            index
+                        );
+                        inputHTML += `
+                            <div class="array-item modern-array-item" data-index="${index}">
+                                <div class="array-item-input-group">
+                                    ${dropdownHTML}
+                                    <button type="button" class="btn btn-icon btn-close-icon remove-array-item"
+                                            aria-label="Remove item">
+                                        <span class="material-icons">close</span>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        inputHTML += `
+                            <div class="array-item modern-array-item" data-index="${index}">
+                                <div class="array-item-input-group">
+                                    <input type="text" class="form-input array-item-input"
+                                           value="${item}" data-field="${fieldName}" data-index="${index}"
+                                           name="${fieldName}[${index}]" placeholder="Enter value">
+                                    <button type="button" class="btn btn-icon btn-close-icon remove-array-item"
+                                            aria-label="Remove item">
+                                        <span class="material-icons">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
                 });
 
                 inputHTML += `

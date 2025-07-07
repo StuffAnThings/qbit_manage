@@ -5,6 +5,7 @@
 
 import { getNestedValue } from './utils.js';
 import { CLOSE_ICON_SVG } from './icons.js';
+import { generateCategoryDropdownHTML } from './categories.js';
 
 /**
  * Generates the HTML for a given section.
@@ -228,15 +229,27 @@ export function generateFieldHTML(field, value, fieldName) {
             break;
 
         default: // text
-            inputHTML = `
-                <label for="${fieldId}" class="form-label ${isRequired}">
-                    ${field.label} ${requiredMark}
-                </label>
-                <input type="text" id="${fieldId}" name="${fieldName}"
-                       class="form-input" value="${value}"
-                       ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
-                       ${isRequired}>
-            `;
+            // Check if this field should use category dropdown
+            if (field.useCategoryDropdown) {
+                inputHTML = `
+                    <label for="${fieldId}" class="form-label ${isRequired}">
+                        ${field.label} ${requiredMark}
+                    </label>
+                    <select id="${fieldId}" name="${fieldName}" class="form-select category-dropdown" ${isRequired}>
+                        <option value="${value}" selected>${value || 'Select Category'}</option>
+                    </select>
+                `;
+            } else {
+                inputHTML = `
+                    <label for="${fieldId}" class="form-label ${isRequired}">
+                        ${field.label} ${requiredMark}
+                    </label>
+                    <input type="text" id="${fieldId}" name="${fieldName}"
+                           class="form-input" value="${value}"
+                           ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
+                           ${isRequired}>
+                `;
+            }
             break;
     }
 
@@ -270,14 +283,33 @@ function generateArrayFieldHTML(field, value, fieldName) {
     `;
 
     arrayValue.forEach((item, index) => {
+        // Check if array items should use category dropdown
+        const useDropdown = field.items && field.items.useCategoryDropdown;
+
+        let inputHTML;
+        if (useDropdown) {
+            inputHTML = `
+                <select class="form-select category-dropdown array-item-input"
+                        id="${fieldId}-item-${index}"
+                        data-field="${fieldName}" data-index="${index}"
+                        name="${fieldName}[${index}]">
+                    <option value="${item}" selected>${item || 'Select Category'}</option>
+                </select>
+            `;
+        } else {
+            inputHTML = `
+                <input type="text" class="form-input array-item-input"
+                       id="${fieldId}-item-${index}"
+                       value="${item}" data-field="${fieldName}" data-index="${index}"
+                       name="${fieldName}[${index}]">
+            `;
+        }
+
         html += `
             <div class="array-item" data-index="${index}">
                 <label for="${fieldId}-item-${index}" class="form-label sr-only">Item ${index + 1}</label>
                 <div class="array-item-input-group">
-                    <input type="text" class="form-input array-item-input"
-                           id="${fieldId}-item-${index}"
-                           value="${item}" data-field="${fieldName}" data-index="${index}"
-                           name="${fieldName}[${index}]">
+                    ${inputHTML}
                      <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
                          ${CLOSE_ICON_SVG}
                     </button>
@@ -320,20 +352,54 @@ function generateDynamicKeyValueListHTML(config, data) {
     `;
 
     Object.entries(categories).forEach(([key, value]) => {
+        // Check if this config should use category dropdowns
+        const useDropdownForKey = config.useCategoryDropdown && isCatChange;
+        const useDropdownForValue = isCatChange && config.fields && config.fields[0] &&
+                                   config.fields[0].properties && config.fields[0].properties.new_category &&
+                                   config.fields[0].properties.new_category.useCategoryDropdown;
+
+        let keyInputHTML, valueInputHTML;
+
+        // Generate key input (old category)
+        if (useDropdownForKey) {
+            keyInputHTML = `
+                <select class="form-select category-dropdown category-key" name="category-key-${key}">
+                    <option value="${key}" selected>${key}</option>
+                </select>
+            `;
+        } else {
+            keyInputHTML = `
+                <input type="text" class="form-input category-key" value="${key}"
+                       name="category-key-${key}">
+            `;
+        }
+
+        // Generate value input (new category or save path)
+        if (useDropdownForValue) {
+            valueInputHTML = `
+                <select class="form-select category-dropdown category-value" name="category-value-${key}">
+                    <option value="${value || ''}" selected>${value || 'Select Category'}</option>
+                </select>
+            `;
+        } else {
+            valueInputHTML = `
+                <input type="text" class="form-input category-value"
+                       value="${value || ''}"
+                       placeholder="${isCatChange ? 'New Category Name' : '/path/to/category'}"
+                       name="category-value-${key}">
+            `;
+        }
+
         html += `
             <div class="key-value-item category-row" data-key="${key}">
                 <div class="category-inputs">
                     <div class="form-group category-name-group">
                         <label class="form-label">${isCatChange ? 'Old Category' : 'Category Name'}</label>
-                        <input type="text" class="form-input category-key" value="${key}"
-                               name="category-key-${key}">
+                        ${keyInputHTML}
                     </div>
                     <div class="form-group category-path-group">
                         <label class="form-label">${isCatChange ? 'New Category' : 'Save Path'}</label>
-                        <input type="text" class="form-input category-value"
-                               value="${value || ''}"
-                               placeholder="${isCatChange ? 'New Category Name' : '/path/to/category'}"
-                               name="category-value-${key}">
+                        ${valueInputHTML}
                     </div>
                 </div>
                 <button type="button" class="btn btn-icon btn-close-icon remove-category-btn">
@@ -456,15 +522,32 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
     // Use custom key label if provided, otherwise default to "Tracker URL"
     const keyLabel = config.keyLabel || 'Tracker URL';
 
+    let keyInputHTML;
+
+    // Check if this schema should use category dropdown for key editing
+    if (config.useCategoryDropdown && !isOther) {
+        // Generate dropdown for category selection
+        keyInputHTML = `
+            <select class="form-input complex-object-key-dropdown" data-original-key="${entryKey}">
+                <option value="${entryKey}" selected>${entryKey}</option>
+            </select>
+        `;
+    } else {
+        // Use regular text input
+        keyInputHTML = `
+            <input type="text" class="form-input complex-object-key" value="${entryKey}" data-original-key="${entryKey}" ${isOther ? 'readonly' : ''}>
+        `;
+    }
+
     let html = `
         <div class="complex-object-item complex-object-entry-card" data-key="${entryKey}">
+            <button type="button" class="btn btn-icon btn-close-icon remove-complex-object-item complex-object-close-btn" data-key="${entryKey}">
+                ${CLOSE_ICON_SVG}
+            </button>
             <div class="complex-object-item-content">
                 <div class="form-group complex-object-key-group">
                     <label class="form-label">${keyLabel}</label>
-                    <input type="text" class="form-input complex-object-key" value="${entryKey}" data-original-key="${entryKey}" ${isOther ? 'readonly' : ''}>
-                    <button type="button" class="btn btn-icon btn-close-icon remove-complex-object-item" data-key="${entryKey}">
-                        ${CLOSE_ICON_SVG}
-                    </button>
+                    ${keyInputHTML}
                 </div>
     `;
 

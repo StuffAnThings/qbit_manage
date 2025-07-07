@@ -15,12 +15,13 @@ export const trackerSchema = {
                 cat: {
                     type: 'string',
                     label: 'Category',
-                    description: 'Set the category based on tracker URL. This category option takes priority over the category defined in cat'
+                    description: 'Set the category based on tracker URL. This category option takes priority over the category defined in cat',
+                    useCategoryDropdown: true // Flag to indicate this field should use category dropdown
                 },
                 notifiarr: {
                     type: 'string',
                     label: 'Notifiarr React Name',
-                    description: 'Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr'
+                    description: 'Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr',
                 }
             },
             required: ['tag'],
@@ -52,12 +53,13 @@ export const trackerSchema = {
             cat: {
                 type: 'string',
                 label: 'Category',
-                description: 'Set the category based on tracker URL. This category option takes priority over the category defined in cat'
+                description: 'Set the category based on tracker URL. This category option takes priority over the category defined in cat',
+                useCategoryDropdown: true // Flag to indicate this field should use category dropdown
             },
             notifiarr: {
                 type: 'string',
                 label: 'Notifiarr React Name',
-                description: 'Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr'
+                description: 'Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr',
             }
         },
         required: ['tag'],
