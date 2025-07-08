@@ -684,7 +684,6 @@ class ConfigForm {
             'webhooks.function.rem_unregistered',
             'webhooks.function.rem_orphaned',
             'webhooks.function.tag_nohardlinks',
-            'webhooks.function.empty_recyclebin',
             'webhooks.function.tag_tracker_error',
             'webhooks.function.share_limits',
             'webhooks.function.cleanup_dirs'
