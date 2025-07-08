@@ -75,12 +75,12 @@ class RemoveOrphaned:
                     # Get file modification time
                     file_mtime = os.path.getmtime(file)
                     file_age_minutes = (now - file_mtime) / 60
-                    
+
                     if file_age_minutes < min_torrent_age_minutes:
                         protected_files.add(file)
                         logger.print_line(
                             f"Skipping orphaned file (too new): {os.path.basename(file)} (age {file_age_minutes:.1f} mins < {min_torrent_age_minutes} mins)",
-                            self.config.loglevel
+                            self.config.loglevel,
                         )
                 except Exception as e:
                     logger.error(f"Error checking file age for {file}: {e}")
@@ -91,7 +91,7 @@ class RemoveOrphaned:
             if protected_files:
                 logger.print_line(
                     f"Protected {len(protected_files)} orphaned files from deletion due to age filter (min_torrent_age_minutes={min_torrent_age_minutes})",
-                    self.config.loglevel
+                    self.config.loglevel,
                 )
 
         # Check the threshold before deleting orphaned files
