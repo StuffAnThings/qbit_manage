@@ -138,13 +138,6 @@ export const notificationsSchema = {
             options: ['apprise', 'notifiarr', 'webhook']
         },
         {
-            name: 'webhooks.function.empty_recyclebin',
-            type: 'dynamic_select_text',
-            label: 'Empty Recycle Bin Webhook',
-            description: 'Webhook for empty recycle bin notifications. Can be "apprise", "notifiarr", or a custom URL.',
-            options: ['apprise', 'notifiarr', 'webhook']
-        },
-        {
             name: 'webhooks.function.share_limits',
             type: 'dynamic_select_text',
             label: 'Share Limits Webhook',
