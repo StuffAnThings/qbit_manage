@@ -1,0 +1,40 @@
+/* Badge Component */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: 1;
+  border-radius: var(--border-radius-sm);
+}
+
+.badge-primary {
+  background-color: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+.badge-secondary {
+  background-color: var(--secondary-color);
+  color: var(--text-inverse);
+}
+
+.badge-success {
+  background-color: var(--success-color);
+  color: var(--text-inverse);
+}
+
+.badge-warning {
+  background-color: var(--warning-color);
+  color: var(--text-inverse);
+}
+
+.badge-error {
+  background-color: var(--error-color);
+  color: var(--text-inverse);
+}
+
+.badge-outline {
+  background-color: transparent;
+  border: 1px solid currentColor;
+}

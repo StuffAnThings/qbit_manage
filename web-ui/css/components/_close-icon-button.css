@@ -1,0 +1,51 @@
+/* Generic Close/Remove Icon Button */
+.btn-close-icon {
+    background-color: transparent; /* Transparent background */
+    border: none; /* No border */
+    color: currentColor; /* Use current text color instead of black */
+    border-radius: var(--border-radius-sm); /* Slightly rounded for better UX */
+    width: 24px; /* Increased size for better clickability */
+    height: 24px; /* Increased size for better clickability */
+    min-width: 24px; /* Ensure minimum clickable area */
+    min-height: 24px; /* Ensure minimum clickable area */
+    display: flex; /* Use flex for better centering */
+    align-items: center;
+    justify-content: center;
+    padding: 2px; /* Small padding for better click target */
+    line-height: 1;
+    cursor: pointer;
+    transition: opacity var(--transition-fast); /* Match share limits transition */
+    position: relative; /* Ensure proper stacking */
+    z-index: 1; /* Ensure it's above other elements */
+    pointer-events: auto; /* Explicitly enable pointer events */
+    opacity: 0.6; /* Match share limits initial opacity */
+}
+
+.btn-close-icon:hover {
+    opacity: 1; /* Match share limits hover opacity */
+}
+
+/* Ensure SVG icons inside are properly sized and clickable */
+.btn-close-icon .icon,
+.btn-close-icon svg {
+    width: 16px;
+    height: 16px;
+    pointer-events: none; /* Prevent SVG from intercepting clicks */
+    fill: currentColor;
+}
+
+/* Fix for array item input groups */
+.array-item-input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+
+.array-item-input-group .form-input {
+    flex: 1;
+}
+
+.array-item-input-group .btn-close-icon {
+    flex-shrink: 0; /* Prevent button from shrinking */
+}

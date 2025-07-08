@@ -1,0 +1,52 @@
+/* Complex Object Entry Card Styling */
+.complex-object-entry-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md); /* Add some padding inside the border */
+  margin-bottom: var(--spacing-lg); /* Add space between entries */
+  background-color: var(--bg-secondary); /* Changed background color */
+}
+
+.complex-object-entry-card .form-group {
+    margin-bottom: var(--spacing-md); /* Reduce margin for form groups within the card */
+}
+
+.complex-object-entry-card .form-group:last-child {
+    margin-bottom: 0; /* Remove bottom margin for the last form group */
+}
+
+.complex-object-key-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding-right: calc(28px + var(--spacing-md)); /* Reserve space for close button */
+}
+
+.complex-object-key-group .form-input,
+.complex-object-key-group .form-select {
+    flex-grow: 1; /* Allow the input/select to take up available space */
+    width: auto; /* Override the 100% width from forms.css */
+    max-width: none; /* Let flex-grow handle the sizing */
+}
+
+.complex-object-key-group .form-label {
+    flex-shrink: 0; /* Prevent label from shrinking */
+    min-width: fit-content; /* Ensure label doesn't get too small */
+}
+
+/* Specific styling for category dropdown to prevent overlap */
+.complex-object-key-dropdown {
+    width: auto !important; /* Override any inherited width */
+    flex-grow: 1;
+    margin-right: var(--spacing-sm); /* Add some margin from the close button area */
+}
+
+.array-item-input-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm); /* Space between input and button */
+}
+
+.array-item-input-group .form-input {
+    flex-grow: 1; /* Allow input to take up space */
+}

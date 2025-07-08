@@ -5,7 +5,7 @@
 # https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup
 
 commands:
-  # The commands defined below will IGNORE any commands used in command line and docker env variables.
+  # The commands defined below will OVERRIDE any commands used in command line and docker env variables.
   dry_run: True
   recheck: False
   cat_update: False
