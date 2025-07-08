@@ -277,6 +277,10 @@ orphaned:
   # If this variable is not defined it, the orphaned data will never be emptied.
   # WARNING: Setting this variable to 0 will delete all files immediately upon script run!
   empty_after_x_days: 60
+  # Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion.
+  # This helps prevent removal of files that are actively being uploaded or processed.
+  # Default: 30 minutes, set to 0 to disable age protection
+  min_torrent_age_minutes: 30
   # File patterns that will not be considered orphaned files. Handy for generated files that aren't part of the torrent but belong with the torrent's files
   exclude_patterns:
     - "**/.DS_Store"

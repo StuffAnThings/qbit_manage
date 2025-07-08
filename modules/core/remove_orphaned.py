@@ -1,4 +1,5 @@
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 
@@ -62,6 +63,36 @@ class RemoveOrphaned:
                         excluded_orphan_files.add(file)
 
         orphaned_files = orphaned_files - excluded_orphan_files
+
+        # === AGE PROTECTION: Don't touch files that are "too new" (likely being created/uploaded) ===
+        min_age_minutes = self.config.orphaned.get("min_torrent_age_minutes", 30)  # Pull from config, default to 30 min
+        now = time.time()
+        protected_files = set()
+
+        if min_age_minutes > 0:  # Only apply age protection if configured
+            for file in orphaned_files:
+                try:
+                    # Get file modification time
+                    file_mtime = os.path.getmtime(file)
+                    file_age_minutes = (now - file_mtime) / 60
+                    
+                    if file_age_minutes < min_age_minutes:
+                        protected_files.add(file)
+                        logger.print_line(
+                            f"Skipping orphaned file (too new): {os.path.basename(file)} (age {file_age_minutes:.1f} mins < {min_age_minutes} mins)",
+                            self.config.loglevel
+                        )
+                except Exception as e:
+                    logger.error(f"Error checking file age for {file}: {e}")
+
+            # Remove protected files from orphaned files
+            orphaned_files = orphaned_files - protected_files
+
+            if protected_files:
+                logger.print_line(
+                    f"Protected {len(protected_files)} orphaned files from deletion due to age filter (min_torrent_age_minutes={min_age_minutes})",
+                    self.config.loglevel
+                )
 
         # Check the threshold before deleting orphaned files
         max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")
