@@ -82,6 +82,25 @@ class CommandPanel {
                                 <span class="checkmark"></span>
                                 Dry Run
                             </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="quick-skip-cleanup-checkbox">
+                                <span class="checkmark"></span>
+                                Skip Cleanup
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="quick-skip-qb-version-check-checkbox">
+                                <span class="checkmark"></span>
+                                Skip qB Version Check
+                            </label>
+                            <div class="form-group form-group-inline">
+                                <label for="quick-log-level-select" class="form-label">Log Level</label>
+                                <select id="quick-log-level-select" class="form-select">
+                                    <option value="">Default</option>
+                                    <option value="INFO">Info</option>
+                                    <option value="DEBUG">Debug</option>
+                                    <option value="TRACE">Trace</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <div class="quick-action-buttons">
@@ -154,7 +173,18 @@ class CommandPanel {
         try {
             const dryRunCheckbox = this.drawerContainer.querySelector('#dry-run-checkbox');
             const dryRun = dryRunCheckbox ? dryRunCheckbox.checked : false;
-            const result = await this.onCommandExecute([command], { dryRun: dryRun });
+            const skipCleanupCheckbox = this.drawerContainer.querySelector('#quick-skip-cleanup-checkbox');
+            const skipCleanup = skipCleanupCheckbox ? skipCleanupCheckbox.checked : false;
+            const skipQbVersionCheckCheckbox = this.drawerContainer.querySelector('#quick-skip-qb-version-check-checkbox');
+            const skipQbVersionCheck = skipQbVersionCheckCheckbox ? skipQbVersionCheckCheckbox.checked : false;
+            const logLevelSelect = this.drawerContainer.querySelector('#quick-log-level-select');
+            const logLevel = logLevelSelect ? logLevelSelect.value : '';
+            const result = await this.onCommandExecute([command], {
+                dryRun: dryRun,
+                skip_cleanup: skipCleanup,
+                skip_qb_version_check: skipQbVersionCheck,
+                log_level: logLevel
+            });
             this.showToast(`${command} command executed`, 'success');
         } catch (error) {
             console.error('Failed to execute quick command:', error);
@@ -233,6 +263,25 @@ class CommandPanel {
                             <span class="checkmark"></span>
                             Dry run (preview changes without executing)
                         </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="skip-cleanup-option">
+                            <span class="checkmark"></span>
+                            Skip cleanup
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="skip-qb-version-check-option">
+                            <span class="checkmark"></span>
+                            Skip qBittorrent version check
+                        </label>
+                        <div class="form-group">
+                             <label for="log-level-select" class="form-label">Log Level</label>
+                             <select id="log-level-select" class="form-select">
+                                 <option value="">Default</option>
+                                 <option value="INFO">Info</option>
+                                 <option value="DEBUG">Debug</option>
+                                 <option value="TRACE">Trace</option>
+                             </select>
+                         </div>
                         <div class="form-group">
                             <label for="torrent-hashes" class="form-label">
                                 Specific Torrent Hashes (optional)
@@ -258,6 +307,9 @@ class CommandPanel {
         // Load saved state
         const savedCommands = JSON.parse(localStorage.getItem('qbm-selected-commands') || '[]');
         const savedDryRun = localStorage.getItem('qbm-dry-run-option') === 'true';
+        const savedSkipCleanup = localStorage.getItem('qbm-skip-cleanup-option') === 'true';
+        const savedSkipQbVersionCheck = localStorage.getItem('qbm-skip-qb-version-check-option') === 'true';
+        const savedLogLevel = localStorage.getItem('qbm-log-level-option') || '';
 
         // Set command checkboxes
         savedCommands.forEach(cmd => {
@@ -269,6 +321,9 @@ class CommandPanel {
 
         // Set dry run checkbox
         modal.querySelector('#dry-run-option').checked = savedDryRun;
+        modal.querySelector('#skip-cleanup-option').checked = savedSkipCleanup;
+        modal.querySelector('#skip-qb-version-check-option').checked = savedSkipQbVersionCheck;
+        modal.querySelector('#log-level-select').value = savedLogLevel;
 
 
         // Bind modal events
@@ -287,8 +342,11 @@ class CommandPanel {
                 .map(input => input.value);
 
             const dryRun = modal.querySelector('#dry-run-option').checked;
+            const skipCleanup = modal.querySelector('#skip-cleanup-option').checked;
+            const skipQbVersionCheck = modal.querySelector('#skip-qb-version-check-option').checked;
             const hashesText = modal.querySelector('#torrent-hashes').value.trim();
             const hashes = hashesText ? hashesText.split('\n').map(h => h.trim()).filter(h => h) : [];
+            const logLevel = modal.querySelector('#log-level-select').value;
 
             if (selectedCommands.length === 0) {
                 this.showToast('Please select at least one command', 'warning');
@@ -298,11 +356,20 @@ class CommandPanel {
             // Save current selections to localStorage
             localStorage.setItem('qbm-selected-commands', JSON.stringify(selectedCommands));
             localStorage.setItem('qbm-dry-run-option', dryRun);
+            localStorage.setItem('qbm-skip-cleanup-option', skipCleanup);
+            localStorage.setItem('qbm-skip-qb-version-check-option', skipQbVersionCheck);
+            localStorage.setItem('qbm-log-level-option', logLevel);
 
             this.hideRunCommandsModal(); // Use the new hide method
 
             try {
-                await this.onCommandExecute(selectedCommands, { dryRun, hashes });
+                await this.onCommandExecute(selectedCommands, {
+                    dryRun,
+                    hashes,
+                    skip_cleanup: skipCleanup,
+                    skip_qb_version_check: skipQbVersionCheck,
+                    log_level: logLevel
+                });
             } catch (error) {
                 console.error('Failed to execute commands:', error);
                 this.showToast('Failed to execute commands', 'error');
@@ -317,9 +384,15 @@ class CommandPanel {
             const selectedCommands = Array.from(this.runCommandsModal.querySelectorAll('input[name="commands"]:checked'))
                 .map(input => input.value);
             const dryRun = this.runCommandsModal.querySelector('#dry-run-option').checked;
+            const skipCleanup = this.runCommandsModal.querySelector('#skip-cleanup-option').checked;
+            const skipQbVersionCheck = this.runCommandsModal.querySelector('#skip-qb-version-check-option').checked;
+            const logLevel = this.runCommandsModal.querySelector('#log-level-select').value;
 
             localStorage.setItem('qbm-selected-commands', JSON.stringify(selectedCommands));
             localStorage.setItem('qbm-dry-run-option', dryRun);
+            localStorage.setItem('qbm-skip-cleanup-option', skipCleanup);
+            localStorage.setItem('qbm-skip-qb-version-check-option', skipQbVersionCheck);
+            localStorage.setItem('qbm-log-level-option', logLevel);
 
             this.runCommandsModal.parentNode.removeChild(this.runCommandsModal);
             this.runCommandsModal = null;

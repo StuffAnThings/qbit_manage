@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import glob
 import json
+import logging
 import os
 import shutil
 from dataclasses import dataclass
@@ -39,6 +40,9 @@ class CommandRequest(BaseModel):
     commands: list[str]
     hashes: list[str] = field(default_factory=list)
     dry_run: bool = False
+    skip_cleanup: bool = False
+    skip_qb_version_check: bool = False
+    log_level: str | None = None
 
 
 class ConfigRequest(BaseModel):
@@ -390,11 +394,20 @@ class WebAPI:
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""
         try:
+            original_log_level = logger.get_level()
+            if request.log_level:
+                logger.set_level(request.log_level)
             logger.separator("Web API Request")
             logger.info(f"Config File: {request.config_file}")
+            if request.log_level:
+                logger.info(f"Log Level: {request.log_level}")
             logger.info(f"Commands: {', '.join(request.commands)}")
             logger.info(f"Dry Run: {request.dry_run}")
             logger.info(f"Hashes: {', '.join(request.hashes) if request.hashes else ''}")
+            if request.skip_cleanup is not None:
+                logger.info(f"Skip Cleanup: {request.skip_cleanup}")
+            if request.skip_qb_version_check is not None:
+                logger.info(f"Skip qBittorrent Version Check: {request.skip_qb_version_check}")
 
             config_files = get_matching_config_files(request.config_file, self.default_dir)
             logger.info(f"Found config files: {', '.join(config_files)}")
@@ -432,6 +445,12 @@ class WebAPI:
                     base_args[cmd] = True
                 else:
                     raise HTTPException(status_code=400, detail=f"Invalid command: {cmd}")
+
+            # Handle optional boolean flags that override command list
+            if request.skip_cleanup is not None:
+                base_args["skip_cleanup"] = request.skip_cleanup
+            if request.skip_qb_version_check is not None:
+                base_args["skip_qb_version_check"] = request.skip_qb_version_check
 
             all_stats = []
 
@@ -482,6 +501,8 @@ class WebAPI:
             logger.error(f"Error executing commands: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
         finally:
+            if "original_log_level" in locals() and logger.get_level() != original_log_level:
+                logger.set_level(logging.getLevelName(original_log_level))
             # Reset flag with proper synchronization
             try:
                 with self.is_running_lock:

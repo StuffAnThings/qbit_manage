@@ -935,8 +935,12 @@ class Config:
             self,
             {
                 "host": self.util.check_for_attribute(self.data, "host", parent="qbt", throw=True),
-                "username": self.util.check_for_attribute(self.data, "user", parent="qbt", default_is_none=True, save=False),
-                "password": self.util.check_for_attribute(self.data, "pass", parent="qbt", default_is_none=True, save=False),
+                "username": self.util.check_for_attribute(
+                    self.data, "user", parent="qbt", default_is_none=True, save=False, do_print=False
+                ),
+                "password": self.util.check_for_attribute(
+                    self.data, "pass", parent="qbt", default_is_none=True, save=False, do_print=False
+                ),
             },
         )
 

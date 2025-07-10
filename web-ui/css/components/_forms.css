@@ -4,12 +4,23 @@
   position: relative;
 }
 
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
 .form-label {
   display: block;
   margin-bottom: var(--spacing-xs);
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.form-group-inline .form-label {
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
 .form-label.required::after {

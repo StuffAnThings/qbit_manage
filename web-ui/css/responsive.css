@@ -317,6 +317,14 @@
     padding: var(--spacing-md);
   }
 
+  .quick-actions-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dry-run-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* Medium devices (tablets, 768px and up) */
