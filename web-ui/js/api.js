@@ -185,7 +185,7 @@ class API {
      * Execute qBit Manage commands
      */
     async runCommand(data) {
-        return this.post('/commands/run', data);
+        return this.post('/run-command', data);
     }
 
 

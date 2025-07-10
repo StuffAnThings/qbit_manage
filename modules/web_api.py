@@ -158,8 +158,7 @@ class WebAPI:
         )
 
         # Initialize routes
-        self.app.post("/api/commands/run")(self.run_command)
-        self.app.post("/api/run-command")(self.run_command)  # Legacy alias for backward compatibility
+        self.app.post("/api/run-command")(self.run_command)
 
         # Configuration management routes
         self.app.get("/api/configs")(self.list_configs)
