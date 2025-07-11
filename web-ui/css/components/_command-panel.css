@@ -1,0 +1,163 @@
+/* Command Panel Component */
+.command-panel-drawer {
+  position: fixed;
+  bottom: 0; /* Changed from var(--footer-height) to remove gap */
+  left: 0;
+  right: 0;
+  height: 20rem;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-fixed);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform var(--transition-normal);
+  overflow-y: auto; /* Add scroll if content exceeds max-height */
+}
+
+.command-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.command-panel-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.command-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.dry-run-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: var(--spacing-sm);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.dry-run-toggle .form-group {
+   margin-bottom: 0;
+}
+
+.dry-run-toggle .checkbox-label {
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.dry-run-toggle .checkbox-label:hover {
+  background-color: var(--bg-accent);
+}
+
+.command-panel-drawer.active {
+    transform: translateY(0);
+}
+
+.command-panel-drawer.hidden {
+  transform: translateY(100%); /* Hide by moving it off-screen */
+}
+
+.command-panel-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md); /* Reduced gap */
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+.quick-actions {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+}
+
+.quick-actions-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.quick-actions h4 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.quick-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.dry-run-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.dry-run-toggle .checkbox-label {
+  margin: 0;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.dry-run-toggle .checkbox-label:hover {
+  background-color: var(--bg-accent);
+}
+
+.quick-action-btn:hover:not(:disabled) {
+  background-color: var(--btn-secondary-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+
+.command-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.command-panel-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.command-panel-toggle-btn:hover {
+  background-color: var(--bg-secondary);
+}
+
+.command-panel-toggle-btn .icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--transition-fast);
+}
+
+.command-panel-toggle-btn.active .icon {
+  transform: rotate(180deg);
+}

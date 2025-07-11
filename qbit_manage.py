@@ -397,17 +397,7 @@ def my_except_hook(exctype, value, tbi):
 
 sys.excepthook = my_except_hook
 
-version = ("Unknown", "Unknown", 0)
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as handle:
-    for line in handle.readlines():
-        line = line.strip()
-        if len(line) > 0:
-            version = util.parse_version(line)
-            break
-branch = util.guess_branch(version, env_version, git_branch)
-if branch is None:
-    branch = "Unknown"
-version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
+version, branch = util.get_current_version()
 
 
 def start_loop(first_run=False):
@@ -617,7 +607,7 @@ if __name__ == "__main__":
                 app = create_app(process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared)
 
                 # Configure uvicorn settings
-                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
+                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
 
                 # Run the server
                 server = uvicorn.Server(config)
@@ -636,9 +626,10 @@ if __name__ == "__main__":
 
         # Start web server if enabled and not in run mode
         web_process = None
-        if web_server and not run:
+        if web_server:
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
+            logger.info(f"Access the WebUI at http://localhost:{port}")
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()

@@ -1,0 +1,330 @@
+/* Theme System - Dark and Light Mode Support */
+
+/* Light Theme (Default) */
+:root {
+  /* Primary Colors */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #dbeafe;
+  --primary-dark: #1d4ed8;
+
+  /* Secondary Colors */
+  --secondary-color: #64748b;
+  --secondary-hover: #475569;
+  --secondary-light: #f1f5f9;
+  --secondary-dark: #334155;
+
+  /* Status Colors */
+  --success-color: #10b981;
+  --success-hover: #059669;
+  --success-light: #d1fae5;
+  --warning-color: #f59e0b;
+  --warning-hover: #d97706;
+  --warning-light: #fef3c7;
+  --error-color: #ef4444;
+  --error-hover: #dc2626;
+  --error-light: #fee2e2;
+  --info-color: #06b6d4;
+  --info-hover: #0891b2;
+  --info-light: #cffafe;
+
+  /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-accent: #e2e8f0;
+  --bg-hover: #f1f5f9;
+  --bg-active: #e2e8f0;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+
+  /* Text Colors */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  --text-accent: #3b82f6;
+
+  /* Border Colors */
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --border-focus: #3b82f6;
+  --border-error: #ef4444;
+  --border-success: #10b981;
+
+  /* Card Colors */
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --card-hover-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+  /* Input Colors */
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --input-focus-border: #3b82f6;
+  --input-focus-ring: rgba(59, 130, 246, 0.1);
+  --input-placeholder: #9ca3af;
+
+  /* Button Colors */
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-hover: #2563eb;
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #f8fafc;
+  --btn-secondary-hover: #f1f5f9;
+  --btn-secondary-text: #374151;
+  --btn-secondary-border: #d1d5db;
+
+  /* Sidebar Colors */
+  --sidebar-bg: #f8fafc;
+  --sidebar-border: #e5e7eb;
+  --sidebar-item-hover: #f3f4f6;
+  --sidebar-item-active: #3b82f6;
+  --sidebar-item-active-text: #ffffff;
+
+  /* Header Colors */
+  --header-bg: #ffffff;
+  --header-border: #e5e7eb;
+  --header-text: #1f2937;
+
+  /* Toast Colors */
+  --toast-bg: #ffffff;
+  --toast-border: #e5e7eb;
+  --toast-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  /* Primary Colors - Blue accent theme */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #1e3a8a;
+  --primary-dark: #1d4ed8;
+
+  /* Secondary Colors */
+  --secondary-color: #6b7280;
+  --secondary-hover: #9ca3af;
+  --secondary-light: #374151;
+  --secondary-dark: #4b5563;
+
+  /* Status Colors */
+  --success-color: #10b981;
+  --success-hover: #34d399;
+  --success-light: #064e3b;
+  --warning-color: #f59e0b;
+  --warning-hover: #fbbf24;
+  --warning-light: #451a03;
+  --error-color: #ef4444;
+  --error-hover: #f87171;
+  --error-light: #7f1d1d;
+  --info-color: #06b6d4;
+  --info-hover: #22d3ee;
+  --info-light: #164e63;
+
+  /* Background Colors - Dark theme inspired by Radarr/Sonarr */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-accent: #475569;
+  --bg-hover: #2d3748;
+  --bg-active: #4a5568;
+  --bg-overlay: rgba(0, 0, 0, 0.8);
+
+  /* Text Colors */
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-inverse: #1f2937;
+  --text-accent: #3b82f6;
+
+  /* Border Colors */
+  --border-color: #374151;
+  --border-hover: #4b5563;
+  --border-focus: #3b82f6;
+  --border-error: #ef4444;
+  --border-success: #10b981;
+
+  /* Card Colors */
+  --card-bg: #1f2937;
+  --card-border: #374151;
+  --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --card-hover-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+
+  /* Input Colors */
+  --input-bg: #374151;
+  --input-border: #4b5563;
+  --input-focus-border: #3b82f6;
+  --input-focus-ring: rgba(59, 130, 246, 0.2);
+  --input-placeholder: #6b7280;
+
+  /* Button Colors */
+  --btn-primary-bg: #3b82f6;
+  --btn-primary-hover: #2563eb;
+  --btn-primary-text: #1f2937;
+  --btn-secondary-bg: #374151;
+  --btn-secondary-hover: #4b5563;
+  --btn-secondary-text: #d1d5db;
+  --btn-secondary-border: #4b5563;
+
+  /* Sidebar Colors */
+  --sidebar-bg: #1e293b;
+  --sidebar-border: #374151;
+  --sidebar-item-hover: #1f2937;
+  --sidebar-item-active: #3b82f6;
+  --sidebar-item-active-text: #1f2937;
+
+  /* Header Colors */
+  --header-bg: #111827;
+  --header-border: #374151;
+  --header-text: #f9fafb;
+
+  /* Toast Colors */
+  --toast-bg: #1f2937;
+  --toast-border: #374151;
+  --toast-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+/* Auto theme based on system preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    /* Apply dark theme variables when system prefers dark and no explicit theme is set */
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: #1e3a8a;
+    --primary-dark: #1d4ed8;
+
+    --secondary-color: #6b7280;
+    --secondary-hover: #9ca3af;
+    --secondary-light: #374151;
+    --secondary-dark: #4b5563;
+
+    --success-color: #10b981;
+    --success-hover: #34d399;
+    --success-light: #064e3b;
+    --warning-color: #f59e0b;
+    --warning-hover: #fbbf24;
+    --warning-light: #451a03;
+    --error-color: #ef4444;
+    --error-hover: #f87171;
+    --error-light: #7f1d1d;
+    --info-color: #06b6d4;
+    --info-hover: #22d3ee;
+    --info-light: #164e63;
+
+    --bg-primary: #1f2937;
+    --bg-secondary: #111827;
+    --bg-tertiary: #0f172a;
+    --bg-accent: #374151;
+    --bg-hover: #2d3748;
+    --bg-active: #4a5568;
+    --bg-overlay: rgba(0, 0, 0, 0.8);
+
+    --text-primary: #f9fafb;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --text-inverse: #1f2937;
+    --text-accent: #3b82f6;
+
+    --border-color: #374151;
+    --border-hover: #4b5563;
+    --border-focus: #3b82f6;
+    --border-error: #ef4444;
+    --border-success: #10b981;
+
+    --card-bg: #1f2937;
+    --card-border: #374151;
+    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --card-hover-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+
+    --input-bg: #374151;
+    --input-border: #4b5563;
+    --input-focus-border: #3b82f6;
+    --input-focus-ring: rgba(59, 130, 246, 0.2);
+    --input-placeholder: #6b7280;
+
+    --btn-primary-bg: #3b82f6;
+    --btn-primary-hover: #2563eb;
+    --btn-primary-text: #1f2937;
+    --btn-secondary-bg: #374151;
+    --btn-secondary-hover: #4b5563;
+    --btn-secondary-text: #d1d5db;
+    --btn-secondary-border: #4b5563;
+
+    --sidebar-bg: #111827;
+    --sidebar-border: #374151;
+    --sidebar-item-hover: #1f2937;
+    --sidebar-item-active: #3b82f6;
+    --sidebar-item-active-text: #1f2937;
+
+    --header-bg: #111827;
+    --header-border: #374151;
+    --header-text: #f9fafb;
+
+    --toast-bg: #1f2937;
+    --toast-border: #374151;
+    --toast-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  }
+}
+
+/* Theme transition for smooth switching */
+* {
+  transition: background-color var(--transition-fast),
+              border-color var(--transition-fast),
+              color var(--transition-fast);
+}
+
+/* Theme toggle button styles */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  background-color: var(--btn-secondary-hover);
+  border-color: var(--border-hover);
+}
+
+.theme-toggle:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.theme-toggle .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: currentColor;
+}
+
+/* Hide/show theme icons based on current theme */
+[data-theme="dark"] .theme-toggle .icon-sun {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-sun {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-moon {
+  display: block;
+}
+
+/* Default state (light theme) */
+:root:not([data-theme]) .theme-toggle .icon-sun {
+  display: none;
+}
+
+:root:not([data-theme]) .theme-toggle .icon-moon {
+  display: block;
+}

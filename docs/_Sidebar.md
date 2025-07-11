@@ -25,3 +25,4 @@
     - [Commands](Commands)
     - [Standalone Scripts](Standalone-Scripts)
     - [Web API](Web-API)
+    - [Web UI](Web-UI)

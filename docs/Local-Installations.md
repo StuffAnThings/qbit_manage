@@ -37,6 +37,16 @@ Run the script `-h` to see a list of commands
 python qbit_manage.py -h
 ```
 
+### Web API and Web UI
+
+To run the Web API and Web UI, use the `--web-server` flag:
+
+```bash
+python qbit_manage.py --web-server
+```
+
+You can then access the Web UI in your browser, typically at `http://localhost:8080`.
+
 ### Config
 
 To choose the location of the YAML config file
