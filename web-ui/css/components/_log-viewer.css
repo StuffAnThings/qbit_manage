@@ -57,35 +57,34 @@
     gap: var(--spacing-sm); /* Spacing between individual controls */
 }
 
-.log-floating-scroll-buttons {
-    position: absolute;
-    bottom: var(--spacing-lg);
-    right: var(--spacing-lg);
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
+.log-floating-scroll-top-btn {
+    position: fixed;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease-in-out;
-    z-index: 10; /* Ensure it's above log content */
+    z-index: 1000; /* High z-index to float above everything */
 }
 
-.log-floating-scroll-buttons.visible {
+.log-floating-scroll-top-btn.visible {
     opacity: 1;
     pointer-events: auto;
 }
 
-.log-scroll-buttons {
-    display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    gap: var(--spacing-sm); /* Space between buttons */
+.log-floating-scroll-bottom-btn {
+    position: fixed;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 1000; /* High z-index to float above everything */
 }
 
-.log-scroll-buttons .btn {
-    /* Adjust button styles if needed, e.g., padding, size */
+.log-floating-scroll-bottom-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .log-viewer-content {
+    position: relative; /* Enable absolute positioning for child elements */
     flex: 1; /* Takes up remaining vertical space */
     overflow: auto; /* Add scrollbars when content overflows */
     overflow-x: auto; /* Enable horizontal scrolling */
