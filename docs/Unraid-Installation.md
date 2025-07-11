@@ -16,7 +16,7 @@ Thankfully, getting qbit_manager working on unRAID is a fairly simple task. unRA
    3. The key takeaways are
       1. Both qbit_manage needs to have the same mappings as qbittorrent
       2. The config file needs to drill down (if required) further to the desired root dir.
-5. Select what QBT env options you want to enable or disable (true/false).
+5. Select what QBT env options you want to enable or disable (true/false). It is recommended to enable the Web API by setting `QBT_WEB_SERVER=true` to utilize the Web UI.
 6. Hit Apply, and allow unRAID to download the docker container.
 7. Navigate to the Docker tab in unRAID, and stop the qbit_manage container if it has auto-started.
 8. Create the [config.yml](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) file as-per the [config-setup documentation](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) and place in the Appdata folder (`/mnt/user/appdata/qbit_manage/` in the example) **Remember to remove the .sample from the filename**
@@ -84,9 +84,9 @@ Now we need to go back to **User Scripts** and create our script to run this scr
   ```bash
   #!/bin/bash
 echo "Running qBitTorrent Management"
-python3 /mnt/user/data/scripts/qbit/qbit_manage.py -c /mnt/user/data/scripts/qbit/config.yml -l /mnt/user/data/scripts/qbit/activity.log -r -<list of commands>
+python3 /mnt/user/data/scripts/qbit/qbit_manage.py --web-server -c /mnt/user/data/scripts/qbit/config.yml -l /mnt/user/data/scripts/qbit/activity.log -r -<list of commands>
 echo "qBitTorrent Management Completed"
-```
+  ```
 
 However, at the core, you'll want
 

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qBit Manage - Configuration Manager</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="img/site.webmanifest">
+    <link rel="shortcut icon" href="img/favicon.ico">
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div id="app" class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <!-- Mobile Menu Toggle Button -->
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+                    <span class="material-icons">menu_open</span>
+                </button>
+                <img src="img/qbm_logo.png" alt="qBit Manage" class="logo">
+                <h1 class="app-title">qBit Manage</h1>
+            </div>
+
+            <div class="header-center">
+                <!-- Config selector moved to sidebar -->
+            </div>
+
+            <div class="header-right">
+
+                <div class="header-actions">
+                    <div class="history-controls">
+                        <button id="undo-btn" class="btn btn-icon" title="Undo (Ctrl+Z)" disabled>
+                            <span class="material-icons">undo</span>
+                        </button>
+                        <button id="redo-btn" class="btn btn-icon" title="Redo (Ctrl+Y)" disabled>
+                            <span class="material-icons">redo</span>
+                        </button>
+                    </div>
+                    <button id="save-config-btn" class="btn btn-primary" disabled>
+                        <span class="material-icons">save</span>
+                        Save
+                    </button>
+                    <button id="validate-config-btn" class="btn btn-secondary">
+                        <span class="material-icons">check_circle</span>
+                        Validate
+                    </button>
+                    <button id="backup-config-btn" class="btn btn-secondary" title="Create Manual Backup">
+                        <span class="material-icons">backup</span>
+                        Backup
+                    </button>
+                    <button id="help-btn" class="btn btn-icon" title="Help">
+                        <span class="material-icons">help</span>
+                    </button>
+                    <button id="theme-toggle" class="theme-toggle" title="Toggle Theme">
+                        <span class="material-icons icon-sun">light_mode</span>
+                        <span class="material-icons icon-moon">dark_mode</span>
+                    </button>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Content Actions -->
+            <div class="content-actions">
+                <button id="yaml-preview-btn" class="btn btn-secondary">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    </svg>
+                    Preview YAML
+                </button>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Configuration Sections</h3>
+                </div>
+
+                <!-- Config selector moved from header -->
+                <div class="sidebar-config-selector">
+                    <div class="config-selector">
+                        <select id="config-select" class="config-select">
+                            <option value="">Loading...</option>
+                        </select>
+                        <button id="new-config-btn" class="btn btn-icon" title="Create New Configuration">
+                            <span class="material-icons">add_circle</span>
+                        </button>
+                    </div>
+                </div>
+
+                <ul class="nav-menu" id="nav-menu">
+                    <li class="nav-item" data-section="commands">
+                        <a href="#commands" class="nav-link">
+                            <span class="material-icons icon">terminal</span>
+                            <span class="nav-text">Commands</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="qbt">
+                        <a href="#qbt" class="nav-link">
+                            <span class="material-icons icon">settings_remote</span>
+                            <span class="nav-text">qBittorrent Connection</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="settings">
+                        <a href="#settings" class="nav-link">
+                            <span class="material-icons icon">settings</span>
+                            <span class="nav-text">Settings</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="directory">
+                        <a href="#directory" class="nav-link">
+                            <span class="material-icons icon">folder</span>
+                            <span class="nav-text">Directory Paths</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="cat">
+                        <a href="#cat" class="nav-link">
+                            <span class="material-icons icon">label</span>
+                            <span class="nav-text">Categories</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="cat_change">
+                        <a href="#cat_change" class="nav-link">
+                            <span class="material-icons icon">drive_file_move</span>
+                            <span class="nav-text">Category Changes</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="tracker">
+                        <a href="#tracker" class="nav-link">
+                            <span class="material-icons icon">track_changes</span>
+                            <span class="nav-text">Tracker Configuration</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="nohardlinks">
+                        <a href="#nohardlinks" class="nav-link">
+                            <span class="material-icons icon">link_off</span>
+                            <span class="nav-text">No Hard Links</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="share_limits">
+                        <a href="#share_limits" class="nav-link">
+                            <span class="material-icons icon">speed</span>
+                            <span class="nav-text">Share Limits</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="recyclebin">
+                        <a href="#recyclebin" class="nav-link">
+                            <span class="material-icons icon">recycling</span>
+                            <span class="nav-text">Recycle Bin</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="orphaned">
+                        <a href="#orphaned" class="nav-link">
+                            <span class="material-icons icon">folder_delete</span>
+                            <span class="nav-text">Orphaned Files</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="notifications">
+                        <a href="#notifications" class="nav-link">
+                            <span class="material-icons icon">notifications</span>
+                            <span class="nav-text">Notifications</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="logs">
+                        <a href="#logs" class="nav-link">
+                            <span class="material-icons icon">description</span>
+                            <span class="nav-text">Logs</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Mobile Sidebar Overlay -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+            <!-- Content Area -->
+            <main class="content">
+                <!-- Dynamic Content Container -->
+                <div id="section-content" class="section-content">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading configuration...</p>
+                    </div>
+                </div>
+<!-- Logs Section -->
+                <div id="logs-section" class="section-content hidden">
+                    <!-- LogViewer component will be rendered here by app.js -->
+                </div>
+
+                <!-- YAML Preview Panel -->
+                <div id="yaml-preview" class="yaml-preview hidden">
+                    <div class="yaml-preview-header">
+                        <h3>YAML Preview</h3>
+                        <button id="close-preview-btn" class="btn btn-icon btn-close-icon">
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre id="yaml-content" class="yaml-content"></pre>
+                </div>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-left">
+                <div class="command-panel">
+                    <button id="run-commands-btn" class="btn btn-primary" disabled>
+                        <span class="material-icons">play_arrow</span>
+                        Run Commands
+                    </button>
+                </div>
+            </div>
+
+            <div class="footer-center">
+<!-- Log viewer toggle removed as logs are now a separate page -->
+            </div>
+
+            <div class="footer-right">
+                <div class="version-info">
+                    <span id="version-text">qBit Manage</span>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Command Panel Drawer -->
+    <div id="command-panel-drawer" class="command-panel-drawer hidden"></div>
+
+    <!-- Modals (Dynamically managed by JS) -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title"></h3>
+                <button id="modal-close-btn" class="btn btn-icon btn-close-icon">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="modal-content" class="modal-content"></div>
+            <div class="modal-footer">
+                <button id="modal-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="modal-confirm-btn" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications (Dynamically managed by JS) -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="js/components/header.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

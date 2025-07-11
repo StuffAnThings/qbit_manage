@@ -1,0 +1,155 @@
+/* Category Key-Value List */
+.key-value-list .key-value-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg); /* Increased space below header */
+}
+
+.category-row {
+    display: flex;
+    align-items: flex-start; /* Align items to the top */
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-secondary);
+    position: relative; /* For positioning the remove button */
+}
+
+/* Complex object entry card styling for category configuration */
+.complex-object-entry-card {
+    position: relative; /* For positioning the remove button */
+}
+
+.complex-object-entry-card .remove-complex-object-item {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    z-index: 1; /* Ensure it's above inputs */
+    opacity: 0.7;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    border: none;
+}
+
+.complex-object-entry-card .remove-complex-object-item:hover {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+.complex-object-entry-card .remove-complex-object-item:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.complex-object-entry-card .remove-complex-object-item:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.category-inputs {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* Category configuration specific layout - labels side by side, inputs underneath */
+.category-inputs .category-labels-row {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+}
+
+.category-inputs .category-inputs-row {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.category-name-group {
+    flex: 1; /* 1/4 of the available space */
+    min-width: 150px; /* Minimum width before wrapping */
+    margin-bottom: 0; /* Remove default form-group margin */
+}
+
+.category-path-group {
+    flex: 3; /* 3/4 of the available space */
+    min-width: 250px; /* Adjust minimum width as needed */
+    margin-bottom: 0; /* Remove default form-group margin */
+}
+
+/* Override form-group layout for category configuration */
+.category-inputs .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.category-inputs .form-group .form-label {
+    margin-bottom: 0; /* Remove margin between label and input */
+}
+
+.category-row .remove-category-btn {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--border-radius);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    z-index: 1; /* Ensure it's above inputs */
+    opacity: 0.7;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.category-row .remove-category-btn:hover {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.1);
+}
+
+.category-row .remove-category-btn:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.category-row .remove-category-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+/* Adjust form-group margin within category-row */
+.category-row .form-group {
+    margin-bottom: 0;
+}

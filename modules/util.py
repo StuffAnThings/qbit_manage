@@ -13,7 +13,6 @@ from pathlib import Path
 import requests
 import ruamel.yaml
 from pytimeparse2 import parse
-from ruamel.yaml.constructor import ConstructorError
 
 logger = logging.getLogger("qBit Manage")
 
@@ -247,6 +246,56 @@ def parse_version(version, text="develop"):
     version = version.replace("develop", text)
     split_version = version.split(f"-{text}")
     return version, split_version[0], int(split_version[1]) if len(split_version) > 1 else 0
+
+
+def get_current_version():
+    """
+    Get the current qBit Manage version using the same logic as qbit_manage.py:400-411.
+    This function centralizes version parsing logic to avoid duplication.
+
+    Returns:
+        tuple: (version_tuple, branch) where version_tuple is (version_string, base_version, build_number)
+               and branch is the detected branch name
+    """
+    # Initialize version tuple
+    version = ("Unknown", "Unknown", 0)
+
+    # Read and parse VERSION file (same logic as qbit_manage.py:400-406)
+    try:
+        version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION")
+        with open(version_file_path) as handle:
+            for line in handle.readlines():
+                line = line.strip()
+                if len(line) > 0:
+                    version = parse_version(line)
+                    break
+    except Exception as e:
+        logger.error(f"Error reading VERSION file: {str(e)}")
+        return version, "Unknown"
+
+    # Get environment version (same as qbit_manage.py:282)
+    env_version = os.environ.get("BRANCH_NAME", "master")
+
+    # Get git branch (same logic as qbit_manage.py:275-280)
+    git_branch = None
+    try:
+        from git import InvalidGitRepositoryError
+        from git import Repo
+
+        try:
+            git_branch = Repo(path=".").head.ref.name  # noqa
+        except InvalidGitRepositoryError:
+            git_branch = None
+    except ImportError:
+        git_branch = None
+
+    # Guess branch and format version (same logic as qbit_manage.py:407-410)
+    branch = guess_branch(version, env_version, git_branch)
+    if branch is None:
+        branch = "Unknown"
+    version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])
+
+    return version, branch
 
 
 class check:
@@ -885,8 +934,12 @@ class YAML:
         self.yaml.Representer.add_representer(EnvStr, self._env_representer)
 
         try:
-            if input_data:
-                self.data = self.yaml.load(input_data)
+            if input_data is not None:
+                if input_data == "":
+                    # Empty string means initialize with empty data for writing
+                    self.data = {}
+                else:
+                    self.data = self.yaml.load(input_data)
             else:
                 if create and not os.path.exists(self.path):
                     with open(self.path, "w"):
@@ -910,8 +963,10 @@ class YAML:
         value = loader.construct_scalar(node)
         # Resolve the environment variable at runtime
         env_value = os.getenv(value)
+        # If environment variable is not found, use an empty string as default for schema generation
         if env_value is None:
-            raise ConstructorError(f"Environment variable '{value}' not found")
+            logger.warning(f"Environment variable '{value}' not found. Using empty string for schema generation.")
+            env_value = ""
         # Return a custom string subclass that preserves the !ENV tag
         return EnvStr(value, env_value)
 
@@ -924,6 +979,8 @@ class YAML:
         if self.path:
             with open(self.path, "w", encoding="utf-8") as filepath:
                 self.yaml.dump(self.data, filepath)
+        else:
+            raise ValueError("YAML path is None or empty")
 
 
 class EnvStr(str):

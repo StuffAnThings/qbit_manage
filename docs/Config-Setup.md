@@ -1,7 +1,7 @@
 
 # Overview
 
-The script utilizes a YAML config file to load information to connect to the various APIs you can connect with.
+The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI.md), which requires the [Web API](Web-API.md) to be enabled.
 
 By default, the script looks at `/config/config.yml` when running locally or `/app/config.yml` in docker for the Configuration File unless otherwise specified.
 
@@ -20,7 +20,7 @@ You can reference environment variables inside your `config.yml` by `!ENV VAR_NA
 ## **commands:**
 
 ---
-This section will ignore any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
+This section will override any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
 
 | Variable  | Definition                                            | Required           |
 | :-------- | :---------------------------------------------------- | :----------------- |

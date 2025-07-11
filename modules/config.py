@@ -74,6 +74,7 @@ class Config:
         self.process_config_apprise()
         self.process_config_notifiarr()
         self.process_config_all_webhooks()
+        self.validate_required_sections()
         self.process_config_nohardlinks()
         self.process_config_share_limits()
         self.processs_config_recyclebin()
@@ -239,6 +240,40 @@ class Config:
         self.session = requests.Session()
 
         return self.data
+
+    def validate_required_sections(self):
+        """
+        Validate that required configuration sections are present.
+        Ensures that at least one of 'cat' or 'tracker' sections is defined.
+        """
+        has_categories = "cat" in self.data and self.data["cat"] is not None and len(self.data["cat"]) > 0
+        has_trackers = "tracker" in self.data and self.data["tracker"] is not None and len(self.data["tracker"]) > 0
+
+        # Check categories section
+        if "cat" in self.data:
+            if self.data["cat"] is None or len(self.data["cat"]) == 0:
+                err = (
+                    "Config Error: Category section is not completed and is mandatory. "
+                    "Please enter all categories and save path combinations."
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+        # Check tracker section
+        if "tracker" in self.data:
+            if self.data["tracker"] is None or len(self.data["tracker"]) == 0:
+                err = "Config Error: 'Tracker section is not completed and is mandatory."
+                self.notify(err, "Config")
+                raise Failed(err)
+        if not has_categories and not has_trackers:
+            # Both sections exist but are empty (since process_config_data creates them)
+            err = (
+                "Config Error: Both 'cat' (categories) and 'tracker' sections are empty. "
+                "At least one must be defined and contain valid entries. "
+                "Categories organize torrents by save path, trackers tag torrents by tracker URL. "
+                "Please add either category definitions or tracker configurations to your config file."
+            )
+            self.notify(err, "Config")
+            raise Failed(err)
 
     def process_config_settings(self):
         """
@@ -900,8 +935,12 @@ class Config:
             self,
             {
                 "host": self.util.check_for_attribute(self.data, "host", parent="qbt", throw=True),
-                "username": self.util.check_for_attribute(self.data, "user", parent="qbt", default_is_none=True),
-                "password": self.util.check_for_attribute(self.data, "pass", parent="qbt", default_is_none=True),
+                "username": self.util.check_for_attribute(
+                    self.data, "user", parent="qbt", default_is_none=True, save=False, do_print=False
+                ),
+                "password": self.util.check_for_attribute(
+                    self.data, "pass", parent="qbt", default_is_none=True, save=False, do_print=False
+                ),
             },
         )
 

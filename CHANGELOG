@@ -1,19 +1,17 @@
 # Requirements Updated
-- requests==2.32.4
-- ruamel.yaml==0.18.14
+- fastapi==0.116.0
+- retrying==1.4.0
+- uvicorn==0.35.0
 
-# New Updates
-- Added Web API server feature for running commands via HTTP requests
-  - New `--web-server` flag to start the API server
-  - API requests during scheduled runs are automatically queued
-  - Queued requests are processed after the scheduled run completes
-  - See [docs/Web-API.md](https://github.com/StuffAnThings/qbit_manage/wiki/Web-API) for usage instructions
-- Renamed `last_active` to `min_last_active`
-- Added `max_last_active` to `share_limits` (Closes #774)
-- Added new [restore_torrents.py](https://github.com/StuffAnThings/qbit_manage/blob/develop/scripts/restore_torrents.py) script for restoring deleted files+torrents in RecycleBin
+# New Features
+- **Web UI**: Introduced a new Web UI for configuring and managing qBit Manage.
+  - Visual Configuration Editor for YAML files.
+  - Command Execution directly from the UI.
+  - Undo/Redo History for changes.
+  - Theme Support (light/dark mode).
+  - Responsive Design for desktop and mobile.
+  - Real-time YAML Preview.
+- Pass skip qbitorrent check as optional parameter to the API (Adds #860)\
 
-## Bug Fixes
-- (fix): don't reapply tags every run when torrent (#824) (Thanks to @xx4h)
-- Fix share limits always re-applying when using global Limit (-2) (Closes #831) (Thanks to @chrisfosterelli)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.3.0...v4.4.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.4.0...v4.5.0
