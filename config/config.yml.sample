@@ -159,6 +159,11 @@ nohardlinks:
       - BroadcasTheNet
     # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir (Default True).
     ignore_root_dir: true
+  cross-seed:
+    # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir (Default True).
+    ignore_root_dir: false
+    # <OPTIONAL> ignore_category_dir var: Will ignore any hardlinks detected in the same category save path (Default True).
+    ignore_category_dir: true
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping
