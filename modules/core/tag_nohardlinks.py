@@ -86,7 +86,9 @@ class TagNoHardLinks:
             self.torrents_updated_untagged.append(torrent.name)
             self.notify_attr_untagged.append(attr)
 
-    def _process_torrent_for_nohardlinks(self, torrent, check_hardlinks, ignore_root_dir, exclude_tags, category, ignore_category_dir):
+    def _process_torrent_for_nohardlinks(
+        self, torrent, check_hardlinks, ignore_root_dir, exclude_tags, category, ignore_category_dir
+    ):
         """Helper method to process a single torrent for nohardlinks tagging."""
         tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
         has_nohardlinks = check_hardlinks.nohardlink(
@@ -94,7 +96,7 @@ class TagNoHardLinks:
             self.config.notify,
             ignore_root_dir,
             category,
-            ignore_category_dir 
+            ignore_category_dir,
         )
         if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in exclude_tags):
             # Skip to the next torrent if we find any torrents that are in the exclude tag

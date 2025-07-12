@@ -831,7 +831,9 @@ class CheckHardLinks:
                         logger.trace(f"Checking root_inode_count dict: {self.root_inode_count.get(os.stat(files).st_ino)}")
                         logger.trace(f"ignore_root_dir: {ignore_root_dir}")
                         logger.trace(f"ignore_category_dir: {ignore_category_dir} (category: {category})")
-                        if has_hardlinks(self, files, ignore_root_dir, category, ignore_category_dir) and file_size >= (largest_file_size * threshold):
+                        if has_hardlinks(self, files, ignore_root_dir, category, ignore_category_dir) and file_size >= (
+                            largest_file_size * threshold
+                        ):
                             logger.trace(f"Hardlinks found in {files}.")
                             check_for_hl = False
         except PermissionError as perm:
