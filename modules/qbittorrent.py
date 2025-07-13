@@ -11,6 +11,7 @@ from qbittorrentapi import LoginFailed
 from qbittorrentapi import NotFound404Error
 from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
+from ruamel.yaml import CommentedSeq
 
 from modules import util
 from modules.util import Failed
@@ -402,8 +403,17 @@ class Qbt:
         if "cat" in self.config.data and self.config.data["cat"] is not None:
             cat_path = self.config.data["cat"]
             for cat, save_path in cat_path.items():
-                if os.path.join(save_path, "") == path or fnmatch(path, save_path):
-                    category.append(cat)
+                try:
+                    if cat == "Uncategorized" and isinstance(save_path, CommentedSeq):
+                        if any(os.path.join(p, "") == path or fnmatch(path, p) for p in save_path):
+                            category.append(cat)
+                    elif os.path.join(save_path, "") == path or fnmatch(path, save_path):
+                        category.append(cat)
+                except TypeError:
+                    e = f"Invalid configuration for category {cat}. Check your config.yml file."
+                    self.config.notify(e, "Category", True)
+                    logger.print_line(e, "CRITICAL")
+                    sys.exit(1)
 
         if not category:
             default_cat = path.split(os.sep)[-2]
