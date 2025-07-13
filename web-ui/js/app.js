@@ -906,6 +906,9 @@ class QbitManageApp {
                 config_file: this.currentConfig,
                 hashes: options.hashes || [],
                 dry_run: options.dryRun, // Map dryRun from options to dry_run for the API
+                skip_cleanup: options.skip_cleanup,
+                skip_qb_version_check: options.skip_qb_version_check,
+                log_level: options.log_level
             });
 
             this.logViewer.log('info', 'Commands executed successfully.');

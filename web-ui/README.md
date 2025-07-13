@@ -71,7 +71,7 @@ sequenceDiagram
 Key API endpoints:
 - `GET /api/configs`: List available configurations
 - `PUT /api/configs/{filename}`: Update configuration file
-- `POST /api/commands/run`: Execute management commands
+- `POST /api/run-command`: Execute management commands
 - `GET /api/logs`: Stream application logs
 
 Error handling includes:

@@ -69,6 +69,17 @@ class MyLogger:
 
         self._logger.addHandler(cmd_handler)
 
+    def get_level(self):
+        """Get the current log level"""
+        return self._log_level
+
+    def set_level(self, log_level):
+        """Set the log level for the logger and all its handlers"""
+        self._log_level = getattr(logging, log_level.upper())
+        self._logger.setLevel(self._log_level)
+        for handler in self._logger.handlers:
+            handler.setLevel(self._log_level)
+
     def clear_errors(self):
         """Clear saved errors"""
         self.saved_errors = []

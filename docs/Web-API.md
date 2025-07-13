@@ -41,8 +41,11 @@ Execute qBit Manage commands via the API.
 {
   "config_file": "config.yml", // Optional, defaults to "config.yml"
   "commands": ["cat_update", "tag_update"], // Required, list of commands to run
+  "hashes": ["<hash1>", "<hash2>"], // Optional, list of torrent hashes to filter by
   "dry_run": false, // Optional, defaults to false
-  "hashes": ["<hash1>", "<hash2>"] // Optional, list of torrent hashes to filter by
+  "skip_cleanup": false, // Optional, defaults to false
+  "skip_qb_version_check": false, // Optional, defaults to false
+  "log_level": null // Optional, defaults to null (e.g., "info", "debug", "error")
 }
 ```
 
@@ -210,8 +213,11 @@ curl -X POST http://localhost:8080/api/run-command \
   -d '{
     "config_file": "config.yml",
     "commands": ["cat_update", "tag_update"],
+    "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
     "dry_run": false,
-    "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"]
+    "skip_cleanup": false,
+    "skip_qb_version_check": false,
+    "log_level": "info"
   }'
 ```
 
@@ -225,8 +231,11 @@ response = requests.post(
     json={
         "config_file": "config.yml",
         "commands": ["cat_update", "tag_update"],
-        "dry_run": false,
-        "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"]
+        "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
+        "dry_run": False,
+        "skip_cleanup": False,
+        "skip_qb_version_check": False,
+        "log_level": "info"
     }
 )
 print(response.json())

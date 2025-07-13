@@ -37,7 +37,7 @@ services:
       - "8080:8080"  # Web API port (when enabled)
     environment:
       # Web API Configuration
-      - QBT_WEB_SERVER=false    # Set to true to enable web API
+      - QBT_WEB_SERVER=true     # Set to true to enable web API and web UI
       - QBT_PORT=8080           # Web API port (default: 8080)
 
       # Scheduler Configuration
@@ -65,12 +65,12 @@ services:
     restart: on-failure:2
 ```
 
-### Web API Usage
+### Web API and Web UI Usage
 
-To enable the web API:
-1. Set `QBT_WEB_SERVER=true` in the environment variables
-2. Map port 8080 (or your chosen port) using the ports section
-3. Access the API at `http://your-host:8080/api/run-command`
+The Web API and Web UI are enabled by default in this Docker setup.
+1. Ensure port 8080 (or your chosen `QBT_PORT`) is mapped using the `ports` section.
+2. Access the Web UI at `http://your-host:8080`
+3. Access the Web API at `http://your-host:8080/api/run-command`
 
 See the [Web API Documentation](Web-API.md) for detailed usage instructions and examples.
 

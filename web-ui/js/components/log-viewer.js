@@ -26,6 +26,8 @@ class LogViewer {
         await this.loadLogFiles(); // Load log files first
         this.loadRecentLogs();
         this.startAutoRefresh(); // Start auto-refresh on init
+        // Initial call to handle scroll to set button visibility
+        setTimeout(() => this.handleScroll(), 100);
     }
 
     async loadLogFiles() {
@@ -103,18 +105,19 @@ class LogViewer {
                 </div>
             </div>
 
-            <div class="log-floating-scroll-buttons">
-                <div class="log-scroll-buttons">
+            <div class="log-viewer-content">
+                <div class="log-floating-scroll-top-btn">
                     <button type="button" class="btn btn-secondary" id="scroll-to-top-btn">
                         ⬆️ Top
                     </button>
+                </div>
+
+                <div class="log-floating-scroll-bottom-btn">
                     <button type="button" class="btn btn-secondary" id="scroll-to-bottom-btn">
                         ⬇️ Bottom
                     </button>
                 </div>
-            </div>
 
-            <div class="log-viewer-content">
                 <div class="log-container" id="log-container">
                     <div class="log-placeholder">
                         <div class="placeholder-icon">📋</div>
@@ -207,6 +210,9 @@ class LogViewer {
         if (logViewerContent) {
             logViewerContent.addEventListener('scroll', () => this.handleScroll());
         }
+
+        // Window resize event listener to reposition buttons
+        window.addEventListener('resize', () => this.handleScroll());
     }
 
     async loadRecentLogs() {
@@ -323,36 +329,43 @@ class LogViewer {
         const logViewerContent = this.container.querySelector('.log-viewer-content');
         const scrollToTopBtn = this.container.querySelector('#scroll-to-top-btn');
         const scrollToBottomBtn = this.container.querySelector('#scroll-to-bottom-btn');
-        const floatingButtonsContainer = this.container.querySelector('.log-floating-scroll-buttons');
+        const topButtonContainer = this.container.querySelector('.log-floating-scroll-top-btn');
+        const bottomButtonContainer = this.container.querySelector('.log-floating-scroll-bottom-btn');
 
-        if (!logViewerContent || !scrollToTopBtn || !scrollToBottomBtn || !floatingButtonsContainer) {
+        if (!logViewerContent || !scrollToTopBtn || !scrollToBottomBtn || !topButtonContainer || !bottomButtonContainer) {
             return;
         }
 
+        // Get the position of the log viewer content relative to the viewport
+        const contentRect = logViewerContent.getBoundingClientRect();
+        const rightOffset = 40; // Space from right edge, accounting for scrollbar
+        const verticalOffset = 8; // Small offset from top/bottom edges
+
+        // Position the buttons relative to the log viewer content
+        topButtonContainer.style.top = `${contentRect.top + verticalOffset}px`;
+        topButtonContainer.style.right = `${rightOffset}px`;
+
+        bottomButtonContainer.style.bottom = `${window.innerHeight - contentRect.bottom + verticalOffset}px`;
+        bottomButtonContainer.style.right = `${rightOffset}px`;
+
         const { scrollTop, scrollHeight, clientHeight } = logViewerContent;
         const atTop = scrollTop === 0;
-        const atBottom = scrollTop + clientHeight >= scrollHeight;
+        // Add a small tolerance (1px) for bottom detection to handle rounding issues
+        const atBottom = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
         const isScrollable = scrollHeight > clientHeight;
 
-        // Show floating buttons only when scrollable and not at the very top/bottom
-        if (isScrollable && !atTop || isScrollable && !atBottom) {
-             floatingButtonsContainer.classList.add('visible');
+        // Show/hide top button - visible when scrollable and not at top
+        if (isScrollable && !atTop) {
+            topButtonContainer.classList.add('visible');
         } else {
-             floatingButtonsContainer.classList.remove('visible');
+            topButtonContainer.classList.remove('visible');
         }
 
-
-        // Toggle individual button visibility
-        if (atTop) {
-            scrollToTopBtn.style.display = 'none';
+        // Show/hide bottom button - visible when scrollable and not at bottom
+        if (isScrollable && !atBottom) {
+            bottomButtonContainer.classList.add('visible');
         } else {
-            scrollToTopBtn.style.display = ''; // Use default display
-        }
-
-        if (atBottom) {
-            scrollToBottomBtn.style.display = 'none';
-        } else {
-            scrollToBottomBtn.style.display = ''; // Use default display
+            bottomButtonContainer.classList.remove('visible');
         }
     }
 

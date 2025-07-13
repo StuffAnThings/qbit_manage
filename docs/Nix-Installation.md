@@ -115,3 +115,19 @@ chmod +x qbm-update.sh
 ```bash
 ./qbm-update.sh
 ```
+
+## Running qBit Manage
+
+To run qBit Manage with the Web API and Web UI enabled, execute the `qbit_manage.py` script with the `--web-server` flag:
+
+```bash
+python qbit_manage.py --web-server
+```
+
+You can also specify a configuration file and log file:
+
+```bash
+python qbit_manage.py --web-server --config-file /path/to/your/config.yml --log-file /path/to/your/activity.log
+```
+
+After running, you can access the Web UI in your browser, typically at `http://localhost:8080`.
