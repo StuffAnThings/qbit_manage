@@ -7,6 +7,7 @@ import glob
 import json
 import logging
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from dataclasses import field
@@ -703,6 +704,37 @@ class WebAPI:
 
         shutil.copy2(config_path, backup_file_path)
         logger.info(f"Created backup: {backup_file_path}")
+        await self._cleanup_backups(config_path)
+
+    async def _cleanup_backups(self, config_path: Path):
+        """Clean up old backups for a configuration file, keeping the last 30."""
+        try:
+            if not self.backup_path.exists():
+                return
+
+            config_stem = config_path.stem
+            config_suffix = config_path.suffix.lstrip(".")
+            # Regex to precisely match backups for THIS config file.
+            # Format: {stem}_{YYYYMMDD}_{HHMMSS}.{suffix}
+            backup_re = re.compile(f"^{re.escape(config_stem)}_(\\d{{8}}_\\d{{6}})\\.{re.escape(config_suffix)}$")
+
+            config_backups = [f for f in self.backup_path.iterdir() if f.is_file() and backup_re.match(f.name)]
+
+            # sort by name descending, which works for YYYYMMDD_HHMMSS format
+            sorted_backups = sorted(config_backups, key=lambda p: p.name, reverse=True)
+
+            num_to_keep = 30
+            if len(sorted_backups) > num_to_keep:
+                files_to_delete = sorted_backups[num_to_keep:]
+                logger.info(f"Cleaning up {len(files_to_delete)} old backups for '{config_path.name}'...")
+                for f in files_to_delete:
+                    try:
+                        f.unlink()
+                        logger.debug(f"Deleted old backup: {f.name}")
+                    except OSError as e:
+                        logger.warning(f"Could not delete old backup {f.name}: {e}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during backup cleanup: {e}")
 
     async def run_command(self, request: CommandRequest) -> dict:
         """Handle incoming command requests."""
@@ -838,9 +870,11 @@ class WebAPI:
                 return {"backups": []}
 
             # Find backup files for this config
-            config_base = Path(filename).stem
-            backup_pattern = f"{config_base}_*{Path(filename).suffix}"
-            backup_files = list(self.backup_path.glob(backup_pattern))
+            config_stem = Path(filename).stem
+            config_suffix = Path(filename).suffix.lstrip(".")
+            # Regex to precisely match backups for THIS config file.
+            backup_re = re.compile(f"^{re.escape(config_stem)}_(\\d{{8}}_\\d{{6}})\\.{re.escape(config_suffix)}$")
+            backup_files = [f for f in self.backup_path.iterdir() if f.is_file() and backup_re.match(f.name)]
 
             backups = []
             for backup_file in sorted(backup_files, key=lambda x: x.stat().st_mtime, reverse=True):
