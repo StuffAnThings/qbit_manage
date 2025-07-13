@@ -23,7 +23,7 @@ dependencies = [
     "GitPython==3.1.44",
     "humanize==4.12.3",
     "pytimeparse2==1.7.1",
-    "qbittorrent-api==2025.5.0",
+    "qbittorrent-api==2025.7.0",
     "requests==2.32.4",
     "retrying==1.4.0",
     "ruamel.yaml==0.18.14",

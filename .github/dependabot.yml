@@ -9,6 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+      time: "07:00"
+      timezone: "America/Toronto"
     target-branch: "develop"
     assignees:
       - "bobokun"
@@ -21,7 +23,9 @@ updates:
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: daily
+      interval: "daily"
+      time: "07:00"
+      timezone: "America/Toronto"
     assignees:
       - "bobokun"
     target-branch: "develop"
