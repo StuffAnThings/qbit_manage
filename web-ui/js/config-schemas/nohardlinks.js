@@ -1,9 +1,9 @@
 export const nohardlinksSchema = {
-    title: 'No Hardlinks Configuration',
-    description: 'Configure settings for checking and tagging torrents without hardlinks.',
+    title: 'No Hardlinks',
+    description: 'Configure settings for tagging torrents that are not hardlinked. This is useful for identifying files that can be safely deleted after being processed by applications like Sonarr or Radarr.',
     type: 'complex-object',
     keyLabel: 'Category',
-    keyDescription: 'Category name to check for no hardlinks',
+    keyDescription: 'Category to check for torrents without hardlinks.',
     useCategoryDropdown: true, // Flag to indicate this should use category dropdown
     patternProperties: {
         ".*": { // Matches any category name
@@ -18,7 +18,7 @@ export const nohardlinksSchema = {
                 ignore_root_dir: {
                     type: 'boolean',
                     label: 'Ignore Root Directory',
-                    description: 'Ignore any hardlinks detected in the same root_dir (Default True).',
+                    description: 'If true, ignore hardlinks found within the same root directory.',
                     default: true
                 }
             },
@@ -37,7 +37,7 @@ export const nohardlinksSchema = {
             ignore_root_dir: {
                 type: 'boolean',
                 label: 'Ignore Root Directory',
-                description: 'Ignore any hardlinks detected in the same root_dir (Default True).',
+                description: 'If true, ignore hardlinks found within the same root directory.',
                 default: true
             }
         },
