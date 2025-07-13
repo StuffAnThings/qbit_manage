@@ -1,4 +1,4 @@
-# qBit Manage Web UI (Develop)
+# qBit Manage Web UI
 
 ## Overview
 The qBit Manage Web UI provides a modern interface for configuring and managing qBit Manage. It offers real-time editing of YAML configuration files through an intuitive visual interface, eliminating the need for manual file editing.
