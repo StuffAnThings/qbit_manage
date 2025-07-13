@@ -87,6 +87,13 @@ class ConfigForm {
             this.currentData._originalNohardlinksFormat = 'object';
         }
 
+        // Ensure "Uncategorized" category exists for 'cat' section
+        if (sectionName === 'cat') {
+            if (!this.currentData.hasOwnProperty('Uncategorized')) {
+                this.currentData['Uncategorized'] = [];
+            }
+        }
+
         await this.renderSection();
         // Removed this.validateSection() from here to prevent premature validation display
     }
@@ -301,15 +308,13 @@ class ConfigForm {
         } else if (e.target.type === 'number') {
             value = e.target.value ? parseFloat(e.target.value) : null;
         } else if (e.target.classList.contains('array-item-input')) {
-            // Extract base fieldName (e.g., "trackerKey::propName") and index from name (e.g., "trackerKey::propName[index]")
             const fullFieldName = e.target.name;
             const match = fullFieldName.match(/(.*)\[(\d+)\]$/);
             if (match) {
-                const baseFieldName = match[1]; // e.g., "animebytes.tv::tag"
-                const index = match[2];        // e.g., "0"
+                const baseFieldName = match[1];
+                const index = match[2];
                 this.updateArrayValue(baseFieldName, index, e.target.value);
             } else {
-                // Fallback if name doesn't match expected array format (shouldn't happen if form-renderer is correct)
                 this.updateArrayValue(fieldName, e.target.dataset.index, e.target.value);
             }
             return;
@@ -370,37 +375,29 @@ class ConfigForm {
     }
 
     updateArrayValue(fieldName, index, value) {
-
-        // Check if this is a complex object field (e.g., "trackerKey::propName")
         const isComplexObjectField = fieldName.includes('::');
         let currentArray;
 
         if (isComplexObjectField) {
             const [entryKey, propName] = fieldName.split('::');
-
-
             if (!this.currentData[entryKey]) {
                 this.currentData[entryKey] = {};
             }
             currentArray = this.currentData[entryKey][propName] || [];
-
             currentArray[parseInt(index)] = value;
             this.currentData[entryKey][propName] = currentArray;
         } else {
-            // Handle complex object fields (containing ::) directly
-            if (fieldName.includes('::')) {
-                const [entryKey, propName] = fieldName.split('::');
-                if (!this.currentData[entryKey]) {
-                    this.currentData[entryKey] = {};
+            // Handle Uncategorized array
+            if (fieldName === 'Uncategorized') {
+                currentArray = this.currentData[fieldName] || [];
+                if (!Array.isArray(currentArray)) {
+                    currentArray = [currentArray];
                 }
-                currentArray = this.currentData[entryKey][propName] || [];
-                currentArray[parseInt(index)] = value;
-                this.currentData[entryKey][propName] = currentArray;
             } else {
                 currentArray = getNestedValue(this.currentData, fieldName) || [];
-                currentArray[parseInt(index)] = value;
-                setNestedValue(this.currentData, fieldName, currentArray);
             }
+            currentArray[parseInt(index)] = value;
+            setNestedValue(this.currentData, fieldName, currentArray);
         }
         this.onDataChange(this.currentData);
         this._dispatchDirtyEvent();
@@ -478,21 +475,23 @@ class ConfigForm {
         const arrayField = this.container.querySelector(`[data-field="${fieldName}"] .array-items`);
         let currentArray;
 
-        // Handle complex object fields (containing ::) directly
         if (fieldName.includes('::')) {
             const [entryKey, propName] = fieldName.split('::');
             if (!this.currentData[entryKey]) {
                 this.currentData[entryKey] = {};
             }
             currentArray = this.currentData[entryKey][propName] || [];
-            const newIndex = currentArray.length;
-
             currentArray.push('');
             this.currentData[entryKey][propName] = currentArray;
         } else {
-            currentArray = getNestedValue(this.currentData, fieldName) || [];
-            const newIndex = currentArray.length;
-
+            if (fieldName === 'Uncategorized') {
+                currentArray = this.currentData[fieldName] || [];
+                if (!Array.isArray(currentArray)) {
+                    currentArray = [currentArray];
+                }
+            } else {
+                currentArray = getNestedValue(this.currentData, fieldName) || [];
+            }
             currentArray.push('');
             setNestedValue(this.currentData, fieldName, currentArray);
         }
@@ -548,18 +547,21 @@ class ConfigForm {
         const fieldName = item.querySelector('.array-item-input').dataset.field;
         const index = parseInt(item.dataset.index);
 
-        // Handle complex object fields (containing ::) directly
         if (fieldName.includes('::')) {
             const [entryKey, propName] = fieldName.split('::');
-            if (!this.currentData[entryKey]) {
-                this.currentData[entryKey] = {};
+            if (this.currentData[entryKey] && this.currentData[entryKey][propName]) {
+                this.currentData[entryKey][propName].splice(index, 1);
             }
-            const currentArray = this.currentData[entryKey][propName] || [];
-            currentArray.splice(index, 1);
-            this.currentData[entryKey][propName] = currentArray;
-
         } else {
-            const currentArray = getNestedValue(this.currentData, fieldName) || [];
+            let currentArray;
+            if (fieldName === 'Uncategorized') {
+                currentArray = this.currentData[fieldName] || [];
+                if (!Array.isArray(currentArray)) {
+                    currentArray = [currentArray];
+                }
+            } else {
+                currentArray = getNestedValue(this.currentData, fieldName) || [];
+            }
             currentArray.splice(index, 1);
             setNestedValue(this.currentData, fieldName, currentArray);
         }
@@ -758,9 +760,13 @@ class ConfigForm {
 
         // Handle flat string values (like categories)
         if (sectionConfig.flatStringValues) {
-            const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties[".*"];
-            const defaultValue = defaultSchema?.default || '';
-            this.currentData[newKey] = defaultValue;
+            if (newKey === 'Uncategorized') {
+                this.currentData[newKey] = [];
+            } else {
+                const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties[".*"];
+                const defaultValue = defaultSchema?.default || '';
+                this.currentData[newKey] = defaultValue;
+            }
         } else {
             // Initialize with default values based on schema for object entries
             const newEntry = {};

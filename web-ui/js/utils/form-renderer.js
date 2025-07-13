@@ -586,11 +586,56 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
     const isOther = entryKey === 'other';
 
     // Handle flat string values (like categories: "category_name": "/path/to/save")
-    if (config.flatStringValues && typeof entryValue === 'string') {
+    if (config.flatStringValues && (typeof entryValue === 'string' || Array.isArray(entryValue))) {
         const keyLabel = config.keyLabel || 'Key';
         const valueSchema = config.patternProperties?.[".*"] || config.additionalProperties;
         const valueLabel = valueSchema?.label || 'Value';
         const valueDescription = valueSchema?.description || '';
+
+        let valueInputHTML;
+
+        if (entryKey === 'Uncategorized') {
+            const arrayValue = Array.isArray(entryValue) ? entryValue : (entryValue ? [entryValue] : []);
+            const fieldId = `field-${entryKey.replace(/\./g, '-')}`;
+            let itemsHTML = '';
+            arrayValue.forEach((item, index) => {
+                itemsHTML += `
+                    <div class="array-item" data-index="${index}">
+                        <label for="${fieldId}-item-${index}" class="form-label sr-only">Item ${index + 1}</label>
+                        <div class="array-item-input-group">
+                            <input type="text" class="form-input array-item-input"
+                                   id="${fieldId}-item-${index}"
+                                   value="${item}" data-field="${entryKey}" data-index="${index}"
+                                   name="${entryKey}[${index}]">
+                             <button type="button" class="btn btn-icon btn-close-icon remove-array-item">
+                                 ${CLOSE_ICON_SVG}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            valueInputHTML = `
+                <div class="array-field" data-field="${entryKey}">
+                    <div class="array-items">
+                        ${itemsHTML}
+                    </div>
+                    <button type="button" class="btn btn-secondary add-array-item"
+                            data-field="${entryKey}">
+                        Add Path
+                    </button>
+                </div>
+                ${valueDescription ? `<div class="form-help">${valueDescription}</div>` : ''}
+            `;
+        } else if (typeof entryValue === 'string') {
+            valueInputHTML = `
+                <input type="text" class="form-input" name="${entryKey}::value" value="${entryValue}">
+                ${valueDescription ? `<div class="form-help">${valueDescription}</div>` : ''}
+                <div class="field-validation"></div>
+            `;
+        } else {
+            valueInputHTML = `<div class="alert alert-error">Invalid value for ${entryKey}. Expected a string.</div>`;
+        }
 
         let html = `
             <div class="complex-object-item complex-object-entry-card" data-key="${entryKey}">
@@ -606,12 +651,10 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
                         </div>
                         <div class="category-inputs-row">
                             <div class="form-group category-name-group">
-                                <input type="text" class="form-input complex-object-key" value="${entryKey}" data-original-key="${entryKey}" ${isOther ? 'readonly' : ''}>
+                                <input type="text" class="form-input complex-object-key" value="${entryKey}" data-original-key="${entryKey}" ${isOther || entryKey === 'Uncategorized' ? 'readonly' : ''}>
                             </div>
                             <div class="form-group category-path-group">
-                                <input type="text" class="form-input" name="${entryKey}::value" value="${entryValue}">
-                                ${valueDescription ? `<div class="form-help">${valueDescription}</div>` : ''}
-                                <div class="field-validation"></div>
+                                ${valueInputHTML}
                             </div>
                         </div>
                     </div>
