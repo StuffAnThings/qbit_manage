@@ -81,9 +81,9 @@
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-focus);
-  background-color: var(--input-focus-bg);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+  background-color: var(--input-bg); /* Keep same bg on focus */
 }
 
 .form-input:disabled,
@@ -184,6 +184,7 @@
 
 .password-input-group .form-input {
   flex: 1;
+  z-index: 1;
 }
 
 .password-input-group .password-toggle {
@@ -199,6 +200,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
 }
 
 .password-input-group .password-toggle:hover {
@@ -213,4 +215,61 @@
   height: 20px;
   pointer-events: none;
   fill: currentColor;
+}
+
+/* Hide browser's built-in password visibility toggle */
+.hide-password-toggle::-webkit-textfield-decoration-container,
+.hide-password-toggle::-webkit-credentials-auto-fill-button,
+.hide-password-toggle::-webkit-strong-password-auto-fill-button {
+  display: none !important;
+}
+
+.hide-password-toggle::-ms-reveal,
+.hide-password-toggle::-ms-clear {
+  display: none !important;
+}
+
+/* Notifications section optimizations */
+.field-section {
+    margin-bottom: 1.5rem;
+}
+
+.webhook-sections-container {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+.function-webhooks-lazy {
+    margin-top: 1rem;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--background-secondary);
+}
+
+.lazy-load-placeholder {
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.lazy-load-placeholder:hover {
+    background: var(--background-hover);
+    color: var(--text-primary);
+}
+
+.lazy-content.hidden {
+    display: none;
+}
+
+/* Reduce DOM complexity for dynamic select fields */
+.dynamic-select-text-group {
+    contain: layout style;
+}
+
+.dynamic-text-input {
+    will-change: display;
 }

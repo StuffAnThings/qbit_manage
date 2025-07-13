@@ -8,6 +8,50 @@ import { CLOSE_ICON_SVG } from './icons.js';
 import { generateCategoryDropdownHTML } from './categories.js';
 
 /**
+ * Generates attributes to prevent password manager detection and autofill
+ * Only applied to specific fields that cause performance issues
+ * @param {string} inputType - The type of input ('password', 'text', etc.)
+ * @returns {string} HTML attributes string
+ */
+function getPasswordManagerPreventionAttributes(inputType = 'text') {
+    const attributes = [
+        'autocomplete="off"',
+        'data-lpignore="true"',
+        'data-form-type="other"',
+        'data-1p-ignore="true"',
+        'data-bwignore="true"',
+        'spellcheck="false"'
+    ];
+
+    // For password fields, use more specific autocomplete value
+    if (inputType === 'password') {
+        attributes[0] = 'autocomplete="new-password"';
+    }
+
+    return attributes.join(' ');
+}
+
+/**
+ * Determines if a field should have password manager prevention attributes
+ * Only applies to the specific fields that cause performance issues
+ * @param {string} fieldName - The field name
+ * @param {object} field - The field definition
+ * @returns {boolean} Whether to apply prevention attributes
+ */
+function shouldPreventPasswordManager(fieldName, field) {
+    if (!fieldName) return false;
+
+    // Only these exact fields need password manager prevention
+    const targetFields = [
+        'notifiarr.apikey',  // Notifiarr API key (password field)
+        'user',              // qBittorrent username (text field)
+        'pass'               // qBittorrent password (password field)
+    ];
+
+    return targetFields.includes(fieldName);
+}
+
+/**
  * Generates the HTML for a given section.
  * @param {object} config - The configuration object for the section.
  * @param {object} data - The current data for the section.
@@ -35,7 +79,12 @@ export function generateSectionHTML(config, data) {
         html += generateComplexObjectHTML(config, data);
     } else if (config.type === 'multi-root-object') {
         // For multi-root-object, render fields directly without nesting under section name
-        html += generateFieldsHTML(config.fields, data);
+        // Performance optimization for notifications section
+        if (config.title === 'Notifications') {
+            html += generateNotificationsFieldsHTML(config.fields, data);
+        } else {
+            html += generateFieldsHTML(config.fields, data);
+        }
     } else {
         html += generateFieldsHTML(config.fields, data);
     }
@@ -75,6 +124,82 @@ function generateFieldsHTML(fields, data, prefix = '') {
 
         return generateFieldHTML(field, value, fieldName);
     }).join('');
+}
+
+/**
+ * Optimized field generation for notifications section to reduce DOM complexity
+ * @param {Array<object>} fields - An array of field definitions.
+ * @param {object} data - The current data for the section.
+ * @returns {string} The HTML string for the fields.
+ */
+function generateNotificationsFieldsHTML(fields, data) {
+    // Group fields by section for better performance
+    const sections = {
+        apprise: [],
+        notifiarr: [],
+        applyToAll: [],
+        webhooks: [],
+        functionWebhooks: []
+    };
+
+    fields.forEach(field => {
+        if (field.type === 'section_header') {
+            if (field.label.includes('Apprise')) sections.apprise.push(field);
+            else if (field.label.includes('Notifiarr')) sections.notifiarr.push(field);
+            else if (field.label.includes('Apply to All')) sections.applyToAll.push(field);
+            else if (field.label.includes('Webhooks Configuration')) sections.webhooks.push(field);
+            else if (field.label.includes('Function Specific')) sections.functionWebhooks.push(field);
+        } else {
+            if (field.name?.startsWith('apprise.')) sections.apprise.push(field);
+            else if (field.name?.startsWith('notifiarr.')) sections.notifiarr.push(field);
+            else if (field.name === 'apply_to_all_value' || field.action === 'apply-to-all') sections.applyToAll.push(field);
+            else if (field.name?.startsWith('webhooks.function.')) sections.functionWebhooks.push(field);
+            else if (field.name?.startsWith('webhooks.')) sections.webhooks.push(field);
+        }
+    });
+
+    // Render sections with lazy loading containers
+    let html = '';
+
+    // Render critical sections first (Apprise, Notifiarr)
+    html += renderFieldSection(sections.apprise, data, 'apprise-section');
+    html += renderFieldSection(sections.notifiarr, data, 'notifiarr-section');
+    html += renderFieldSection(sections.applyToAll, data, 'apply-all-section');
+
+    // Render webhook sections with lazy loading
+    html += `<div class="webhook-sections-container">`;
+    html += renderFieldSection(sections.webhooks, data, 'webhooks-section');
+    html += `<div class="function-webhooks-lazy" data-section="function-webhooks">`;
+    html += `<div class="lazy-load-placeholder">Click to load Function Specific Webhooks...</div>`;
+    html += `<div class="lazy-content hidden">`;
+    html += renderFieldSection(sections.functionWebhooks, data, 'function-webhooks-section');
+    html += `</div></div></div>`;
+
+    return html;
+}
+
+/**
+ * Renders a section of fields with performance optimizations
+ */
+function renderFieldSection(fields, data, sectionId) {
+    if (!fields.length) return '';
+
+    return `<div class="field-section" id="${sectionId}">` +
+           fields.map(field => {
+               if (field.type === 'section_header') {
+                   return generateFieldHTML(field, null, null);
+               }
+               let fieldName, value;
+               if (field.name) {
+                   fieldName = field.name;
+                   value = getNestedValue(data, fieldName) ?? field.default ?? '';
+               } else {
+                   fieldName = null;
+                   value = null;
+               }
+               return generateFieldHTML(field, value, fieldName);
+           }).join('') +
+           `</div>`;
 }
 
 /**
@@ -143,8 +268,9 @@ export function generateFieldHTML(field, value, fieldName) {
                 </label>
                 <div class="password-input-group">
                     <input type="password" id="${fieldId}" name="${fieldName}"
-                           class="form-input" value="${value}"
+                           class="form-input ${shouldPreventPasswordManager(fieldName, field) ? 'hide-password-toggle' : ''}" value="${value}"
                            ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
+                           ${shouldPreventPasswordManager(fieldName, field) ? getPasswordManagerPreventionAttributes('password') : ''}
                            ${isRequired}>
                     <button type="button" class="btn btn-icon password-toggle"
                             data-target="${fieldId}">
@@ -247,6 +373,7 @@ export function generateFieldHTML(field, value, fieldName) {
                     <input type="text" id="${fieldId}" name="${fieldName}"
                            class="form-input" value="${value}"
                            ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
+                           ${shouldPreventPasswordManager(fieldName, field) ? getPasswordManagerPreventionAttributes('text') : ''}
                            ${isRequired}>
                 `;
             }

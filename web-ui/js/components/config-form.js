@@ -123,8 +123,28 @@ class ConfigForm {
             }
         }
 
+        // Initialize lazy loading for notifications section
+        if (this.currentSection === 'notifications') {
+            this.initializeLazyLoading();
+        }
+
         // Populate category dropdowns after rendering is complete
         await this.populateCategoryDropdowns();
+    }
+
+    initializeLazyLoading() {
+        const lazyContainers = this.container.querySelectorAll('.function-webhooks-lazy');
+        lazyContainers.forEach(container => {
+            const placeholder = container.querySelector('.lazy-load-placeholder');
+            const content = container.querySelector('.lazy-content');
+
+            if (placeholder && content) {
+                placeholder.addEventListener('click', () => {
+                    placeholder.style.display = 'none';
+                    content.classList.remove('hidden');
+                });
+            }
+        });
     }
 
     bindEvents() {
@@ -985,35 +1005,43 @@ class ConfigForm {
             return;
         }
 
-        const updateValue = () => {
-            if (selectElement.value === 'webhook') {
-                textInput.style.display = 'block';
-                textInput.required = true;
-                hiddenInput.value = textInput.value;
-            } else {
-                textInput.style.display = 'none';
-                textInput.required = false;
-                textInput.value = '';
-                hiddenInput.value = selectElement.value;
-            }
-        };
-
-        // Update the display and values
-        updateValue();
-
-        // Add input listener to text field if not already added
-        if (!textInput.hasAttribute('data-listener-added')) {
-            textInput.addEventListener('input', () => {
+        // Performance optimization: use requestAnimationFrame for DOM updates
+        requestAnimationFrame(() => {
+            const updateValue = () => {
                 if (selectElement.value === 'webhook') {
+                    textInput.style.display = 'block';
+                    textInput.required = true;
                     hiddenInput.value = textInput.value;
+                } else {
+                    textInput.style.display = 'none';
+                    textInput.required = false;
+                    textInput.value = '';
+                    hiddenInput.value = selectElement.value;
                 }
-            });
-            textInput.setAttribute('data-listener-added', 'true');
-        }
+            };
 
-        // Trigger form change event for the hidden input
-        const changeEvent = new Event('input', { bubbles: true });
-        hiddenInput.dispatchEvent(changeEvent);
+            // Update the display and values
+            updateValue();
+
+            // Add input listener to text field if not already added
+            if (!textInput.hasAttribute('data-listener-added')) {
+                // Debounce text input to reduce excessive updates
+                let debounceTimer;
+                textInput.addEventListener('input', () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        if (selectElement.value === 'webhook') {
+                            hiddenInput.value = textInput.value;
+                        }
+                    }, 150); // 150ms debounce
+                });
+                textInput.setAttribute('data-listener-added', 'true');
+            }
+
+            // Trigger form change event for the hidden input
+            const changeEvent = new Event('input', { bubbles: true });
+            hiddenInput.dispatchEvent(changeEvent);
+        });
     }
 
     resetSection() {
