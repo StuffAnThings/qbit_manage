@@ -16,6 +16,7 @@ from multiprocessing import Queue
 from multiprocessing.sharedctypes import Synchronized
 from pathlib import Path
 from typing import Any
+from typing import Optional
 
 import ruamel.yaml
 from fastapi import FastAPI
@@ -43,7 +44,7 @@ class CommandRequest(BaseModel):
     dry_run: bool = False
     skip_cleanup: bool = False
     skip_qb_version_check: bool = False
-    log_level: str | None = None
+    log_level: Optional[str] = None  # noqa: UP045
 
 
 class ConfigRequest(BaseModel):
@@ -86,7 +87,7 @@ class HealthCheckResponse(BaseModel):
     application: dict = {}  # web_api_responsive, can_accept_requests, queue_size, etc.
     directories: dict = {}  # config/logs directory status and activity info
     issues: list[str] = []
-    error: str = None
+    error: Optional[str] = None  # noqa: UP045
 
 
 async def process_queue_periodically(web_api: WebAPI) -> None:
@@ -792,7 +793,7 @@ class WebAPI:
             logger.error(f"Error in run_command during execution: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_logs(self, limit: int | None = None, log_filename: str | None = None) -> dict[str, Any]:
+    async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:  # noqa: UP045
         """Get recent logs from the log file."""
         if not self.logs_path.exists():
             logger.warning(f"Log directory not found: {self.logs_path}")
