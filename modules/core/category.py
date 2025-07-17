@@ -1,6 +1,7 @@
-from qbittorrentapi import Conflict409Error
+import time
 
 from modules import util
+from modules.qbit_error_handler import handle_qbit_api_errors
 
 logger = util.logger
 
@@ -22,6 +23,7 @@ class Category:
 
     def category(self):
         """Update category for torrents that don't have any category defined and returns total number categories updated"""
+        start_time = time.time()
         logger.separator("Updating Categories", space=False, border=False)
         torrent_list_filter = {"status_filter": self.status_filter}
         if self.hashes:
@@ -57,6 +59,10 @@ class Category:
         else:
             logger.print_line("No new torrents to categorize.", self.config.loglevel)
 
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Category command completed in {duration:.2f} seconds")
+
     def get_tracker_cat(self, torrent):
         tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
         return [tracker["cat"]] if tracker["cat"] else None
@@ -67,18 +73,28 @@ class Category:
         t_name = torrent.name
         old_cat = torrent.category
         if not self.config.dry_run:
-            try:
-                torrent.set_category(category=new_cat)
-                if torrent.auto_tmm is False and self.config.settings["force_auto_tmm"]:
-                    torrent.set_auto_management(True)
-            except Conflict409Error:
-                ex = logger.print_line(
-                    f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.',
-                    self.config.loglevel,
-                )
-                self.config.notify(ex, "Update Category", False)
-                self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
-                torrent.set_category(category=new_cat)
+
+            @handle_qbit_api_errors(context="set_category", retry_attempts=2)
+            def set_category_with_creation():
+                try:
+                    torrent.set_category(category=new_cat)
+                    if torrent.auto_tmm is False and self.config.settings["force_auto_tmm"]:
+                        torrent.set_auto_management(True)
+                except Exception as e:
+                    # Check if it's a category creation issue
+                    if "not found" in str(e).lower() or "409" in str(e):
+                        ex = logger.print_line(
+                            f'Existing category "{new_cat}" not found for save path '
+                            f"{torrent.save_path}, category will be created.",
+                            self.config.loglevel,
+                        )
+                        self.config.notify(ex, "Update Category", False)
+                        self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                        torrent.set_category(category=new_cat)
+                    else:
+                        raise
+
+            set_category_with_creation()
         body = []
         body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
         if cat_change:

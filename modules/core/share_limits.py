@@ -47,6 +47,7 @@ class ShareLimits:
 
     def update_share_limits(self):
         """Updates share limits for torrents based on grouping"""
+        start_time = time()
         logger.separator("Updating Share Limits based on priority", space=False, border=False)
         if self.config.dry_run:
             logger.warning("Share Limits will not be applied with dry_run and could be inaccurate unless manually adding tags.")
@@ -88,6 +89,10 @@ class ShareLimits:
                     self.config.send_notifications(attr)
                 if group_config["cleanup"] and len(self.tdel_dict) > 0:
                     self.cleanup_torrents_for_group(group_name, group_config["priority"])
+
+        end_time = time()
+        duration = end_time - start_time
+        logger.debug(f"Share limits command completed in {duration:.2f} seconds")
 
     def cleanup_torrents_for_group(self, group_name, priority):
         """Deletes torrents that have reached the ratio/seed limit"""

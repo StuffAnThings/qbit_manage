@@ -1,3 +1,5 @@
+import time
+
 from modules import util
 
 logger = util.logger
@@ -22,6 +24,7 @@ class Tags:
 
     def tags(self):
         """Update tags for torrents"""
+        start_time = time.time()
         logger.separator("Updating Tags", space=False, border=False)
         torrent_list = self.qbt.torrent_list
         if self.hashes:
@@ -86,3 +89,7 @@ class Tags:
             )
         else:
             logger.print_line("No new torrents to tag.", self.config.loglevel)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Tags command completed in {duration:.2f} seconds")
