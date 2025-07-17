@@ -1163,17 +1163,22 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     # Recheck Torrents
     if commands.get("recheck"):
         if hashes is not None:
-            recheck = ReCheck(qbit_manager, hashes)
+            recheck = safe_execute_with_qbit_error_handling(
+                lambda: ReCheck(qbit_manager, hashes), "Recheck Torrents (with hashes)"
+            )
         else:
-            recheck = ReCheck(qbit_manager)
+            recheck = safe_execute_with_qbit_error_handling(lambda: ReCheck(qbit_manager), "Recheck Torrents")
 
-        if "rechecked" not in stats:
-            stats["rechecked"] = 0
-        if "resumed" not in stats:
-            stats["resumed"] = 0
-        stats["rechecked"] += recheck.stats_rechecked
-        stats["resumed"] += recheck.stats_resumed
-        stats["executed_commands"].append("recheck")
+        if recheck is not None:
+            if "rechecked" not in stats:
+                stats["rechecked"] = 0
+            if "resumed" not in stats:
+                stats["resumed"] = 0
+            stats["rechecked"] += recheck.stats_rechecked
+            stats["resumed"] += recheck.stats_resumed
+            stats["executed_commands"].append("recheck")
+        else:
+            logger.warning("Recheck Torrents operation skipped due to API errors")
 
     # Remove Orphaned Files
     if commands.get("rem_orphaned"):
@@ -1190,33 +1195,43 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     # Tag NoHardLinks
     if commands.get("tag_nohardlinks"):
         if hashes is not None:
-            no_hardlinks = TagNoHardLinks(qbit_manager, hashes)
+            no_hardlinks = safe_execute_with_qbit_error_handling(
+                lambda: TagNoHardLinks(qbit_manager, hashes), "Tag NoHardLinks (with hashes)"
+            )
         else:
-            no_hardlinks = TagNoHardLinks(qbit_manager)
+            no_hardlinks = safe_execute_with_qbit_error_handling(lambda: TagNoHardLinks(qbit_manager), "Tag NoHardLinks")
 
-        if "tagged_noHL" not in stats:
-            stats["tagged_noHL"] = 0
-        if "untagged_noHL" not in stats:
-            stats["untagged_noHL"] = 0
-        stats["tagged"] += no_hardlinks.stats_tagged
-        stats["tagged_noHL"] += no_hardlinks.stats_tagged
-        stats["untagged_noHL"] += no_hardlinks.stats_untagged
-        stats["executed_commands"].append("tag_nohardlinks")
+        if no_hardlinks is not None:
+            if "tagged_noHL" not in stats:
+                stats["tagged_noHL"] = 0
+            if "untagged_noHL" not in stats:
+                stats["untagged_noHL"] = 0
+            stats["tagged"] += no_hardlinks.stats_tagged
+            stats["tagged_noHL"] += no_hardlinks.stats_tagged
+            stats["untagged_noHL"] += no_hardlinks.stats_untagged
+            stats["executed_commands"].append("tag_nohardlinks")
+        else:
+            logger.warning("Tag NoHardLinks operation skipped due to API errors")
 
     # Set Share Limits
     if commands.get("share_limits"):
         if hashes is not None:
-            share_limits = ShareLimits(qbit_manager, hashes)
+            share_limits = safe_execute_with_qbit_error_handling(
+                lambda: ShareLimits(qbit_manager, hashes), "Share Limits (with hashes)"
+            )
         else:
-            share_limits = ShareLimits(qbit_manager)
+            share_limits = safe_execute_with_qbit_error_handling(lambda: ShareLimits(qbit_manager), "Share Limits")
 
-        if "updated_share_limits" not in stats:
-            stats["updated_share_limits"] = 0
-        if "cleaned_share_limits" not in stats:
-            stats["cleaned_share_limits"] = 0
-        stats["tagged"] += share_limits.stats_tagged
-        stats["updated_share_limits"] += share_limits.stats_tagged
-        stats["deleted"] += share_limits.stats_deleted
-        stats["deleted_contents"] += share_limits.stats_deleted_contents
-        stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
-        stats["executed_commands"].append("share_limits")
+        if share_limits is not None:
+            if "updated_share_limits" not in stats:
+                stats["updated_share_limits"] = 0
+            if "cleaned_share_limits" not in stats:
+                stats["cleaned_share_limits"] = 0
+            stats["tagged"] += share_limits.stats_tagged
+            stats["updated_share_limits"] += share_limits.stats_tagged
+            stats["deleted"] += share_limits.stats_deleted
+            stats["deleted_contents"] += share_limits.stats_deleted_contents
+            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
+            stats["executed_commands"].append("share_limits")
+        else:
+            logger.warning("Share Limits operation skipped due to API errors")
