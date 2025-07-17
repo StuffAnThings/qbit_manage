@@ -8,11 +8,12 @@ from functools import cache
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import Client
 from qbittorrentapi import LoginFailed
-from qbittorrentapi import NotFound404Error
 from qbittorrentapi import TrackerStatus
 from qbittorrentapi import Version
+from ruamel.yaml import CommentedSeq
 
 from modules import util
+from modules.qbit_error_handler import handle_qbit_api_errors
 from modules.util import Failed
 from modules.util import TorrentMessages
 from modules.util import list_in_text
@@ -402,8 +403,17 @@ class Qbt:
         if "cat" in self.config.data and self.config.data["cat"] is not None:
             cat_path = self.config.data["cat"]
             for cat, save_path in cat_path.items():
-                if os.path.join(save_path, "") == path or fnmatch(path, save_path):
-                    category.append(cat)
+                try:
+                    if cat == "Uncategorized" and isinstance(save_path, CommentedSeq):
+                        if any(os.path.join(p, "") == path or fnmatch(path, p) for p in save_path):
+                            category.append(cat)
+                    elif os.path.join(save_path, "") == path or fnmatch(path, save_path):
+                        category.append(cat)
+                except TypeError:
+                    e = f"Invalid configuration for category {cat}. Check your config.yml file."
+                    self.config.notify(e, "Category", True)
+                    logger.print_line(e, "CRITICAL")
+                    sys.exit(1)
 
         if not category:
             default_cat = path.split(os.sep)[-2]
@@ -435,14 +445,20 @@ class Qbt:
             logger.debug(f"Torrent {torrent.name} has already been removed from torrent files.")
 
         tor_files = []
-        try:
+
+        @handle_qbit_api_errors(context="tor_delete_recycle_get_files", retry_attempts=1)
+        def get_torrent_files():
             info_hash = torrent.hash
             save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
             # Define torrent files/folders
             for file in torrent.files:
                 tor_files.append(os.path.join(save_path, file.name))
-        except NotFound404Error:
+            return info_hash, save_path
+
+        result = get_torrent_files()
+        if result is None:  # Error occurred and was handled
             return
+        info_hash, save_path = result
 
         if self.config.recyclebin["enabled"]:
             if self.config.recyclebin["split_by_category"]:

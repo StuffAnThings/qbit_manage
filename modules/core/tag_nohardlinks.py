@@ -1,3 +1,5 @@
+import time
+
 from modules import util
 
 logger = util.logger
@@ -112,6 +114,7 @@ class TagNoHardLinks:
 
     def tag_nohardlinks(self):
         """Tag torrents with no hardlinks"""
+        start_time = time.time()
         logger.separator("Tagging Torrents with No Hardlinks", space=False, border=False)
         nohardlinks = self.nohardlinks
         check_hardlinks = util.CheckHardLinks(self.config)
@@ -161,3 +164,7 @@ class TagNoHardLinks:
                 f".torrent{'s.' if self.stats_untagged > 1 else '.'}",
                 self.config.loglevel,
             )
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Tag nohardlinks command completed in {duration:.2f} seconds")

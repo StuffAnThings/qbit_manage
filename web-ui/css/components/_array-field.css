@@ -4,6 +4,10 @@
     flex-direction: column;
     gap: var(--spacing-md);
 }
+.array-field .add-array-item {
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
 
 .array-item {
     display: flex;

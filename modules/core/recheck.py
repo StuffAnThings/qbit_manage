@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 
 from modules import util
@@ -26,6 +27,7 @@ class ReCheck:
 
     def recheck(self):
         """Function used to recheck paused torrents sorted by size and resume torrents that are completed"""
+        start_time = time.time()
         if self.config.commands["recheck"]:
             logger.separator("Rechecking Paused Torrents", space=False, border=False)
             # sort by size and paused
@@ -136,3 +138,7 @@ class ReCheck:
                         self.notify_attr_recheck.append(attr)
                         if not self.config.dry_run:
                             torrent.recheck()
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Recheck command completed in {duration:.2f} seconds")

@@ -1,6 +1,6 @@
 export const catChangeSchema = {
-    title: 'Category Change Configuration',
-    description: 'Moves all the torrents from one category to another category if the torrents are marked as complete.',
+    title: 'Category Changes',
+    description: 'Move torrents from one category to another after they are marked as complete. Be cautious, as this can cause data to be moved if "Default Torrent Management Mode" is set to automatic in qBittorrent.',
     type: 'dynamic-key-value-list',
     useCategoryDropdown: true, // Flag to indicate this should use category dropdown for keys
     fields: [
