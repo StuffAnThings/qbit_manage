@@ -1,7 +1,9 @@
-from qbittorrentapi import NotFound404Error
+import time
+
 from qbittorrentapi import TrackerStatus
 
 from modules import util
+from modules.qbit_error_handler import handle_qbit_api_errors
 from modules.util import TorrentMessages
 from modules.util import list_in_text
 
@@ -109,9 +111,11 @@ class RemoveUnregistered:
             self.t_msg = self.qbt.torrentinfo[self.t_name]["msg"]
             self.t_status = self.qbt.torrentinfo[self.t_name]["status"]
             check_tags = util.get_list(torrent.tags)
-            try:
+
+            @handle_qbit_api_errors(context="process_torrent_issues", retry_attempts=1)
+            def process_single_torrent():
                 if self.filter_completed and not torrent.state_enum.is_complete:
-                    continue
+                    return
                 tracker_working = False
                 for trk in torrent.trackers:
                     if (
@@ -120,7 +124,7 @@ class RemoveUnregistered:
                     ):
                         tracker_working = True
                 if tracker_working:
-                    continue
+                    return
                 tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
                 msg_up = trk.msg.upper()
                 msg = trk.msg
@@ -143,8 +147,9 @@ class RemoveUnregistered:
                     # Tag any error torrents
                     if self.cfg_tag_error and self.tag_error not in check_tags:
                         self.tag_tracker_error(msg, tracker, torrent)
-            except NotFound404Error:
-                continue
+
+            try:
+                process_single_torrent()
             except Exception as ex:
                 logger.stacktrace()
                 self.config.notify(ex, "Remove Unregistered Torrents", False)
@@ -152,6 +157,7 @@ class RemoveUnregistered:
 
     def rem_unregistered(self):
         """Remove torrents with unregistered trackers."""
+        start_time = time.time()
         self.remove_previous_errors()
         self.process_torrent_issues()
 
@@ -188,6 +194,10 @@ class RemoveUnregistered:
                 loglevel=self.config.loglevel,
             )
             logger.print_line(self.tor_error_summary.rstrip(), self.config.loglevel)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Remove unregistered command completed in {duration:.2f} seconds")
 
     def tag_tracker_error(self, msg, tracker, torrent):
         """Tags any trackers with errors"""

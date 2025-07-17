@@ -121,6 +121,14 @@ class CommandPanel {
                             🗑️ Remove Unregistered
                         </button>
                         <button type="button" class="btn btn-outline quick-action-btn"
+                                data-command="tag_tracker_error">
+                            ⚠️ Tag Tracker Errors
+                        </button>
+                        <button type="button" class="btn btn-outline quick-action-btn"
+                                data-command="tag_nohardlinks">
+                            🔗 Tag No Hard Links
+                        </button>
+                        <button type="button" class="btn btn-outline quick-action-btn"
                                 data-command="share_limits">
                             ⚖️ Apply Share Limits
                         </button>
