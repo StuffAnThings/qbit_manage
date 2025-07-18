@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import shutil
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
@@ -150,8 +151,24 @@ class WebAPI:
         if base_url and not base_url.startswith("/"):
             base_url = "/" + base_url
 
-        # Always create app without root_path to handle root redirect properly
-        app = FastAPI()
+        # Create lifespan context manager for startup/shutdown events
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            """Handle application startup and shutdown events."""
+            # Startup: Start background task for queue processing
+            app.state.web_api = self
+            app.state.background_task = asyncio.create_task(process_queue_periodically(self))
+            yield
+            # Shutdown: Clean up background task
+            if hasattr(app.state, "background_task"):
+                app.state.background_task.cancel()
+                try:
+                    await app.state.background_task
+                except asyncio.CancelledError:
+                    pass
+
+        # Create app with lifespan context manager
+        app = FastAPI(lifespan=lifespan)
         object.__setattr__(self, "app", app)
 
         # Initialize paths during startup
@@ -230,23 +247,7 @@ class WebAPI:
                     return FileResponse(str(web_ui_path))
             raise HTTPException(status_code=404, detail="Not found")
 
-        # Store reference to self in app state for access in event handlers
-        self.app.state.web_api = self
-
-        @self.app.on_event("startup")
-        async def startup_event():
-            """Start background task for queue processing."""
-            self.app.state.background_task = asyncio.create_task(process_queue_periodically(self.app.state.web_api))
-
-        @self.app.on_event("shutdown")
-        async def shutdown_event():
-            """Clean up background task."""
-            if hasattr(self.app.state, "background_task"):
-                self.app.state.background_task.cancel()
-                try:
-                    await self.app.state.background_task
-                except asyncio.CancelledError:
-                    pass
+        # Note: Lifespan events are now handled in the lifespan context manager above
 
     async def execute_for_config(self, args: dict, hashes: list[str]) -> dict:
         """Execute commands for a specific config file."""
