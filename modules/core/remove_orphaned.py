@@ -51,11 +51,6 @@ class RemoveOrphaned:
         # Find orphaned files efficiently
         orphaned_files = root_files - torrent_files
 
-        # Early return if no orphaned files
-        if not orphaned_files:
-            logger.print_line("No Orphaned Files found.", self.config.loglevel)
-            return
-
         # Process exclude patterns efficiently
         if self.config.orphaned["exclude_patterns"]:
             logger.print_line("Processing orphan exclude patterns")
@@ -67,6 +62,11 @@ class RemoveOrphaned:
             # Use set comprehension for efficient filtering
             excluded_files = {file for file in orphaned_files if any(fnmatch(file, pattern) for pattern in exclude_patterns)}
             orphaned_files -= excluded_files
+
+        # Early return if no orphaned files
+        if not orphaned_files:
+            logger.print_line("No Orphaned Files found.", self.config.loglevel)
+            return
 
         # Check threshold
         max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")
