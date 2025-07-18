@@ -748,6 +748,16 @@ class Config:
                         )
                         self.notify(err, "Config")
                         raise Failed(err)
+                self.share_limits[group]["reset_upload_speed_on_unmet_minimums"] = self.util.check_for_attribute(
+                    self.data,
+                    "reset_upload_speed_on_unmet_minimums",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=True,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0

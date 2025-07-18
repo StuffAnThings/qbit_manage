@@ -121,6 +121,12 @@ export const shareLimitsSchema = {
                     label: 'Custom Tag',
                     description: 'Apply a unique custom tag for this group. This tag will be used to identify and manage the share limits for these torrents.',
                     default: ''
+                },
+                reset_upload_speed_on_unmet_minimums: {
+                    type: 'boolean',
+                    label: 'Reset Upload Speed on Unmet Minimums',
+                    description: 'If true, upload speed limits will be reset to unlimited when minimum conditions (seeding time, number of seeds, last active time) are not met. If false, existing upload speed limits will be preserved.',
+                    default: true
                 }
             }
         }

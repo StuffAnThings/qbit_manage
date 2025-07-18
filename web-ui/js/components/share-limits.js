@@ -1004,7 +1004,7 @@ export class ShareLimitsComponent {
             },
             {
                 title: 'Upload Speed Limits',
-                fields: ['limit_upload_speed', 'enable_group_upload_speed']
+                fields: ['limit_upload_speed', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
             },
             {
                 title: 'Tag Filters',
@@ -1216,6 +1216,7 @@ export class ShareLimitsComponent {
             'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
             'min_num_seeds': '<span class="material-icons">group</span>',
             'enable_group_upload_speed': '<span class="material-icons">speed</span>',
+            'reset_upload_speed_on_unmet_minimums': '<span class="material-icons">refresh</span>',
             'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
             'add_group_to_tag': '<span class="material-icons">add_circle</span>',
             'max_last_active': '<span class="material-icons">access_time</span>',
