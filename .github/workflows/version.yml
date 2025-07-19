@@ -36,7 +36,7 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@master
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
@@ -59,6 +59,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
             ghcr.io/${{ env.OWNER_LC }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
+
       - name: Create release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -66,3 +67,10 @@ jobs:
           body_path: CHANGELOG
           token: ${{ secrets.PAT }}
           tag_name: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Trigger Hotio Webhook
+        uses: joelwmale/webhook-action@master
+        with:
+          url: ${{ secrets.HOTIO_WEBHOOK_URL }}
+          headers: '{"Authorization": "Bearer ${{ secrets.HOTIO_WEBHOOK_SECRET }}"}'
+          body: '{ "application": "qbitmanage", "branch":  "release" }'
