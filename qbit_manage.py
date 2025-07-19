@@ -46,7 +46,7 @@ parser.add_argument(
     dest="web_server",
     action="store_true",
     default=False,
-    help="Start a web server to handle command requests via HTTP API.",
+    help="Start the webUI server to handle command requests via HTTP API.",
 )
 parser.add_argument(
     "-p",
@@ -55,6 +55,14 @@ parser.add_argument(
     type=int,
     default=8080,
     help="Port number for the web server (default: 8080).",
+)
+parser.add_argument(
+    "-b",
+    "--base-url",
+    dest="base_url",
+    type=str,
+    default="",
+    help="Base URL path for the web UI (e.g., '/qbit-manage'). Default is empty (root).",
 )
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
@@ -283,6 +291,7 @@ env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
 port = get_arg("QBT_PORT", args.port, arg_int=True)
+base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
@@ -347,6 +356,9 @@ for v in [
     "screen_width",
     "debug",
     "trace",
+    "web_server",
+    "port",
+    "base_url",
 ]:
     args[v] = eval(v)
 
@@ -492,8 +504,14 @@ def start():
         return None
 
     if qbit_manager:
-        # Execute qBittorrent commands using shared function
-        execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
+        # Execute qBittorrent commands using shared function with error handling
+        try:
+            execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
+        except Exception as ex:
+            logger.error(f"Error executing qBittorrent commands: {str(ex)}")
+            logger.stacktrace()
+            if cfg:
+                cfg.notify(f"qBittorrent command execution failed: {str(ex)}", "Execution Error", False)
 
         # Empty RecycleBin
         stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
@@ -629,7 +647,11 @@ if __name__ == "__main__":
         if web_server:
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
-            logger.info(f"Access the WebUI at http://localhost:{port}")
+            if base_url:
+                logger.info(f"Access the WebUI at http://localhost:{port}/{base_url.lstrip('/')}")
+                logger.info(f"Root path http://localhost:{port}/ will redirect to the WebUI")
+            else:
+                logger.info(f"Access the WebUI at http://localhost:{port}")
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
@@ -670,21 +692,57 @@ if __name__ == "__main__":
                 start_loop(True)
 
             # Update next_scheduled_run_info_shared in the main loop
+            last_skip_log_time = 0  # Track when we last logged a skip message
+
             while not killer.kill_now:
+                current_time = datetime.now()
                 next_run_time = schedule.next_run()  # Call the function to get the datetime object
+
+                # Calculate time until next run (avoid redundant calculation)
+                if next_run_time:
+                    delta_seconds = max(0, (next_run_time - current_time).total_seconds())
+                else:
+                    delta_seconds = float("inf")  # No scheduled runs
+
+                # Update shared dictionary
                 next_run_info = calc_next_run(next_run_time)
-                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+                next_scheduled_run_info_shared.update(next_run_info)
 
                 if web_server:
                     if is_running.value:
-                        logger.info("Scheduled run skipped: Web API is currently processing a request.")
+                        # Only log if the next run would occur within the next sleep interval
+                        # and we haven't logged recently (rate limiting)
+                        if delta_seconds <= 60 and (current_time.timestamp() - last_skip_log_time) >= 300:  # 5 min rate limit
+                            time_until_str = f"{int(delta_seconds)}s" if delta_seconds < 60 else f"{int(delta_seconds / 60)}m"
+                            logger.info(
+                                f"Scheduled run skipped: Web API is currently processing a request. "
+                                f"Next run in {time_until_str} at {next_run_time.strftime('%I:%M %p')}"
+                            )
+                            last_skip_log_time = current_time.timestamp()
                     else:
-                        schedule.run_pending()
+                        try:
+                            schedule.run_pending()
+                        except Exception as ex:
+                            logger.error(f"Error during scheduled run: {str(ex)}")
+                            logger.stacktrace()
+                            # Continue running instead of crashing
                 else:
-                    schedule.run_pending()
+                    try:
+                        schedule.run_pending()
+                    except Exception as ex:
+                        logger.error(f"Error during scheduled run: {str(ex)}")
+                        logger.stacktrace()
+                        # Continue running instead of crashing
 
                 logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
-                time.sleep(60)
+                # Dynamic sleep: sleep less if next run is soon, but at least 10 seconds
+                if delta_seconds < 120:  # If next run is within 2 minutes
+                    sleep_time = max(10, min(30, delta_seconds / 2))  # Sleep 10-30 seconds
+                else:
+                    sleep_time = 60  # Normal 60-second interval
+
+                logger.trace(f"    Sleeping for {sleep_time:.0f} seconds (next run in {delta_seconds:.0f}s)")
+                time.sleep(sleep_time)
             if web_process:
                 web_process.terminate()
                 web_process.join()

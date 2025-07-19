@@ -19,11 +19,11 @@ authors = [
 dependencies = [
     "bencodepy==0.9.5",
     "croniter==6.0.0",
-    "fastapi==0.116.0",
+    "fastapi==0.116.1",
     "GitPython==3.1.44",
     "humanize==4.12.3",
     "pytimeparse2==1.7.1",
-    "qbittorrent-api==2025.5.0",
+    "qbittorrent-api==2025.7.0",
     "requests==2.32.4",
     "retrying==1.4.0",
     "ruamel.yaml==0.18.14",
@@ -38,7 +38,7 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.2.0",
-    "ruff==0.12.2",
+    "ruff==0.12.4",
 ]
 
 [tool.ruff]

@@ -45,5 +45,8 @@ COPY . /app
 WORKDIR /app
 VOLUME /config
 
+# Expose port 8080
+EXPOSE 8080
+
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 CMD ["python3", "qbit_manage.py"]

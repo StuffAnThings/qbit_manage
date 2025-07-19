@@ -1,23 +1,23 @@
 export const catSchema = {
-    title: 'Categories Configuration',
-    description: 'Configure torrent categories and their rules',
+    title: 'Categories',
+    description: 'Define categories and their associated save paths. All save paths in qBittorrent must be defined here. You can use `*` as a wildcard for subdirectories.',
     type: 'complex-object',
     keyLabel: 'Category Name',
-    keyDescription: 'category name',
+    keyDescription: 'Name of the category as it appears in qBittorrent.',
     // Special handling for flat string values (category: path format)
     flatStringValues: true,
     patternProperties: {
         ".*": {
             type: 'string',
             label: 'Save Path',
-            description: 'Directory path for this category',
+            description: 'The absolute path where torrents in this category should be saved.',
             default: ''
         }
     },
     additionalProperties: {
         type: 'string',
         label: 'Save Path',
-        description: 'Directory path for this category',
+        description: 'The absolute path where torrents in this category should be saved.',
         default: ''
     }
 };

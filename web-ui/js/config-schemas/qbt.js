@@ -1,12 +1,12 @@
 export const qbtSchema = {
     title: 'qBittorrent Connection',
-    description: 'Configure connection to qBittorrent client',
+    description: 'Configure the connection to your qBittorrent client.',
     fields: [
         {
             name: 'host',
             type: 'text',
             label: 'Host',
-            description: 'qBittorrent host address (e.g., localhost:8080)',
+            description: 'The IP address and port of your qBittorrent WebUI.',
             required: true,
             placeholder: 'localhost:8080 or qbittorrent:8080'
         },
@@ -14,7 +14,7 @@ export const qbtSchema = {
             name: 'user',
             type: 'text',
             label: 'Username',
-            description: 'qBittorrent WebUI username',
+            description: 'The username for your qBittorrent WebUI.',
             required: false,
             placeholder: 'admin'
         },
@@ -22,7 +22,7 @@ export const qbtSchema = {
             name: 'pass',
             type: 'password',
             label: 'Password',
-            description: 'qBittorrent WebUI password',
+            description: 'The password for your qBittorrent WebUI.',
             required: false,
             placeholder: 'Enter password'
         }
