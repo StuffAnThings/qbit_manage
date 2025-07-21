@@ -1,6 +1,5 @@
 import os
 import time
-import time
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 
