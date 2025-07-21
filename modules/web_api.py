@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import shutil
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
@@ -137,7 +138,7 @@ class WebAPI:
         )
     )
     args: dict = field(default_factory=dict)
-    app: FastAPI = field(default_factory=FastAPI)
+    app: FastAPI = field(default=None)
     is_running: Synchronized[bool] = field(default=None)
     is_running_lock: object = field(default=None)  # multiprocessing.Lock
     web_api_queue: Queue = field(default=None)
@@ -145,6 +146,31 @@ class WebAPI:
 
     def __post_init__(self) -> None:
         """Initialize routes and events."""
+        # Initialize FastAPI app with root_path if base_url is provided
+        base_url = self.args.get("base_url", "")
+        if base_url and not base_url.startswith("/"):
+            base_url = "/" + base_url
+
+        # Create lifespan context manager for startup/shutdown events
+        @asynccontextmanager
+        async def lifespan(app: FastAPI):
+            """Handle application startup and shutdown events."""
+            # Startup: Start background task for queue processing
+            app.state.web_api = self
+            app.state.background_task = asyncio.create_task(process_queue_periodically(self))
+            yield
+            # Shutdown: Clean up background task
+            if hasattr(app.state, "background_task"):
+                app.state.background_task.cancel()
+                try:
+                    await app.state.background_task
+                except asyncio.CancelledError:
+                    pass
+
+        # Create app with lifespan context manager
+        app = FastAPI(lifespan=lifespan)
+        object.__setattr__(self, "app", app)
+
         # Initialize paths during startup
         object.__setattr__(self, "config_path", Path(self.default_dir))
         object.__setattr__(self, "logs_path", Path(self.default_dir) / "logs")
@@ -176,37 +202,52 @@ class WebAPI:
         self.app.get("/api/log_files")(self.list_log_files)
         self.app.get("/api/version")(self.get_version)
         self.app.get("/api/health")(self.health_check)
+        self.app.get("/api/get_base_url")(self.get_base_url)
+
+        # Mount static files for web UI
+        web_ui_dir = Path(__file__).parent.parent / "web-ui"
+        if web_ui_dir.exists():
+            self.app.mount("/static", StaticFiles(directory=str(web_ui_dir)), name="static")
+            # If base URL is configured, also mount static files at the base URL path
+            if base_url:
+                self.app.mount(base_url + "/static", StaticFiles(directory=str(web_ui_dir)), name="base_static")
 
         # Root route to serve web UI
         @self.app.get("/")
         async def serve_index():
+            # If base URL is configured, redirect to the base URL path
+            if base_url:
+                from fastapi.responses import RedirectResponse
+
+                return RedirectResponse(url=base_url + "/", status_code=302)
+
+            # Otherwise, serve the web UI normally
             web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
             if web_ui_path.exists():
                 return FileResponse(str(web_ui_path))
             raise HTTPException(status_code=404, detail="Web UI not found")
 
-        # Mount static files for web UI
-        web_ui_dir = Path(__file__).parent.parent / "web-ui"
-        if web_ui_dir.exists():
-            self.app.mount("/", StaticFiles(directory=str(web_ui_dir), html=True), name="web-ui")
+        # If base URL is configured, also handle the base URL path
+        if base_url:
 
-        # Store reference to self in app state for access in event handlers
-        self.app.state.web_api = self
+            @self.app.get(base_url + "/")
+            async def serve_base_url_index():
+                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                if web_ui_path.exists():
+                    return FileResponse(str(web_ui_path))
+                raise HTTPException(status_code=404, detail="Web UI not found")
 
-        @self.app.on_event("startup")
-        async def startup_event():
-            """Start background task for queue processing."""
-            self.app.state.background_task = asyncio.create_task(process_queue_periodically(self.app.state.web_api))
+        # Catch-all route for SPA routing (must be last)
+        @self.app.get("/{full_path:path}")
+        async def catch_all(full_path: str):
+            # For any non-API route that doesn't start with static/, serve the index.html (SPA routing)
+            if not full_path.startswith("api/") and not full_path.startswith("static/"):
+                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                if web_ui_path.exists():
+                    return FileResponse(str(web_ui_path))
+            raise HTTPException(status_code=404, detail="Not found")
 
-        @self.app.on_event("shutdown")
-        async def shutdown_event():
-            """Clean up background task."""
-            if hasattr(self.app.state, "background_task"):
-                self.app.state.background_task.cancel()
-                try:
-                    await self.app.state.background_task
-                except asyncio.CancelledError:
-                    pass
+        # Note: Lifespan events are now handled in the lifespan context manager above
 
     async def execute_for_config(self, args: dict, hashes: list[str]) -> dict:
         """Execute commands for a specific config file."""
@@ -391,6 +432,10 @@ class WebAPI:
                 "error": str(e),
                 "issues": ["Health check failed"],
             }
+
+    async def get_base_url(self) -> dict:
+        """Get the configured base URL for the web UI."""
+        return {"baseUrl": self.args.get("base_url", "")}
 
     async def _execute_command(self, request: CommandRequest) -> dict:
         """Execute the actual command implementation."""

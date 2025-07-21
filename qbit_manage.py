@@ -46,7 +46,7 @@ parser.add_argument(
     dest="web_server",
     action="store_true",
     default=False,
-    help="Start a web server to handle command requests via HTTP API.",
+    help="Start the webUI server to handle command requests via HTTP API.",
 )
 parser.add_argument(
     "-p",
@@ -55,6 +55,14 @@ parser.add_argument(
     type=int,
     default=8080,
     help="Port number for the web server (default: 8080).",
+)
+parser.add_argument(
+    "-b",
+    "--base-url",
+    dest="base_url",
+    type=str,
+    default="",
+    help="Base URL path for the web UI (e.g., '/qbit-manage'). Default is empty (root).",
 )
 parser.add_argument("-db", "--debug", dest="debug", help=argparse.SUPPRESS, action="store_true", default=False)
 parser.add_argument("-tr", "--trace", dest="trace", help=argparse.SUPPRESS, action="store_true", default=False)
@@ -283,6 +291,7 @@ env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
 port = get_arg("QBT_PORT", args.port, arg_int=True)
+base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
@@ -347,6 +356,9 @@ for v in [
     "screen_width",
     "debug",
     "trace",
+    "web_server",
+    "port",
+    "base_url",
 ]:
     args[v] = eval(v)
 
@@ -635,7 +647,11 @@ if __name__ == "__main__":
         if web_server:
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
-            logger.info(f"Access the WebUI at http://localhost:{port}")
+            if base_url:
+                logger.info(f"Access the WebUI at http://localhost:{port}/{base_url.lstrip('/')}")
+                logger.info(f"Root path http://localhost:{port}/ will redirect to the WebUI")
+            else:
+                logger.info(f"Access the WebUI at http://localhost:{port}")
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()

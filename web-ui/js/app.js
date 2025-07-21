@@ -41,6 +41,9 @@ class QbitManageApp {
             // Initialize modal system
             initModal();
 
+            // Fetch app configuration including base URL
+            await this.fetchAppConfig();
+
             // Initialize components
             this.initComponents();
 
@@ -77,6 +80,32 @@ class QbitManageApp {
         } catch (error) {
             console.error('Failed to initialize application:', error);
             showToast('Failed to initialize application', 'error');
+        }
+    }
+
+    async fetchAppConfig() {
+        try {
+            // Construct the API URL based on current location
+            const currentPath = window.location.pathname;
+            let basePath = currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath;
+            if (basePath === '') basePath = '';
+
+            const configUrl = basePath + '/api/get_base_url';
+
+            const response = await fetch(configUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const config = await response.json();
+
+            // Update the API instance with the base URL
+            if (config.baseUrl) {
+                const baseUrl = config.baseUrl.startsWith('/') ? config.baseUrl : '/' + config.baseUrl;
+                this.api.setBaseUrl(baseUrl);
+            }
+        } catch (error) {
+            console.error('Failed to fetch app configuration:', error);
+            // Continue with default configuration
         }
     }
 
@@ -276,6 +305,13 @@ class QbitManageApp {
 
             // Clear existing options
             configSelect.innerHTML = '';
+
+            // Check if response is valid and has configs
+            if (!response || !response.configs) {
+                console.error('Invalid response from listConfigs:', response);
+                configSelect.innerHTML = '<option value="">Error loading configurations</option>';
+                return;
+            }
 
             if (response.configs.length === 0) {
                 configSelect.innerHTML = '<option value="">No configurations found</option>';

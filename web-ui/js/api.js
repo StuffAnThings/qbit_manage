@@ -14,6 +14,13 @@ class API {
     }
 
     /**
+     * Set the base URL for API requests
+     */
+    setBaseUrl(baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    /**
      * Make HTTP request with error handling
      */
     async request(endpoint, options = {}) {
@@ -59,14 +66,18 @@ class API {
      * GET request
      */
     async get(endpoint, params = {}) {
-        const url = new URL(`${this.baseUrl}/api${endpoint}`, window.location.origin);
+        // Build query string if params exist
+        const queryParams = new URLSearchParams();
         Object.keys(params).forEach(key => {
             if (params[key] !== undefined && params[key] !== null) {
-                url.searchParams.append(key, params[key]);
+                queryParams.append(key, params[key]);
             }
         });
 
-        return this.request(endpoint + (url.search || ''), { method: 'GET' });
+        const queryString = queryParams.toString();
+        const fullEndpoint = endpoint + (queryString ? `?${queryString}` : '');
+
+        return this.request(fullEndpoint, { method: 'GET' });
     }
 
     /**

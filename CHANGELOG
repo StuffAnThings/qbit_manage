@@ -1,17 +1,22 @@
 # Requirements Updated
-- fastapi==0.116.0
-- retrying==1.4.0
-- uvicorn==0.35.0
+- qbittorrent-api==2025.7.0
+- fastapi==0.116.1
+
 
 # New Features
-- **Web UI**: Introduced a new Web UI for configuring and managing qBit Manage.
-  - Visual Configuration Editor for YAML files.
-  - Command Execution directly from the UI.
-  - Undo/Redo History for changes.
-  - Theme Support (light/dark mode).
-  - Responsive Design for desktop and mobile.
-  - Real-time YAML Preview.
-- Pass skip qbitorrent check as optional parameter to the API (Adds #860)\
+- **Uncategorized Category**: Allow multiple paths for Uncategorized category and add error handling (Thanks to @cat-of-wisdom #849)
+- **Config Auto Backup and Cleanup**: implement automatic backup rotation (30 most recent backups per config) and cleanup
+- **Web UI**: add base URL support for reverse proxy deployments (Fixes #871)
+- **Share Limits**: add option to preserve upload speed limits when minimums unmet (New config option `reset_upload_speed_on_unmet_minimums`) (Fixes #835, #791)
 
+# Improvements
+- Optimize webUI form rendering
+- Better centralized error handling for qbitorrent API operations
+- **Web UI**: add editable group names to share limit modal
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.4.0...v4.5.0
+# Bug Fixes
+- Fix bug in remove orphaned to notify when there are 0 orphaned files
+- Fixes [Bug]: Cannot run on Python 3.9.18 #864
+- fix(qbit): add error handling for qBittorrent API operations
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.0...v4.5.1

@@ -139,6 +139,9 @@ class Config:
         logger.debug(f"    --width (QBT_WIDTH): {self.args['screen_width']}")
         logger.debug(f"    --debug (QBT_DEBUG): {self.args['debug']}")
         logger.debug(f"    --trace (QBT_TRACE): {self.args['trace']}")
+        logger.debug(f"    --web-server (QBT_WEB_SERVER): {self.args['web_server']}")
+        logger.debug(f"    --port (QBT_PORT): {self.args['port']}")
+        logger.debug(f"    --base-url (QBT_BASE_URL): {self.args['base_url']}")
 
         # Log run commands (which may come from config or env)
         logger.separator(command_source, space=False, border=False, loglevel="DEBUG")
@@ -745,6 +748,16 @@ class Config:
                         )
                         self.notify(err, "Config")
                         raise Failed(err)
+                self.share_limits[group]["reset_upload_speed_on_unmet_minimums"] = self.util.check_for_attribute(
+                    self.data,
+                    "reset_upload_speed_on_unmet_minimums",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=True,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["torrents"] = []
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0

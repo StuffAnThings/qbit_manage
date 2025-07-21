@@ -302,6 +302,7 @@ class ShareLimits:
                 min_last_active=group_config["min_last_active"],
                 resume_torrent=group_config["resume_torrent_after_change"],
                 tracker=tracker["url"],
+                reset_upload_speed_on_unmet_minimums=group_config["reset_upload_speed_on_unmet_minimums"],
             )
             # Get updated torrent after checking if the torrent has reached seed limits
             torrent = self.qbt.get_torrents({"torrent_hashes": t_hash})[0]
@@ -476,6 +477,7 @@ class ShareLimits:
         min_last_active,
         resume_torrent,
         tracker,
+        reset_upload_speed_on_unmet_minimums,
     ):
         """Check if torrent has reached seed limit"""
         body = ""
@@ -513,7 +515,8 @@ class ShareLimits:
                         torrent.add_tags(self.min_seeding_time_tag)
                         torrent_tags += f", {self.min_seeding_time_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
-                        torrent.set_upload_limit(-1)
+                        if reset_upload_speed_on_unmet_minimums:
+                            torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return False
@@ -546,7 +549,8 @@ class ShareLimits:
                         torrent.add_tags(self.min_num_seeds_tag)
                         torrent_tags += f", {self.min_num_seeds_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
-                        torrent.set_upload_limit(-1)
+                        if reset_upload_speed_on_unmet_minimums:
+                            torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return True
@@ -581,7 +585,8 @@ class ShareLimits:
                         torrent.add_tags(self.last_active_tag)
                         torrent_tags += f", {self.last_active_tag}"
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
-                        torrent.set_upload_limit(-1)
+                        if reset_upload_speed_on_unmet_minimums:
+                            torrent.set_upload_limit(-1)
                         if resume_torrent:
                             torrent.resume()
             return False
