@@ -25,7 +25,7 @@ dependencies = [
     "pytimeparse2==1.7.1",
     "qbittorrent-api==2025.7.0",
     "requests==2.32.4",
-    "retrying==1.4.0",
+    "retrying==1.4.1",
     "ruamel.yaml==0.18.14",
     "schedule==1.2.2",
     "uvicorn==0.35.0",
