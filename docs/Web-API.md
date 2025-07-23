@@ -103,6 +103,7 @@ The following commands can be included in the `commands` array of the API reques
 | `rem_orphaned`      | Remove orphaned files from root directory                        | No              |
 | `tag_nohardlinks`   | Tag torrents with no hard links                                  | Yes             |
 | `share_limits`      | Apply share limits based on tags/categories                      | Yes             |
+| `ban_peers`         | Ban specified peers (format: host:port or multiple separated by |)     | No              |
 
 Example using multiple commands:
 
@@ -111,6 +112,38 @@ Example using multiple commands:
   "config_file": "config.yml",
   "commands": ["cat_update", "tag_update", "share_limits"],
   "dry_run": true
+}
+```
+
+## POST /api/ban-peers
+
+Ban one or more peers from qBittorrent.
+
+#### Request Body
+
+```json
+{
+  "peers": "192.168.1.100:6881|192.168.1.101:6882" // Required, peer addresses in 'host:port' format, multiple separated by '|'
+}
+```
+
+#### Response
+
+Success:
+
+```json
+{
+  "status": "success",
+  "message": "Successfully banned 2 peer(s)",
+  "banned_peers": 2
+}
+```
+
+Error:
+
+```json
+{
+  "detail": "Error message"
 }
 ```
 
