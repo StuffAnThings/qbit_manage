@@ -48,6 +48,12 @@ class CommandRequest(BaseModel):
     log_level: Optional[str] = None  # noqa: UP045
 
 
+class BanPeersRequest(BaseModel):
+    """Ban peers request model."""
+
+    peers: str  # Peer addresses in 'host:port' format, multiple peers separated by '|'
+
+
 class ConfigRequest(BaseModel):
     """Configuration request model."""
 
@@ -187,6 +193,7 @@ class WebAPI:
 
         # Initialize routes
         self.app.post("/api/run-command")(self.run_command)
+        self.app.post("/api/ban-peers")(self.ban_peers)
 
         # Configuration management routes
         self.app.get("/api/configs")(self.list_configs)
@@ -480,6 +487,7 @@ class WebAPI:
                 "rem_orphaned",
                 "tag_nohardlinks",
                 "share_limits",
+                "ban_peers",
                 "skip_cleanup",
                 "skip_qb_version_check",
             ]
@@ -836,6 +844,66 @@ class WebAPI:
                 self.is_running.value = False
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def ban_peers(self, request: BanPeersRequest) -> dict:
+        """Handle ban peers requests."""
+        try:
+            logger.separator("Ban Peers API Request")
+            logger.info(f"Peers to ban: {request.peers}")
+
+            # Create a minimal command request with ban_peers enabled
+            ban_command = {
+                "ban_peers": True,
+                "peers": request.peers,
+                "dry_run": False,
+                "skip_cleanup": True,
+                "skip_qb_version_check": False,
+            }
+
+            now = datetime.now()
+            args = self.args.copy()
+            args.update({
+                "_from_web_api": True,
+                "config_file": "config.yml",  # Use default config
+                "time": now.strftime("%H:%M"),
+                "time_obj": now,
+                "run": True,
+            })
+
+            try:
+                cfg = Config(self.default_dir, args)
+                qbit_manager = cfg.qbt
+                
+                if not qbit_manager:
+                    raise HTTPException(status_code=500, detail="Failed to initialize qBittorrent manager")
+
+                stats = {
+                    "executed_commands": [],
+                    "banned_peers": 0,
+                }
+
+                # Execute ban peers command using shared function
+                from modules.util import execute_qbit_commands
+                execute_qbit_commands(qbit_manager, ban_command, stats)
+
+                logger.info("Ban Peers API request completed successfully")
+                return {
+                    "status": "success", 
+                    "message": f"Successfully banned {stats['banned_peers']} peer(s)",
+                    "banned_peers": stats["banned_peers"]
+                }
+
+            except Exception as e:
+                logger.stacktrace()
+                logger.error(f"Error in ban_peers: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.stacktrace()
+            logger.error(f"Error handling ban_peers request: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:  # noqa: UP045

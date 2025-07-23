@@ -28,6 +28,7 @@ COMMANDS = [
     "rem_orphaned",
     "tag_nohardlinks",
     "share_limits",
+    "ban_peers",
     "skip_cleanup",
     "skip_qb_version_check",
     "dry_run",

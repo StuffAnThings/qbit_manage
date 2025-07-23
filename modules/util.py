@@ -102,6 +102,8 @@ def format_stats_summary(stats: dict, config) -> list[str]:
                 display_key = "Share Limits Updated"
             elif stat_key == "cleaned_share_limits":
                 display_key = "Torrents Removed from Meeting Share Limits"
+            elif stat_key == "banned_peers":
+                display_key = "Peers Banned"
             elif stat_key == "recycle_emptied":
                 display_key = "Files Deleted from Recycle Bin"
             elif stat_key == "orphaned_emptied":
@@ -1090,6 +1092,7 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
         None (modifies stats dictionary in place)
     """
     # Import here to avoid circular imports
+    from modules.core.ban_peers import BanPeers
     from modules.core.category import Category
     from modules.core.recheck import ReCheck
     from modules.core.remove_orphaned import RemoveOrphaned
@@ -1235,3 +1238,23 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
             stats["executed_commands"].append("share_limits")
         else:
             logger.warning("Share Limits operation skipped due to API errors")
+
+    # Ban Peers
+    if commands.get("ban_peers"):
+        # Get peers parameter from commands dict or hashes if provided via API
+        peers_to_ban = commands.get("peers", None)
+        
+        if peers_to_ban:
+            ban_peers = safe_execute_with_qbit_error_handling(
+                lambda: BanPeers(qbit_manager, peers_to_ban), "Ban Peers"
+            )
+            
+            if ban_peers is not None:
+                if "banned_peers" not in stats:
+                    stats["banned_peers"] = 0
+                stats["banned_peers"] += ban_peers.stats
+                stats["executed_commands"].append("ban_peers")
+            else:
+                logger.warning("Ban Peers operation skipped due to API errors")
+        else:
+            logger.warning("Ban Peers operation skipped: no peers specified")
