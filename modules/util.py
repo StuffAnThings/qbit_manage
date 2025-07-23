@@ -1243,12 +1243,10 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     if commands.get("ban_peers"):
         # Get peers parameter from commands dict or hashes if provided via API
         peers_to_ban = commands.get("peers", None)
-        
+
         if peers_to_ban:
-            ban_peers = safe_execute_with_qbit_error_handling(
-                lambda: BanPeers(qbit_manager, peers_to_ban), "Ban Peers"
-            )
-            
+            ban_peers = safe_execute_with_qbit_error_handling(lambda: BanPeers(qbit_manager, peers_to_ban), "Ban Peers")
+
             if ban_peers is not None:
                 if "banned_peers" not in stats:
                     stats["banned_peers"] = 0

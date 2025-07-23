@@ -863,18 +863,20 @@ class WebAPI:
 
             now = datetime.now()
             args = self.args.copy()
-            args.update({
-                "_from_web_api": True,
-                "config_file": "config.yml",  # Use default config
-                "time": now.strftime("%H:%M"),
-                "time_obj": now,
-                "run": True,
-            })
+            args.update(
+                {
+                    "_from_web_api": True,
+                    "config_file": "config.yml",  # Use default config
+                    "time": now.strftime("%H:%M"),
+                    "time_obj": now,
+                    "run": True,
+                }
+            )
 
             try:
                 cfg = Config(self.default_dir, args)
                 qbit_manager = cfg.qbt
-                
+
                 if not qbit_manager:
                     raise HTTPException(status_code=500, detail="Failed to initialize qBittorrent manager")
 
@@ -885,13 +887,14 @@ class WebAPI:
 
                 # Execute ban peers command using shared function
                 from modules.util import execute_qbit_commands
+
                 execute_qbit_commands(qbit_manager, ban_command, stats)
 
                 logger.info("Ban Peers API request completed successfully")
                 return {
-                    "status": "success", 
+                    "status": "success",
                     "message": f"Successfully banned {stats['banned_peers']} peer(s)",
-                    "banned_peers": stats["banned_peers"]
+                    "banned_peers": stats["banned_peers"],
                 }
 
             except Exception as e:
