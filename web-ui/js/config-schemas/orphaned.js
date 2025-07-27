@@ -23,6 +23,14 @@ export const orphanedSchema = {
             description: 'The maximum number of orphaned files to delete in a single run. This is a safeguard to prevent accidental mass deletions. Set to -1 to disable.',
             default: 50,
             min: -1
+        },
+        {
+            name: 'min_file_age_minutes',
+            type: 'number',
+            label: 'Minimum File Age (Minutes)',
+            description: 'Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion to prevent removal of actively uploading files. Set to 0 to disable age protection.',
+            default: 30,
+            min: 0
         }
     ]
 };
