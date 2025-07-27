@@ -918,9 +918,9 @@ class Config:
             default=50,
             min_int=-1,
         )
-        self.orphaned["min_torrent_age_minutes"] = self.util.check_for_attribute(
+        self.orphaned["min_file_age_minutes"] = self.util.check_for_attribute(
             self.data,
-            "min_torrent_age_minutes",
+            "min_file_age_minutes",
             parent="orphaned",
             var_type="int",
             default=30,
