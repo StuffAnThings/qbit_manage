@@ -797,16 +797,22 @@ class WebAPI:
             if self.is_running_lock.acquire(timeout=0.1):
                 try:
                     if self.is_running.value:
-                        logger.info("Another run is in progress. Queuing web API request...")
-                        self.web_api_queue.put(request)
-                        return {
-                            "status": "queued",
-                            "message": "Another run is in progress. Request queued.",
-                            "config_file": request.config_file,
-                            "commands": request.commands,
-                        }
+                        # Check if the process has been stuck for too long
+                        if hasattr(self, "_last_run_start") and (datetime.now() - self._last_run_start).total_seconds() > 3600:
+                            logger.warning("Previous run appears to be stuck. Forcing reset of is_running flag.")
+                            self.is_running.value = False
+                        else:
+                            logger.info("Another run is in progress. Queuing web API request...")
+                            self.web_api_queue.put(request)
+                            return {
+                                "status": "queued",
+                                "message": "Another run is in progress. Request queued.",
+                                "config_file": request.config_file,
+                                "commands": request.commands,
+                            }
                     # Atomic operation: set flag to True
                     self.is_running.value = True
+                    self._last_run_start = datetime.now()  # Track when this run started
                 finally:
                     # Release lock immediately after atomic operation
                     self.is_running_lock.release()
@@ -832,7 +838,11 @@ class WebAPI:
 
         # Execute the command outside the lock
         try:
-            return await self._execute_command(request)
+            result = await self._execute_command(request)
+            # Ensure is_running is reset after successful execution
+            with self.is_running_lock:
+                self.is_running.value = False
+            return result
         except HTTPException as e:
             # Ensure is_running is reset if an HTTPException occurs
             with self.is_running_lock:
