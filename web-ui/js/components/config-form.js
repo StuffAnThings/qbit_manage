@@ -1160,7 +1160,8 @@ class ConfigForm {
                 } else if (typeof processedData === 'object' && processedData !== null) {
                     // Handle object format: ensure all entries have proper structure
                     Object.entries(processedData).forEach(([categoryName, categoryProps]) => {
-                        if (categoryProps === null || categoryProps === undefined) {
+                        // Handle cases where category props are null, undefined, or an empty object
+                        if (categoryProps === null || categoryProps === undefined || (typeof categoryProps === 'object' && Object.keys(categoryProps).length === 0)) {
                             processedData[categoryName] = {
                                 exclude_tags: [],
                                 ignore_root_dir: true
