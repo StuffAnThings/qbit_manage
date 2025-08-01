@@ -123,3 +123,19 @@ python scripts/update-readme-version.py <branch_name>
 **Configuration:**
 - `versions_file_path`: Path to the `SUPPORTED_VERSIONS.json` file (default: `"SUPPORTED_VERSIONS.json"`).
 - The script automatically extracts the `qbittorrent-api` version from `pyproject.toml`.
+
+### [`ban_peers.py`](scripts/ban_peers.py)
+This script bans one or more peers from qBittorrent using the provided peer addresses in 'host:port' format or multiple separated by '|'.
+
+**Usage:**
+```bash
+python scripts/ban_peers.py --peers "127.0.0.1:8080|example.com:80" [options]
+```
+
+**Arguments:**
+- `--host`: qBittorrent host (default: "localhost").
+- `--port`: qBittorrent port (default: 8080).
+- `--user`: Username.
+- `--pass`: Password.
+- `--peers`: Peers to ban, separated by '|' (required).
+- `--dry-run`: Dry run mode without banning.
