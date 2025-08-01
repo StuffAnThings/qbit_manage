@@ -923,7 +923,7 @@ class Config:
             "min_file_age_minutes",
             parent="orphaned",
             var_type="int",
-            default=30,
+            default=0,
             min_int=0,
         )
         if self.commands["rem_orphaned"]:

@@ -29,7 +29,7 @@ export const orphanedSchema = {
             type: 'number',
             label: 'Minimum File Age (Minutes)',
             description: 'Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion to prevent removal of actively uploading files. Set to 0 to disable age protection.',
-            default: 30,
+            default: 0,
             min: 0
         }
     ]
