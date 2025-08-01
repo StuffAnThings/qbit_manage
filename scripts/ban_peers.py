@@ -2,16 +2,18 @@ import argparse
 import logging
 import re
 import sys
+
 from qbittorrentapi import Client
 from qbittorrentapi.exceptions import APIError
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 
 def validate_peers(peers_str):
     if not isinstance(peers_str, str):
         raise ValueError("Peers must be a string")
-    peer_addresses = [peer.strip() for peer in peers_str.split('|') if peer.strip()]
+    peer_addresses = [peer.strip() for peer in peers_str.split("|") if peer.strip()]
     valid_peers = []
     peer_pattern = re.compile(
         r"^(?:"
@@ -23,7 +25,7 @@ def validate_peers(peers_str):
     for peer in peer_addresses:
         if peer_pattern.match(peer):
             try:
-                port = int(peer.split(':')[-1])
+                port = int(peer.split(":")[-1])
                 if 1 <= port <= 65535:
                     valid_peers.append(peer)
                 else:
@@ -33,6 +35,7 @@ def validate_peers(peers_str):
         else:
             logger.warning(f"Invalid peer format: {peer}")
     return valid_peers
+
 
 def ban_peers(client, peer_list, dry_run):
     if not peer_list:
@@ -44,13 +47,14 @@ def ban_peers(client, peer_list, dry_run):
             logger.info(f"[DRY-RUN] - {peer}")
         return len(peer_list)
     try:
-        peers_string = '|'.join(peer_list)
+        peers_string = "|".join(peer_list)
         client.transfer.ban_peers(peers=peers_string)
         logger.info(f"Successfully banned {len(peer_list)} peer(s)")
         return len(peer_list)
     except APIError as e:
         logger.error(f"Error banning peers: {str(e)}")
         return 0
+
 
 def main():
     parser = argparse.ArgumentParser(description="Ban peers in qBittorrent.")
@@ -76,5 +80,6 @@ def main():
     stats = ban_peers(client, valid_peers, args.dry_run)
     logger.info(f"Banned {stats} peers")
 
+
 if __name__ == "__main__":
-    main() 
+    main()
