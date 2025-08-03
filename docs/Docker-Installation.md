@@ -57,9 +57,15 @@ services:
       - QBT_SHARE_LIMITS=false
       - QBT_SKIP_CLEANUP=false
       - QBT_DRY_RUN=false
+      - QBT_STARTUP_DELAY=0
+      - QBT_SKIP_QB_VERSION_CHECK=false
+      - QBT_DEBUG=false
+      - QBT_TRACE=false
 
       # Logging Configuration
       - QBT_LOG_LEVEL=INFO
+      - QBT_LOG_SIZE=10
+      - QBT_LOG_COUNT=5
       - QBT_DIVIDER==
       - QBT_WIDTH=100
     restart: on-failure:2

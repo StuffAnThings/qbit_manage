@@ -13,7 +13,7 @@ class LogViewer {
         this.autoRefreshInterval = parseInt(localStorage.getItem('qbm-log-refresh-interval') || '0'); // Default to 0 (no auto-refresh)
         this.autoRefreshTimer = null;
         this.currentLogFile = localStorage.getItem('qbm-selected-log-file') || 'qbit_manage.log'; // Default log file
-        this.currentLogLimit = parseInt(localStorage.getItem('qbm-log-limit') || '0'); // Default to 0 (all logs)
+        this.currentLogLimit = parseInt(localStorage.getItem('qbm-log-limit') || '50'); // Default to 50 lines
 
         this.api = new API();
         this.logs = [];
@@ -161,7 +161,8 @@ class LogViewer {
         });
 
         if (logLimitSelect) {
-            logLimitSelect.value = this.currentLogLimit; // Set initial value
+            // Always set the dropdown value to match currentLogLimit
+            logLimitSelect.value = this.currentLogLimit;
             logLimitSelect.addEventListener('change', (e) => {
                 this.currentLogLimit = parseInt(e.target.value);
                 localStorage.setItem('qbm-log-limit', this.currentLogLimit);

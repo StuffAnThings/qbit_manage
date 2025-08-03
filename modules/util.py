@@ -659,43 +659,66 @@ def copy_files(src, dest):
 
 
 def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patterns=[]):
-    """Remove empty directories recursively, optimized version."""
+    """Remove empty directories recursively with optimized performance."""
     pathlib_root_dir = Path(pathlib_root_dir)
+
+    # Early return for non-existent paths
+    if not pathlib_root_dir.exists():
+        return
+
+    # Optimize excluded paths handling
+    excluded_paths_set = set()
     if excluded_paths is not None:
-        # Ensure excluded_paths is a set of Path objects for efficient lookup
-        excluded_paths = {Path(p) for p in excluded_paths}
+        excluded_paths_set = {Path(p).resolve() for p in excluded_paths}
 
+    # Pre-compile exclude patterns for better performance
+    compiled_patterns = []
+    for pattern in exclude_patterns:
+        # Convert to regex for faster matching
+        import re
+
+        regex_pattern = fnmatch.translate(pattern)
+        compiled_patterns.append(re.compile(regex_pattern))
+
+    # Cache directory checks to avoid redundant operations
+    directories_to_check = []
+
+    # Collect all directories in single pass
     for root, dirs, files in os.walk(pathlib_root_dir, topdown=False):
-        root_path = Path(root)
-        # Skip excluded paths
-        if excluded_paths and root_path in excluded_paths:
+        root_path = Path(root).resolve()
+
+        # Skip excluded paths efficiently
+        if excluded_paths_set and root_path in excluded_paths_set:
             continue
 
-        exclude_pattern_match = False
-        for exclude_pattern in exclude_patterns:
-            if fnmatch(os.path.join(root, ""), exclude_pattern):
-                exclude_pattern_match = True
-                break
-        if exclude_pattern_match:
-            continue
+        # Check exclude patterns efficiently
+        if compiled_patterns:
+            root_str = str(root_path) + os.sep
+            if any(pattern.match(root_str) for pattern in compiled_patterns):
+                continue
 
-        # Attempt to remove the directory if it's empty
+        # Only add directories that might be empty (no files)
+        if not files:
+            directories_to_check.append(root_path)
+
+    # Remove empty directories in batch
+    removed_dirs = set()
+    for dir_path in directories_to_check:
         try:
-            os.rmdir(root)
+            os.rmdir(dir_path)
+            removed_dirs.add(dir_path)
         except PermissionError as perm:
-            logger.warning(f"{perm} : Unable to delete folder {root} as it has permission issues. Skipping...")
-            pass
+            logger.warning(f"{perm} : Unable to delete folder {dir_path} as it has permission issues. Skipping...")
         except OSError:
-            # Directory not empty or other error - safe to ignore here
+            # Directory not empty - expected
             pass
 
-    # Attempt to remove the root directory if it's now empty and not excluded
-    if not excluded_paths or pathlib_root_dir not in excluded_paths:
+    # Attempt root directory removal if it's now empty
+    if not excluded_paths_set or pathlib_root_dir.resolve() not in excluded_paths_set:
         try:
             pathlib_root_dir.rmdir()
         except PermissionError as perm:
-            logger.warning(f"{perm} :  Unable to delete folder {root} as it has permission issues. Skipping...")
-            pass
+            logger.warning(f"{perm} : Unable to delete root folder {pathlib_root_dir} as it has permission issues. Skipping...")
         except OSError:
             pass
 
@@ -850,15 +873,41 @@ class CheckHardLinks:
 
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
-    local_exclude_dir = exclude_dir.replace(remote_dir, root_dir) if exclude_dir and remote_dir != root_dir else exclude_dir
-    # if not root_dir:
-    #     return []
-    root_files = [
-        os.path.join(path.replace(remote_dir, root_dir) if remote_dir != root_dir else path, name)
-        for path, subdirs, files in os.walk(remote_dir if remote_dir != root_dir else root_dir)
-        for name in files
-        if not local_exclude_dir or local_exclude_dir not in path
-    ]
+    """Get all files in root directory with optimized path handling and filtering."""
+    if not root_dir or not os.path.exists(root_dir):
+        return []
+
+    # Pre-calculate path transformations
+    is_same_path = remote_dir == root_dir
+    local_exclude_dir = None
+
+    if exclude_dir and not is_same_path:
+        local_exclude_dir = exclude_dir.replace(remote_dir, root_dir)
+
+    # Use list comprehension with pre-filtered results
+    root_files = []
+
+    # Optimize path replacement
+    if is_same_path:
+        # Fast path when paths are the same
+        for path, subdirs, files in os.walk(root_dir):
+            if local_exclude_dir and local_exclude_dir in path:
+                continue
+            root_files.extend(os.path.join(path, name) for name in files)
+    else:
+        # Path replacement needed
+        path_replacements = {}
+        for path, subdirs, files in os.walk(remote_dir):
+            if local_exclude_dir and local_exclude_dir in path:
+                continue
+
+            # Cache path replacement
+            if path not in path_replacements:
+                path_replacements[path] = path.replace(remote_dir, root_dir)
+
+            replaced_path = path_replacements[path]
+            root_files.extend(os.path.join(replaced_path, name) for name in files)
+
     return root_files
 
 
@@ -1072,6 +1121,7 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     from modules.core.share_limits import ShareLimits
     from modules.core.tag_nohardlinks import TagNoHardLinks
     from modules.core.tags import Tags
+    from modules.qbit_error_handler import safe_execute_with_qbit_error_handling
 
     # Initialize executed_commands list
     if "executed_commands" not in stats:
@@ -1080,99 +1130,132 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     # Set Category
     if commands.get("cat_update"):
         if hashes is not None:
-            result = Category(qbit_manager, hashes).stats
+            result = safe_execute_with_qbit_error_handling(
+                lambda: Category(qbit_manager, hashes).stats, "Category Update (with hashes)"
+            )
         else:
-            result = Category(qbit_manager).stats
+            result = safe_execute_with_qbit_error_handling(lambda: Category(qbit_manager).stats, "Category Update")
 
-        if "categorized" not in stats:
-            stats["categorized"] = 0
-        stats["categorized"] += result
-        stats["executed_commands"].append("cat_update")
+        if result is not None:
+            if "categorized" not in stats:
+                stats["categorized"] = 0
+            stats["categorized"] += result
+            stats["executed_commands"].append("cat_update")
+        else:
+            logger.warning("Category Update operation skipped due to API errors")
 
     # Set Tags
     if commands.get("tag_update"):
         if hashes is not None:
-            result = Tags(qbit_manager, hashes).stats
+            result = safe_execute_with_qbit_error_handling(lambda: Tags(qbit_manager, hashes).stats, "Tags Update (with hashes)")
         else:
-            result = Tags(qbit_manager).stats
+            result = safe_execute_with_qbit_error_handling(lambda: Tags(qbit_manager).stats, "Tags Update")
 
-        stats["tagged"] += result
-        stats["executed_commands"].append("tag_update")
+        if result is not None:
+            stats["tagged"] += result
+            stats["executed_commands"].append("tag_update")
+        else:
+            logger.warning("Tags Update operation skipped due to API errors")
 
     # Remove Unregistered Torrents and tag errors
     if commands.get("rem_unregistered") or commands.get("tag_tracker_error"):
         if hashes is not None:
-            rem_unreg = RemoveUnregistered(qbit_manager, hashes)
+            rem_unreg = safe_execute_with_qbit_error_handling(
+                lambda: RemoveUnregistered(qbit_manager, hashes), "Remove Unregistered Torrents (with hashes)"
+            )
         else:
-            rem_unreg = RemoveUnregistered(qbit_manager)
+            rem_unreg = safe_execute_with_qbit_error_handling(
+                lambda: RemoveUnregistered(qbit_manager), "Remove Unregistered Torrents"
+            )
 
-        # Initialize stats if they don't exist
-        for key in ["rem_unreg", "deleted", "deleted_contents", "tagged_tracker_error", "untagged_tracker_error"]:
-            if key not in stats:
-                stats[key] = 0
+        if rem_unreg is not None:
+            # Initialize stats if they don't exist
+            for key in ["rem_unreg", "deleted", "deleted_contents", "tagged_tracker_error", "untagged_tracker_error"]:
+                if key not in stats:
+                    stats[key] = 0
 
-        stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
-        stats["deleted"] += rem_unreg.stats_deleted
-        stats["deleted_contents"] += rem_unreg.stats_deleted_contents
-        stats["tagged_tracker_error"] += rem_unreg.stats_tagged
-        stats["untagged_tracker_error"] += rem_unreg.stats_untagged
-        stats["tagged"] += rem_unreg.stats_tagged
-        stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
+            stats["rem_unreg"] += rem_unreg.stats_deleted + rem_unreg.stats_deleted_contents
+            stats["deleted"] += rem_unreg.stats_deleted
+            stats["deleted_contents"] += rem_unreg.stats_deleted_contents
+            stats["tagged_tracker_error"] += rem_unreg.stats_tagged
+            stats["untagged_tracker_error"] += rem_unreg.stats_untagged
+            stats["tagged"] += rem_unreg.stats_tagged
+            stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
+        else:
+            logger.warning("Remove Unregistered Torrents operation skipped due to API errors")
 
     # Recheck Torrents
     if commands.get("recheck"):
         if hashes is not None:
-            recheck = ReCheck(qbit_manager, hashes)
+            recheck = safe_execute_with_qbit_error_handling(
+                lambda: ReCheck(qbit_manager, hashes), "Recheck Torrents (with hashes)"
+            )
         else:
-            recheck = ReCheck(qbit_manager)
+            recheck = safe_execute_with_qbit_error_handling(lambda: ReCheck(qbit_manager), "Recheck Torrents")
 
-        if "rechecked" not in stats:
-            stats["rechecked"] = 0
-        if "resumed" not in stats:
-            stats["resumed"] = 0
-        stats["rechecked"] += recheck.stats_rechecked
-        stats["resumed"] += recheck.stats_resumed
-        stats["executed_commands"].append("recheck")
+        if recheck is not None:
+            if "rechecked" not in stats:
+                stats["rechecked"] = 0
+            if "resumed" not in stats:
+                stats["resumed"] = 0
+            stats["rechecked"] += recheck.stats_rechecked
+            stats["resumed"] += recheck.stats_resumed
+            stats["executed_commands"].append("recheck")
+        else:
+            logger.warning("Recheck Torrents operation skipped due to API errors")
 
     # Remove Orphaned Files
     if commands.get("rem_orphaned"):
-        result = RemoveOrphaned(qbit_manager).stats
+        result = safe_execute_with_qbit_error_handling(lambda: RemoveOrphaned(qbit_manager).stats, "Remove Orphaned Files")
 
-        if "orphaned" not in stats:
-            stats["orphaned"] = 0
-        stats["orphaned"] += result
-        stats["executed_commands"].append("rem_orphaned")
+        if result is not None:
+            if "orphaned" not in stats:
+                stats["orphaned"] = 0
+            stats["orphaned"] += result
+            stats["executed_commands"].append("rem_orphaned")
+        else:
+            logger.warning("Remove Orphaned Files operation skipped due to API errors")
 
     # Tag NoHardLinks
     if commands.get("tag_nohardlinks"):
         if hashes is not None:
-            no_hardlinks = TagNoHardLinks(qbit_manager, hashes)
+            no_hardlinks = safe_execute_with_qbit_error_handling(
+                lambda: TagNoHardLinks(qbit_manager, hashes), "Tag NoHardLinks (with hashes)"
+            )
         else:
-            no_hardlinks = TagNoHardLinks(qbit_manager)
+            no_hardlinks = safe_execute_with_qbit_error_handling(lambda: TagNoHardLinks(qbit_manager), "Tag NoHardLinks")
 
-        if "tagged_noHL" not in stats:
-            stats["tagged_noHL"] = 0
-        if "untagged_noHL" not in stats:
-            stats["untagged_noHL"] = 0
-        stats["tagged"] += no_hardlinks.stats_tagged
-        stats["tagged_noHL"] += no_hardlinks.stats_tagged
-        stats["untagged_noHL"] += no_hardlinks.stats_untagged
-        stats["executed_commands"].append("tag_nohardlinks")
+        if no_hardlinks is not None:
+            if "tagged_noHL" not in stats:
+                stats["tagged_noHL"] = 0
+            if "untagged_noHL" not in stats:
+                stats["untagged_noHL"] = 0
+            stats["tagged"] += no_hardlinks.stats_tagged
+            stats["tagged_noHL"] += no_hardlinks.stats_tagged
+            stats["untagged_noHL"] += no_hardlinks.stats_untagged
+            stats["executed_commands"].append("tag_nohardlinks")
+        else:
+            logger.warning("Tag NoHardLinks operation skipped due to API errors")
 
     # Set Share Limits
     if commands.get("share_limits"):
         if hashes is not None:
-            share_limits = ShareLimits(qbit_manager, hashes)
+            share_limits = safe_execute_with_qbit_error_handling(
+                lambda: ShareLimits(qbit_manager, hashes), "Share Limits (with hashes)"
+            )
         else:
-            share_limits = ShareLimits(qbit_manager)
+            share_limits = safe_execute_with_qbit_error_handling(lambda: ShareLimits(qbit_manager), "Share Limits")
 
-        if "updated_share_limits" not in stats:
-            stats["updated_share_limits"] = 0
-        if "cleaned_share_limits" not in stats:
-            stats["cleaned_share_limits"] = 0
-        stats["tagged"] += share_limits.stats_tagged
-        stats["updated_share_limits"] += share_limits.stats_tagged
-        stats["deleted"] += share_limits.stats_deleted
-        stats["deleted_contents"] += share_limits.stats_deleted_contents
-        stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
-        stats["executed_commands"].append("share_limits")
+        if share_limits is not None:
+            if "updated_share_limits" not in stats:
+                stats["updated_share_limits"] = 0
+            if "cleaned_share_limits" not in stats:
+                stats["cleaned_share_limits"] = 0
+            stats["tagged"] += share_limits.stats_tagged
+            stats["updated_share_limits"] += share_limits.stats_tagged
+            stats["deleted"] += share_limits.stats_deleted
+            stats["deleted_contents"] += share_limits.stats_deleted_contents
+            stats["cleaned_share_limits"] += share_limits.stats_deleted + share_limits.stats_deleted_contents
+            stats["executed_commands"].append("share_limits")
+        else:
+            logger.warning("Share Limits operation skipped due to API errors")

@@ -387,8 +387,8 @@ export class ShareLimitsComponent {
                     <div class="floating-label-group">
                         <input type="text" id="group-name-input" class="form-input"
                                placeholder=" " autofocus maxlength="50"
-                               pattern="[a-zA-Z0-9_\\-]+"
-                               title="Only letters, numbers, underscores, and hyphens are allowed">
+                               pattern="[a-zA-Z0-9_\\-\\s]+"
+                               title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
                         <label for="group-name-input" class="floating-label">Enter a unique group name</label>
                     </div>
                     <div class="form-help">
@@ -408,8 +408,8 @@ export class ShareLimitsComponent {
                     const value = input ? input.value.trim() : '';
 
                     // Validate input
-                    if (value && !/^[a-zA-Z0-9_-]+$/.test(value)) {
-                        showToast('Group name can only contain letters, numbers, underscores, and hyphens', 'error');
+                    if (value && !/^[a-zA-Z0-9\s_-]+$/.test(value)) {
+                        showToast('Group name can only contain letters, numbers, spaces, underscores, and hyphens', 'error');
                         resolve(null);
                         return;
                     }
@@ -426,7 +426,7 @@ export class ShareLimitsComponent {
                 if (input) {
                     input.addEventListener('input', (e) => {
                         const value = e.target.value;
-                        const isValid = /^[a-zA-Z0-9_-]*$/.test(value);
+                        const isValid = /^[a-zA-Z0-9\s_-]*$/.test(value);
 
                         if (!isValid && value) {
                             e.target.style.borderColor = 'var(--error)';
@@ -504,10 +504,23 @@ export class ShareLimitsComponent {
             <div class="modal-overlay share-limit-modal" id="${modalId}">
                 <div class="modal">
                     <div class="modal-header">
-                        <h3>Edit Share Limit Group: ${key}</h3>
-                        <button type="button" class="btn btn-icon modal-close-btn btn-close-icon">
-                            <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                        </button>
+                        <div class="modal-header-content">
+                            <div class="group-name-section">
+                                <label for="group-name-edit" class="group-name-label">Group Name:</label>
+                                <div class="group-name-input-wrapper">
+                                    <input type="text" id="group-name-edit" class="group-name-input"
+                                           value="${key}" maxlength="50"
+                                           pattern="[a-zA-Z0-9_\\-\\s]+"
+                                           title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
+                                    <span class="group-name-edit-icon">
+                                        <span class="material-icons">edit</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-icon modal-close-btn btn-close-icon">
+                                <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-content">
                         ${modalContent}
@@ -547,6 +560,7 @@ export class ShareLimitsComponent {
         const closeBtn = modalElement.querySelector('.modal-close-btn');
         const cancelBtn = modalElement.querySelector('.modal-cancel-btn');
         const saveBtn = modalElement.querySelector('.modal-save-btn');
+        const groupNameInput = modalElement.querySelector('#group-name-edit');
 
         const closeModal = () => {
             modal.classList.add('hidden');
@@ -556,6 +570,22 @@ export class ShareLimitsComponent {
                 }
             }, 300);
         };
+
+        // Add real-time validation for group name input
+        if (groupNameInput) {
+            groupNameInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                const isValid = /^[a-zA-Z0-9\s_-]*$/.test(value);
+
+                if (!isValid && value) {
+                    e.target.style.borderColor = 'var(--error)';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+                } else {
+                    e.target.style.borderColor = '';
+                    e.target.style.boxShadow = '';
+                }
+            });
+        }
 
         // Ensure buttons exist before adding event listeners
         if (closeBtn) {
@@ -574,6 +604,26 @@ export class ShareLimitsComponent {
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 const formData = this.collectFormData(modalElement);
+
+                // Get the new group name
+                const newGroupName = groupNameInput ? groupNameInput.value.trim() : key;
+
+                // Validate group name
+                if (!newGroupName) {
+                    showToast('Group name cannot be empty', 'error');
+                    return;
+                }
+
+                if (!/^[a-zA-Z0-9\s_-]+$/.test(newGroupName)) {
+                    showToast('Group name can only contain letters, numbers, spaces, underscores, and hyphens', 'error');
+                    return;
+                }
+
+                // Check if group name already exists (only if it's different from current)
+                if (newGroupName !== key && this.data[newGroupName]) {
+                    showToast('A group with this name already exists', 'error');
+                    return;
+                }
 
                 // Validate priority uniqueness
                 const newPriority = formData.priority;
@@ -617,14 +667,24 @@ export class ShareLimitsComponent {
                     });
                 }
 
-                this.data[key] = cleanedData;
+                // Handle group name change
+                if (newGroupName !== key) {
+                    // Remove old group and add new one
+                    delete this.data[key];
+                    this.data[newGroupName] = cleanedData;
+                } else {
+                    // Update existing group
+                    this.data[key] = cleanedData;
+                }
+
                 this.onDataChange(this.data);
                 closeModal();
 
                 // Refresh display after modal is closed to avoid timing issues
                 setTimeout(() => {
                     this.refreshDisplay();
-                    showToast(`Share limit group "${key}" updated`, 'success');
+                    const actionText = newGroupName !== key ? 'renamed and updated' : 'updated';
+                    showToast(`Share limit group "${newGroupName}" ${actionText}`, 'success');
                 }, 350); // Wait for modal close animation to complete
             });
         }
@@ -944,7 +1004,7 @@ export class ShareLimitsComponent {
             },
             {
                 title: 'Upload Speed Limits',
-                fields: ['limit_upload_speed', 'enable_group_upload_speed']
+                fields: ['limit_upload_speed', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
             },
             {
                 title: 'Tag Filters',
@@ -1156,6 +1216,7 @@ export class ShareLimitsComponent {
             'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
             'min_num_seeds': '<span class="material-icons">group</span>',
             'enable_group_upload_speed': '<span class="material-icons">speed</span>',
+            'reset_upload_speed_on_unmet_minimums': '<span class="material-icons">refresh</span>',
             'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
             'add_group_to_tag': '<span class="material-icons">add_circle</span>',
             'max_last_active': '<span class="material-icons">access_time</span>',

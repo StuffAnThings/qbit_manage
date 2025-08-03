@@ -642,7 +642,7 @@ body {
 .checkmark {
   width: 1.25rem;
   height: 1.25rem;
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--input-border);
   border-radius: var(--border-radius-sm);
   background-color: var(--bg-primary);
   transition: all var(--transition-fast);
