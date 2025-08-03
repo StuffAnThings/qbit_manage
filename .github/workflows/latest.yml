@@ -4,6 +4,9 @@ on:
   push:
     branches: [ master ]
 
+permissions:
+  contents: read
+
 jobs:
 
   docker-latest:
@@ -56,6 +59,8 @@ jobs:
   update-develop:
     runs-on: ubuntu-latest
     needs: docker-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Check Out Repo
