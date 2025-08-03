@@ -19,7 +19,7 @@ class RemoveOrphaned:
         self.root_dir = qbit_manager.config.root_dir
         self.orphaned_dir = qbit_manager.config.orphaned_dir
 
-        max_workers = max(os.cpu_count() * 2, 4)  # Increased workers for I/O bound operations
+        max_workers = max((os.cpu_count() or 1) * 2, 4)  # Increased workers for I/O bound operations
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             self.executor = executor
             self.rem_orphaned()
@@ -67,6 +67,38 @@ class RemoveOrphaned:
         if not orphaned_files:
             logger.print_line("No Orphaned Files found.", self.config.loglevel)
             return
+
+        # === AGE PROTECTION: Don't touch files that are "too new" (likely being created/uploaded) ===
+        min_file_age_minutes = self.config.orphaned.get("min_file_age_minutes", 0)  # Pull from config, default to 0 (disabled)
+        now = time.time()
+        protected_files = set()
+
+        if min_file_age_minutes > 0:  # Only apply age protection if configured
+            for file in orphaned_files:
+                try:
+                    # Get file modification time
+                    file_mtime = os.path.getmtime(file)
+                    file_age_minutes = (now - file_mtime) / 60
+
+                    if file_age_minutes < min_file_age_minutes:
+                        protected_files.add(file)
+                        logger.print_line(
+                            f"Skipping orphaned file (too new): {os.path.basename(file)} "
+                            f"(age {file_age_minutes:.1f} mins < {min_file_age_minutes} mins)",
+                            self.config.loglevel,
+                        )
+                except Exception as e:
+                    logger.error(f"Error checking file age for {file}: {e}")
+
+            # Remove protected files from orphaned files
+            orphaned_files -= protected_files
+
+            if protected_files:
+                logger.print_line(
+                    f"Protected {len(protected_files)} orphaned files from deletion due to age filter "
+                    f"(min_file_age_minutes={min_file_age_minutes})",
+                    self.config.loglevel,
+                )
 
         # Check threshold
         max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")

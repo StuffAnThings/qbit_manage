@@ -20,6 +20,7 @@ from typing import Any
 from typing import Optional
 
 import ruamel.yaml
+from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -185,32 +186,41 @@ class WebAPI:
             allow_headers=["*"],
         )
 
-        # Initialize routes
-        self.app.post("/api/run-command")(self.run_command)
+        # Create API router with clean route definitions
+        api_router = APIRouter()
+
+        # Define all API routes on the router
+        api_router.post("/run-command")(self.run_command)
 
         # Configuration management routes
-        self.app.get("/api/configs")(self.list_configs)
-        self.app.get("/api/configs/{filename}")(self.get_config)
-        self.app.post("/api/configs/{filename}")(self.create_config)
-        self.app.put("/api/configs/{filename}")(self.update_config)
-        self.app.delete("/api/configs/{filename}")(self.delete_config)
-        self.app.post("/api/configs/{filename}/validate")(self.validate_config)
-        self.app.post("/api/configs/{filename}/backup")(self.backup_config)
-        self.app.get("/api/configs/{filename}/backups")(self.list_config_backups)
-        self.app.post("/api/configs/{filename}/restore")(self.restore_config_from_backup)
-        self.app.get("/api/logs")(self.get_logs)
-        self.app.get("/api/log_files")(self.list_log_files)
-        self.app.get("/api/version")(self.get_version)
-        self.app.get("/api/health")(self.health_check)
-        self.app.get("/api/get_base_url")(self.get_base_url)
+        api_router.get("/configs")(self.list_configs)
+        api_router.get("/configs/{filename}")(self.get_config)
+        api_router.post("/configs/{filename}")(self.create_config)
+        api_router.put("/configs/{filename}")(self.update_config)
+        api_router.delete("/configs/{filename}")(self.delete_config)
+        api_router.post("/configs/{filename}/validate")(self.validate_config)
+        api_router.post("/configs/{filename}/backup")(self.backup_config)
+        api_router.get("/configs/{filename}/backups")(self.list_config_backups)
+        api_router.post("/configs/{filename}/restore")(self.restore_config_from_backup)
+        api_router.get("/logs")(self.get_logs)
+        api_router.get("/log_files")(self.list_log_files)
+        api_router.get("/version")(self.get_version)
+        api_router.get("/health")(self.health_check)
+        api_router.get("/get_base_url")(self.get_base_url)
+
+        # Include the API router with the appropriate prefix
+        api_prefix = base_url + "/api" if base_url else "/api"
+        self.app.include_router(api_router, prefix=api_prefix)
 
         # Mount static files for web UI
         web_ui_dir = Path(__file__).parent.parent / "web-ui"
         if web_ui_dir.exists():
-            self.app.mount("/static", StaticFiles(directory=str(web_ui_dir)), name="static")
-            # If base URL is configured, also mount static files at the base URL path
             if base_url:
-                self.app.mount(base_url + "/static", StaticFiles(directory=str(web_ui_dir)), name="base_static")
+                # When base URL is configured, mount static files at the base URL path
+                self.app.mount(f"{base_url}/static", StaticFiles(directory=str(web_ui_dir)), name="base_static")
+            else:
+                # Default static file mounting
+                self.app.mount("/static", StaticFiles(directory=str(web_ui_dir)), name="static")
 
         # Root route to serve web UI
         @self.app.get("/")
@@ -240,11 +250,16 @@ class WebAPI:
         # Catch-all route for SPA routing (must be last)
         @self.app.get("/{full_path:path}")
         async def catch_all(full_path: str):
-            # For any non-API route that doesn't start with static/, serve the index.html (SPA routing)
-            if not full_path.startswith("api/") and not full_path.startswith("static/"):
+            # Determine what paths should be excluded from SPA routing
+            api_path = f"{base_url.lstrip('/')}/api" if base_url else "api"
+            static_path = f"{base_url.lstrip('/')}/static" if base_url else "static"
+
+            # For any non-API route that doesn't start with api/ or static/, serve the index.html (SPA routing)
+            if not full_path.startswith(f"{api_path}/") and not full_path.startswith(f"{static_path}/"):
                 web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
                 if web_ui_path.exists():
                     return FileResponse(str(web_ui_path))
+
             raise HTTPException(status_code=404, detail="Not found")
 
         # Note: Lifespan events are now handled in the lifespan context manager above
@@ -789,16 +804,22 @@ class WebAPI:
             if self.is_running_lock.acquire(timeout=0.1):
                 try:
                     if self.is_running.value:
-                        logger.info("Another run is in progress. Queuing web API request...")
-                        self.web_api_queue.put(request)
-                        return {
-                            "status": "queued",
-                            "message": "Another run is in progress. Request queued.",
-                            "config_file": request.config_file,
-                            "commands": request.commands,
-                        }
+                        # Check if the process has been stuck for too long
+                        if hasattr(self, "_last_run_start") and (datetime.now() - self._last_run_start).total_seconds() > 3600:
+                            logger.warning("Previous run appears to be stuck. Forcing reset of is_running flag.")
+                            self.is_running.value = False
+                        else:
+                            logger.info("Another run is in progress. Queuing web API request...")
+                            self.web_api_queue.put(request)
+                            return {
+                                "status": "queued",
+                                "message": "Another run is in progress. Request queued.",
+                                "config_file": request.config_file,
+                                "commands": request.commands,
+                            }
                     # Atomic operation: set flag to True
                     self.is_running.value = True
+                    self._last_run_start = datetime.now()  # Track when this run started
                 finally:
                     # Release lock immediately after atomic operation
                     self.is_running_lock.release()
@@ -824,7 +845,11 @@ class WebAPI:
 
         # Execute the command outside the lock
         try:
-            return await self._execute_command(request)
+            result = await self._execute_command(request)
+            # Ensure is_running is reset after successful execution
+            with self.is_running_lock:
+                self.is_running.value = False
+            return result
         except HTTPException as e:
             # Ensure is_running is reset if an HTTPException occurs
             with self.is_running_lock:

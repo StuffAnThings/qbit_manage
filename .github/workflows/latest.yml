@@ -4,6 +4,9 @@ on:
   push:
     branches: [ master ]
 
+permissions:
+  contents: read
+
 jobs:
 
   docker-latest:
@@ -19,13 +22,6 @@ jobs:
       - name: Check Out Repo
         uses: actions/checkout@v4
 
-      - name: Trigger Hotio Webhook
-        uses: joelwmale/webhook-action@master
-        with:
-          url: ${{ secrets.HOTIO_WEBHOOK_URL }}
-          headers: '{"Authorization": "Bearer ${{ secrets.HOTIO_WEBHOOK_SECRET }}"}'
-          body: '{ "application": "qbitmanage", "branch":  "latest" }'
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -40,7 +36,7 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@master
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
@@ -59,3 +55,43 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:latest
             ghcr.io/${{ env.OWNER_LC }}/qbit_manage:latest
+
+  update-develop:
+    runs-on: ubuntu-latest
+    needs: docker-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update develop branch
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Checkout develop branch
+          git checkout develop
+
+          # Reset develop to master
+          git reset --hard origin/master
+
+          # Read current version and bump minor patch
+          CURRENT_VERSION=$(cat VERSION)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-develop1"
+
+          # Update VERSION file
+          echo "$NEW_VERSION" > VERSION
+
+          # Commit the change
+          git add VERSION
+          git commit -m "Update VERSION to $NEW_VERSION"
+
+          # Force push develop branch
+          git push --force origin develop
