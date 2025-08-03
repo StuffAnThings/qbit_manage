@@ -20,6 +20,12 @@ export const nohardlinksSchema = {
                     label: 'Ignore Root Directory',
                     description: 'If true, ignore hardlinks found within the same root directory.',
                     default: true
+                },
+                ignore_category_dir: {
+                    type: 'boolean',
+                    label: 'Ignore Category Directory',
+                    description: 'If true, ignore hardlinks found within the same category directory.',
+                    default: true
                 }
             },
             additionalProperties: false
@@ -38,6 +44,12 @@ export const nohardlinksSchema = {
                 type: 'boolean',
                 label: 'Ignore Root Directory',
                 description: 'If true, ignore hardlinks found within the same root directory.',
+                default: true
+            },
+            ignore_category_dir: {
+                type: 'boolean',
+                label: 'Ignore Category Directory',
+                description: 'If true, ignore hardlinks found within the same category directory.',
                 default: true
             }
         },

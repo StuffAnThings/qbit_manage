@@ -152,6 +152,7 @@ Beyond this you'll need to use one of the [categories](#cat) above as the key.
 | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :----------------- |
 | `exclude_tags`    | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes | None           | <center>❌</center> |
 | `ignore_root_dir` | Ignore any hardlinks detected in the same [root_dir](#directory)                                                                                                                      | True           | <center>❌</center> |
+| `ignore_category_dir` | Ignore any hardlinks detected in the same [category_dir](#cat)                                                                                                                        | True           | <center>❌</center> |
 
 ## **share_limits:**
 
