@@ -3,7 +3,6 @@
 
 import argparse
 import glob
-import math
 import multiprocessing
 import os
 import platform
@@ -11,16 +10,17 @@ import sys
 import time
 from datetime import datetime
 from datetime import timedelta
-from functools import lru_cache
 from multiprocessing import Manager
 
+from modules.scheduler import Scheduler
+from modules.scheduler import calc_next_run
+from modules.scheduler import is_valid_cron_syntax
 from modules.util import execute_qbit_commands
 from modules.util import format_stats_summary
+from modules.util import get_arg
 from modules.util import get_matching_config_files
 
 try:
-    import schedule
-    from croniter import croniter
     from humanize import precisedelta
 
     from modules.logs import MyLogger
@@ -232,50 +232,6 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-static_envs = []
-test_value = None
-
-
-def get_arg(env_str, default, arg_bool=False, arg_int=False):
-    global test_value
-    env_vars = [env_str] if not isinstance(env_str, list) else env_str
-    final_value = None
-    static_envs.extend(env_vars)
-    for env_var in env_vars:
-        env_value = os.environ.get(env_var)
-        if env_var == "BRANCH_NAME":
-            test_value = env_value
-        if env_value is not None:
-            final_value = env_value
-            break
-    if final_value or (arg_int and final_value == 0):
-        if arg_bool:
-            if final_value is True or final_value is False:
-                return final_value
-            elif final_value.lower() in ["t", "true"]:
-                return True
-            else:
-                return False
-        elif arg_int:
-            try:
-                return int(final_value)
-            except ValueError:
-                return default
-        else:
-            return str(final_value)
-    else:
-        return default
-
-
-@lru_cache(maxsize=1)
-def is_valid_cron_syntax(cron_expression):
-    try:
-        croniter(str(cron_expression))
-        return True
-    except (ValueError, KeyError):
-        return False
-
-
 try:
     from git import InvalidGitRepositoryError
     from git import Repo
@@ -323,6 +279,7 @@ if trace:
 
 stats = {}
 args = {}
+scheduler = None  # Global scheduler instance
 
 if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files)):
     default_dir = "/config"
@@ -472,16 +429,30 @@ def start():
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
         if run is False:
-            # Simple check to guess if it's a cron syntax
-            if is_valid_cron_syntax(sch):
-                next_run_time = schedule_from_cron(sch)
+            # For scheduled runs, calculate the next run time directly from the schedule
+            if scheduler and scheduler.is_running() and scheduler.current_schedule:
+                schedule_type, schedule_value = scheduler.current_schedule
+                now = datetime.now()
+                try:
+                    if schedule_type == "cron":
+                        from croniter import croniter
+
+                        cron = croniter(schedule_value, now)
+                        next_run_time = cron.get_next(datetime)
+                        # Ensure we get a future time (in case run took longer than expected)
+                        while next_run_time <= now:
+                            next_run_time = cron.get_next(datetime)
+                    elif schedule_type == "interval":
+                        next_run_time = now + timedelta(minutes=int(schedule_value))
+                    else:
+                        next_run_time = now
+                except Exception:
+                    next_run_time = now
             else:
-                delta = timedelta(minutes=sch)
-                logger.info(f"    Scheduled Mode: Running every {precisedelta(delta)}.")
-                next_run_time = schedule_every_x_minutes(sch)
+                next_run_time = datetime.now()
         else:
             next_run_time = datetime.now()
-        nxt_run = calc_next_run(next_run_time)
+        nxt_run = calc_next_run(next_run_time, run)
         next_scheduled_run_info_shared.update(nxt_run)
         summary = os.linesep.join(stats_summary) if stats_summary else ""
         next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
@@ -545,45 +516,6 @@ def end():
     sys.exit(0)
 
 
-def calc_next_run(next_run_time):
-    """Calculates the next run time based on the schedule"""
-    current_time = datetime.now()
-    current = current_time.strftime("%I:%M %p")
-    time_to_run_str = next_run_time.strftime("%Y-%m-%d %I:%M %p")
-    delta_seconds = (next_run_time - current_time).total_seconds()
-    time_until = precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
-    next_run = {}
-    if run is False:
-        next_run["next_run"] = next_run_time
-        next_run["next_run_str"] = f"Current Time: {current} | {time_until} until the next run at {time_to_run_str}"
-    else:
-        next_run["next_run"] = None
-        next_run["next_run_str"] = ""
-    return next_run
-
-
-def schedule_from_cron(cron_expression):
-    schedule.clear()
-    base_time = datetime.now()
-    try:
-        iter = croniter(cron_expression, base_time)
-        next_run_time = iter.get_next(datetime)
-    except Exception as e:
-        logger.error(f"Invalid Cron Syntax: {cron_expression}. {e}")
-        logger.stacktrace()
-        sys.exit(1)
-    delay = (next_run_time - base_time).total_seconds()
-    schedule.every(delay).seconds.do(start_loop)
-    return next_run_time
-
-
-def schedule_every_x_minutes(min):
-    schedule.clear()
-    schedule.every(min).minutes.do(start_loop)
-    next_run_time = datetime.now() + timedelta(minutes=min)
-    return next_run_time
-
-
 def print_logo(logger):
     global is_docker, version, git_branch
     logger.separator()
@@ -612,9 +544,28 @@ if __name__ == "__main__":
     killer = GracefulKiller()
     logger.add_main_handler()
     print_logo(logger)
+
+    try:
+        # Initialize the Scheduler
+        scheduler = Scheduler(args.get("config_dir", "config"))
+        globals()["scheduler"] = scheduler  # Make scheduler globally accessible
+        logger.debug("Scheduler initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize scheduler: {e}")
+        raise
+
     try:
 
-        def run_web_server(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared):
+        def run_web_server(
+            port,
+            process_args,
+            is_running,
+            is_running_lock,
+            web_api_queue,
+            scheduler_update_queue,
+            next_scheduled_run_info_shared,
+            scheduler,
+        ):
             """Run web server in a separate process with shared args"""
             try:
                 import uvicorn
@@ -622,7 +573,15 @@ if __name__ == "__main__":
                 from modules.web_api import create_app
 
                 # Create FastAPI app instance with process args and shared state
-                app = create_app(process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared)
+                app = create_app(
+                    process_args,
+                    is_running,
+                    is_running_lock,
+                    web_api_queue,
+                    scheduler_update_queue,
+                    next_scheduled_run_info_shared,
+                    scheduler,
+                )
 
                 # Configure uvicorn settings
                 config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
@@ -640,6 +599,7 @@ if __name__ == "__main__":
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
         is_running_lock = manager.Lock()  # Separate lock for is_running synchronization
         web_api_queue = manager.Queue()
+        scheduler_update_queue = manager.Queue()  # Queue for scheduler updates from web API
         next_scheduled_run_info_shared = manager.dict()
 
         # Start web server if enabled and not in run mode
@@ -655,10 +615,23 @@ if __name__ == "__main__":
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
+            process_args["web_server"] = True  # Indicate this is for the web server
+            # Create a read-only scheduler for the web server process
+            # This scheduler can provide status information (for webAPI) but cannot execute tasks
+            web_scheduler = Scheduler(default_dir, suppress_logging=True, read_only=True)
 
             web_process = multiprocessing.Process(
                 target=run_web_server,
-                args=(port, process_args, is_running, is_running_lock, web_api_queue, next_scheduled_run_info_shared),
+                args=(
+                    port,
+                    process_args,
+                    is_running,
+                    is_running_lock,
+                    web_api_queue,
+                    scheduler_update_queue,
+                    next_scheduled_run_info_shared,
+                    web_scheduler,
+                ),
             )
             web_process.start()
             logger.info("Web server started in separate process")
@@ -669,85 +642,102 @@ if __name__ == "__main__":
             logger.info(run_mode_message)
             start_loop(True)
         else:
-            # Simple check to guess if it's a cron syntax
-            if is_valid_cron_syntax(sch):
-                run_mode_message = f"    Scheduled Mode: Running cron '{sch}'"
-                next_run_time = schedule_from_cron(sch)
+            # Check if scheduler already has a schedule loaded from schedule.yml
+            current_schedule = scheduler.get_current_schedule()
+            if current_schedule:
+                # Scheduler already loaded a schedule - determine the actual source
+                schedule_info = scheduler.get_schedule_info()
+                schedule_type, schedule_value = current_schedule
+                source = schedule_info.get("source", "unknown")
+                source_text = "persistent file" if source == "schedule.yml" else "environment"
+
+                if schedule_type == "cron":
+                    run_mode_message = f"   Scheduled Mode: Running cron '{schedule_value}' (from {source_text})"
+                else:
+                    delta = timedelta(minutes=int(schedule_value))
+                    run_mode_message = f"   Scheduled Mode: Running every {precisedelta(delta)} (from {source_text})."
+
+                next_run_time = scheduler.get_next_run()
                 next_run_info = calc_next_run(next_run_time)
                 next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
                 run_mode_message += f"\n     {next_run_info['next_run_str']}"
                 logger.info(run_mode_message)
+                scheduler.start(callback=start_loop)
+            elif sch is None or sch == "":
+                # No schedule from file or environment - scheduler remains unscheduled for web UI configuration
+                logger.info("    Web UI Mode: No schedule provided. Scheduler available for configuration via web interface.")
+                # Start the scheduler without a schedule (it will remain idle until configured via web UI)
+                scheduler.start(callback=start_loop)
             else:
-                delta = timedelta(minutes=sch)
-                run_mode_message = f"    Scheduled Mode: Running every {precisedelta(delta)}."
-                next_run_time = schedule_every_x_minutes(sch)
-                next_run_info = calc_next_run(next_run_time)
-                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
-                if startupDelay:
-                    run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
+                # Use environment variable schedule as fallback
+                # Simple check to guess if it's a cron syntax
+                if is_valid_cron_syntax(sch):
+                    run_mode_message = f"   Scheduled Mode: Running cron '{sch}' (from environment)"
+                    scheduler.update_schedule("cron", sch)
+                    next_run_time = scheduler.get_next_run()
+                    next_run_info = calc_next_run(next_run_time)
+                    next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+                    run_mode_message += f"\n     {next_run_info['next_run_str']}"
                     logger.info(run_mode_message)
-                    time.sleep(startupDelay)
                 else:
-                    logger.info(run_mode_message)
-                start_loop(True)
-
-            # Update next_scheduled_run_info_shared in the main loop
-            last_skip_log_time = 0  # Track when we last logged a skip message
-
-            while not killer.kill_now:
-                current_time = datetime.now()
-                next_run_time = schedule.next_run()  # Call the function to get the datetime object
-
-                # Calculate time until next run (avoid redundant calculation)
-                if next_run_time:
-                    delta_seconds = max(0, (next_run_time - current_time).total_seconds())
-                else:
-                    delta_seconds = float("inf")  # No scheduled runs
-
-                # Update shared dictionary
-                next_run_info = calc_next_run(next_run_time)
-                next_scheduled_run_info_shared.update(next_run_info)
-
-                if web_server:
-                    if is_running.value:
-                        # Only log if the next run would occur within the next sleep interval
-                        # and we haven't logged recently (rate limiting)
-                        if delta_seconds <= 60 and (current_time.timestamp() - last_skip_log_time) >= 300:  # 5 min rate limit
-                            time_until_str = f"{int(delta_seconds)}s" if delta_seconds < 60 else f"{int(delta_seconds / 60)}m"
-                            logger.info(
-                                f"Scheduled run skipped: Web API is currently processing a request. "
-                                f"Next run in {time_until_str} at {next_run_time.strftime('%I:%M %p')}"
-                            )
-                            last_skip_log_time = current_time.timestamp()
+                    delta = timedelta(minutes=sch)
+                    run_mode_message = f"   Scheduled Mode: Running every {precisedelta(delta)} (from environment)."
+                    scheduler.update_schedule("interval", sch)
+                    next_run_time = scheduler.get_next_run()
+                    next_run_info = calc_next_run(next_run_time)
+                    next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
+                    if startupDelay:
+                        run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
+                        logger.info(run_mode_message)
+                        time.sleep(startupDelay)
                     else:
-                        try:
-                            schedule.run_pending()
-                        except Exception as ex:
-                            logger.error(f"Error during scheduled run: {str(ex)}")
-                            logger.stacktrace()
-                            # Continue running instead of crashing
-                else:
+                        logger.info(run_mode_message)
+                # Start the scheduler with the callback
+                scheduler.start(callback=start_loop)
+
+            # Simple loop to handle scheduler updates from web API and keep the process alive
+            while not killer.kill_now:
+                # Check for scheduler updates from web API
+                if not scheduler_update_queue.empty():
                     try:
-                        schedule.run_pending()
-                    except Exception as ex:
-                        logger.error(f"Error during scheduled run: {str(ex)}")
-                        logger.stacktrace()
-                        # Continue running instead of crashing
+                        update_data = scheduler_update_queue.get_nowait()
+                        schedule_type = update_data["type"]
+                        schedule_value = update_data["value"]
 
-                logger.trace(f"    Pending Jobs: {schedule.get_jobs()}")
-                # Dynamic sleep: sleep less if next run is soon, but at least 10 seconds
-                if delta_seconds < 120:  # If next run is within 2 minutes
-                    sleep_time = max(10, min(30, delta_seconds / 2))  # Sleep 10-30 seconds
-                else:
-                    sleep_time = 60  # Normal 60-second interval
+                        if schedule_type == "delete":
+                            logger.debug("Received scheduler delete notification from web API")
+                            success = scheduler.delete_schedule()
+                            if success:
+                                logger.debug("Main process scheduler reloaded after deletion")
+                            else:
+                                logger.error("Failed to reload main process scheduler after deletion")
+                        else:
+                            logger.debug(f"Received scheduler update from web API: {schedule_type} = {schedule_value}")
+                            success = scheduler.update_schedule(schedule_type, schedule_value, suppress_logging=True)
+                            if success:
+                                logger.debug("Main process scheduler updated successfully")
+                            else:
+                                logger.error("Failed to update main process scheduler")
+                    except Exception as e:
+                        logger.error(f"Error processing scheduler update: {e}")
 
-                logger.trace(f"    Sleeping for {sleep_time:.0f} seconds (next run in {delta_seconds:.0f}s)")
-                time.sleep(sleep_time)
+                # Update shared dictionary with current scheduler status
+                next_run_time = scheduler.get_next_run()
+                if next_run_time:
+                    next_run_info = calc_next_run(next_run_time)
+                    next_scheduled_run_info_shared.update(next_run_info)
+
+                # Sleep for a reasonable interval
+                time.sleep(30)
+
+            # Stop the scheduler gracefully
+            scheduler.stop()
             if web_process:
                 web_process.terminate()
                 web_process.join()
             end()
     except KeyboardInterrupt:
+        scheduler.stop()
         if web_process:
             web_process.terminate()
             web_process.join()

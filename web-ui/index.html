@@ -8,11 +8,11 @@
     <link rel="stylesheet" href="static/css/components.css">
     <link rel="stylesheet" href="static/css/themes.css">
     <link rel="stylesheet" href="static/css/responsive.css">
-    <link rel="apple-touch-icon" sizes="180x180" href="static/img/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="static/img/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="static/img/favicon-16x16.png">
-    <link rel="manifest" href="static/img/site.webmanifest">
-    <link rel="shortcut icon" href="static/img/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="img/site.webmanifest">
+    <link rel="shortcut icon" href="img/favicon.ico">
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
@@ -29,9 +29,6 @@
                 <h1 class="app-title">qBit Manage</h1>
             </div>
 
-            <div class="header-center">
-                <!-- Config selector moved to sidebar -->
-            </div>
 
             <div class="header-right">
 
@@ -103,6 +100,13 @@
                         <a href="#commands" class="nav-link">
                             <span class="material-icons icon">terminal</span>
                             <span class="nav-text">Commands</span>
+                            <span class="validation-indicator"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item" data-section="scheduler">
+                        <a href="#scheduler" class="nav-link">
+                            <span class="material-icons icon">schedule</span>
+                            <span class="nav-text">Scheduler</span>
                             <span class="validation-indicator"></span>
                         </a>
                     </li>
@@ -205,9 +209,14 @@
                         <p>Loading configuration...</p>
                     </div>
                 </div>
-<!-- Logs Section -->
+                <!-- Logs Section -->
                 <div id="logs-section" class="section-content hidden">
                     <!-- LogViewer component will be rendered here by app.js -->
+                </div>
+
+                <!-- Scheduler Section -->
+                <div id="scheduler-section" class="section-content hidden">
+                    <div id="scheduler-control-container"></div>
                 </div>
 
                 <!-- YAML Preview Panel -->

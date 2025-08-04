@@ -125,6 +125,54 @@ def format_stats_summary(stats: dict, config) -> list[str]:
     return stats_output
 
 
+# Global variables for get_arg function
+test_value = None
+static_envs = []
+
+
+def get_arg(env_str, default, arg_bool=False, arg_int=False):
+    """
+    Get value from environment variable(s) with type conversion and fallback support.
+
+    Args:
+        env_str (str or list): Environment variable name(s) to check
+        default: Default value to return if no environment variable is set
+        arg_bool (bool): Convert result to boolean
+        arg_int (bool): Convert result to integer
+
+    Returns:
+        Value from environment variable or default, with optional type conversion
+    """
+    global test_value
+    env_vars = [env_str] if not isinstance(env_str, list) else env_str
+    final_value = None
+    static_envs.extend(env_vars)
+    for env_var in env_vars:
+        env_value = os.environ.get(env_var)
+        if env_var == "BRANCH_NAME":
+            test_value = env_value
+        if env_value is not None:
+            final_value = env_value
+            break
+    if final_value or (arg_int and final_value == 0):
+        if arg_bool:
+            if final_value is True or final_value is False:
+                return final_value
+            elif final_value.lower() in ["t", "true"]:
+                return True
+            else:
+                return False
+        elif arg_int:
+            try:
+                return int(final_value)
+            except ValueError:
+                return default
+        else:
+            return str(final_value)
+    else:
+        return default
+
+
 class TorrentMessages:
     """Contains list of messages to check against a status of a torrent"""
 

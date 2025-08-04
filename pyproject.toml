@@ -27,7 +27,6 @@ dependencies = [
     "requests==2.32.4",
     "retrying==1.4.1",
     "ruamel.yaml==0.18.14",
-    "schedule==1.2.2",
     "uvicorn==0.35.0",
 ]
 
