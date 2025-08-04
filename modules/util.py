@@ -1079,6 +1079,79 @@ class YAML:
         else:
             raise ValueError("YAML path is None or empty")
 
+    def save_preserving_format(self, new_data):
+        """Save yaml file while preserving original formatting, comments, and structure"""
+        if not self.path:
+            raise ValueError("YAML path is None or empty")
+
+        # Load the original file to preserve formatting
+        original_yaml = ruamel.yaml.YAML()
+        original_yaml.preserve_quotes = True
+        original_yaml.map_indent = 2
+        original_yaml.sequence_indent = 2
+        original_yaml.sequence_dash_offset = 0
+
+        # Add constructor and representer for !ENV tag
+        original_yaml.Constructor.add_constructor("!ENV", self._env_constructor)
+        original_yaml.Representer.add_representer(EnvStr, self._env_representer)
+
+        try:
+            # Load the original file with formatting preserved
+            with open(self.path, encoding="utf-8") as filepath:
+                original_data = original_yaml.load(filepath)
+
+            # If original file is empty or None, use new data directly
+            if not original_data:
+                original_data = original_yaml.load("{}")
+
+            # Recursively update the original data with new values while preserving structure
+            self._deep_update_preserving_format(original_data, new_data)
+
+            # Save with preserved formatting
+            with open(self.path, "w", encoding="utf-8") as filepath:
+                original_yaml.dump(original_data, filepath)
+
+        except FileNotFoundError:
+            # If file doesn't exist, create it with new data
+            with open(self.path, "w", encoding="utf-8") as filepath:
+                original_yaml.dump(new_data, filepath)
+        except Exception as e:
+            logger.error(f"Error preserving YAML format: {e}")
+            # Fallback to regular save
+            self.data = new_data
+            self.save()
+
+    def _deep_update_preserving_format(self, original, new_data):
+        """Recursively update original data with new data while preserving formatting"""
+        if not isinstance(new_data, dict):
+            return new_data
+
+        if not isinstance(original, dict):
+            return new_data
+
+        for key, value in new_data.items():
+            if key in original:
+                if isinstance(value, dict) and isinstance(original[key], dict):
+                    # Recursively update nested dictionaries
+                    self._deep_update_preserving_format(original[key], value)
+                else:
+                    # Update the value while preserving any YAML formatting
+                    original[key] = value
+            else:
+                # Add new key-value pairs
+                original[key] = value
+
+        # Remove keys that exist in original but not in new_data
+        keys_to_remove = []
+        for key in original:
+            if key not in new_data:
+                keys_to_remove.append(key)
+
+        for key in keys_to_remove:
+            del original[key]
+
+        return original
+
 
 class EnvStr(str):
     """Custom string subclass to preserve !ENV tags"""

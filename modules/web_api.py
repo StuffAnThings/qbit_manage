@@ -740,7 +740,7 @@ class WebAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     def _write_yaml_config(self, config_path: Path, data: dict[str, Any]):
-        """Write configuration data to YAML file."""
+        """Write configuration data to YAML file while preserving formatting and comments."""
         from modules.util import YAML
 
         try:
@@ -749,12 +749,17 @@ class WebAPI:
 
             logger.trace(f"Data to write: {data}")
 
-            # Use the custom YAML class with !ENV representer
-            # Create YAML instance without loading existing file (we're writing new data)
-            yaml_writer = YAML(input_data="")  # Pass empty string to avoid file loading
-            yaml_writer.data = data
-            yaml_writer.path = str(config_path)
-            yaml_writer.save()
+            # Use the custom YAML class with format preservation
+            if config_path.exists():
+                # Load existing file to preserve formatting
+                yaml_writer = YAML(path=str(config_path))
+                yaml_writer.save_preserving_format(data)
+            else:
+                # Create new file with standard formatting
+                yaml_writer = YAML(input_data="")
+                yaml_writer.data = data
+                yaml_writer.path = str(config_path)
+                yaml_writer.save()
 
             logger.info(f"Successfully wrote config to: {config_path}")
         except ruamel.yaml.YAMLError as e:
