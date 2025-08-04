@@ -68,7 +68,7 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
             return tags_to_remove
 
 
-def format_stats_summary(stats: dict, config):
+def format_stats_summary(stats: dict, config) -> list[str]:
     """
     Formats the statistics summary into a human-readable list of strings.
 
@@ -1070,7 +1070,7 @@ class EnvStr(str):
         return super().__repr__()
 
 
-def get_matching_config_files(config_pattern: str, default_dir: str):
+def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
     """Get list of config files matching a pattern.
 
     Args:

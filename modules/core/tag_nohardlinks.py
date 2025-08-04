@@ -153,7 +153,7 @@ class TagNoHardLinks:
                         nohardlinks.get(category, {}).get("ignore_root_dir", True),
                         nohardlinks.get(category, {}).get("exclude_tags", []),
                         category,
-                        nohardlinks.get(torrent.category, {}).get("ignore_category_dir", True),
+                        nohardlinks.get(category, {}).get("ignore_category_dir", True),
                     )
         if self.stats_tagged >= 1:
             logger.print_line(
