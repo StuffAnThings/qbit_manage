@@ -11,7 +11,7 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-import yaml
+from modules.util import YAML
 
 try:
     from croniter import croniter
@@ -72,22 +72,22 @@ class Scheduler:
         # Try loading from schedule.yml first
         if self.schedule_file.exists():
             try:
-                with open(self.schedule_file, encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
-                    if data and isinstance(data, dict):
-                        schedule_type = data.get("type")
-                        schedule_value = data.get("value")
+                yaml_loader = YAML(str(self.schedule_file))
+                data = yaml_loader.data
+                if data and isinstance(data, dict):
+                    schedule_type = data.get("type")
+                    schedule_value = data.get("value")
 
-                        if schedule_type and schedule_value is not None:
-                            if self._validate_schedule(schedule_type, schedule_value):
-                                self.current_schedule = (schedule_type, schedule_value)
-                                if not self._read_only:
-                                    self.next_run = self._calculate_next_run()
-                                if not suppress_logging:
-                                    logger.info(f"Schedule loaded from file: {schedule_type}={schedule_value}")
-                                return True
-                            else:
-                                logger.warning(f"Invalid schedule in {self.schedule_file}")
+                    if schedule_type and schedule_value is not None:
+                        if self._validate_schedule(schedule_type, schedule_value):
+                            self.current_schedule = (schedule_type, schedule_value)
+                            if not self._read_only:
+                                self.next_run = self._calculate_next_run()
+                            if not suppress_logging:
+                                logger.info(f"Schedule loaded from file: {schedule_type}={schedule_value}")
+                            return True
+                        else:
+                            logger.warning(f"Invalid schedule in {self.schedule_file}")
             except Exception as e:
                 logger.error(f"Error loading schedule.yml: {e}")
 
@@ -137,8 +137,10 @@ class Scheduler:
         try:
             data = {"type": schedule_type, "value": schedule_value, "updated_at": datetime.now().isoformat(), "version": 1}
 
-            with open(self.schedule_file, "w", encoding="utf-8") as f:
-                yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+            yaml_writer = YAML(input_data="")
+            yaml_writer.data = data
+            yaml_writer.path = str(self.schedule_file)
+            yaml_writer.save()
 
             # Update current schedule
             with self.lock:
@@ -193,10 +195,10 @@ class Scheduler:
             return None
 
         try:
-            with open(self.schedule_file, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-                if data and isinstance(data, dict):
-                    return data
+            yaml_loader = YAML(str(self.schedule_file))
+            data = yaml_loader.data
+            if data and isinstance(data, dict):
+                return data
         except Exception as e:
             logger.error(f"Error reading schedule file: {e}")
         return None
