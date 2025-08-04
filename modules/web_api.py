@@ -217,6 +217,9 @@ class WebAPI:
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
 
+        # System management routes
+        api_router.post("/system/force-reset")(self.force_reset_running_state)
+
         # Include the API router with the appropriate prefix
         api_prefix = base_url + "/api" if base_url else "/api"
         self.app.include_router(api_router, prefix=api_prefix)
@@ -822,6 +825,7 @@ class WebAPI:
                         if hasattr(self, "_last_run_start") and (datetime.now() - self._last_run_start).total_seconds() > 3600:
                             logger.warning("Previous run appears to be stuck. Forcing reset of is_running flag.")
                             self.is_running.value = False
+                            object.__setattr__(self, "_last_run_start", None)  # Clear the stuck timestamp
                         else:
                             logger.info("Another run is in progress. Queuing web API request...")
                             self.web_api_queue.put(request)
@@ -833,7 +837,7 @@ class WebAPI:
                             }
                     # Atomic operation: set flag to True
                     self.is_running.value = True
-                    self._last_run_start = datetime.now()  # Track when this run started
+                    object.__setattr__(self, "_last_run_start", datetime.now())  # Track when this run started
                 finally:
                     # Release lock immediately after atomic operation
                     self.is_running_lock.release()
@@ -848,6 +852,13 @@ class WebAPI:
                 }
         except Exception as e:
             logger.error(f"Error acquiring lock: {str(e)}")
+            # Reset is_running flag if it was set before the error occurred
+            try:
+                with self.is_running_lock:
+                    self.is_running.value = False
+            except Exception:
+                # If we can't acquire the lock to reset, log it but continue
+                logger.warning("Could not acquire lock to reset is_running flag after error")
             # If there's any error with locking, queue the request as a safety measure
             self.web_api_queue.put(request)
             return {
@@ -863,19 +874,40 @@ class WebAPI:
             # Ensure is_running is reset after successful execution
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             return result
         except HTTPException as e:
             # Ensure is_running is reset if an HTTPException occurs
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             raise e
         except Exception as e:
             # Ensure is_running is reset if any other exception occurs
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    def force_reset_running_state(self) -> dict[str, Any]:
+        """Force reset the is_running state. Use this to recover from stuck states."""
+        try:
+            with self.is_running_lock:
+                was_running = self.is_running.value
+                self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)
+
+            logger.warning(f"Forced reset of is_running state. Was running: {was_running}")
+            return {
+                "status": "success",
+                "message": f"Running state reset. Was previously running: {was_running}",
+                "was_running": was_running,
+            }
+        except Exception as e:
+            logger.error(f"Error forcing reset of running state: {str(e)}")
+            return {"status": "error", "message": f"Failed to reset running state: {str(e)}", "was_running": None}
 
     async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:
         """Get recent logs from the log file."""
