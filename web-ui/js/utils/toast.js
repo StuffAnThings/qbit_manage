@@ -33,15 +33,21 @@ export function showToast(message, type = 'info', duration = 5000) {
         redo: '↷'
     };
 
+    // Build static structure with innerHTML, then set message via textContent
     toast.innerHTML = `
-        <div class="toast-icon">${icons[type] || icons.info}</div>
-        <div class="toast-content">
-            <div class="toast-message">${message}</div>
-        </div>
-        <button class="btn btn-icon btn-close-icon toast-close">
-            ${CLOSE_ICON_SVG}
-        </button>
-    `;
+            <div class="toast-icon">${icons[type] || icons.info}</div>
+            <div class="toast-content">
+                <div class="toast-message"></div>
+            </div>
+            <button class="btn btn-icon btn-close-icon toast-close">
+                ${CLOSE_ICON_SVG}
+            </button>
+        `;
+    // Insert message safely without relying on HTML escaping
+    const msgNode = toast.querySelector('.toast-message');
+    if (msgNode) {
+        msgNode.textContent = message == null ? '' : String(message);
+    }
 
     container.appendChild(toast);
 

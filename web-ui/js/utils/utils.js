@@ -15,6 +15,25 @@ export function getNestedValue(obj, path) {
     }, obj);
 }
 
+ /**
+  * Escape a string for safe insertion into HTML/attribute context.
+  * Encodes &, <, >, ", ' to their HTML entities.
+  * This should be used whenever inserting user-controlled content via innerHTML
+  * or into attribute values.
+  * @param {any} str - Input value to escape
+  * @returns {string} Escaped HTML-safe string
+  */
+export function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\//g, '&#x2F;');
+}
+
 /**
  * Sets a nested value in an object using a dot-separated path.
  * Creates intermediate objects if they don't exist.

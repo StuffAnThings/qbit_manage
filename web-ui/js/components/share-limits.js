@@ -8,6 +8,7 @@ import { showModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
 import { generateShareLimitsHTML } from '../utils/form-renderer.js';
 import { shareLimitsSchema } from '../config-schemas/share_limits.js';
+import { escapeHtml } from '../utils/utils.js';
 import { getAvailableCategories, generateCategoryDropdownHTML } from '../utils/categories.js';
 
 export class ShareLimitsComponent {
@@ -500,6 +501,7 @@ export class ShareLimitsComponent {
         const modalId = `share-limit-edit-modal-${Date.now()}`;
 
         const modalElement = document.createElement('div');
+
         modalElement.innerHTML = `
             <div class="modal-overlay share-limit-modal" id="${modalId}">
                 <div class="modal">
@@ -509,9 +511,9 @@ export class ShareLimitsComponent {
                                 <label for="group-name-edit" class="group-name-label">Group Name:</label>
                                 <div class="group-name-input-wrapper">
                                     <input type="text" id="group-name-edit" class="group-name-input"
-                                           value="${key}" maxlength="50"
-                                           pattern="[a-zA-Z0-9_\\-\\s]+"
-                                           title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
+                                           value="${escapeHtml(key)}" maxlength="50"
+                                            pattern="[a-zA-Z0-9_\\-\\s]+"
+                                            title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
                                     <span class="group-name-edit-icon">
                                         <span class="material-icons">edit</span>
                                     </span>
