@@ -154,10 +154,7 @@ class QbitManageApp {
         if (schedulerContainer) {
             this.schedulerControl = new SchedulerControl({
                 container: schedulerContainer,
-                onScheduleChange: (status) => {
-                    // Handle scheduler status changes
-                    console.log('Scheduler status updated:', status);
-                }
+
             });
         }
     }

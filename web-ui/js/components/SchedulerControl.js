@@ -254,8 +254,6 @@ class SchedulerControl {
                 file_exists: false
             }));
 
-            console.log('DEBUG: Complete scheduler status:', schedulerStatus);
-
             this.updateStatus(schedulerStatus);
         } catch (error) {
             console.error('Failed to load scheduler status:', error);
