@@ -428,32 +428,72 @@ def start():
         nonlocal end_time, start_time, stats_summary, run_time, body
         end_time = datetime.now()
         run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
-        if run is False:
-            # For scheduled runs, calculate the next run time directly from the schedule
-            if scheduler and scheduler.is_running() and scheduler.current_schedule:
-                schedule_type, schedule_value = scheduler.current_schedule
-                now = datetime.now()
-                try:
-                    if schedule_type == "cron":
+
+        def next_run_from_scheduler():
+            """Best-effort retrieval of scheduler's authoritative next_run."""
+            try:
+                if scheduler and scheduler.is_running():
+                    return scheduler.get_next_run()
+            except Exception:
+                pass
+            return None
+
+        def next_run_from_config():
+            """Compute next run strictly in the future based on current schedule config."""
+            now_local = datetime.now()
+            try:
+                if scheduler and getattr(scheduler, "current_schedule", None):
+                    stype, sval = scheduler.current_schedule
+                    if stype == "cron":
                         from croniter import croniter
 
-                        cron = croniter(schedule_value, now)
-                        next_run_time = cron.get_next(datetime)
-                        # Ensure we get a future time (in case run took longer than expected)
-                        while next_run_time <= now:
-                            next_run_time = cron.get_next(datetime)
-                    elif schedule_type == "interval":
-                        next_run_time = now + timedelta(minutes=int(schedule_value))
-                    else:
-                        next_run_time = now
-                except Exception:
-                    next_run_time = now
-            else:
-                next_run_time = datetime.now()
+                        cron = croniter(sval, now_local)
+                        nxt = cron.get_next(datetime)
+                        while nxt <= now_local:
+                            nxt = cron.get_next(datetime)
+                        return nxt
+                    if stype == "interval":
+                        return now_local + timedelta(minutes=int(sval))
+            except Exception:
+                pass
+            return now_local
+
+        # Decide next run time
+        if run is False:
+            # Prefer scheduler's next_run first
+            nxt_time = next_run_from_scheduler()
+            if not nxt_time:
+                nxt_time = next_run_from_config()
+
+            # Guard: if cron and computed time isn't strictly in the future, advance
+            try:
+                if scheduler and getattr(scheduler, "current_schedule", None):
+                    stype_chk, sval_chk = scheduler.current_schedule
+                    if stype_chk == "cron":
+                        now_guard = datetime.now()
+                        if nxt_time <= now_guard:
+                            from croniter import croniter
+
+                            cron = croniter(sval_chk, now_guard)
+                            nxt_time = cron.get_next(datetime)
+                            while nxt_time <= now_guard:
+                                nxt_time = cron.get_next(datetime)
+            except Exception:
+                pass
+
+            # If within 30s of "now", prefer authoritative scheduler time to avoid "0 minutes"
+            sched_next = next_run_from_scheduler()
+            if sched_next:
+                if (nxt_time - datetime.now()).total_seconds() <= 30:
+                    nxt_time = sched_next
         else:
-            next_run_time = datetime.now()
-        nxt_run = calc_next_run(next_run_time, run)
+            # Single-run mode (explicit run) - show nothing imminent
+            nxt_time = datetime.now()
+
+        # Publish resolved next run
+        nxt_run = calc_next_run(nxt_time, run)
         next_scheduled_run_info_shared.update(nxt_run)
+
         summary = os.linesep.join(stats_summary) if stats_summary else ""
         next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
         msg = (
@@ -642,6 +682,42 @@ if __name__ == "__main__":
             logger.info(run_mode_message)
             start_loop(True)
         else:
+            # Local helper to centralize scheduled mode behavior
+            def run_scheduled_mode(schedule_type_local, schedule_value_local, source_text_local, already_configured=False):
+                # Build base message and ensure schedule is configured when needed
+                if schedule_type_local == "cron":
+                    run_msg = f"   Scheduled Mode: Running cron '{schedule_value_local}' (from {source_text_local})"
+                    if not already_configured:
+                        scheduler.update_schedule("cron", schedule_value_local)
+                else:
+                    interval_minutes_local = int(schedule_value_local)
+                    delta_local = timedelta(minutes=interval_minutes_local)
+                    run_msg = f"   Scheduled Mode: Running every {precisedelta(delta_local)} (from {source_text_local})."
+                    if not already_configured:
+                        # Ensure interval schedule is set so next_run is available
+                        scheduler.update_schedule("interval", interval_minutes_local)
+
+                # Compute next run info for logging/UI
+                nr_time = scheduler.get_next_run()
+                nr_info = calc_next_run(nr_time)
+                next_scheduled_run_info_shared.update(nr_info)
+
+                if schedule_type_local == "interval" and startupDelay:
+                    run_msg += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
+                    run_msg += f"\n     {nr_info['next_run_str']}"
+                    logger.info(run_msg)
+                    time.sleep(startupDelay)
+                    # Execute first run immediately after startup delay
+                    start_loop()
+                    # Reset baseline for subsequent interval runs
+                    scheduler.update_schedule("interval", int(schedule_value_local), suppress_logging=True)
+                else:
+                    run_msg += f"\n     {nr_info['next_run_str']}"
+                    logger.info(run_msg)
+
+                # Start scheduler for subsequent runs
+                scheduler.start(callback=start_loop)
+
             # Check if scheduler already has a schedule loaded from schedule.yml
             current_schedule = scheduler.get_current_schedule()
             if current_schedule:
@@ -651,18 +727,9 @@ if __name__ == "__main__":
                 source = schedule_info.get("source", "unknown")
                 source_text = "persistent file" if source == "schedule.yml" else "environment"
 
-                if schedule_type == "cron":
-                    run_mode_message = f"   Scheduled Mode: Running cron '{schedule_value}' (from {source_text})"
-                else:
-                    delta = timedelta(minutes=int(schedule_value))
-                    run_mode_message = f"   Scheduled Mode: Running every {precisedelta(delta)} (from {source_text})."
+                # Use helper; already_configured=True because Scheduler loaded it
+                run_scheduled_mode(schedule_type, schedule_value, source_text, already_configured=True)
 
-                next_run_time = scheduler.get_next_run()
-                next_run_info = calc_next_run(next_run_time)
-                next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
-                run_mode_message += f"\n     {next_run_info['next_run_str']}"
-                logger.info(run_mode_message)
-                scheduler.start(callback=start_loop)
             elif sch is None or sch == "":
                 # No schedule from file or environment - scheduler remains unscheduled for web UI configuration
                 logger.info("    Web UI Mode: No schedule provided. Scheduler available for configuration via web interface.")
@@ -670,30 +737,12 @@ if __name__ == "__main__":
                 scheduler.start(callback=start_loop)
             else:
                 # Use environment variable schedule as fallback
-                # Simple check to guess if it's a cron syntax
                 if is_valid_cron_syntax(sch):
-                    run_mode_message = f"   Scheduled Mode: Running cron '{sch}' (from environment)"
-                    scheduler.update_schedule("cron", sch)
-                    next_run_time = scheduler.get_next_run()
-                    next_run_info = calc_next_run(next_run_time)
-                    next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
-                    run_mode_message += f"\n     {next_run_info['next_run_str']}"
-                    logger.info(run_mode_message)
+                    # configure via helper (will call update_schedule itself)
+                    run_scheduled_mode("cron", sch, "environment", already_configured=False)
                 else:
-                    delta = timedelta(minutes=sch)
-                    run_mode_message = f"   Scheduled Mode: Running every {precisedelta(delta)} (from environment)."
-                    scheduler.update_schedule("interval", sch)
-                    next_run_time = scheduler.get_next_run()
-                    next_run_info = calc_next_run(next_run_time)
-                    next_scheduled_run_info_shared.update(next_run_info)  # Update shared dictionary
-                    if startupDelay:
-                        run_mode_message += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
-                        logger.info(run_mode_message)
-                        time.sleep(startupDelay)
-                    else:
-                        logger.info(run_mode_message)
-                # Start the scheduler with the callback
-                scheduler.start(callback=start_loop)
+                    # configure via helper (will call update_schedule itself)
+                    run_scheduled_mode("interval", sch, "environment", already_configured=False)
 
             # Simple loop to handle scheduler updates from web API and keep the process alive
             while not killer.kill_now:
