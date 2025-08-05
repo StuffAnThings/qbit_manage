@@ -26,6 +26,19 @@ import { orphanedSchema } from '../config-schemas/orphaned.js';
 import { notificationsSchema } from '../config-schemas/notifications.js';
 import { ShareLimitsComponent } from './share-limits.js';
 
+/**
+ * Escape HTML special characters in a string to prevent XSS.
+ */
+function escapeHTML(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\//g, '&#x2F;');
+}
+
 class ConfigForm {
     constructor(options = {}) {
         this.container = options.container;
@@ -104,7 +117,7 @@ class ConfigForm {
         const sectionConfig = this.schemas[this.currentSection];
         if (!sectionConfig) {
             console.error(`No schema found for section: ${this.currentSection}`);
-            this.container.innerHTML = `<div class="alert alert-error">Error: Configuration schema not found for section "${this.currentSection}".</div>`;
+            this.container.innerHTML = `<div class="alert alert-error">Error: Configuration schema not found for section "${escapeHTML(this.currentSection)}".</div>`;
             return;
         }
 
