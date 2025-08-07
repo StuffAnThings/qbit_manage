@@ -898,7 +898,10 @@ class CheckHardLinks:
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
     """Get all files in root directory with optimized path handling and filtering."""
-    if not root_dir or not os.path.exists(root_dir):
+    if not root_dir:
+        return []
+    # Don't check if root_dir exists when remote_dir != root_dir, since root_dir might not be accessible
+    if root_dir == remote_dir and not os.path.exists(root_dir):
         return []
 
     # Pre-calculate path transformations
@@ -919,13 +922,13 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
                 continue
             root_files.extend(os.path.join(path, name) for name in files)
     else:
-        # Path replacement needed
+        # Path replacement needed - walk remote_dir (accessible) and convert paths to root_dir format
         path_replacements = {}
         for path, subdirs, files in os.walk(remote_dir):
             if local_exclude_dir and local_exclude_dir in path:
                 continue
 
-            # Cache path replacement
+            # Cache path replacement - convert remote_dir paths to root_dir paths
             if path not in path_replacements:
                 path_replacements[path] = path.replace(remote_dir, root_dir)
 

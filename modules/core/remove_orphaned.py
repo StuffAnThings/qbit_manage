@@ -63,13 +63,8 @@ class RemoveOrphaned:
             excluded_files = {file for file in orphaned_files if any(fnmatch(file, pattern) for pattern in exclude_patterns)}
             orphaned_files -= excluded_files
 
-        # Early return if no orphaned files
-        if not orphaned_files:
-            logger.print_line("No Orphaned Files found.", self.config.loglevel)
-            return
-
         # === AGE PROTECTION: Don't touch files that are "too new" (likely being created/uploaded) ===
-        min_file_age_minutes = self.config.orphaned.get("min_file_age_minutes", 0)  # Pull from config, default to 0 (disabled)
+        min_file_age_minutes = self.config.orphaned.get("min_file_age_minutes", 0)
         now = time.time()
         protected_files = set()
 
@@ -99,6 +94,11 @@ class RemoveOrphaned:
                     f"(min_file_age_minutes={min_file_age_minutes})",
                     self.config.loglevel,
                 )
+
+        # Early return if no orphaned files
+        if not orphaned_files:
+            logger.print_line("No Orphaned Files found.", self.config.loglevel)
+            return
 
         # Check threshold
         max_orphaned_files_to_delete = self.config.orphaned.get("max_orphaned_files_to_delete")
@@ -170,9 +170,6 @@ class RemoveOrphaned:
                     ),
                     orphaned_parent_paths,
                 )
-
-        else:
-            logger.print_line("No Orphaned Files found.", self.config.loglevel)
 
         end_time = time.time()
         duration = end_time - start_time
