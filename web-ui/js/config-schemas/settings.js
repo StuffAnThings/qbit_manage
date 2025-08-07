@@ -120,6 +120,14 @@ export const settingsSchema = {
             label: 'Remove Unregistered Ignore List',
             description: 'A list of keywords. If any of these are found in a tracker\'s status message, the torrent will not be removed by the `rem_unregistered` command.',
             items: { type: 'text' }
+        },
+        {
+            name: 'rem_unregistered_grace_minutes',
+            type: 'number',
+            label: 'Remove Unregistered Grace Period (minutes)',
+            description: 'Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable.',
+            default: 10,
+            min: 0
         }
     ]
 };

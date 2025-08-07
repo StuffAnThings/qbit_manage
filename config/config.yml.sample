@@ -47,6 +47,7 @@ settings:
   rem_unregistered_ignore_list: # Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched
     - example placeholder words
     - ignore if found
+  rem_unregistered_grace_minutes: 10 # Grace period (minutes) to skip removing newly added torrents when unregistered with the tracker (Default is 10)
 
 directory:
   # Do not remove these

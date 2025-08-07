@@ -59,6 +59,7 @@ This section defines any settings defined in the configuration.
 | `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
 | `tag_stalled_torrents`              | Tags any downloading torrents that are stalled with the user defined `stalledDL` tag when running the tag_update command                                                                                                                                                                                                                        | True                      | <center>❌</center> |
 | `rem_unregistered_ignore_list`  | Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched                                                                                                                                                                                                                    |                       | <center>❌</center> |
+| `rem_unregistered_grace_minutes` | Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable. | 10 | <center>❌</center> |
 
 ## **directory:**
 

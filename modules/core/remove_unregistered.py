@@ -25,6 +25,7 @@ class RemoveUnregistered:
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
         self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
+        self.rem_unregistered_grace_minutes = self.config.settings["rem_unregistered_grace_minutes"]
         self.hashes = hashes
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
@@ -95,6 +96,29 @@ class RemoveUnregistered:
                 return True
         return False
 
+    def is_within_grace(self, torrent):
+        """
+        Determine whether the torrent should be protected by the grace window.
+
+        Returns:
+            (bool, float): Tuple of (is_within_grace, age_minutes)
+        """
+        try:
+            grace = int(self.rem_unregistered_grace_minutes or 0)
+        except Exception:
+            grace = 0
+        if grace <= 0:
+            return False, 0.0
+        added_on = getattr(torrent, "added_on", None)
+        if not added_on:
+            return False, 0.0
+        try:
+            age_seconds = max(0.0, time.time() - float(added_on))
+        except Exception:
+            return False, 0.0
+        age_minutes = age_seconds / 60.0
+        return age_minutes < grace, age_minutes
+
     def process_torrent_issues(self):
         """Process torrent issues."""
         self.torrents_updated_issue = []  # List of torrents updated
@@ -140,10 +164,34 @@ class RemoveUnregistered:
                                     self.config.loglevel,
                                 )
                             else:
-                                self.del_unregistered(msg, tracker, torrent)
+                                skip, age = self.is_within_grace(torrent)
+                                if skip:
+                                    logger.print_line(
+                                        logger.insert_space(
+                                            f"Skipping removal (within grace "
+                                            f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
+                                            f"{self.t_name}",
+                                            3,
+                                        ),
+                                        self.config.loglevel,
+                                    )
+                                else:
+                                    self.del_unregistered(msg, tracker, torrent)
                         else:
                             if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
-                                self.del_unregistered(msg, tracker, torrent)
+                                skip, age = self.is_within_grace(torrent)
+                                if skip:
+                                    logger.print_line(
+                                        logger.insert_space(
+                                            f"Skipping removal (within grace "
+                                            f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
+                                            f"{self.t_name}",
+                                            3,
+                                        ),
+                                        self.config.loglevel,
+                                    )
+                                else:
+                                    self.del_unregistered(msg, tracker, torrent)
                     # Tag any error torrents
                     if self.cfg_tag_error and self.tag_error not in check_tags:
                         self.tag_tracker_error(msg, tracker, torrent)
