@@ -595,6 +595,26 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["min_torrent_size"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_torrent_size",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="size_parse",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_torrent_size"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_torrent_size",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="size_parse",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["cleanup"] = self.util.check_for_attribute(
                     self.data, "cleanup", parent="share_limits", subparent=group, var_type="bool", default=False, do_print=False
                 )
@@ -762,6 +782,16 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                # Validate min/max torrent size (in bytes)
+                min_sz = self.share_limits[group]["min_torrent_size"]
+                max_sz = self.share_limits[group]["max_torrent_size"]
+                if min_sz is not None and max_sz is not None and min_sz > max_sz:
+                    err = (
+                        f"Config Error: min_torrent_size ({min_sz} bytes) is greater than "
+                        f"max_torrent_size ({max_sz} bytes) for the grouping '{group}'."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
                     and self.share_limits[group]["max_seeding_time"] != -1

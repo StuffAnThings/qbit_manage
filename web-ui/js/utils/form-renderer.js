@@ -907,6 +907,14 @@ function generateGroupSummary(group) {
         summaryParts.push(`Upload Limit: ${group.limit_upload_speed} KiB/s`);
     }
 
+    // Size filters (display values as entered)
+    if (isNotDefault(group.min_torrent_size, defaults.min_torrent_size)) {
+        summaryParts.push(`Min Size ${group.min_torrent_size}`);
+    }
+    if (isNotDefault(group.max_torrent_size, defaults.max_torrent_size)) {
+        summaryParts.push(`Max Size ${group.max_torrent_size}`);
+    }
+
     // 2) Tag/Category filters
     const tagFilters = [];
 

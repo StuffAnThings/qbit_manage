@@ -128,6 +128,18 @@ export const shareLimitsSchema = {
                     label: 'Reset Upload Speed on Unmet Minimums',
                     description: 'If true, upload speed limits will be reset to unlimited when minimum conditions (seeding time, number of seeds, last active time) are not met. If false, existing upload speed limits will be preserved.',
                     default: true
+                },
+                min_torrent_size: {
+                    type: 'text',
+                    label: 'Minimum Torrent Size',
+                    description: 'Only include torrents at least this size in the group. Accepts human-readable sizes like "200MB", "40GB", "1024MiB". Leave blank to disable.',
+                    default: ''
+                },
+                max_torrent_size: {
+                    type: 'text',
+                    label: 'Maximum Torrent Size',
+                    description: 'Only include torrents no larger than this size in the group. Accepts human-readable sizes like "200MB", "40GB", "1024MiB". Leave blank to disable.',
+                    default: ''
                 }
             }
         }
@@ -141,6 +153,10 @@ export const shareLimitsSchema = {
             {
                 title: 'Share Limits',
                 fields: ['max_ratio', 'max_seeding_time', 'max_last_active', 'min_seeding_time', 'min_last_active', 'min_num_seeds']
+            },
+            {
+                title: 'Size Filters',
+                fields: ['min_torrent_size', 'max_torrent_size']
             },
             {
                 title: 'Upload Speed Limits',
@@ -178,7 +194,9 @@ export const shareLimitsSchema = {
             'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
             'add_group_to_tag': '<span class="material-icons">add_circle</span>',
             'max_last_active': '<span class="material-icons">access_time</span>',
-            'min_last_active': '<span class="material-icons">history</span>'
+            'min_last_active': '<span class="material-icons">history</span>',
+            'min_torrent_size': '<span class="material-icons">sd_storage</span>',
+            'max_torrent_size': '<span class="material-icons">sd_storage</span>'
         }
     }
 };

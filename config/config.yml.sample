@@ -192,6 +192,14 @@ share_limits:
     categories:
       - RadarrComplete
       - SonarrComplete
+    # <OPTIONAL> min_torrent_size <str>: Only include torrents at least this size in the group.
+    # Accepts human-readable sizes like "200MB", "40GB", "1024MiB".
+    # Leave unset or blank to disable the minimum size filter.
+    # min_torrent_size: 20GB
+    # <OPTIONAL> max_torrent_size <str>: Only include torrents no larger than this size in the group.
+    # Accepts human-readable sizes like "200MB", "40GB", "1024MiB".
+    # Leave unset or blank to disable the maximum size filter.
+    # max_torrent_size: 400GB
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0

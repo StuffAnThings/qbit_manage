@@ -4,6 +4,7 @@ import glob
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import time
@@ -544,6 +545,25 @@ class check:
                 except Exception:
                     message = f"Unable to parse {text}, must be a valid time format."
                     throw = True
+        elif var_type == "size_parse":
+            # Accepts values like "200MB", "1.5GB", "750MiB", "1024", case-insensitive
+            # Returns bytes as an integer
+            try:
+                # If already an int and valid, treat as bytes
+                if isinstance(data[attribute], int) and data[attribute] >= min_int:
+                    return int(data[attribute])
+                # If float-like numeric provided, also treat as bytes
+                if isinstance(data[attribute], float) and data[attribute] >= float(min_int):
+                    return int(data[attribute])
+                parsed_bytes = parse_size_to_bytes(str(data[attribute]))
+                if parsed_bytes is not None and parsed_bytes >= min_int:
+                    return int(parsed_bytes)
+                else:
+                    message = f"Unable to parse {text}, must be a valid size format like '500MB', '4GB', or '1024'."
+                    throw = True
+            except Exception:
+                message = f"Unable to parse {text}, must be a valid size format like '500MB', '4GB', or '1024'."
+                throw = True
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
@@ -1017,6 +1037,56 @@ def human_readable_size(size, decimal_places=3):
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f}{unit}"
+
+
+def parse_size_to_bytes(value):
+    """
+    Parse a human-readable size string into bytes.
+    Accepts units: B, KB, MB, GB, TB, PB and binary variants KiB, MiB, GiB, TiB, PiB (case-insensitive).
+    Examples: "200MB", "1.5GB", "750MiB", "1024", 2048
+    Returns:
+        int: number of bytes, or None if parsing fails.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return int(value)
+        except Exception:
+            return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    # Match number and optional unit
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*([kKmMgGtTpP]i?[bB])?\s*$", s)
+    if not m:
+        # If pure integer without unit
+        try:
+            return int(float(s))
+        except Exception:
+            return None
+    num = float(m.group(1))
+    unit = m.group(2).lower() if m.group(2) else "b"
+
+    # Normalize common forms to binary multiples (base 1024) to match qBittorrent bytes
+    # Treat KB/MB/GB as KiB/MiB/GiB equivalents
+    multipliers = {
+        "b": 1,
+        "kb": 1024,
+        "kib": 1024,
+        "mb": 1024**2,
+        "mib": 1024**2,
+        "gb": 1024**3,
+        "gib": 1024**3,
+        "tb": 1024**4,
+        "tib": 1024**4,
+        "pb": 1024**5,
+        "pib": 1024**5,
+    }
+    mul = multipliers.get(unit, None)
+    if mul is None:
+        return None
+    return int(num * mul)
 
 
 class YAML:

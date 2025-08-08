@@ -371,13 +371,13 @@ class ShareLimits:
         for torrent in torrent_list:
             tags = util.get_list(torrent.tags)
             category = torrent.category or ""
-            grouping = self.get_share_limit_group(tags, category)
+            grouping = self.get_share_limit_group(tags, category, torrent)
             logger.trace(f"Torrent: {torrent.name} [Hash: {torrent.hash}] - Share Limit Group: {grouping}")
             if grouping:
                 self.share_limits_config[grouping]["torrents"].append(torrent)
 
-    def get_share_limit_group(self, tags, category):
-        """Get the share limit group based on the tags and category of the torrent"""
+    def get_share_limit_group(self, tags, category, torrent):
+        """Get the share limit group based on tags, category, and optional size thresholds of the torrent"""
         for group_name, group_config in self.share_limits_config.items():
             check_tags = self.check_tags(
                 tags=tags,
@@ -387,8 +387,13 @@ class ShareLimits:
                 exclude_any_tags=group_config["exclude_any_tags"],
             )
             check_category = self.check_category(category, group_config["categories"])
+            check_size = self.check_size(
+                torrent,
+                group_config.get("min_torrent_size"),
+                group_config.get("max_torrent_size"),
+            )
 
-            if check_tags and check_category:
+            if check_tags and check_category and check_size:
                 return group_name
         return None
 
@@ -415,6 +420,56 @@ class ShareLimits:
             if category not in categories:
                 return False
         return True
+
+    def check_size(self, torrent, min_size, max_size):
+        """Check if the torrent's total size (in bytes) is within [min_size, max_size]."""
+        # If neither threshold is set, always pass
+        if min_size is None and max_size is None:
+            return True
+
+        size = self._get_torrent_size_bytes(torrent)
+        if size is None:
+            logger.trace(f"Unable to determine size for torrent: {torrent.name}. Excluding from size-filtered groups.")
+            return False
+
+        if min_size is not None and size < int(min_size):
+            logger.trace(f"Torrent '{torrent.name}' size {size} < min_torrent_size {min_size}")
+            return False
+        if max_size is not None and size > int(max_size):
+            logger.trace(f"Torrent '{torrent.name}' size {size} > max_torrent_size {max_size}")
+            return False
+        return True
+
+    def _get_torrent_size_bytes(self, torrent):
+        """
+        Best-effort retrieval of a torrent's total size in bytes using qbittorrent-api attributes.
+        Tries common fields first, then falls back to summing file sizes.
+        """
+        # Try common attributes exposed by qbittorrent-api
+        for attr in ("total_size", "size", "completed", "downloaded"):
+            try:
+                val = getattr(torrent, attr, None)
+                if val is not None:
+                    return int(val)
+            except Exception:
+                pass
+
+        # Fallback: sum file sizes if available
+        try:
+            total = 0
+            for f in torrent.files:
+                try:
+                    fsz = getattr(f, "size", None)
+                    if fsz is not None:
+                        total += int(fsz)
+                except Exception:
+                    continue
+            if total > 0:
+                return total
+        except Exception:
+            pass
+
+        return None
 
     def set_tags_and_limits(self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, tags=None, do_print=True):
         """Set tags and limits for a torrent"""

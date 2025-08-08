@@ -909,6 +909,80 @@ export class ShareLimitsComponent {
             return weeks * 7 * 24 * 60 + days * 24 * 60 + hours * 60 + minutes;
         };
 
+        // Helper to parse sizes to bytes. Accepts SI and IEC units. Empty string => null (disabled)
+        const parseSizeToBytes = (sizeStr) => {
+            if (sizeStr === undefined || sizeStr === null) return null;
+            const raw = String(sizeStr).trim();
+            if (raw === '') return null; // disabled
+            // Allow whitespace between number and unit
+            const match = raw.match(/^(\d+(?:\.\d+)?)\s*([kKmMgGtT]?i?[bB])?$/);
+            if (!match) return NaN;
+
+            const value = parseFloat(match[1]);
+            if (isNaN(value) || value < 0) return NaN;
+
+            let unit = (match[2] || 'B').toUpperCase();
+
+            // Normalize common variants without trailing 'B' (e.g., "MB" vs "M")
+            const normalize = (u) => {
+                // Map shorthand like K, M, G, T to KB, MB, GB, TB (SI)
+                if (u === 'K') return 'KB';
+                if (u === 'M') return 'MB';
+                if (u === 'G') return 'GB';
+                if (u === 'T') return 'TB';
+                return u;
+            };
+            unit = normalize(unit);
+
+            // Multipliers (SI = 1000, IEC = 1024)
+            const multipliers = {
+                B: 1,
+                KB: 1e3, MB: 1e6, GB: 1e9, TB: 1e12,
+                KIB: 1024, MIB: 1024 ** 2, GIB: 1024 ** 3, TIB: 1024 ** 4
+            };
+
+            // Add support for plain Kb/Mb etc. by treating 'B' or 'b' as bytes (not bits); already normalized to uppercase
+            // If unit missing trailing 'B' like 'KI' or 'MI', handle gracefully
+            if (!multipliers[unit]) {
+                // Try appending 'B' if it's a power-of-two prefix like 'KI', 'MI', 'GI', 'TI'
+                if (['KI','MI','GI','TI'].includes(unit)) {
+                    unit = unit + 'B';
+                } else if (['K','M','G','T'].includes(unit)) {
+                    unit = unit + 'B';
+                }
+            }
+
+            const mul = multipliers[unit];
+            if (!mul) return NaN;
+
+            return Math.floor(value * mul);
+        };
+
+        // Clear previous inline errors if any
+        const clearFieldError = (fieldName) => {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            const container = input ? input.closest('.form-group') || input.parentElement : null;
+            if (container) {
+                container.querySelectorAll('.field-error').forEach(n => n.remove());
+                input.classList.remove('input-error');
+            }
+        };
+
+        const setFieldError = (fieldName, message) => {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            const container = input ? input.closest('.form-group') || input.parentElement : null;
+            if (container && !container.querySelector('.field-error')) {
+                const err = document.createElement('div');
+                err.className = 'field-error';
+                err.style.color = 'var(--error)';
+                err.style.fontSize = '12px';
+                err.style.marginTop = '6px';
+                err.textContent = message;
+                input && input.classList.add('input-error');
+                container.appendChild(err);
+            }
+        };
+
         // Get values from form data
         const minSeedingTimeStr = formData.min_seeding_time || '0';
         const maxSeedingTimeStr = formData.max_seeding_time || '-1';
@@ -918,14 +992,51 @@ export class ShareLimitsComponent {
         const minSeedingTime = parseTimeToMinutes(minSeedingTimeStr);
         const maxSeedingTime = parseTimeToMinutes(maxSeedingTimeStr);
 
-        // Rule 1: If min_seeding_time > 0, then max_ratio must be > 0
+        // Reset size field errors first
+        clearFieldError('min_torrent_size');
+        clearFieldError('max_torrent_size');
+
+        // Parse size values (empty => null)
+        const minSizeStr = formData.min_torrent_size ?? '';
+        const maxSizeStr = formData.max_torrent_size ?? '';
+        const minSizeBytes = parseSizeToBytes(minSizeStr);
+        const maxSizeBytes = parseSizeToBytes(maxSizeStr);
+
+        // Gather errors
+        const errors = [];
+
+        // Rule A: If min_seeding_time > 0, then max_ratio must be > 0
         if (minSeedingTime > 0 && (isNaN(maxRatio) || maxRatio <= 0)) {
-            return 'MANDATORY: When minimum seeding time is greater than 0, maximum share ratio must also be set to a value greater than 0.';
+            errors.push('MANDATORY: When minimum seeding time is greater than 0, maximum share ratio must also be set to a value greater than 0.');
         }
 
-        // Rule 2: If both min_seeding_time and max_seeding_time are used, max_seeding_time must be greater than min_seeding_time
+        // Rule B: If both min_seeding_time and max_seeding_time are used, max_seeding_time must be greater than min_seeding_time
         if (minSeedingTime > 0 && maxSeedingTime > 0 && maxSeedingTime <= minSeedingTime) {
-            return 'Maximum seeding time must be greater than minimum seeding time when both are specified.';
+            errors.push('Maximum seeding time must be greater than minimum seeding time when both are specified.');
+        }
+
+        // Rule C: Size validation - format and positivity (empty => disabled)
+        if (minSizeStr.trim() !== '' && (isNaN(minSizeBytes) || minSizeBytes <= 0)) {
+            setFieldError('min_torrent_size', 'Enter a valid size (e.g., 200MB, 2GiB). Must be greater than 0.');
+            errors.push('Invalid minimum torrent size.');
+        }
+        if (maxSizeStr.trim() !== '' && (isNaN(maxSizeBytes) || maxSizeBytes <= 0)) {
+            setFieldError('max_torrent_size', 'Enter a valid size (e.g., 200MB, 2GiB). Must be greater than 0.');
+            errors.push('Invalid maximum torrent size.');
+        }
+
+        // Rule D: Consistency - min <= max when both provided
+        if (minSizeStr.trim() !== '' && maxSizeStr.trim() !== '' && !isNaN(minSizeBytes) && !isNaN(maxSizeBytes)) {
+            if (minSizeBytes > maxSizeBytes) {
+                setFieldError('min_torrent_size', 'Minimum size must be less than or equal to maximum size.');
+                setFieldError('max_torrent_size', 'Maximum size must be greater than or equal to minimum size.');
+                errors.push('Minimum torrent size greater than maximum torrent size.');
+            }
+        }
+
+        // Return combined error message or null
+        if (errors.length > 0) {
+            return errors.join(' ');
         }
 
         return null; // No error
