@@ -14,7 +14,8 @@ export const shareLimitsSchema = {
                     label: 'Priority',
                     description: 'The priority of the group. Lower numbers have higher priority.',
                     required: true,
-                    step: 0.1
+                    step: 0.1,
+                    default: 999
                 },
                 include_all_tags: {
                     type: 'array',
@@ -130,5 +131,54 @@ export const shareLimitsSchema = {
                 }
             }
         }
-    ]
+    ],
+    ui: {
+        sections: [
+            {
+                title: 'Basic Configuration',
+                fields: ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag']
+            },
+            {
+                title: 'Share Limits',
+                fields: ['max_ratio', 'max_seeding_time', 'max_last_active', 'min_seeding_time', 'min_last_active', 'min_num_seeds']
+            },
+            {
+                title: 'Upload Speed Limits',
+                fields: ['limit_upload_speed', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
+            },
+            {
+                title: 'Tag Filters',
+                fields: ['include_all_tags', 'include_any_tags', 'exclude_all_tags', 'exclude_any_tags']
+            },
+            {
+                title: 'Category Filters',
+                fields: ['categories']
+            },
+            {
+                title: 'Advanced',
+                fields: ['custom_tag']
+            }
+        ],
+        fieldIcons: {
+            'priority': '<span class="material-icons">priority_high</span>',
+            'max_ratio': '<span class="material-icons">share</span>',
+            'max_seeding_time': '<span class="material-icons">schedule</span>',
+            'min_seeding_time': '<span class="material-icons">timer</span>',
+            'limit_upload_speed': '<span class="material-icons">upload</span>',
+            'cleanup': '<span class="material-icons">cleaning_services</span>',
+            'categories': '<span class="material-icons">category</span>',
+            'custom_tag': '<span class="material-icons">label</span>',
+            'include_all_tags': '<span class="material-icons">check_circle</span>',
+            'include_any_tags': '<span class="material-icons">radio_button_checked</span>',
+            'exclude_all_tags': '<span class="material-icons">block</span>',
+            'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
+            'min_num_seeds': '<span class="material-icons">group</span>',
+            'enable_group_upload_speed': '<span class="material-icons">speed</span>',
+            'reset_upload_speed_on_unmet_minimums': '<span class="material-icons">refresh</span>',
+            'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
+            'add_group_to_tag': '<span class="material-icons">add_circle</span>',
+            'max_last_active': '<span class="material-icons">access_time</span>',
+            'min_last_active': '<span class="material-icons">history</span>'
+        }
+    }
 };
