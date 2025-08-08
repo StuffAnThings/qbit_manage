@@ -742,6 +742,45 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
 }
 
 /**
+ * Build defaults for share-limit group properties directly from the schema.
+ * This avoids duplicating defaults in code and uses the schema as source of truth.
+ * @param {object} config - The section configuration (share-limits schema).
+ * @returns {object} defaults map of property -> default value
+ */
+function getShareLimitSchemaDefaults(config) {
+    // share_limits schema defines a single field object with name 'share_limit_groups'
+    const groupField = Array.isArray(config?.fields)
+        ? (config.fields.find(f => f.name === 'share_limit_groups') || config.fields[0])
+        : null;
+    const properties = groupField?.properties || {};
+
+    const defaults = {};
+    for (const [propName, propSchema] of Object.entries(properties)) {
+        if (Object.prototype.hasOwnProperty.call(propSchema, 'default')) {
+            defaults[propName] = propSchema.default;
+        } else {
+            // Fallbacks when schema doesn't provide a default
+            switch (propSchema.type) {
+                case 'array':
+                    defaults[propName] = [];
+                    break;
+                case 'boolean':
+                    defaults[propName] = false;
+                    break;
+                case 'number':
+                    // No assumed numeric default; undefined means "no value set"
+                    defaults[propName] = undefined;
+                    break;
+                default:
+                    // text and others: default to empty string so we don't show in summary
+                    defaults[propName] = '';
+            }
+        }
+    }
+    return defaults;
+}
+
+/**
  * Generates HTML for Share Limits configuration with drag-and-drop interface.
  * @param {object} config - The section configuration.
  * @param {object} data - The current data for the section.
@@ -749,6 +788,7 @@ function generateComplexObjectEntryHTML(entryKey, entryValue, config) {
  */
 export function generateShareLimitsHTML(config, data) {
     const shareLimitsData = data || {};
+    const defaults = getShareLimitSchemaDefaults(config);
 
     // Convert data to array format sorted by priority for display
     const groupsArray = Object.entries(shareLimitsData)
@@ -774,7 +814,7 @@ export function generateShareLimitsHTML(config, data) {
     `;
 
     groupsArray.forEach((group, index) => {
-        const summaryText = generateGroupSummary(group);
+        const summaryText = generateGroupSummary(group, defaults);
         html += `
             <div class="share-limit-group-item" data-key="${group.key}" data-priority="${group.priority}">
                 <div class="share-limit-group-handle">
@@ -811,28 +851,8 @@ export function generateShareLimitsHTML(config, data) {
  * @param {object} group - The share limit group data.
  * @returns {string} Summary text describing the group's configuration.
  */
-function generateGroupSummary(group) {
-    // Define default values from schema to avoid showing defaults
-    // IMPORTANT: These must match the exact types that come from the data
-    const defaults = {
-        max_ratio: -1,                    // number
-        max_seeding_time: -1,             // number (but could be string like "1d")
-        max_last_active: -1,              // number (but could be string like "2h1m")
-        min_seeding_time: 0,              // number (but could be string like "30m")
-        min_last_active: 0,               // number (but could be string like "1h")
-        limit_upload_speed: -1,           // number
-        enable_group_upload_speed: false, // boolean
-        cleanup: false,                   // boolean
-        resume_torrent_after_change: true,// boolean
-        add_group_to_tag: true,           // boolean
-        min_num_seeds: 0,                 // number
-        custom_tag: '',                   // string
-        include_all_tags: [],             // array
-        include_any_tags: [],             // array
-        exclude_all_tags: [],             // array
-        exclude_any_tags: [],             // array
-        categories: []                    // array
-    };
+function generateGroupSummary(group, defaults) {
+    // defaults are supplied from schema via getShareLimitSchemaDefaults(config)
 
     const summaryParts = [];
 
@@ -905,6 +925,10 @@ function generateGroupSummary(group) {
 
     if (isNotDefault(group.limit_upload_speed, defaults.limit_upload_speed)) {
         summaryParts.push(`Upload Limit: ${group.limit_upload_speed} KiB/s`);
+    }
+
+    if (isNotDefault(group.upload_speed_on_limit_reached, defaults.upload_speed_on_limit_reached)) {
+        summaryParts.push(`Upload Speed on Limit Reached: ${group.upload_speed_on_limit_reached} KiB/s`);
     }
 
     // Size filters (display values as entered)

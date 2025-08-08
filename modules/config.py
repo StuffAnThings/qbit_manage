@@ -669,7 +669,19 @@ class Config:
                     subparent=group,
                     var_type="int",
                     min_int=-1,
-                    default=0,
+                    default=-1,
+                    do_print=False,
+                    save=False,
+                )
+                # New: throttle upload speed once share limits are reached (when cleanup is False)
+                self.share_limits[group]["upload_speed_on_limit_reached"] = self.util.check_for_attribute(
+                    self.data,
+                    "upload_speed_on_limit_reached",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=-1,
+                    default=-1,
                     do_print=False,
                     save=False,
                 )

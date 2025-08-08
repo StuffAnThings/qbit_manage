@@ -93,6 +93,12 @@ export const shareLimitsSchema = {
                     description: 'The upload speed limit in KiB/s. Use -1 for no limit.',
                     default: -1
                 },
+                upload_speed_on_limit_reached: {
+                    type: 'number',
+                    label: 'Upload Speed on Limit Reached (KiB/s)',
+                    description: 'When cleanup is false and share limits are reached, throttle per-torrent upload to this value. Use -1 for unlimited.',
+                    default: -1
+                },
                 enable_group_upload_speed: {
                     type: 'boolean',
                     label: 'Enable Group Upload Speed',
@@ -160,7 +166,7 @@ export const shareLimitsSchema = {
             },
             {
                 title: 'Upload Speed Limits',
-                fields: ['limit_upload_speed', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
+                fields: ['limit_upload_speed', 'upload_speed_on_limit_reached', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
             },
             {
                 title: 'Tag Filters',
@@ -181,6 +187,7 @@ export const shareLimitsSchema = {
             'max_seeding_time': '<span class="material-icons">schedule</span>',
             'min_seeding_time': '<span class="material-icons">timer</span>',
             'limit_upload_speed': '<span class="material-icons">upload</span>',
+            'upload_speed_on_limit_reached': '<span class="material-icons">speed</span>',
             'cleanup': '<span class="material-icons">cleaning_services</span>',
             'categories': '<span class="material-icons">category</span>',
             'custom_tag': '<span class="material-icons">label</span>',
