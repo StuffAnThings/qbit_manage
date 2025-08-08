@@ -806,17 +806,30 @@ class CheckHardLinks:
             + get_root_files(self.orphaned_dir, "")
             + get_root_files(self.recycle_dir, "")
         )
-        self.get_inode_count()
+        self.root_inode_count = self.get_inode_count()
+        categories = {name: path.replace(self.root_dir, self.remote_dir) for name, path in config.data["cat"].items()}
+        self.categories_inode_count = self.get_inode_count(categories)
 
-    def get_inode_count(self):
-        self.inode_count = {}
+    def get_inode_count(self, categories=None):
+        inode_count = {}
         for file in self.root_files:
             # Only check hardlinks for files that are symlinks
             if os.path.isfile(file) and os.path.islink(file):
                 continue
             else:
+                mapped_path = file.replace(self.root_dir, self.remote_dir)
+                if not categories:
+                    category = "root"
+                else:
+                    category = None
+                    for name, cat_path in categories.items():
+                        if mapped_path.startswith(cat_path):
+                            category = name
+                            break
+                    if category is None:
+                        continue  # Not in any category, skip
                 try:
-                    inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+                    inode_no = os.stat(mapped_path).st_ino
                 except PermissionError as perm:
                     logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
                     continue
@@ -827,12 +840,15 @@ class CheckHardLinks:
                     logger.stacktrace()
                     logger.error(ex)
                     continue
-                if inode_no in self.inode_count:
-                    self.inode_count[inode_no] += 1
+                if category not in inode_count:
+                    inode_count[category] = {}
+                if inode_no in inode_count[category]:
+                    inode_count[category][inode_no] += 1
                 else:
-                    self.inode_count[inode_no] = 1
+                    inode_count[category][inode_no] = 1
+        return inode_count["root"] if not categories else inode_count
 
-    def nohardlink(self, file, notify, ignore_root_dir):
+    def nohardlink(self, file, notify, ignore_root_dir, category, ignore_category_dir):
         """
         Check if there are any hard links
         Will check if there are any hard links if it passes a file or folder
@@ -841,19 +857,23 @@ class CheckHardLinks:
         This fixes the bug in #192
         """
 
-        def has_hardlinks(self, file, ignore_root_dir):
+        def has_hardlinks(self, file, ignore_root_dir, category, ignore_category_dir):
             """
             Check if a file has hard links.
 
             Args:
                 file (str): The path to the file.
                 ignore_root_dir (bool): Whether to ignore the root directory.
+                category (str): The category name.
+                ignore_category_dir (bool): Whether to ignore the torrent category directory.
 
             Returns:
                 bool: True if the file has hard links, False otherwise.
             """
             if ignore_root_dir:
-                return os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0
+                return os.stat(file).st_nlink - self.root_inode_count.get(os.stat(file).st_ino, 1) > 0
+            elif ignore_category_dir:
+                return os.stat(file).st_nlink - self.categories_inode_count.get(category, {}).get(os.stat(file).st_ino, 1) > 0
             else:
                 return os.stat(file).st_nlink > 1
 
@@ -866,10 +886,11 @@ class CheckHardLinks:
                 logger.trace(f"Checking file: {file}")
                 logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
                 logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
-                logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
+                logger.trace(f"Checking root_inode_count dict: {self.root_inode_count.get(os.stat(file).st_ino)}")
                 logger.trace(f"ignore_root_dir: {ignore_root_dir}")
+                logger.trace(f"ignore_category_dir: {ignore_category_dir} (category: {category})")
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
-                if has_hardlinks(self, file, ignore_root_dir):
+                if has_hardlinks(self, file, ignore_root_dir, category, ignore_category_dir):
                     logger.trace(f"Hardlinks found in {file}.")
                     check_for_hl = False
             else:
@@ -898,9 +919,12 @@ class CheckHardLinks:
                         logger.trace(f"Checking file inum: {os.stat(files).st_ino}")
                         logger.trace(f"Checking file size: {file_size}")
                         logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
+                        logger.trace(f"Checking root_inode_count dict: {self.root_inode_count.get(os.stat(files).st_ino)}")
                         logger.trace(f"ignore_root_dir: {ignore_root_dir}")
-                        if has_hardlinks(self, files, ignore_root_dir) and file_size >= (largest_file_size * threshold):
+                        logger.trace(f"ignore_category_dir: {ignore_category_dir} (category: {category})")
+                        if has_hardlinks(self, files, ignore_root_dir, category, ignore_category_dir) and file_size >= (
+                            largest_file_size * threshold
+                        ):
                             logger.trace(f"Hardlinks found in {files}.")
                             check_for_hl = False
         except PermissionError as perm:

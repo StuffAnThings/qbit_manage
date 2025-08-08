@@ -471,7 +471,7 @@ class Config:
             self.nohardlinks = {}
             for cat in self.data["nohardlinks"]:
                 if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
-                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True, "ignore_category_dir": True}
                     continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
@@ -483,11 +483,16 @@ class Config:
                 self.nohardlinks[cat_str] = {
                     "exclude_tags": cat[cat_str].get("exclude_tags", []),
                     "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                    "ignore_category_dir": cat[cat_str].get("ignore_category_dir", True),
                 }
                 if self.nohardlinks[cat_str]["exclude_tags"] is None:
                     self.nohardlinks[cat_str]["exclude_tags"] = []
                 if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
                     err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                if not isinstance(self.nohardlinks[cat_str]["ignore_category_dir"], bool):
+                    err = f"Config Error: nohardlinks category {cat_str} attribute ignore_category_dir must be a boolean type"
                     self.notify(err, "Config")
                     raise Failed(err)
         else:
