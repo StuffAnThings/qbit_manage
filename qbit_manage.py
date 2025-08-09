@@ -14,7 +14,6 @@ from datetime import timedelta
 from multiprocessing import Manager
 
 import requests
-import uvicorn
 
 from modules.scheduler import Scheduler
 from modules.scheduler import calc_next_run
@@ -25,7 +24,6 @@ from modules.util import format_stats_summary
 from modules.util import get_arg
 from modules.util import get_default_config_dir
 from modules.util import get_matching_config_files
-from modules.web_api import create_app
 
 try:
     from croniter import croniter
@@ -589,6 +587,55 @@ def end():
     sys.exit(0)
 
 
+# Define the web server target at module level (required for Windows spawn/frozen PyInstaller)
+def run_web_server(
+    port,
+    process_args,
+    is_running,
+    is_running_lock,
+    web_api_queue,
+    scheduler_update_queue,
+    next_scheduled_run_info_shared,
+):
+    """Run web server in a separate process with shared args (safe for Windows/PyInstaller)."""
+    try:
+        # Create a read-only scheduler in the child process (avoid pickling issues on Windows)
+        from modules.scheduler import Scheduler
+        from modules.web_api import create_app
+
+        config_dir_local = process_args.get("config_dir", "config")
+        child_scheduler = Scheduler(config_dir_local, suppress_logging=True, read_only=True)
+
+        # Create FastAPI app instance with process args and shared state
+        app = create_app(
+            process_args,
+            is_running,
+            is_running_lock,
+            web_api_queue,
+            scheduler_update_queue,
+            next_scheduled_run_info_shared,
+            child_scheduler,
+        )
+
+        # Configure and run uvicorn
+        import uvicorn as _uvicorn
+
+        config = _uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
+        server = _uvicorn.Server(config)
+        server.run()
+    except KeyboardInterrupt:
+        # Gracefully allow shutdown
+        pass
+    except Exception:
+        # Avoid dependency on application logger here; print minimal traceback for diagnostics
+        try:
+            import traceback
+
+            traceback.print_exc()
+        except Exception:
+            pass
+
+
 def print_logo(logger):
     global is_docker, version, git_branch
     logger.separator()
@@ -629,47 +676,6 @@ if __name__ == "__main__":
         raise
 
     try:
-
-        def run_web_server(
-            port,
-            process_args,
-            is_running,
-            is_running_lock,
-            web_api_queue,
-            scheduler_update_queue,
-            next_scheduled_run_info_shared,
-        ):
-            """Run web server in a separate process with shared args"""
-            try:
-                from modules.scheduler import Scheduler
-
-                # Create a read-only scheduler in the child process (avoid pickling issues on Windows)
-                config_dir_local = process_args.get("config_dir", "config")
-                child_scheduler = Scheduler(config_dir_local, suppress_logging=True, read_only=True)
-
-                # Create FastAPI app instance with process args and shared state
-                app = create_app(
-                    process_args,
-                    is_running,
-                    is_running_lock,
-                    web_api_queue,
-                    scheduler_update_queue,
-                    next_scheduled_run_info_shared,
-                    child_scheduler,
-                )
-
-                # Configure uvicorn settings
-                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
-
-                # Run the server
-                server = uvicorn.Server(config)
-                server.run()
-            except ImportError:
-                logger.critical("Web server dependencies not installed. Please install with: pip install qbit_manage[web]")
-                sys.exit(1)
-            except KeyboardInterrupt:
-                pass
-
         manager = Manager()
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
         is_running_lock = manager.Lock()  # Separate lock for is_running synchronization
