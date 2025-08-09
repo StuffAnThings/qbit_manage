@@ -6,11 +6,14 @@ import multiprocessing
 import os
 import platform
 import sys
+import threading
 import time
+import webbrowser
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import Manager
 
+import requests
 import uvicorn
 
 from modules.scheduler import Scheduler
@@ -50,8 +53,9 @@ parser.add_argument(
     "--web-server",
     dest="web_server",
     action="store_true",
-    default=False,
-    help="Start the webUI server to handle command requests via HTTP API.",
+    default=None,
+    help="Start the webUI server to handle command requests via HTTP API. "
+    "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
     "-p",
@@ -234,7 +238,8 @@ parser.add_argument(
 parser.add_argument(
     "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
 )
-args = parser.parse_args()
+# Use parse_known_args to ignore PyInstaller/multiprocessing injected flags on Windows
+args, _unknown_cli = parser.parse_known_args()
 
 
 try:
@@ -251,6 +256,9 @@ except ImportError:
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
+# Auto-enable web server by default on non-Docker if not explicitly set via env/flag
+if web_server is None and not is_docker:
+    web_server = True
 port = get_arg("QBT_PORT", args.port, arg_int=True)
 base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
@@ -375,6 +383,27 @@ def my_except_hook(exctype, value, tbi):
 sys.excepthook = my_except_hook
 
 version, branch = util.get_current_version()
+
+
+def _open_browser_when_ready(url: str, logger):
+    """Poll the web API until it responds, then open the browser to the WebUI."""
+    try:
+        for _ in range(40):  # ~10 seconds total with 0.25s sleep
+            try:
+                resp = requests.get(url, timeout=1)
+                if resp.status_code < 500:
+                    logger.debug(f"Opening browser to {url}")
+                    try:
+                        webbrowser.open(url, new=2)  # new tab if possible
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                pass
+            time.sleep(0.25)
+    except Exception:
+        # Never let browser-opening issues impact main app
+        pass
 
 
 def start_loop(first_run=False):
@@ -646,6 +675,24 @@ if __name__ == "__main__":
         # Start web server if enabled and not in run mode
         web_process = None
         if web_server:
+            # One-time info message about how the web server was enabled
+            try:
+                _cli_ws_flag = any(a in ("-ws", "--web-server") for a in sys.argv[1:])
+                _env_ws_set = "QBT_WEB_SERVER" in os.environ
+                if web_server:
+                    if _env_ws_set:
+                        logger.info("Web server enabled via override: ENV (QBT_WEB_SERVER)")
+                    elif _cli_ws_flag:
+                        logger.info("Web server enabled via override: CLI (-ws/--web-server)")
+                    else:
+                        logger.info("Web server enabled automatically (desktop default)")
+            except Exception:
+                pass
+
+            # Log any unknown CLI args (useful for PyInstaller/multiprocessing flags on Windows)
+            if _unknown_cli:
+                logger.debug(f"Unknown CLI arguments ignored: {_unknown_cli}")
+
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
             if base_url:
@@ -676,6 +723,16 @@ if __name__ == "__main__":
             )
             web_process.start()
             logger.info("Web server started in separate process")
+
+            # If not running in Docker, open the WebUI automatically in a browser tab when ready
+            if not is_docker:
+                try:
+                    ui_url = f"http://127.0.0.1:{port}"
+                    if base_url:
+                        ui_url = f"{ui_url}/{base_url.lstrip('/')}"
+                    threading.Thread(target=_open_browser_when_ready, args=(ui_url, logger), daemon=True).start()
+                except Exception:
+                    pass
 
         # Handle normal run modes
         if run:
