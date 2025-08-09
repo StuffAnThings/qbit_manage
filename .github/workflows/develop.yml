@@ -48,7 +48,21 @@ jobs:
         run: |
           ADD_WEBUI="web-ui${{ steps.sep.outputs.SEP }}web-ui"
           ADD_SAMPLE_CFG="config/config.yml.sample${{ steps.sep.outputs.SEP }}config"
-          ADD_LOGO="qbm_logo.png${{ steps.sep.outputs.SEP }}."
+          ADD_LOGO="icons/qbm_logo.png${{ steps.sep.outputs.SEP }}."
+          ADD_VERSION="VERSION${{ steps.sep.outputs.SEP }}."
+          ICON_ARG=""
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ICON_ARG='--icon "icons/qbm_logo.ico"'
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            ICON_ARG='--icon "icons/qbm_logo.icns"'
+          else
+            # Linux: optional icon (helps some desktop environments)
+            if [[ -f "icons/qbm_logo.png" ]]; then
+              ICON_ARG='--icon "icons/qbm_logo.png"'
+            elif [[ -f "icons/qbm_logo.ico" ]]; then
+              ICON_ARG='--icon "icons/qbm_logo.ico"'
+            fi
+          fi
           pyinstaller --noconfirm \
                       --clean \
                       --onefile \
@@ -56,6 +70,8 @@ jobs:
                       --add-data "$ADD_WEBUI" \
                       --add-data "$ADD_SAMPLE_CFG" \
                       --add-data "$ADD_LOGO" \
+                      --add-data "$ADD_VERSION" \
+                      $ICON_ARG \
                       "${ENTRY}"
 
       - name: Rename output for OS

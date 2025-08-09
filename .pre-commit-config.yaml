@@ -9,6 +9,7 @@ repos:
       - id: check-json
       - id: check-yaml
       - id: check-added-large-files
+        args: [--maxkb=600]
       - id: fix-byte-order-marker
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
