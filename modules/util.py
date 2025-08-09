@@ -17,7 +17,30 @@ import requests
 import ruamel.yaml
 from pytimeparse2 import parse
 
-logger = logging.getLogger("qBit Manage")
+
+class LoggerProxy:
+    """Proxy that defers attribute access to the active logger instance.
+
+    This allows modules that import `util.logger` at import time to still
+    route all logging calls to the final MyLogger instance once it is
+    initialized and set via `set_logger`.
+    """
+
+    def __init__(self):
+        self._logger = None
+
+    def set_logger(self, logger):
+        self._logger = logger
+
+    def __getattr__(self, name):
+        # If MyLogger is set, delegate to it; otherwise, fallback to std logging.
+        if self._logger is not None:
+            return getattr(self._logger, name)
+        fallback = logging.getLogger("qBit Manage")
+        return getattr(fallback, name)
+
+
+logger = LoggerProxy()
 
 
 def get_list(data, lower=False, split=True, int_list=False, upper=False):

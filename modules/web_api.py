@@ -34,7 +34,13 @@ from modules.util import YAML
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
-logger = util.logger
+
+class _LoggerProxy:
+    def __getattr__(self, name):
+        return getattr(util.logger, name)
+
+
+logger = _LoggerProxy()
 
 
 class CommandRequest(BaseModel):
@@ -174,6 +180,9 @@ class WebAPI:
             if provided_dir:
                 resolved_dir = util.ensure_config_dir_initialized(provided_dir)
                 object.__setattr__(self, "default_dir", resolved_dir)
+            else:
+                # Ensure default dir is initialized
+                object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
         except Exception as e:
             logger.error(f"Failed to apply provided config_dir '{self.args.get('config_dir')}': {e}")
 

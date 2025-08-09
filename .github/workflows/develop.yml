@@ -44,6 +44,7 @@ jobs:
           fi
 
       - name: Build (PyInstaller onefile)
+        shell: bash
         run: |
           ADD_WEBUI="web-ui${{ steps.sep.outputs.SEP }}web-ui"
           ADD_SAMPLE_CFG="config/config.yml.sample${{ steps.sep.outputs.SEP }}config"

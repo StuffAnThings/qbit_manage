@@ -345,7 +345,12 @@ except ValueError:
 logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, log_size, log_count)
 from modules import util  # noqa
 
-util.logger = logger
+# Ensure all modules that imported util.logger earlier route to this MyLogger
+try:
+    util.logger.set_logger(logger)
+except AttributeError:
+    # Fallback if util.logger is not a proxy (legacy behavior)
+    util.logger = logger
 from modules.config import Config  # noqa
 from modules.core.category import Category  # noqa
 from modules.core.recheck import ReCheck  # noqa
