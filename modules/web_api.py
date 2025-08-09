@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import glob
 import json
 import logging
 import os
@@ -132,13 +131,7 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
 
-    default_dir: str = field(
-        default_factory=lambda: (
-            "/config"
-            if os.path.isdir("/config") and glob.glob(os.path.join("/config", "*.yml"))
-            else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config")
-        )
-    )
+    default_dir: str = field(default_factory=lambda: util.ensure_config_dir_initialized(util.get_default_config_dir()))
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default=None)
     is_running: Synchronized[bool] = field(default=None)
@@ -174,6 +167,15 @@ class WebAPI:
         # Create app with lifespan context manager
         app = FastAPI(lifespan=lifespan)
         object.__setattr__(self, "app", app)
+
+        # If caller provided a config_dir (e.g., computed in qbit_manage), prefer it
+        try:
+            provided_dir = self.args.get("config_dir")
+            if provided_dir:
+                resolved_dir = util.ensure_config_dir_initialized(provided_dir)
+                object.__setattr__(self, "default_dir", resolved_dir)
+        except Exception as e:
+            logger.error(f"Failed to apply provided config_dir '{self.args.get('config_dir')}': {e}")
 
         # Initialize paths during startup
         object.__setattr__(self, "config_path", Path(self.default_dir))
@@ -225,7 +227,7 @@ class WebAPI:
         self.app.include_router(api_router, prefix=api_prefix)
 
         # Mount static files for web UI
-        web_ui_dir = Path(__file__).parent.parent / "web-ui"
+        web_ui_dir = util.runtime_path("web-ui")
         if web_ui_dir.exists():
             if base_url:
                 # When base URL is configured, mount static files at the base URL path
@@ -244,7 +246,7 @@ class WebAPI:
                 return RedirectResponse(url=base_url + "/", status_code=302)
 
             # Otherwise, serve the web UI normally
-            web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+            web_ui_path = util.runtime_path("web-ui", "index.html")
             if web_ui_path.exists():
                 return FileResponse(str(web_ui_path))
             raise HTTPException(status_code=404, detail="Web UI not found")
@@ -254,7 +256,7 @@ class WebAPI:
 
             @self.app.get(base_url + "/")
             async def serve_base_url_index():
-                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                web_ui_path = util.runtime_path("web-ui", "index.html")
                 if web_ui_path.exists():
                     return FileResponse(str(web_ui_path))
                 raise HTTPException(status_code=404, detail="Web UI not found")
@@ -268,7 +270,7 @@ class WebAPI:
 
             # For any non-API route that doesn't start with api/ or static/, serve the index.html (SPA routing)
             if not full_path.startswith(f"{api_path}/") and not full_path.startswith(f"{static_path}/"):
-                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                web_ui_path = util.runtime_path("web-ui", "index.html")
                 if web_ui_path.exists():
                     return FileResponse(str(web_ui_path))
 

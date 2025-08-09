@@ -4,9 +4,11 @@ import glob
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import signal
+import sys
 import time
 from fnmatch import fnmatch
 from pathlib import Path
@@ -172,6 +174,110 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
             return str(final_value)
     else:
         return default
+
+
+def runtime_path(*parts) -> Path:
+    """
+    Resolve a bundled/runtime-safe path for assets.
+    - In PyInstaller bundles, files are extracted under sys._MEIPASS.
+    - In source runs, resolve relative to the project root.
+    """
+    if hasattr(sys, "_MEIPASS"):  # type: ignore[attr-defined]
+        return Path(getattr(sys, "_MEIPASS")).joinpath(*parts)  # type: ignore[arg-type]
+    # modules/util.py =&gt; project root is parent of modules/
+    return Path(__file__).resolve().parent.parent.joinpath(*parts)
+
+
+def _platform_config_base() -> Path:
+    """Return the platform-specific base directory for app config."""
+    system = platform.system()
+    home = Path.home()
+
+    if system == "Windows":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else home / "AppData" / "Roaming"
+        return base / "qbit-manage"
+    elif system == "Darwin":
+        return home / "Library" / "Application Support" / "qbit-manage"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        base = Path(xdg) if xdg else home / ".config"
+        return base / "qbit-manage"
+
+
+def get_default_config_dir(config_hint: str = None) -> str:
+    """
+    Determine the default persistent config directory, leveraging a provided config path/pattern first.
+
+    Resolution order:
+    1) If config_hint is an absolute path or contains a directory component, use its parent directory
+    2) Otherwise, if config_hint is a name/pattern, search for a match in:
+       - /config (if present)
+       - repository ./config
+       - user OS config directory
+       and return the first base directory containing a match
+    3) Fallback to legacy-ish behavior:
+       - /config if it contains any YAML
+       - otherwise user OS config directory
+    """
+    # 1) If a direct path is provided, prefer its parent directory
+    if config_hint:
+        primary = str(config_hint).split(",")[0].strip()  # take first if comma-separated
+        if primary:
+            p = Path(primary).expanduser()
+            # If absolute or contains a parent component, use that directory
+            if p.is_absolute() or (str(p.parent) not in (".", "")):
+                base = p if p.is_dir() else p.parent
+                return str(base.resolve())
+
+            # 2) Try to resolve a plain filename/pattern in common bases
+            candidates = []
+            if os.path.isdir("/config"):
+                candidates.append(Path("/config"))
+            repo_config = Path(__file__).resolve().parent.parent / "config"
+            candidates.append(repo_config)
+            candidates.append(_platform_config_base())
+
+            for base in candidates:
+                try:
+                    if list(base.glob(primary)):
+                        return str(base.resolve())
+                except Exception:
+                    # ignore and continue to next base
+                    pass
+
+    # 3) Fallbacks
+    has_yaml = glob.glob(os.path.join("/config", "*.yml")) or glob.glob(os.path.join("/config", "*.yaml"))
+    if os.path.isdir("/config") and has_yaml:
+        return "/config"
+    return str(_platform_config_base())
+
+
+def ensure_config_dir_initialized(config_dir) -> str:
+    """
+    Ensure the config directory exists and is initialized:
+    - Creates the config directory
+    - Creates logs/ and .backups/ subdirectories
+    - Seeds a default config.yml from bundled config/config.yml.sample if no *.yml/*.yaml present
+    Returns the absolute config directory as a string.
+    """
+    p = Path(config_dir).expanduser().resolve()
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "logs").mkdir(parents=True, exist_ok=True)
+    (p / ".backups").mkdir(parents=True, exist_ok=True)
+
+    has_yaml = any(p.glob("*.yml")) or any(p.glob("*.yaml"))
+    if not has_yaml:
+        sample = runtime_path("config", "config.yml.sample")
+        if sample.exists():
+            dest = p / "config.yml"
+            try:
+                shutil.copyfile(sample, dest)
+            except Exception:
+                # Non-fatal; if copy fails, user can create a config manually
+                pass
+
+    return str(p)
 
 
 class TorrentMessages:

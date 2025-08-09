@@ -2,7 +2,6 @@
 """qBittorrent Manager."""
 
 import argparse
-import glob
 import multiprocessing
 import os
 import platform
@@ -12,15 +11,21 @@ from datetime import datetime
 from datetime import timedelta
 from multiprocessing import Manager
 
+import uvicorn
+
 from modules.scheduler import Scheduler
 from modules.scheduler import calc_next_run
 from modules.scheduler import is_valid_cron_syntax
+from modules.util import ensure_config_dir_initialized
 from modules.util import execute_qbit_commands
 from modules.util import format_stats_summary
 from modules.util import get_arg
+from modules.util import get_default_config_dir
 from modules.util import get_matching_config_files
+from modules.web_api import create_app
 
 try:
+    from croniter import croniter
     from humanize import precisedelta
 
     from modules.logs import MyLogger
@@ -281,10 +286,8 @@ stats = {}
 args = {}
 scheduler = None  # Global scheduler instance
 
-if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files)):
-    default_dir = "/config"
-else:
-    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+default_dir = ensure_config_dir_initialized(get_default_config_dir(config_files))
+args["config_dir"] = default_dir
 
 config_files = get_matching_config_files(config_files, default_dir)
 
@@ -445,8 +448,6 @@ def start():
                 if scheduler and getattr(scheduler, "current_schedule", None):
                     stype, sval = scheduler.current_schedule
                     if stype == "cron":
-                        from croniter import croniter
-
                         cron = croniter(sval, now_local)
                         nxt = cron.get_next(datetime)
                         while nxt <= now_local:
@@ -472,8 +473,6 @@ def start():
                     if stype_chk == "cron":
                         now_guard = datetime.now()
                         if nxt_time <= now_guard:
-                            from croniter import croniter
-
                             cron = croniter(sval_chk, now_guard)
                             nxt_time = cron.get_next(datetime)
                             while nxt_time <= now_guard:
@@ -581,6 +580,7 @@ def print_logo(logger):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     killer = GracefulKiller()
     logger.add_main_handler()
     print_logo(logger)
@@ -608,10 +608,6 @@ if __name__ == "__main__":
         ):
             """Run web server in a separate process with shared args"""
             try:
-                import uvicorn
-
-                from modules.web_api import create_app
-
                 # Create FastAPI app instance with process args and shared state
                 app = create_app(
                     process_args,
