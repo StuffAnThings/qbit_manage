@@ -438,18 +438,35 @@ def get_current_version():
     # Initialize version tuple
     version = ("Unknown", "Unknown", 0)
 
-    # Read and parse VERSION file (same logic as qbit_manage.py:400-406)
+    # Read and parse VERSION file with PyInstaller-safe resolution
     try:
-        version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION")
-        with open(version_file_path) as handle:
-            for line in handle.readlines():
-                line = line.strip()
-                if len(line) > 0:
-                    version = parse_version(line)
-                    break
+        # Prefer bundled path when running as a frozen app
+        version_path = None
+        try:
+            bundled = runtime_path("VERSION")
+            if bundled.exists():
+                version_path = bundled
+        except Exception:
+            pass
+
+        # Fallback to repository structure: modules/../VERSION
+        if version_path is None:
+            repo_relative = Path(__file__).resolve().parent.parent / "VERSION"
+            if repo_relative.exists():
+                version_path = repo_relative
+
+        # If we found a version file, parse it
+        if version_path is not None:
+            with open(version_path, encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if line:
+                        version = parse_version(line)
+                        break
+        # If not found, leave version as ("Unknown", "Unknown", 0)
     except Exception as e:
-        logger.error(f"Error reading VERSION file: {str(e)}")
-        return version, "Unknown"
+        # Non-fatal in frozen apps; keep noise low if VERSION is missing
+        logger.debug(f"VERSION read fallback hit: {e}")
 
     # Get environment version (same as qbit_manage.py:282)
     env_version = os.environ.get("BRANCH_NAME", "master")

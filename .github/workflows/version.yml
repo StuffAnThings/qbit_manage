@@ -51,15 +51,15 @@ jobs:
           ADD_VERSION="VERSION${{ steps.sep.outputs.SEP }}."
           ICON_ARG=""
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            ICON_ARG='--icon "icons/qbm_logo.ico"'
+            ICON_ARG=--icon=icons/qbm_logo.ico
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            ICON_ARG='--icon "icons/qbm_logo.icns"'
+            ICON_ARG=--icon=icons/qbm_logo.icns
           else
             # Linux: optional icon (helps some desktop environments)
-            if [[ -f "icons/qbm_logo.png" ]]; then
-              ICON_ARG='--icon "icons/qbm_logo.png"'
-            elif [[ -f "icons/qbm_logo.ico" ]]; then
-              ICON_ARG='--icon "icons/qbm_logo.ico"'
+            if [[ -f icons/qbm_logo.png ]]; then
+              ICON_ARG=--icon=icons/qbm_logo.png
+            elif [[ -f icons/qbm_logo.ico ]]; then
+              ICON_ARG=--icon=icons/qbm_logo.ico
             fi
           fi
           pyinstaller --noconfirm \
