@@ -336,6 +336,9 @@ class Config:
             "rem_unregistered_ignore_list": self.util.check_for_attribute(
                 self.data, "rem_unregistered_ignore_list", parent="settings", var_type="upper_list", default=[]
             ),
+            "rem_unregistered_grace_minutes": self.util.check_for_attribute(
+                self.data, "rem_unregistered_grace_minutes", parent="settings", var_type="int", default=10, min_int=0
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
@@ -592,6 +595,26 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["min_torrent_size"] = self.util.check_for_attribute(
+                    self.data,
+                    "min_torrent_size",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="size_parse",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
+                self.share_limits[group]["max_torrent_size"] = self.util.check_for_attribute(
+                    self.data,
+                    "max_torrent_size",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="size_parse",
+                    default_is_none=True,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["cleanup"] = self.util.check_for_attribute(
                     self.data, "cleanup", parent="share_limits", subparent=group, var_type="bool", default=False, do_print=False
                 )
@@ -646,7 +669,19 @@ class Config:
                     subparent=group,
                     var_type="int",
                     min_int=-1,
-                    default=0,
+                    default=-1,
+                    do_print=False,
+                    save=False,
+                )
+                # New: throttle upload speed once share limits are reached (when cleanup is False)
+                self.share_limits[group]["upload_speed_on_limit_reached"] = self.util.check_for_attribute(
+                    self.data,
+                    "upload_speed_on_limit_reached",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="int",
+                    min_int=-1,
+                    default=-1,
                     do_print=False,
                     save=False,
                 )
@@ -759,6 +794,16 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                # Validate min/max torrent size (in bytes)
+                min_sz = self.share_limits[group]["min_torrent_size"]
+                max_sz = self.share_limits[group]["max_torrent_size"]
+                if min_sz is not None and max_sz is not None and min_sz > max_sz:
+                    err = (
+                        f"Config Error: min_torrent_size ({min_sz} bytes) is greater than "
+                        f"max_torrent_size ({max_sz} bytes) for the grouping '{group}'."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
                 if (
                     self.share_limits[group]["min_seeding_time"] > 0
                     and self.share_limits[group]["max_seeding_time"] != -1

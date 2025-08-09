@@ -25,6 +25,8 @@ import { recyclebinSchema } from '../config-schemas/recyclebin.js';
 import { orphanedSchema } from '../config-schemas/orphaned.js';
 import { notificationsSchema } from '../config-schemas/notifications.js';
 import { ShareLimitsComponent } from './share-limits.js';
+import { escapeHtml } from '../utils/utils.js';
+
 
 class ConfigForm {
     constructor(options = {}) {
@@ -104,7 +106,7 @@ class ConfigForm {
         const sectionConfig = this.schemas[this.currentSection];
         if (!sectionConfig) {
             console.error(`No schema found for section: ${this.currentSection}`);
-            this.container.innerHTML = `<div class="alert alert-error">Error: Configuration schema not found for section "${this.currentSection}".</div>`;
+            this.container.innerHTML = `<div class="alert alert-error">Error: Configuration schema not found for section "${escapeHtml(this.currentSection)}".</div>`;
             return;
         }
 
@@ -1272,21 +1274,24 @@ class ConfigForm {
 
         for (let i = 0; i < parts.length - 1; i++) {
             const part = parts[i];
-            // If the current part doesn't exist, create a new object
-            if (!current[part]) {
-                current[part] = {};
+            // Prevent prototype pollution
+            if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
+                return; // Or throw new Error('Prototype pollution attempt detected');
             }
-            // If the current part exists but is not an object, preserve the existing value
-            else if (typeof current[part] !== 'object' || current[part] === null) {
-                // Save the existing value under a special key
-                current[part] = {
-                    _value: current[part]
-                };
+            // If the current part doesn't exist or isn't a plain object, create a new object
+            if (!Object.prototype.hasOwnProperty.call(current, part) ||
+                typeof current[part] !== 'object' ||
+                current[part] === null) {
+                current[part] = {};
             }
             current = current[part];
         }
-
-        current[parts[parts.length - 1]] = value;
+        // Prevent prototype pollution on the final property
+        const lastPart = parts[parts.length - 1];
+        if (lastPart === '__proto__' || lastPart === 'constructor' || lastPart === 'prototype') {
+            return; // Or throw new Error('Prototype pollution attempt detected');
+        }
+        current[lastPart] = value;
     }
 
     /**

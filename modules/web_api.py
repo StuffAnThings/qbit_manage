@@ -18,6 +18,7 @@ from multiprocessing.sharedctypes import Synchronized
 from pathlib import Path
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import ruamel.yaml
 from fastapi import APIRouter
@@ -46,7 +47,7 @@ class CommandRequest(BaseModel):
     dry_run: bool = False
     skip_cleanup: bool = False
     skip_qb_version_check: bool = False
-    log_level: Optional[str] = None  # noqa: UP045
+    log_level: Optional[str] = None
 
 
 class ConfigRequest(BaseModel):
@@ -89,7 +90,7 @@ class HealthCheckResponse(BaseModel):
     application: dict = {}  # web_api_responsive, can_accept_requests, queue_size, etc.
     directories: dict = {}  # config/logs directory status and activity info
     issues: list[str] = []
-    error: Optional[str] = None  # noqa: UP045
+    error: Optional[str] = None
 
 
 async def process_queue_periodically(web_api: WebAPI) -> None:
@@ -143,7 +144,9 @@ class WebAPI:
     is_running: Synchronized[bool] = field(default=None)
     is_running_lock: object = field(default=None)  # multiprocessing.Lock
     web_api_queue: Queue = field(default=None)
+    scheduler_update_queue: Queue = field(default=None)  # Queue for scheduler updates to main process
     next_scheduled_run_info: dict = field(default_factory=dict)
+    scheduler: object = field(default=None)  # Scheduler instance
 
     def __post_init__(self) -> None:
         """Initialize routes and events."""
@@ -202,11 +205,20 @@ class WebAPI:
         api_router.post("/configs/{filename}/backup")(self.backup_config)
         api_router.get("/configs/{filename}/backups")(self.list_config_backups)
         api_router.post("/configs/{filename}/restore")(self.restore_config_from_backup)
+
+        # Schedule management routes
+        api_router.get("/scheduler")(self.get_scheduler_status)
+        api_router.put("/schedule")(self.update_schedule)
+        api_router.delete("/schedule")(self.delete_schedule)
+
         api_router.get("/logs")(self.get_logs)
         api_router.get("/log_files")(self.list_log_files)
         api_router.get("/version")(self.get_version)
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
+
+        # System management routes
+        api_router.post("/system/force-reset")(self.force_reset_running_state)
 
         # Include the API router with the appropriate prefix
         api_prefix = base_url + "/api" if base_url else "/api"
@@ -731,7 +743,7 @@ class WebAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     def _write_yaml_config(self, config_path: Path, data: dict[str, Any]):
-        """Write configuration data to YAML file."""
+        """Write configuration data to YAML file while preserving formatting and comments."""
         from modules.util import YAML
 
         try:
@@ -740,12 +752,17 @@ class WebAPI:
 
             logger.trace(f"Data to write: {data}")
 
-            # Use the custom YAML class with !ENV representer
-            # Create YAML instance without loading existing file (we're writing new data)
-            yaml_writer = YAML(input_data="")  # Pass empty string to avoid file loading
-            yaml_writer.data = data
-            yaml_writer.path = str(config_path)
-            yaml_writer.save()
+            # Use the custom YAML class with format preservation
+            if config_path.exists():
+                # Load existing file to preserve formatting
+                yaml_writer = YAML(path=str(config_path))
+                yaml_writer.save_preserving_format(data)
+            else:
+                # Create new file with standard formatting
+                yaml_writer = YAML(input_data="")
+                yaml_writer.data = data
+                yaml_writer.path = str(config_path)
+                yaml_writer.save()
 
             logger.info(f"Successfully wrote config to: {config_path}")
         except ruamel.yaml.YAMLError as e:
@@ -808,6 +825,7 @@ class WebAPI:
                         if hasattr(self, "_last_run_start") and (datetime.now() - self._last_run_start).total_seconds() > 3600:
                             logger.warning("Previous run appears to be stuck. Forcing reset of is_running flag.")
                             self.is_running.value = False
+                            object.__setattr__(self, "_last_run_start", None)  # Clear the stuck timestamp
                         else:
                             logger.info("Another run is in progress. Queuing web API request...")
                             self.web_api_queue.put(request)
@@ -819,7 +837,7 @@ class WebAPI:
                             }
                     # Atomic operation: set flag to True
                     self.is_running.value = True
-                    self._last_run_start = datetime.now()  # Track when this run started
+                    object.__setattr__(self, "_last_run_start", datetime.now())  # Track when this run started
                 finally:
                     # Release lock immediately after atomic operation
                     self.is_running_lock.release()
@@ -834,6 +852,13 @@ class WebAPI:
                 }
         except Exception as e:
             logger.error(f"Error acquiring lock: {str(e)}")
+            # Reset is_running flag if it was set before the error occurred
+            try:
+                with self.is_running_lock:
+                    self.is_running.value = False
+            except Exception:
+                # If we can't acquire the lock to reset, log it but continue
+                logger.warning("Could not acquire lock to reset is_running flag after error")
             # If there's any error with locking, queue the request as a safety measure
             self.web_api_queue.put(request)
             return {
@@ -849,21 +874,42 @@ class WebAPI:
             # Ensure is_running is reset after successful execution
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             return result
         except HTTPException as e:
             # Ensure is_running is reset if an HTTPException occurs
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             raise e
         except Exception as e:
             # Ensure is_running is reset if any other exception occurs
             with self.is_running_lock:
                 self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)  # Clear the timestamp
             logger.stacktrace()
             logger.error(f"Error in run_command during execution: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:  # noqa: UP045
+    def force_reset_running_state(self) -> dict[str, Any]:
+        """Force reset the is_running state. Use this to recover from stuck states."""
+        try:
+            with self.is_running_lock:
+                was_running = self.is_running.value
+                self.is_running.value = False
+                object.__setattr__(self, "_last_run_start", None)
+
+            logger.warning(f"Forced reset of is_running state. Was running: {was_running}")
+            return {
+                "status": "success",
+                "message": f"Running state reset. Was previously running: {was_running}",
+                "was_running": was_running,
+            }
+        except Exception as e:
+            logger.error(f"Error forcing reset of running state: {str(e)}")
+            return {"status": "error", "message": f"Failed to reset running state: {str(e)}", "was_running": None}
+
+    async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:
         """Get recent logs from the log file."""
         if not self.logs_path.exists():
             logger.warning(f"Log directory not found: {self.logs_path}")
@@ -1062,9 +1108,216 @@ class WebAPI:
                 elif isinstance(item, (dict, list)):
                     self._log_env_str_values(item, current_path)
 
+    async def get_scheduler_status(self) -> dict:
+        """Get complete scheduler status including schedule configuration and persistence information."""
+        try:
+            # Always create a fresh scheduler instance to get current state
+            from modules.scheduler import Scheduler
+
+            fresh_scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
+
+            # Get schedule info with persistence details (uses fresh file reading)
+            schedule_info = fresh_scheduler.get_schedule_info()
+
+            # Get runtime status from shared scheduler if available, otherwise from fresh instance
+            if self.scheduler:
+                status = self.scheduler.get_status()
+            else:
+                status = fresh_scheduler.get_status()
+
+            # Use shared next run information to prevent timing drift
+            shared_next_run = None
+            shared_next_run_str = None
+            if hasattr(self, "next_scheduled_run_info") and self.next_scheduled_run_info:
+                next_run_datetime = self.next_scheduled_run_info.get("next_run")
+                shared_next_run_str = self.next_scheduled_run_info.get("next_run_str")
+                # Convert datetime to ISO string
+                if next_run_datetime:
+                    shared_next_run = (
+                        next_run_datetime.isoformat() if hasattr(next_run_datetime, "isoformat") else next_run_datetime
+                    )
+
+            # Build current_schedule object from schedule_info
+            current_schedule = None
+            if schedule_info.get("schedule"):
+                current_schedule = {"type": schedule_info.get("type"), "value": schedule_info.get("schedule")}
+
+            return {
+                "current_schedule": current_schedule,
+                "next_run": shared_next_run,
+                "next_run_str": shared_next_run_str,
+                "is_running": status.get("is_running", False),
+                "source": schedule_info.get("source"),
+                "persistent": schedule_info.get("persistent", False),
+                "file_exists": schedule_info.get("file_exists", False),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting scheduler status: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def update_schedule(self, request: dict) -> dict:
+        """Update and persist schedule configuration."""
+        try:
+            from modules.scheduler import Scheduler
+
+            # Extract schedule data from request
+            schedule_data = await request.json() if hasattr(request, "json") else request
+            schedule_value = schedule_data.get("schedule", "").strip()
+            schedule_type = schedule_data.get("type", "").strip()
+
+            if not schedule_value:
+                raise HTTPException(status_code=400, detail="Schedule value is required")
+
+            # Auto-detect type if not provided
+            if not schedule_type:
+                schedule_type, parsed_value = self._parse_schedule(schedule_value)
+                if not schedule_type:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid schedule format. Must be a cron expression or interval in minutes"
+                    )
+            else:
+                # Validate provided type
+                if schedule_type not in ["cron", "interval"]:
+                    raise HTTPException(status_code=400, detail="Schedule type must be 'cron' or 'interval'")
+
+                # Parse and validate the value
+                if schedule_type == "interval":
+                    try:
+                        parsed_value = int(schedule_value)
+                        if parsed_value <= 0:
+                            raise ValueError("Interval must be positive")
+                    except ValueError:
+                        raise HTTPException(status_code=400, detail="Invalid interval value")
+                else:  # cron
+                    parsed_value = schedule_value
+
+            # Create a scheduler instance to save the schedule
+            scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
+
+            # Save to persistent storage
+            success = scheduler.save_schedule(schedule_type, str(parsed_value))
+
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to save schedule")
+
+            # Send update to main process via IPC queue
+            if self.scheduler_update_queue:
+                try:
+                    update_data = {"type": schedule_type, "value": parsed_value}
+                    self.scheduler_update_queue.put(update_data)
+                except Exception as e:
+                    logger.error(f"Failed to send scheduler update to main process: {e}")
+
+            return {
+                "success": True,
+                "message": f"Schedule saved successfully: {schedule_type}={parsed_value}",
+                "schedule": str(parsed_value),
+                "type": schedule_type,
+                "persistent": True,
+            }
+
+        except HTTPException:
+            raise
+        except ValueError as e:
+            logger.error(f"Validation error updating schedule: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Error updating schedule: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def delete_schedule(self) -> dict:
+        """Delete persistent schedule configuration."""
+        try:
+            from modules.scheduler import Scheduler
+
+            # Create a scheduler instance to delete the schedule
+            scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
+
+            success = scheduler.delete_schedule()
+
+            if success:
+                # Send delete notification to main process via IPC queue
+                if self.scheduler_update_queue:
+                    try:
+                        update_data = {"type": "delete", "value": None}
+                        self.scheduler_update_queue.put(update_data)
+                        logger.debug("Sent scheduler delete notification to main process")
+                    except Exception as e:
+                        logger.error(f"Failed to send scheduler delete notification to main process: {e}")
+
+                return {"success": True, "message": "Persistent schedule deleted successfully"}
+            else:
+                raise HTTPException(status_code=500, detail="Failed to delete schedule")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting schedule: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    def _parse_schedule(self, schedule_value: str) -> tuple[Optional[str], Optional[Union[str, int]]]:
+        """
+        Parse schedule value to determine type and validate format.
+
+        Args:
+            schedule_value: Raw schedule string from request
+
+        Returns:
+            tuple: (schedule_type, parsed_value) or (None, None) if invalid
+        """
+        try:
+            # Try to parse as interval (integer minutes)
+            interval_minutes = int(schedule_value)
+            if interval_minutes > 0:
+                return "interval", interval_minutes
+        except ValueError:
+            pass
+
+        # Try to parse as cron expression
+        # Basic validation: should have 5 parts (minute hour day month weekday)
+        cron_parts = schedule_value.split()
+        if len(cron_parts) == 5:
+            # Additional validation could be added here
+            # For now, we'll let the scheduler validate it
+            return "cron", schedule_value
+
+        return None, None
+
+    def _update_next_run_info(self, next_run: datetime):
+        """Update the shared next run info dictionary."""
+        try:
+            import math
+            from datetime import timedelta
+
+            from humanize import precisedelta
+
+            current_time = datetime.now()
+            current = current_time.strftime("%I:%M %p")
+            time_to_run_str = next_run.strftime("%Y-%m-%d %I:%M %p")
+            delta_seconds = (next_run - current_time).total_seconds()
+            time_until = precisedelta(timedelta(minutes=math.ceil(delta_seconds / 60)), minimum_unit="minutes", format="%d")
+
+            next_run_info = {
+                "next_run": next_run,
+                "next_run_str": f"Current Time: {current} | {time_until} until the next run at {time_to_run_str}",
+            }
+            self.next_scheduled_run_info.update(next_run_info)
+
+        except Exception as e:
+            logger.error(f"Error updating next run info: {str(e)}")
+
 
 def create_app(
-    args: dict, is_running: bool, is_running_lock: object, web_api_queue: Queue, next_scheduled_run_info: dict
+    args: dict,
+    is_running: bool,
+    is_running_lock: object,
+    web_api_queue: Queue,
+    scheduler_update_queue: Queue,
+    next_scheduled_run_info: dict,
+    scheduler: object = None,
 ) -> FastAPI:
     """Create and return the FastAPI application."""
     return WebAPI(
@@ -1072,5 +1325,7 @@ def create_app(
         is_running=is_running,
         is_running_lock=is_running_lock,
         web_api_queue=web_api_queue,
+        scheduler_update_queue=scheduler_update_queue,
         next_scheduled_run_info=next_scheduled_run_info,
+        scheduler=scheduler,
     ).app

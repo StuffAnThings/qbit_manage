@@ -14,7 +14,8 @@ export const shareLimitsSchema = {
                     label: 'Priority',
                     description: 'The priority of the group. Lower numbers have higher priority.',
                     required: true,
-                    step: 0.1
+                    step: 0.1,
+                    default: 999
                 },
                 include_all_tags: {
                     type: 'array',
@@ -92,6 +93,12 @@ export const shareLimitsSchema = {
                     description: 'The upload speed limit in KiB/s. Use -1 for no limit.',
                     default: -1
                 },
+                upload_speed_on_limit_reached: {
+                    type: 'number',
+                    label: 'Upload Speed on Limit Reached (KiB/s)',
+                    description: 'When cleanup is false and share limits are reached, throttle per-torrent upload to this value. Use -1 for unlimited.',
+                    default: -1
+                },
                 enable_group_upload_speed: {
                     type: 'boolean',
                     label: 'Enable Group Upload Speed',
@@ -127,8 +134,76 @@ export const shareLimitsSchema = {
                     label: 'Reset Upload Speed on Unmet Minimums',
                     description: 'If true, upload speed limits will be reset to unlimited when minimum conditions (seeding time, number of seeds, last active time) are not met. If false, existing upload speed limits will be preserved.',
                     default: true
+                },
+                min_torrent_size: {
+                    type: 'text',
+                    label: 'Minimum Torrent Size',
+                    description: 'Only include torrents at least this size in the group. Accepts human-readable sizes like "200MB", "40GB", "1024MiB". Leave blank to disable.',
+                    default: ''
+                },
+                max_torrent_size: {
+                    type: 'text',
+                    label: 'Maximum Torrent Size',
+                    description: 'Only include torrents no larger than this size in the group. Accepts human-readable sizes like "200MB", "40GB", "1024MiB". Leave blank to disable.',
+                    default: ''
                 }
             }
         }
-    ]
+    ],
+    ui: {
+        sections: [
+            {
+                title: 'Basic Configuration',
+                fields: ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag']
+            },
+            {
+                title: 'Share Limits',
+                fields: ['max_ratio', 'max_seeding_time', 'max_last_active', 'min_seeding_time', 'min_last_active', 'min_num_seeds']
+            },
+            {
+                title: 'Size Filters',
+                fields: ['min_torrent_size', 'max_torrent_size']
+            },
+            {
+                title: 'Upload Speed Limits',
+                fields: ['limit_upload_speed', 'upload_speed_on_limit_reached', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
+            },
+            {
+                title: 'Tag Filters',
+                fields: ['include_all_tags', 'include_any_tags', 'exclude_all_tags', 'exclude_any_tags']
+            },
+            {
+                title: 'Category Filters',
+                fields: ['categories']
+            },
+            {
+                title: 'Advanced',
+                fields: ['custom_tag']
+            }
+        ],
+        fieldIcons: {
+            'priority': '<span class="material-icons">priority_high</span>',
+            'max_ratio': '<span class="material-icons">share</span>',
+            'max_seeding_time': '<span class="material-icons">schedule</span>',
+            'min_seeding_time': '<span class="material-icons">timer</span>',
+            'limit_upload_speed': '<span class="material-icons">upload</span>',
+            'upload_speed_on_limit_reached': '<span class="material-icons">speed</span>',
+            'cleanup': '<span class="material-icons">cleaning_services</span>',
+            'categories': '<span class="material-icons">category</span>',
+            'custom_tag': '<span class="material-icons">label</span>',
+            'include_all_tags': '<span class="material-icons">check_circle</span>',
+            'include_any_tags': '<span class="material-icons">radio_button_checked</span>',
+            'exclude_all_tags': '<span class="material-icons">block</span>',
+            'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
+            'min_num_seeds': '<span class="material-icons">group</span>',
+            'enable_group_upload_speed': '<span class="material-icons">speed</span>',
+            'reset_upload_speed_on_unmet_minimums': '<span class="material-icons">refresh</span>',
+            'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
+            'add_group_to_tag': '<span class="material-icons">add_circle</span>',
+            'max_last_active': '<span class="material-icons">access_time</span>',
+            'min_last_active': '<span class="material-icons">history</span>',
+            'min_torrent_size': '<span class="material-icons">sd_storage</span>',
+            'max_torrent_size': '<span class="material-icons">sd_storage</span>'
+        }
+    }
 };

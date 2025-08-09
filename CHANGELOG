@@ -1,17 +1,24 @@
 # Requirements Updated
-- "GitPython==3.1.45"
-- "retrying==1.4.1",
+- "retrying==1.4.2",
 
 
 # New Features
-- **Remove Orphaned**: Adds new `min_file_age_minutes` flag to prevent files newer than a certain time from being deleted (Thanks to @H2OKing89 #859)
-- Adds new standalone script `ban_peers.py` for banning selected peers (Thanks to @tboy1337 #888)
+- **Web UI**: Implement dynamic schedule management via web UI/API
+- **Share Limits**: Add limit upload speed when share limits are reached (New config option: `upload_speed_on_limit_reached`) (Fixes #731, #737, #703)
+- **Share Limits**: Add min/max torrent size filters (New config option: `min_torrent_size` / `max_torrent_size`) (Fixes #472)
+- **Remove Unregistered**: Add grace period for unregistered torrent removal (New config option: `rem_unregistered_grace_minutes`) (Fixes #898)
+- **Scheduler (Web API)**: Implement dynamic schedule management via web API
 
 # Improvements
-- Adds timeout detectiono for stuck runs for web API rqeeusts
+- **Mover Script**: Allow granular control with pause, resume and move args
+- **web UI**: When saving, don’t delete config comments and empty lines (Fixes #890)
 
 # Bug Fixes
-- Fix bug in webUI deleting nohardlink section (Fixes #884)
+- Fix Error acquiring lock: cannot assign to field '_last_run_start' (Fixes #895)
+- Fix remove_orphaned not working correctly with `remote_dir` and reporting 0 files removed
+- fix(web-ui): prevent XSS vulnerabilities and prototype pollution
+- Potential fix for code scanning alert no. 13: Client-side cross-site scripting (#896)
 
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.1...v4.5.2
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.2...v4.5.3

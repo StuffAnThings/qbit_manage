@@ -47,6 +47,7 @@ settings:
   rem_unregistered_ignore_list: # Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched
     - example placeholder words
     - ignore if found
+  rem_unregistered_grace_minutes: 10 # Grace period (minutes) to skip removing newly added torrents when unregistered with the tracker (Default is 10)
 
 directory:
   # Do not remove these
@@ -191,6 +192,14 @@ share_limits:
     categories:
       - RadarrComplete
       - SonarrComplete
+    # <OPTIONAL> min_torrent_size <str>: Only include torrents at least this size in the group.
+    # Accepts human-readable sizes like "200MB", "40GB", "1024MiB".
+    # Leave unset or blank to disable the minimum size filter.
+    # min_torrent_size: 20GB
+    # <OPTIONAL> max_torrent_size <str>: Only include torrents no larger than this size in the group.
+    # Accepts human-readable sizes like "200MB", "40GB", "1024MiB".
+    # Leave unset or blank to disable the maximum size filter.
+    # max_torrent_size: 400GB
     # <OPTIONAL> max_ratio <float>: Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met.
     # Will default to -1 (no limit) if not specified for the group.
     max_ratio: 5.0
@@ -218,7 +227,9 @@ share_limits:
     # Will default to 0 if not specified for the group.
     min_last_active: 30d
     # <OPTIONAL> Limit Upload Speed <int>: Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)
-    limit_upload_speed: 0
+    limit_upload_speed: -1
+    # <OPTIONAL> upload_speed_on_limit_reached <int>: When cleanup is false and share limits are reached, throttle per-torrent upload to this value (KiB/s). Use -1 for unlimited.
+    upload_speed_on_limit_reached: -1
     # <OPTIONAL> Enable Group Upload Speed <bool>: Upload speed limits are applied at the group level. This will take limit_upload_speed defined and divide it equally among the number of torrents in the group.
     enable_group_upload_speed: false
     # <OPTIONAL> reset_upload_speed_on_unmet_minimums <bool>: If true (default), upload speed limits will be reset to unlimited when minimum conditions are not met. Set to false to preserve upload speed limits.

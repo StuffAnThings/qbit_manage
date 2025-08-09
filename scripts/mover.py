@@ -61,6 +61,24 @@ parser.add_argument(
     ],
     default="completed",
 )
+parser.add_argument(
+    "--pause",
+    help="Pause torrents matching the specified criteria",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--resume",
+    help="Resume torrents matching the specified criteria",
+    action="store_true",
+    default=False,
+)
+parser.add_argument(
+    "--move",
+    help="Start the Unraid mover process",
+    action="store_true",
+    default=False,
+)
 # --DEFINE VARIABLES--#
 
 # --START SCRIPT--#
@@ -105,37 +123,53 @@ if __name__ == "__main__":
     current = datetime.now()
     args = parser.parse_args()
 
+    # If no specific operation is requested, default to all operations (original behavior)
+    if not any([args.pause, args.resume, args.move]):
+        args.pause = True
+        args.resume = True
+        args.move = True
+
     if args.days_from > args.days_to:
         raise ("Config Error: days_from must be set lower than days_to")
 
-    try:
-        client = Client(host=args.host, username=args.user, password=args.password)
-    except LoginFailed:
-        raise ("Qbittorrent Error: Failed to login. Invalid username/password.")
-    except APIConnectionError:
-        raise ("Qbittorrent Error: Unable to connect to the client.")
-    except Exception:
-        raise ("Qbittorrent Error: Unable to connect to the client.")
+    # Initialize client and torrents only if pause or resume operations are requested
+    client = None
+    torrents = []
 
-    timeoffset_from = current - timedelta(days=args.days_from)
-    timeoffset_to = current - timedelta(days=args.days_to)
-    torrent_list = client.torrents.info(status_filter=args.status_filter, sort="added_on", reverse=True)
+    if args.pause or args.resume:
+        try:
+            client = Client(host=args.host, username=args.user, password=args.password)
+        except LoginFailed:
+            raise ("Qbittorrent Error: Failed to login. Invalid username/password.")
+        except APIConnectionError:
+            raise ("Qbittorrent Error: Unable to connect to the client.")
+        except Exception:
+            raise ("Qbittorrent Error: Unable to connect to the client.")
 
-    torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
+        timeoffset_from = current - timedelta(days=args.days_from)
+        timeoffset_to = current - timedelta(days=args.days_to)
+        torrent_list = client.torrents.info(status_filter=args.status_filter, sort="added_on", reverse=True)
+        torrents = filter_torrents(torrent_list, timeoffset_from.timestamp(), timeoffset_to.timestamp(), args.cache_mount)
 
     # Pause Torrents
-    logging.info(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
-    stop_start_torrents(torrents, True)
-    time.sleep(10)
-    # Or using mover tunning
-    if args.mover_old:
-        # Start mover
-        logging.info("Starting mover.old to move files in to array disks.")
-        os.system("/usr/local/sbin/mover.old start")
-    else:
-        # Start mover
-        logging.info("Starting mover to move files in to array disks based on mover tuning preferences.")
-        os.system("/usr/local/sbin/mover start")
-    # Start Torrents
-    logging.info(f"Resuming [{len(torrents)}] paused torrents from {args.days_from} - {args.days_to} days ago")
-    stop_start_torrents(torrents, False)
+    if args.pause:
+        logging.info(f"Pausing [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
+        stop_start_torrents(torrents, True)
+        if args.move:  # Only sleep if mover will run next
+            time.sleep(10)
+
+    # Run mover
+    if args.move:
+        if args.mover_old:
+            # Start mover
+            logging.info("Starting mover.old to move files in to array disks.")
+            os.system("/usr/local/sbin/mover.old start")
+        else:
+            # Start mover
+            logging.info("Starting mover to move files in to array disks based on mover tuning preferences.")
+            os.system("/usr/local/sbin/mover start")
+
+    # Resume Torrents
+    if args.resume:
+        logging.info(f"Resuming [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
+        stop_start_torrents(torrents, False)

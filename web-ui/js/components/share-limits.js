@@ -8,6 +8,7 @@ import { showModal } from '../utils/modal.js';
 import { showToast } from '../utils/toast.js';
 import { generateShareLimitsHTML } from '../utils/form-renderer.js';
 import { shareLimitsSchema } from '../config-schemas/share_limits.js';
+import { escapeHtml } from '../utils/utils.js';
 import { getAvailableCategories, generateCategoryDropdownHTML } from '../utils/categories.js';
 
 export class ShareLimitsComponent {
@@ -90,9 +91,10 @@ export class ShareLimitsComponent {
         const addButton = this.container.querySelector('.add-share-limit-group-btn');
         if (addButton) {
             addButton.disabled = loading;
-            addButton.innerHTML = loading ?
-                '<span class="loading-spinner"></span> Creating...' :
-                'Add New Group';
+            const uiTexts = shareLimitsSchema.ui?.texts || {};
+            addButton.innerHTML = loading
+                ? `<span class="loading-spinner"></span> ${uiTexts.addGroupLoadingText || 'Creating...'}`
+                : (uiTexts.addGroupButtonText || 'Add New Group');
         }
     }
 
@@ -303,7 +305,10 @@ export class ShareLimitsComponent {
                 // Update the display
                 const priorityElement = item.querySelector('.share-limit-group-priority');
                 if (priorityElement) {
-                    priorityElement.textContent = `Priority: ${index + 1}`;
+                    {
+                        const prefix = shareLimitsSchema.ui?.texts?.priorityLabelPrefix || 'Priority: ';
+                        priorityElement.textContent = `${prefix}${index + 1}`;
+                    }
                 }
             }
         });
@@ -330,8 +335,11 @@ export class ShareLimitsComponent {
                 return;
             }
 
-            // Find the next available priority
-            const priorities = Object.values(this.data).map(group => group.priority || 999);
+            // Find the next available priority using schema default as fallback
+            const priorityDefault = (this.schema && this.schema.priority && typeof this.schema.priority.default !== 'undefined')
+                ? this.schema.priority.default
+                : 999;
+            const priorities = Object.values(this.data).map(group => (group.priority ?? priorityDefault));
             const nextPriority = priorities.length > 0 ? Math.max(...priorities) + 1 : 1;
 
             // Create empty group - defaults will be applied when user saves
@@ -381,26 +389,29 @@ export class ShareLimitsComponent {
 
     async promptForGroupName() {
         return new Promise((resolve) => {
+            const ui = shareLimitsSchema.ui || {};
+            const gn = ui.groupName || {};
+            const texts = ui.texts || {};
             const modalContent = `
                 <div class="form-group">
-                    <label for="group-name-input" class="form-label">Group Name</label>
+                    <label for="group-name-input" class="form-label">${gn.label || 'Group Name'}</label>
                     <div class="floating-label-group">
                         <input type="text" id="group-name-input" class="form-input"
-                               placeholder=" " autofocus maxlength="50"
-                               pattern="[a-zA-Z0-9_\\-\\s]+"
-                               title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
-                        <label for="group-name-input" class="floating-label">Enter a unique group name</label>
+                               placeholder="${gn.placeholder || ' '}" autofocus ${gn.maxLength ? `maxlength="${gn.maxLength}"` : 'maxlength="50"'}
+                               ${gn.pattern ? `pattern="${gn.pattern}"` : 'pattern="^[a-zA-Z0-9_\\-\\s]+$"'}
+                               title="${gn.title || 'Only letters, numbers, spaces, underscores, and hyphens are allowed'}">
+                        <label for="group-name-input" class="floating-label">${gn.floatingLabel || 'Enter a unique group name'}</label>
                     </div>
                     <div class="form-help">
                         <span class="material-icons" style="font-size: 16px; vertical-align: middle;">info</span>
-                        Use descriptive names like "High Priority", "Long Term", or "Quick Seed"
+                        ${gn.help || 'Use descriptive names like "High Priority", "Long Term", or "Quick Seed"'}
                     </div>
                 </div>
             `;
 
-            showModal('🎯 Add New Share Limit Group', modalContent, {
-                confirmText: 'Create Group',
-                cancelText: 'Cancel',
+            showModal(texts.addGroupTitle || '🎯 Add New Share Limit Group', modalContent, {
+                confirmText: texts.addGroupConfirmText || 'Create Group',
+                cancelText: texts.cancelText || 'Cancel',
                 className: 'modern-modal'
             }).then((confirmed) => {
                 if (confirmed) {
@@ -408,7 +419,9 @@ export class ShareLimitsComponent {
                     const value = input ? input.value.trim() : '';
 
                     // Validate input
-                    if (value && !/^[a-zA-Z0-9\s_-]+$/.test(value)) {
+                    const patternStr = shareLimitsSchema.ui?.groupName?.pattern || '^[a-zA-Z0-9\\s_-]+$';
+                    const validateRegex = new RegExp(patternStr);
+                    if (value && !validateRegex.test(value)) {
                         showToast('Group name can only contain letters, numbers, spaces, underscores, and hyphens', 'error');
                         resolve(null);
                         return;
@@ -426,7 +439,9 @@ export class ShareLimitsComponent {
                 if (input) {
                     input.addEventListener('input', (e) => {
                         const value = e.target.value;
-                        const isValid = /^[a-zA-Z0-9\s_-]*$/.test(value);
+                        const patternStr = shareLimitsSchema.ui?.groupName?.pattern || '^[a-zA-Z0-9\\s_-]+$';
+                        const validateRegex = new RegExp(patternStr);
+                        const isValid = value === '' || validateRegex.test(value);
 
                         if (!isValid && value) {
                             e.target.style.borderColor = 'var(--error)';
@@ -459,9 +474,10 @@ export class ShareLimitsComponent {
             </div>
         `;
 
-        showModal('⚠️ Confirm Removal', modalContent, {
-            confirmText: 'Remove Group',
-            cancelText: 'Keep Group',
+        const texts = shareLimitsSchema.ui?.texts || {};
+        showModal(texts.removeGroupTitle || '⚠️ Confirm Removal', modalContent, {
+            confirmText: texts.removeGroupConfirmText || 'Remove Group',
+            cancelText: texts.removeGroupCancelText || 'Keep Group',
             className: 'danger-modal',
             confirmClass: 'btn-danger'
         }).then((confirmed) => {
@@ -500,6 +516,7 @@ export class ShareLimitsComponent {
         const modalId = `share-limit-edit-modal-${Date.now()}`;
 
         const modalElement = document.createElement('div');
+
         modalElement.innerHTML = `
             <div class="modal-overlay share-limit-modal" id="${modalId}">
                 <div class="modal">
@@ -509,9 +526,9 @@ export class ShareLimitsComponent {
                                 <label for="group-name-edit" class="group-name-label">Group Name:</label>
                                 <div class="group-name-input-wrapper">
                                     <input type="text" id="group-name-edit" class="group-name-input"
-                                           value="${key}" maxlength="50"
-                                           pattern="[a-zA-Z0-9_\\-\\s]+"
-                                           title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
+                                           value="${escapeHtml(key)}" maxlength="50"
+                                            pattern="[a-zA-Z0-9_\\-\\s]+"
+                                            title="Only letters, numbers, spaces, underscores, and hyphens are allowed">
                                     <span class="group-name-edit-icon">
                                         <span class="material-icons">edit</span>
                                     </span>
@@ -757,27 +774,17 @@ export class ShareLimitsComponent {
     }
 
     filterFormData(formData) {
-        // Define default values based on the schema and YAML config
-        const defaultValues = {
-            priority: 999,
-            max_ratio: -1,
-            cleanup: false,
-            max_seeding_time: '-1',
-            resume_torrent_after_change: true,
-            add_group_to_tag: true,
-            max_last_active: '-1',
-            min_seeding_time: '0',
-            min_last_active: '0',
-            min_num_seeds: 0,
-            limit_upload_speed: -1,
-            enable_group_upload_speed: false,
-            custom_tag: '',
-            include_all_tags: [],
-            include_any_tags: [],
-            exclude_all_tags: [],
-            exclude_any_tags: [],
-            categories: []
-        };
+        // Derive default values from the schema (single source of truth)
+        const schemaProps = this.schema || {};
+        const defaultValues = {};
+        Object.entries(schemaProps).forEach(([key, prop]) => {
+            if (prop && Object.prototype.hasOwnProperty.call(prop, 'default')) {
+                defaultValues[key] = prop.default;
+            } else if (prop && prop.type === 'array') {
+                // Empty array is the implicit default for array fields
+                defaultValues[key] = [];
+            }
+        });
 
         const filteredData = {};
 
@@ -805,27 +812,16 @@ export class ShareLimitsComponent {
     applyDefaultsForNewGroup(formData) {
         // For new groups: priority always included, other fields only if non-default
 
-        // Define all possible fields with their default values for comparison
-        const allFieldDefaults = {
-            priority: 1, // This will be overridden by form value which has the correct calculated priority
-            max_ratio: -1,
-            cleanup: false,
-            max_seeding_time: '-1',
-            resume_torrent_after_change: true,
-            add_group_to_tag: true,
-            max_last_active: '-1',
-            min_seeding_time: '0',
-            min_last_active: '0',
-            min_num_seeds: 0,
-            limit_upload_speed: -1,
-            enable_group_upload_speed: false,
-            custom_tag: '',
-            include_all_tags: [],
-            include_any_tags: [],
-            exclude_all_tags: [],
-            exclude_any_tags: [],
-            categories: []
-        };
+        // Derive defaults from schema (single source of truth)
+        const schemaProps = this.schema || {};
+        const allFieldDefaults = {};
+        Object.entries(schemaProps).forEach(([key, prop]) => {
+            if (prop && Object.prototype.hasOwnProperty.call(prop, 'default')) {
+                allFieldDefaults[key] = prop.default;
+            } else if (prop && prop.type === 'array') {
+                allFieldDefaults[key] = [];
+            }
+        });
 
         const processedData = {};
 
@@ -913,6 +909,80 @@ export class ShareLimitsComponent {
             return weeks * 7 * 24 * 60 + days * 24 * 60 + hours * 60 + minutes;
         };
 
+        // Helper to parse sizes to bytes. Accepts SI and IEC units. Empty string => null (disabled)
+        const parseSizeToBytes = (sizeStr) => {
+            if (sizeStr === undefined || sizeStr === null) return null;
+            const raw = String(sizeStr).trim();
+            if (raw === '') return null; // disabled
+            // Allow whitespace between number and unit
+            const match = raw.match(/^(\d+(?:\.\d+)?)\s*([kKmMgGtT]?i?[bB])?$/);
+            if (!match) return NaN;
+
+            const value = parseFloat(match[1]);
+            if (isNaN(value) || value < 0) return NaN;
+
+            let unit = (match[2] || 'B').toUpperCase();
+
+            // Normalize common variants without trailing 'B' (e.g., "MB" vs "M")
+            const normalize = (u) => {
+                // Map shorthand like K, M, G, T to KB, MB, GB, TB (SI)
+                if (u === 'K') return 'KB';
+                if (u === 'M') return 'MB';
+                if (u === 'G') return 'GB';
+                if (u === 'T') return 'TB';
+                return u;
+            };
+            unit = normalize(unit);
+
+            // Multipliers (SI = 1000, IEC = 1024)
+            const multipliers = {
+                B: 1,
+                KB: 1e3, MB: 1e6, GB: 1e9, TB: 1e12,
+                KIB: 1024, MIB: 1024 ** 2, GIB: 1024 ** 3, TIB: 1024 ** 4
+            };
+
+            // Add support for plain Kb/Mb etc. by treating 'B' or 'b' as bytes (not bits); already normalized to uppercase
+            // If unit missing trailing 'B' like 'KI' or 'MI', handle gracefully
+            if (!multipliers[unit]) {
+                // Try appending 'B' if it's a power-of-two prefix like 'KI', 'MI', 'GI', 'TI'
+                if (['KI','MI','GI','TI'].includes(unit)) {
+                    unit = unit + 'B';
+                } else if (['K','M','G','T'].includes(unit)) {
+                    unit = unit + 'B';
+                }
+            }
+
+            const mul = multipliers[unit];
+            if (!mul) return NaN;
+
+            return Math.floor(value * mul);
+        };
+
+        // Clear previous inline errors if any
+        const clearFieldError = (fieldName) => {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            const container = input ? input.closest('.form-group') || input.parentElement : null;
+            if (container) {
+                container.querySelectorAll('.field-error').forEach(n => n.remove());
+                input.classList.remove('input-error');
+            }
+        };
+
+        const setFieldError = (fieldName, message) => {
+            const input = document.querySelector(`[name="${fieldName}"]`);
+            const container = input ? input.closest('.form-group') || input.parentElement : null;
+            if (container && !container.querySelector('.field-error')) {
+                const err = document.createElement('div');
+                err.className = 'field-error';
+                err.style.color = 'var(--error)';
+                err.style.fontSize = '12px';
+                err.style.marginTop = '6px';
+                err.textContent = message;
+                input && input.classList.add('input-error');
+                container.appendChild(err);
+            }
+        };
+
         // Get values from form data
         const minSeedingTimeStr = formData.min_seeding_time || '0';
         const maxSeedingTimeStr = formData.max_seeding_time || '-1';
@@ -922,14 +992,51 @@ export class ShareLimitsComponent {
         const minSeedingTime = parseTimeToMinutes(minSeedingTimeStr);
         const maxSeedingTime = parseTimeToMinutes(maxSeedingTimeStr);
 
-        // Rule 1: If min_seeding_time > 0, then max_ratio must be > 0
+        // Reset size field errors first
+        clearFieldError('min_torrent_size');
+        clearFieldError('max_torrent_size');
+
+        // Parse size values (empty => null)
+        const minSizeStr = formData.min_torrent_size ?? '';
+        const maxSizeStr = formData.max_torrent_size ?? '';
+        const minSizeBytes = parseSizeToBytes(minSizeStr);
+        const maxSizeBytes = parseSizeToBytes(maxSizeStr);
+
+        // Gather errors
+        const errors = [];
+
+        // Rule A: If min_seeding_time > 0, then max_ratio must be > 0
         if (minSeedingTime > 0 && (isNaN(maxRatio) || maxRatio <= 0)) {
-            return 'MANDATORY: When minimum seeding time is greater than 0, maximum share ratio must also be set to a value greater than 0.';
+            errors.push('MANDATORY: When minimum seeding time is greater than 0, maximum share ratio must also be set to a value greater than 0.');
         }
 
-        // Rule 2: If both min_seeding_time and max_seeding_time are used, max_seeding_time must be greater than min_seeding_time
+        // Rule B: If both min_seeding_time and max_seeding_time are used, max_seeding_time must be greater than min_seeding_time
         if (minSeedingTime > 0 && maxSeedingTime > 0 && maxSeedingTime <= minSeedingTime) {
-            return 'Maximum seeding time must be greater than minimum seeding time when both are specified.';
+            errors.push('Maximum seeding time must be greater than minimum seeding time when both are specified.');
+        }
+
+        // Rule C: Size validation - format and positivity (empty => disabled)
+        if (minSizeStr.trim() !== '' && (isNaN(minSizeBytes) || minSizeBytes <= 0)) {
+            setFieldError('min_torrent_size', 'Enter a valid size (e.g., 200MB, 2GiB). Must be greater than 0.');
+            errors.push('Invalid minimum torrent size.');
+        }
+        if (maxSizeStr.trim() !== '' && (isNaN(maxSizeBytes) || maxSizeBytes <= 0)) {
+            setFieldError('max_torrent_size', 'Enter a valid size (e.g., 200MB, 2GiB). Must be greater than 0.');
+            errors.push('Invalid maximum torrent size.');
+        }
+
+        // Rule D: Consistency - min <= max when both provided
+        if (minSizeStr.trim() !== '' && maxSizeStr.trim() !== '' && !isNaN(minSizeBytes) && !isNaN(maxSizeBytes)) {
+            if (minSizeBytes > maxSizeBytes) {
+                setFieldError('min_torrent_size', 'Minimum size must be less than or equal to maximum size.');
+                setFieldError('max_torrent_size', 'Maximum size must be greater than or equal to minimum size.');
+                errors.push('Minimum torrent size greater than maximum torrent size.');
+            }
+        }
+
+        // Return combined error message or null
+        if (errors.length > 0) {
+            return errors.join(' ');
         }
 
         return null; // No error
@@ -993,32 +1100,14 @@ export class ShareLimitsComponent {
     }
 
     generateGroupEditForm(groupData) {
-        const sections = [
-            {
-                title: 'Basic Configuration',
-                fields: ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag']
-            },
-            {
-                title: 'Share Limits',
-                fields: ['max_ratio', 'max_seeding_time', 'max_last_active', 'min_seeding_time', 'min_last_active', 'min_num_seeds']
-            },
-            {
-                title: 'Upload Speed Limits',
-                fields: ['limit_upload_speed', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
-            },
-            {
-                title: 'Tag Filters',
-                fields: ['include_all_tags', 'include_any_tags', 'exclude_all_tags', 'exclude_any_tags']
-            },
-            {
-                title: 'Category Filters',
-                fields: ['categories']
-            },
-            {
-                title: 'Advanced',
-                fields: ['custom_tag']
-            }
-        ];
+        const sections = (shareLimitsSchema.ui && Array.isArray(shareLimitsSchema.ui.sections))
+            ? shareLimitsSchema.ui.sections
+            : [
+                {
+                    title: 'Configuration',
+                    fields: Object.keys(this.schema)
+                }
+            ];
 
         let html = '';
 
@@ -1033,8 +1122,8 @@ export class ShareLimitsComponent {
                 // For new groups (only have priority field), pre-populate basic configuration with defaults
                 const isNewGroup = Object.keys(groupData).length === 1 && groupData.priority !== undefined;
 
-                // Define which fields should get defaults for new groups (basic configuration)
-                const basicConfigFields = ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag'];
+                // Fields to pre-populate for new groups come from the first UI section in schema
+                const basicConfigFields = (shareLimitsSchema.ui?.sections?.[0]?.fields) || ['priority', 'cleanup', 'resume_torrent_after_change', 'add_group_to_tag'];
 
                 let value;
                 if (isNewGroup) {
@@ -1164,7 +1253,7 @@ export class ShareLimitsComponent {
                             <button type="button" class="btn btn-secondary add-array-item modern-add-btn"
                                     data-field="${fieldName}">
                                 <span class="material-icons">add</span>
-                                Add Item
+                                ${ (shareLimitsSchema.ui?.texts?.addArrayItemText) || 'Add Item' }
                             </button>
                         </div>
                     </div>
@@ -1201,28 +1290,7 @@ export class ShareLimitsComponent {
     }
 
     getFieldIcon(fieldName) {
-        const iconMap = {
-            'priority': '<span class="material-icons">priority_high</span>',
-            'max_ratio': '<span class="material-icons">share</span>',
-            'max_seeding_time': '<span class="material-icons">schedule</span>',
-            'min_seeding_time': '<span class="material-icons">timer</span>',
-            'limit_upload_speed': '<span class="material-icons">upload</span>',
-            'cleanup': '<span class="material-icons">cleaning_services</span>',
-            'categories': '<span class="material-icons">category</span>',
-            'custom_tag': '<span class="material-icons">label</span>',
-            'include_all_tags': '<span class="material-icons">check_circle</span>',
-            'include_any_tags': '<span class="material-icons">radio_button_checked</span>',
-            'exclude_all_tags': '<span class="material-icons">block</span>',
-            'exclude_any_tags': '<span class="material-icons">remove_circle</span>',
-            'min_num_seeds': '<span class="material-icons">group</span>',
-            'enable_group_upload_speed': '<span class="material-icons">speed</span>',
-            'reset_upload_speed_on_unmet_minimums': '<span class="material-icons">refresh</span>',
-            'resume_torrent_after_change': '<span class="material-icons">play_arrow</span>',
-            'add_group_to_tag': '<span class="material-icons">add_circle</span>',
-            'max_last_active': '<span class="material-icons">access_time</span>',
-            'min_last_active': '<span class="material-icons">history</span>'
-        };
-
+        const iconMap = (shareLimitsSchema.ui && shareLimitsSchema.ui.fieldIcons) || {};
         return iconMap[fieldName] || '<span class="material-icons">settings</span>';
     }
 

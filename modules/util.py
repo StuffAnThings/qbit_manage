@@ -4,6 +4,7 @@ import glob
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import time
@@ -123,6 +124,54 @@ def format_stats_summary(stats: dict, config) -> list[str]:
 
             stats_output.append(f"Total {display_key}: {stat_value}")
     return stats_output
+
+
+# Global variables for get_arg function
+test_value = None
+static_envs = []
+
+
+def get_arg(env_str, default, arg_bool=False, arg_int=False):
+    """
+    Get value from environment variable(s) with type conversion and fallback support.
+
+    Args:
+        env_str (str or list): Environment variable name(s) to check
+        default: Default value to return if no environment variable is set
+        arg_bool (bool): Convert result to boolean
+        arg_int (bool): Convert result to integer
+
+    Returns:
+        Value from environment variable or default, with optional type conversion
+    """
+    global test_value
+    env_vars = [env_str] if not isinstance(env_str, list) else env_str
+    final_value = None
+    static_envs.extend(env_vars)
+    for env_var in env_vars:
+        env_value = os.environ.get(env_var)
+        if env_var == "BRANCH_NAME":
+            test_value = env_value
+        if env_value is not None:
+            final_value = env_value
+            break
+    if final_value or (arg_int and final_value == 0):
+        if arg_bool:
+            if final_value is True or final_value is False:
+                return final_value
+            elif final_value.lower() in ["t", "true"]:
+                return True
+            else:
+                return False
+        elif arg_int:
+            try:
+                return int(final_value)
+            except ValueError:
+                return default
+        else:
+            return str(final_value)
+    else:
+        return default
 
 
 class TorrentMessages:
@@ -496,6 +545,25 @@ class check:
                 except Exception:
                     message = f"Unable to parse {text}, must be a valid time format."
                     throw = True
+        elif var_type == "size_parse":
+            # Accepts values like "200MB", "1.5GB", "750MiB", "1024", case-insensitive
+            # Returns bytes as an integer
+            try:
+                # If already an int and valid, treat as bytes
+                if isinstance(data[attribute], int) and data[attribute] >= min_int:
+                    return int(data[attribute])
+                # If float-like numeric provided, also treat as bytes
+                if isinstance(data[attribute], float) and data[attribute] >= float(min_int):
+                    return int(data[attribute])
+                parsed_bytes = parse_size_to_bytes(str(data[attribute]))
+                if parsed_bytes is not None and parsed_bytes >= min_int:
+                    return int(parsed_bytes)
+                else:
+                    message = f"Unable to parse {text}, must be a valid size format like '500MB', '4GB', or '1024'."
+                    throw = True
+            except Exception:
+                message = f"Unable to parse {text}, must be a valid size format like '500MB', '4GB', or '1024'."
+                throw = True
         elif var_type == "path":
             if os.path.exists(os.path.abspath(data[attribute])):
                 return os.path.join(data[attribute], "")
@@ -850,7 +918,10 @@ class CheckHardLinks:
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
     """Get all files in root directory with optimized path handling and filtering."""
-    if not root_dir or not os.path.exists(root_dir):
+    if not root_dir:
+        return []
+    # Don't check if root_dir exists when remote_dir != root_dir, since root_dir might not be accessible
+    if root_dir == remote_dir and not os.path.exists(root_dir):
         return []
 
     # Pre-calculate path transformations
@@ -871,13 +942,13 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
                 continue
             root_files.extend(os.path.join(path, name) for name in files)
     else:
-        # Path replacement needed
+        # Path replacement needed - walk remote_dir (accessible) and convert paths to root_dir format
         path_replacements = {}
         for path, subdirs, files in os.walk(remote_dir):
             if local_exclude_dir and local_exclude_dir in path:
                 continue
 
-            # Cache path replacement
+            # Cache path replacement - convert remote_dir paths to root_dir paths
             if path not in path_replacements:
                 path_replacements[path] = path.replace(remote_dir, root_dir)
 
@@ -968,6 +1039,56 @@ def human_readable_size(size, decimal_places=3):
     return f"{size:.{decimal_places}f}{unit}"
 
 
+def parse_size_to_bytes(value):
+    """
+    Parse a human-readable size string into bytes.
+    Accepts units: B, KB, MB, GB, TB, PB and binary variants KiB, MiB, GiB, TiB, PiB (case-insensitive).
+    Examples: "200MB", "1.5GB", "750MiB", "1024", 2048
+    Returns:
+        int: number of bytes, or None if parsing fails.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return int(value)
+        except Exception:
+            return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    # Match number and optional unit
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*([kKmMgGtTpP]i?[bB])?\s*$", s)
+    if not m:
+        # If pure integer without unit
+        try:
+            return int(float(s))
+        except Exception:
+            return None
+    num = float(m.group(1))
+    unit = m.group(2).lower() if m.group(2) else "b"
+
+    # Normalize common forms to binary multiples (base 1024) to match qBittorrent bytes
+    # Treat KB/MB/GB as KiB/MiB/GiB equivalents
+    multipliers = {
+        "b": 1,
+        "kb": 1024,
+        "kib": 1024,
+        "mb": 1024**2,
+        "mib": 1024**2,
+        "gb": 1024**3,
+        "gib": 1024**3,
+        "tb": 1024**4,
+        "tib": 1024**4,
+        "pb": 1024**5,
+        "pib": 1024**5,
+    }
+    mul = multipliers.get(unit, None)
+    if mul is None:
+        return None
+    return int(num * mul)
+
+
 class YAML:
     """Class to load and save yaml files with !ENV tag preservation and environment variable resolution"""
 
@@ -1030,6 +1151,79 @@ class YAML:
                 self.yaml.dump(self.data, filepath)
         else:
             raise ValueError("YAML path is None or empty")
+
+    def save_preserving_format(self, new_data):
+        """Save yaml file while preserving original formatting, comments, and structure"""
+        if not self.path:
+            raise ValueError("YAML path is None or empty")
+
+        # Load the original file to preserve formatting
+        original_yaml = ruamel.yaml.YAML()
+        original_yaml.preserve_quotes = True
+        original_yaml.map_indent = 2
+        original_yaml.sequence_indent = 2
+        original_yaml.sequence_dash_offset = 0
+
+        # Add constructor and representer for !ENV tag
+        original_yaml.Constructor.add_constructor("!ENV", self._env_constructor)
+        original_yaml.Representer.add_representer(EnvStr, self._env_representer)
+
+        try:
+            # Load the original file with formatting preserved
+            with open(self.path, encoding="utf-8") as filepath:
+                original_data = original_yaml.load(filepath)
+
+            # If original file is empty or None, use new data directly
+            if not original_data:
+                original_data = original_yaml.load("{}")
+
+            # Recursively update the original data with new values while preserving structure
+            self._deep_update_preserving_format(original_data, new_data)
+
+            # Save with preserved formatting
+            with open(self.path, "w", encoding="utf-8") as filepath:
+                original_yaml.dump(original_data, filepath)
+
+        except FileNotFoundError:
+            # If file doesn't exist, create it with new data
+            with open(self.path, "w", encoding="utf-8") as filepath:
+                original_yaml.dump(new_data, filepath)
+        except Exception as e:
+            logger.error(f"Error preserving YAML format: {e}")
+            # Fallback to regular save
+            self.data = new_data
+            self.save()
+
+    def _deep_update_preserving_format(self, original, new_data):
+        """Recursively update original data with new data while preserving formatting"""
+        if not isinstance(new_data, dict):
+            return new_data
+
+        if not isinstance(original, dict):
+            return new_data
+
+        for key, value in new_data.items():
+            if key in original:
+                if isinstance(value, dict) and isinstance(original[key], dict):
+                    # Recursively update nested dictionaries
+                    self._deep_update_preserving_format(original[key], value)
+                else:
+                    # Update the value while preserving any YAML formatting
+                    original[key] = value
+            else:
+                # Add new key-value pairs
+                original[key] = value
+
+        # Remove keys that exist in original but not in new_data
+        keys_to_remove = []
+        for key in original:
+            if key not in new_data:
+                keys_to_remove.append(key)
+
+        for key in keys_to_remove:
+            del original[key]
+
+        return original
 
 
 class EnvStr(str):

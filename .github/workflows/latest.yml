@@ -66,32 +66,61 @@ jobs:
       - name: Check Out Repo
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Update develop branch
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          # Configure git with GitHub Actions bot credentials
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-          # Checkout develop branch
-          git checkout develop
+          # Ensure we have the latest remote refs
+          git fetch origin
+
+          # Check if develop branch exists locally, if not create it
+          if git show-ref --verify --quiet refs/heads/develop; then
+            echo "Local develop branch exists, checking it out"
+            git checkout develop
+          else
+            echo "Local develop branch doesn't exist, creating from remote"
+            git checkout -b develop origin/develop
+          fi
 
           # Reset develop to master
+          echo "Resetting develop branch to match master..."
           git reset --hard origin/master
 
-          # Read current version and bump minor patch
+          # Read current version and bump patch
           CURRENT_VERSION=$(cat VERSION)
+          echo "Current version: $CURRENT_VERSION"
+
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-develop1"
 
+          echo "New version: $NEW_VERSION"
+
           # Update VERSION file
           echo "$NEW_VERSION" > VERSION
 
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
           # Commit the change
           git add VERSION
-          git commit -m "Update VERSION to $NEW_VERSION"
+          git commit -m "Update VERSION to $NEW_VERSION [skip ci]"
 
-          # Force push develop branch
-          git push --force origin develop
+          # Push develop branch (force push since we reset to master)
+          # Note: This requires PAT_TOKEN secret with admin privileges to bypass branch protection
+          echo "Pushing changes to develop branch..."
+          if ! git push --force origin develop; then
+            echo "Failed to push to develop branch. This may be due to branch protection rules."
+            echo "Ensure PAT_TOKEN secret is set with admin privileges or disable branch protection for this workflow."
+            exit 1
+          fi
+
+          echo "Successfully updated develop branch to $NEW_VERSION"

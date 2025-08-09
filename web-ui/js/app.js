@@ -7,6 +7,7 @@ import { API } from './api.js';
 import { ConfigForm } from './components/config-form.js';
 import { CommandPanel } from './components/command-panel.js';
 import { LogViewer } from './components/log-viewer.js';
+import { SchedulerControl } from './components/SchedulerControl.js';
 import { get, query, queryAll, show, hide, showLoading, hideLoading } from './utils/dom.js';
 import { initModal, showModal, hideModal } from './utils/modal.js';
 import { showToast } from './utils/toast.js';
@@ -28,6 +29,7 @@ class QbitManageApp {
         this.configForm = null;
         this.commandPanel = null;
         this.logViewer = null;
+        this.schedulerControl = null;
         this.helpModal = null; // To store the reference to the help modal
         this.historyManager = new HistoryManager(this.api); // Initialize history manager
 
@@ -77,6 +79,9 @@ class QbitManageApp {
             }
 
             this.updateSidebarToggleIcon();
+
+            // Initialize scheduler after components
+            this.initSchedulerControl();
         } catch (error) {
             console.error('Failed to initialize application:', error);
             showToast('Failed to initialize application', 'error');
@@ -142,6 +147,16 @@ class QbitManageApp {
         });
         // Initialize the LogViewer component
         this.logViewer.init();
+    }
+
+    initSchedulerControl() {
+        const schedulerContainer = get('scheduler-control-container');
+        if (schedulerContainer) {
+            this.schedulerControl = new SchedulerControl({
+                container: schedulerContainer,
+
+            });
+        }
     }
 
     bindEvents() {
@@ -318,16 +333,18 @@ class QbitManageApp {
                 return;
             }
 
-            // Add config options
-            response.configs.forEach(config => {
-                const option = document.createElement('option');
-                option.value = config;
-                option.textContent = config;
-                if (config === response.default_config) {
-                    option.selected = true;
-                }
-                configSelect.appendChild(option);
-            });
+            // Add config options (exclude schedule.yml as it's not a regular config file)
+            response.configs
+                .filter(config => config !== 'schedule.yml')
+                .forEach(config => {
+                    const option = document.createElement('option');
+                    option.value = config;
+                    option.textContent = config;
+                    if (config === response.default_config) {
+                        option.selected = true;
+                    }
+                    configSelect.appendChild(option);
+                });
 
             // Attempt to load the last selected config from localStorage
             const lastSelectedConfig = localStorage.getItem('qbm-last-selected-config');
@@ -371,11 +388,25 @@ class QbitManageApp {
             this.clearAllDirtyIndicators();
             this.updateHistoryButtons();
 
-            // Load current section
-            const sectionData = this.configForm.schemas[this.currentSection]?.type === 'multi-root-object'
-                ? this.configData
-                : this.configData[this.currentSection] || {};
-            await this.configForm.loadSection(this.currentSection, sectionData);
+            // Load current section (skip for schedule.yml as it's not a regular config file)
+            if (filename !== 'schedule.yml') {
+                // If current section is 'scheduler' (UI-only section), switch to 'commands' for config files
+                let sectionToLoad = this.currentSection;
+                if (this.currentSection === 'scheduler') {
+                    sectionToLoad = 'commands';
+                    this.currentSection = 'commands';
+                    // Update the navigation to reflect the section change
+                    this.showSection('commands');
+                }
+
+                const sectionData = this.configForm.schemas[sectionToLoad]?.type === 'multi-root-object'
+                    ? this.configData
+                    : this.configData[sectionToLoad] || {};
+                await this.configForm.loadSection(sectionToLoad, sectionData);
+            } else {
+                // For schedule.yml, clear the form since it's not a regular config
+                this.configForm.container.innerHTML = '<div class="alert alert-info">Schedule configuration is managed through the Scheduler tab.</div>';
+            }
 
             hideLoading();
             showToast(`Configuration "${filename}" loaded successfully`, 'success');
@@ -640,12 +671,24 @@ class QbitManageApp {
         // Toggle visibility of content sections
         const mainContentSection = get('section-content');
         const logsSection = get('logs-section');
+        const schedulerSection = get('scheduler-section');
 
         if (sectionName === 'logs') {
             if (mainContentSection) hide(mainContentSection);
+            if (schedulerSection) hide(schedulerSection);
             this.logViewer.show(); // Use the LogViewer's show method
+        } else if (sectionName === 'scheduler') {
+            if (mainContentSection) hide(mainContentSection);
+            if (logsSection) hide(logsSection);
+            this.logViewer.hide(); // Use the LogViewer's hide method
+            if (schedulerSection) show(schedulerSection);
+
+            // Scheduler should already be initialized during app startup
+            // No need to initialize again here
         } else {
             if (mainContentSection) show(mainContentSection);
+            if (logsSection) hide(logsSection);
+            if (schedulerSection) hide(schedulerSection);
             this.logViewer.hide(); // Use the LogViewer's hide method
             // Load current section for config forms
             if (this.configData) {

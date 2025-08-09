@@ -13,6 +13,8 @@ select = [
 ignore = [
     "E722",   # E722	Do not use bare except, specify exception instead
     "E402",   # E402  module level import not at top of file
+    "UP007",  # UP007: Added back support for Python 3.9
+    "UP045",  # UP045: Added back support for Python 3.9
 ]
 
 [lint.isort]
