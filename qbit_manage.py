@@ -638,10 +638,15 @@ if __name__ == "__main__":
             web_api_queue,
             scheduler_update_queue,
             next_scheduled_run_info_shared,
-            scheduler,
         ):
             """Run web server in a separate process with shared args"""
             try:
+                from modules.scheduler import Scheduler
+
+                # Create a read-only scheduler in the child process (avoid pickling issues on Windows)
+                config_dir_local = process_args.get("config_dir", "config")
+                child_scheduler = Scheduler(config_dir_local, suppress_logging=True, read_only=True)
+
                 # Create FastAPI app instance with process args and shared state
                 app = create_app(
                     process_args,
@@ -650,7 +655,7 @@ if __name__ == "__main__":
                     web_api_queue,
                     scheduler_update_queue,
                     next_scheduled_run_info_shared,
-                    scheduler,
+                    child_scheduler,
                 )
 
                 # Configure uvicorn settings
@@ -681,11 +686,11 @@ if __name__ == "__main__":
                 _env_ws_set = "QBT_WEB_SERVER" in os.environ
                 if web_server:
                     if _env_ws_set:
-                        logger.info("Web server enabled via override: ENV (QBT_WEB_SERVER)")
+                        logger.info("    Web server enabled via override: ENV (QBT_WEB_SERVER)")
                     elif _cli_ws_flag:
-                        logger.info("Web server enabled via override: CLI (-ws/--web-server)")
+                        logger.info("    Web server enabled via override: CLI (-ws/--web-server)")
                     else:
-                        logger.info("Web server enabled automatically (desktop default)")
+                        logger.info("    Web server enabled automatically (desktop default)")
             except Exception:
                 pass
 
@@ -704,9 +709,6 @@ if __name__ == "__main__":
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
             process_args["web_server"] = True  # Indicate this is for the web server
-            # Create a read-only scheduler for the web server process
-            # This scheduler can provide status information (for webAPI) but cannot execute tasks
-            web_scheduler = Scheduler(default_dir, suppress_logging=True, read_only=True)
 
             web_process = multiprocessing.Process(
                 target=run_web_server,
@@ -718,7 +720,6 @@ if __name__ == "__main__":
                     web_api_queue,
                     scheduler_update_queue,
                     next_scheduled_run_info_shared,
-                    web_scheduler,
                 ),
             )
             web_process.start()
