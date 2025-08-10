@@ -1063,43 +1063,61 @@ class CheckHardLinks:
 
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
-    """Get all files in root directory with optimized path handling and filtering."""
+    """
+    Get all files in root directory with optimized path handling and filtering.
+
+    Windows/UNC-safe:
+    - If remote_dir is empty or effectively the same as root_dir, walk root_dir directly.
+    - Otherwise, walk remote_dir (the accessible path) and map paths back to the root_dir representation.
+    """
     if not root_dir:
         return []
-    # Don't check if root_dir exists when remote_dir != root_dir, since root_dir might not be accessible
-    if root_dir == remote_dir and not os.path.exists(root_dir):
+
+    # Normalize for robust equality checks across platforms (handles UNC vs local, slashes, case on Windows)
+    try:
+        rd_norm = os.path.normcase(os.path.normpath(root_dir)) if root_dir else ""
+        rem_norm = os.path.normcase(os.path.normpath(remote_dir)) if remote_dir else ""
+    except Exception:
+        rd_norm = root_dir or ""
+        rem_norm = remote_dir or ""
+
+    # Treat missing/empty remote_dir as "same path" (walk root_dir directly)
+    is_same_path = (not remote_dir) or (rem_norm == rd_norm)
+
+    # Determine which base directory to walk and validate it exists
+    base_to_walk = root_dir if is_same_path else remote_dir
+    if not base_to_walk or not os.path.isdir(base_to_walk):
         return []
 
-    # Pre-calculate path transformations
-    is_same_path = remote_dir == root_dir
+    # Build an exclude path in the correct namespace
     local_exclude_dir = None
+    if exclude_dir:
+        if is_same_path:
+            local_exclude_dir = exclude_dir
+        else:
+            # Convert an exclude in remote namespace to root namespace for comparison after replacement
+            try:
+                local_exclude_dir = exclude_dir.replace(remote_dir, root_dir, 1)
+            except Exception:
+                local_exclude_dir = None
 
-    if exclude_dir and not is_same_path:
-        local_exclude_dir = exclude_dir.replace(remote_dir, root_dir)
-
-    # Use list comprehension with pre-filtered results
     root_files = []
 
-    # Optimize path replacement
     if is_same_path:
-        # Fast path when paths are the same
-        for path, subdirs, files in os.walk(root_dir):
-            if local_exclude_dir and local_exclude_dir in path:
+        # Fast path when paths are the same or remote_dir not provided
+        for path, subdirs, files in os.walk(base_to_walk):
+            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(path):
                 continue
-            root_files.extend(os.path.join(path, name) for name in files)
+            for name in files:
+                root_files.append(os.path.join(path, name))
     else:
-        # Path replacement needed - walk remote_dir (accessible) and convert paths to root_dir format
-        path_replacements = {}
-        for path, subdirs, files in os.walk(remote_dir):
-            if local_exclude_dir and local_exclude_dir in path:
+        # Walk the accessible remote_dir and convert to root_dir representation once per directory
+        for path, subdirs, files in os.walk(base_to_walk):
+            replaced_path = path.replace(remote_dir, root_dir, 1)
+            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(replaced_path):
                 continue
-
-            # Cache path replacement - convert remote_dir paths to root_dir paths
-            if path not in path_replacements:
-                path_replacements[path] = path.replace(remote_dir, root_dir)
-
-            replaced_path = path_replacements[path]
-            root_files.extend(os.path.join(replaced_path, name) for name in files)
+            for name in files:
+                root_files.append(os.path.join(replaced_path, name))
 
     return root_files
 
