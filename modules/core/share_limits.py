@@ -228,7 +228,10 @@ class ShareLimits:
                         f"{round(group_upload_speed / len(torrents))} kB/s"
                     )
                     group_config["limit_upload_speed"] = round(group_upload_speed / len(torrents))
-            check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
+            check_limit_upload_speed = (
+                group_config["limit_upload_speed"] != torrent_upload_limit
+                or group_config["upload_speed_on_limit_reached"] != torrent_upload_limit
+            )
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
 
             if self.group_tag:
@@ -342,7 +345,7 @@ class ShareLimits:
                     self.tdel_dict[t_hash]["body"] = tor_reached_seed_limit
                 else:
                     # New behavior: throttle upload speed instead of pausing/removing
-                    throttle_kib = group_config.get("upload_speed_on_limit_reached", -1)
+                    throttle_kib = group_config.get("upload_speed_on_limit_reached", 0)
                     body = []
                     body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
@@ -356,18 +359,18 @@ class ShareLimits:
                         # Allow continued seeding by removing share limits
                         torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
                         # Apply per-torrent upload throttle (KiB/s) or unlimited if -1/0
-                        limit_val = -1 if throttle_kib in (-1, 0) else throttle_kib * 1024
-                        if limit_val is not None:
+                        limit_val = -1 if throttle_kib == -1 else throttle_kib * 1024
+                        if limit_val:
                             torrent.set_upload_limit(limit_val)
                         # Optionally resume if configured
                         if group_config["resume_torrent_after_change"] and torrent.state_enum.is_complete:
                             torrent.resume()
-
-                    disp = "unlimited" if throttle_kib in (-1, 0) else f"{throttle_kib} kB/s"
-                    body += logger.print_line(
-                        logger.insert_space(f"Applied upload throttle after limits reached: {disp}", 8),
-                        self.config.loglevel,
-                    )
+                    if limit_val:
+                        disp = "unlimited" if throttle_kib == -1 else f"{throttle_kib} kB/s"
+                        body += logger.print_line(
+                            logger.insert_space(f"Applied upload throttle after limits reached: {disp}", 8),
+                            self.config.loglevel,
+                        )
             self.torrent_hash_checked.append(t_hash)
 
     def tag_and_update_share_limits_for_torrent(self, torrent, group_config):
