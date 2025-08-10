@@ -343,24 +343,23 @@ class ShareLimits:
                 else:
                     # New behavior: throttle upload speed instead of pausing/removing
                     throttle_kib = group_config.get("upload_speed_on_limit_reached", 0)
-                    body = []
-                    body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
-                    body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
-                    body += logger.print_line(
-                        logger.insert_space("Cleanup: False [Meets Share Limits]", 8),
-                        self.config.loglevel,
-                    )
                     # Apply per-torrent upload throttle (KiB/s) or unlimited if -1/0
                     limit_val = -1 if throttle_kib == -1 else throttle_kib * 1024
                     if limit_val and throttle_kib != torrent_upload_limit:
+                        body = []
+                        body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
+                        body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
+                        body += logger.print_line(
+                            logger.insert_space("Cleanup: False [Meets Share Limits]", 8),
+                            self.config.loglevel,
+                        )
                         disp = "unlimited" if throttle_kib == -1 else f"{throttle_kib} kB/s"
                         body += logger.print_line(
                             logger.insert_space(f"Applied upload throttle after limits reached: {disp}", 8),
                             self.config.loglevel,
                         )
-                    # Clear share limits to prevent qBittorrent from pausing again, then apply throttle
-                    if not self.config.dry_run:
-                        if limit_val and throttle_kib != torrent_upload_limit:
+                        # Clear share limits to prevent qBittorrent from pausing again, then apply throttle
+                        if not self.config.dry_run:
                             # Allow continued seeding by removing share limits
                             torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
                             torrent.set_upload_limit(limit_val)
