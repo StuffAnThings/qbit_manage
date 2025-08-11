@@ -146,7 +146,7 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
 
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: collected
 
