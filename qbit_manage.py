@@ -754,31 +754,47 @@ if __name__ == "__main__":
                     run_msg = f"   Scheduled Mode: Running cron '{schedule_value_local}' (from {source_text_local})"
                     if not already_configured:
                         scheduler.update_schedule("cron", schedule_value_local)
-                else:
-                    interval_minutes_local = int(schedule_value_local)
-                    delta_local = timedelta(minutes=interval_minutes_local)
-                    run_msg = f"   Scheduled Mode: Running every {precisedelta(delta_local)} (from {source_text_local})."
-                    if not already_configured:
-                        # Ensure interval schedule is set so next_run is available
-                        scheduler.update_schedule("interval", interval_minutes_local)
 
-                # Compute next run info for logging/UI
-                nr_time = scheduler.get_next_run()
-                nr_info = calc_next_run(nr_time)
-                next_scheduled_run_info_shared.update(nr_info)
+                    # Compute next run info for logging/UI
+                    nr_time = scheduler.get_next_run()
+                    nr_info = calc_next_run(nr_time)
+                    next_scheduled_run_info_shared.update(nr_info)
 
-                if schedule_type_local == "interval" and startupDelay:
-                    run_msg += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     run_msg += f"\n     {nr_info['next_run_str']}"
+                    logger.info(run_msg)
+
+                    # Start scheduler for subsequent runs
+                    scheduler.start(callback=start_loop)
+                    return
+
+                # Interval schedule
+                interval_minutes_local = int(schedule_value_local)
+                delta_local = timedelta(minutes=interval_minutes_local)
+                run_msg = f"   Scheduled Mode: Running every {precisedelta(delta_local)} (from {source_text_local})."
+                if not already_configured:
+                    # Ensure interval schedule is set so next_run is available
+                    scheduler.update_schedule("interval", interval_minutes_local)
+
+                # For interval mode: ALWAYS execute an immediate first run on startup
+                if startupDelay:
+                    run_msg += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     logger.info(run_msg)
                     time.sleep(startupDelay)
-                    # Execute first run immediately after startup delay
-                    start_loop()
-                    # Reset baseline for subsequent interval runs
-                    scheduler.update_schedule("interval", int(schedule_value_local), suppress_logging=True)
                 else:
-                    run_msg += f"\n     {nr_info['next_run_str']}"
+                    run_msg += "\n    Initial Run: Starting immediately"
                     logger.info(run_msg)
+
+                # Execute first run immediately (after optional startupDelay)
+                start_loop()
+                # Reset baseline for subsequent interval runs
+                scheduler.update_schedule("interval", int(schedule_value_local), suppress_logging=True)
+
+                # Refresh and publish the corrected next run info after immediate run
+                corrected_next = scheduler.get_next_run()
+                if corrected_next:
+                    corrected_info = calc_next_run(corrected_next)
+                    next_scheduled_run_info_shared.update(corrected_info)
+                    logger.info(f"     {corrected_info['next_run_str']}")
 
                 # Start scheduler for subsequent runs
                 scheduler.start(callback=start_loop)
