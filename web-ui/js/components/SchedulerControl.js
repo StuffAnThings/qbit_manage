@@ -141,11 +141,11 @@ class SchedulerControl {
                             Reset
                         </button>
                         <button type="button" class="btn btn-outline btn-danger" id="delete-schedule-btn" aria-describedby="delete-help">
-                            Delete Persistent Schedule
+                            Disable Persistent Schedule
                         </button>
                         <div id="update-help" class="sr-only">Saves the schedule persistently across restarts</div>
                         <div id="reset-help" class="sr-only">Resets the form to its default state</div>
-                        <div id="delete-help" class="sr-only">Deletes the persistent schedule file</div>
+                        <div id="delete-help" class="sr-only">Toggles persistent schedule enable/disable</div>
                     </div>
                 </form>
             </div>
@@ -219,10 +219,10 @@ class SchedulerControl {
             });
         }
 
-        // Delete persistent schedule
+        // Toggle persistent schedule (disable/enable without deleting file)
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
-                this.handleScheduleDelete();
+                this.handlePersistenceToggle();
             });
         }
 
@@ -295,9 +295,21 @@ class SchedulerControl {
             scheduleSource.textContent = status.source || '-';
         }
 
-        // Show/hide delete button based on persistence
+        // Show & update toggle button state
         if (deleteBtn) {
-            deleteBtn.style.display = status.persistent ? 'inline-block' : 'none';
+            const disabled = !!status.disabled;
+            const fileExists = !!status.file_exists;
+            // Show button if a file exists OR currently disabled (so user can re-enable)
+            deleteBtn.style.display = (fileExists || disabled) ? 'inline-block' : 'none';
+            if (disabled) {
+                deleteBtn.textContent = 'Enable Persistent Schedule';
+                deleteBtn.classList.remove('btn-danger');
+                deleteBtn.classList.add('btn-success');
+            } else {
+                deleteBtn.textContent = 'Disable Persistent Schedule';
+                deleteBtn.classList.add('btn-danger');
+                deleteBtn.classList.remove('btn-success');
+            }
         }
 
         // Pre-populate the form with current schedule values
@@ -496,39 +508,43 @@ class SchedulerControl {
         }
     }
 
-    async handleScheduleDelete() {
-        if (!confirm('Are you sure you want to delete the persistent schedule? This will remove the saved schedule file and the scheduler will fall back to the environment variable or stop running.')) {
+    async handlePersistenceToggle() {
+        const status = this.currentStatus || {};
+        const currentlyDisabled = !!status.disabled;
+        const promptMsg = currentlyDisabled
+            ? 'Re-enable persistent schedule (will resume using schedule.yml contents)?'
+            : 'Disable persistent schedule (file retained; environment fallback used if set)?';
+        if (!confirm(promptMsg)) {
             return;
         }
 
-        const deleteBtn = this.container.querySelector('#delete-schedule-btn');
-
-        // Show loading state
-        this.setButtonLoading(deleteBtn, true);
+        const btn = this.container.querySelector('#delete-schedule-btn');
+        this.setButtonLoading(btn, true);
 
         try {
-            console.log('Deleting persistent schedule');
-
-            const response = await this.api.delete('/schedule');
-
-            console.log('Schedule deletion response:', response);
+            console.log('Toggling persistent schedule disabled_before=', currentlyDisabled);
+            // New endpoint replaces legacy DELETE /schedule?confirm=1
+            const response = await this.api.post('/schedule/persistence/toggle', {});
+            console.log('Persistence toggle response:', response);
 
             if (response.success) {
-                showToast('Persistent schedule deleted successfully', 'success');
-
-                // Reload the current status to get the updated information
+                const action = response.action || (response.disabled ? 'disabled' : 'enabled');
+                const toastMsg = action === 'disabled'
+                    ? 'Persistent schedule disabled (metadata retained)'
+                    : 'Persistent schedule re-enabled';
+                showToast(toastMsg, 'success');
                 await this.loadCurrentStatus();
-
             } else {
-                throw new Error(response.error || response.message || 'Failed to delete schedule');
+                const msg = response.error || response.message || 'Failed to toggle persistence';
+                showToast(msg, 'error');
+                throw new Error(msg);
             }
-
         } catch (error) {
-            console.error('Failed to delete schedule:', error);
-            const errorMessage = error.message || 'Failed to delete schedule';
+            console.error('Failed to toggle persistent schedule:', error);
+            const errorMessage = error.message || 'Failed to toggle persistent schedule';
             showToast(errorMessage, 'error');
         } finally {
-            this.setButtonLoading(deleteBtn, false);
+            this.setButtonLoading(btn, false);
         }
     }
 

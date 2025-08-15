@@ -50,7 +50,10 @@ class Scheduler:
         self._callback = None
         self._read_only = read_only
 
-        # Load schedule on initialization
+        # Persistence disabled flag (stored inside schedule.yml as 'disabled: true')
+        self._persistence_disabled = False
+
+        # Load schedule on initialization (will set _persistence_disabled if file says disabled)
         self._load_schedule(suppress_logging=suppress_logging)
         if not suppress_logging:
             logger.debug("Scheduler initialized")
@@ -59,48 +62,99 @@ class Scheduler:
         """
         Load schedule from persistent file or environment variable.
 
-        Priority:
+        Priority (when not disabled):
         1. schedule.yml file (persistent)
         2. QBT_SCHEDULE environment variable (fallback)
 
-        Args:
-            suppress_logging: If True, suppress info logging during load
+        If 'disabled: true' in schedule.yml, skip loading its schedule and fall back to env/none.
 
         Returns:
             bool: True if schedule loaded successfully
         """
-        # Try loading from schedule.yml first
+        schedule_path = str(self.schedule_file)
+
+        # Reset in-memory state; _persistence_disabled will be set if file indicates
+        self._persistence_disabled = False
+
         if self.schedule_file.exists():
             try:
                 yaml_loader = YAML(str(self.schedule_file))
                 data = yaml_loader.data
                 if data and isinstance(data, dict):
+                    # Read disabled flag first
+                    if bool(data.get("disabled")):
+                        self._persistence_disabled = True
+                        if not suppress_logging:
+                            logger.debug(f"Persistent schedule disabled (disabled: true in {schedule_path})")
                     schedule_type = data.get("type")
                     schedule_value = data.get("value")
-
-                    if schedule_type and schedule_value is not None:
+                    if not self._persistence_disabled and schedule_type and schedule_value is not None:
                         if self._validate_schedule(schedule_type, schedule_value):
                             self.current_schedule = (schedule_type, schedule_value)
                             if not self._read_only:
                                 self.next_run = self._calculate_next_run()
+                                next_run_info = calc_next_run(self.next_run)
+                                logger.info(f"{next_run_info['next_run_str']}")
                             if not suppress_logging:
-                                logger.info(f"Schedule loaded from file: {schedule_type}={schedule_value}")
+                                logger.debug(
+                                    f"Schedule loaded from file: {schedule_type}={schedule_value} (path={schedule_path})"
+                                )
                             return True
                         else:
-                            logger.warning(f"Invalid schedule in {self.schedule_file}")
+                            logger.warning(f"Invalid schedule structure in file {schedule_path}: {data}")
+                else:
+                    logger.warning(f"schedule.yml did not contain a dict at {schedule_path}")
             except Exception as e:
-                logger.error(f"Error loading schedule.yml: {e}")
+                logger.error(f"Error loading schedule.yml at {schedule_path}: {e}")
+        else:
+            if not suppress_logging:
+                logger.debug(f"No schedule.yml found at startup (expected path: {schedule_path})")
 
-        # Fallback to environment variable
+        # If disabled, do not attempt env override unless we want an environment fallback
+        if self._persistence_disabled:
+            # Attempt env fallback only if present
+            env_schedule = os.getenv("QBT_SCHEDULE")
+            if env_schedule:
+                if not suppress_logging:
+                    logger.debug(f"Attempting environment schedule while disabled: QBT_SCHEDULE={env_schedule!r}")
+                if self._validate_schedule("cron", env_schedule):
+                    self.current_schedule = ("cron", env_schedule)
+                    if not self._read_only:
+                        self.next_run = self._calculate_next_run()
+                        next_run_info = calc_next_run(self.next_run)
+                        logger.info(f"{next_run_info['next_run_str']}")
+                    if not suppress_logging:
+                        logger.debug(f"Environment schedule active (disabled persistent file): cron={env_schedule}")
+                    return True
+                else:
+                    try:
+                        interval = int(env_schedule)
+                        if interval > 0:
+                            self.current_schedule = ("interval", interval)
+                            if not self._read_only:
+                                self.next_run = self._calculate_next_run()
+                                next_run_info = calc_next_run(self.next_run)
+                                logger.info(f"{next_run_info['next_run_str']}")
+                            if not suppress_logging:
+                                logger.debug(
+                                    f"Environment schedule active (disabled persistent file): interval={interval} minutes"
+                                )
+                            return True
+                    except ValueError:
+                        pass
+            return False
+
+        # Fallback to environment variable (only if not disabled)
         env_schedule = os.getenv("QBT_SCHEDULE")
         if env_schedule:
-            # Try as cron first, then as interval
+            if not suppress_logging:
+                logger.debug(f"Attempting to load schedule from environment variable QBT_SCHEDULE={env_schedule!r}")
             if self._validate_schedule("cron", env_schedule):
                 self.current_schedule = ("cron", env_schedule)
                 if not self._read_only:
                     self.next_run = self._calculate_next_run()
                 if not suppress_logging:
-                    logger.info(f"Schedule loaded from environment: cron={env_schedule}")
+                    logger.debug(f"Schedule loaded from environment: cron={env_schedule}")
                 return True
             else:
                 try:
@@ -110,44 +164,35 @@ class Scheduler:
                         if not self._read_only:
                             self.next_run = self._calculate_next_run()
                         if not suppress_logging:
-                            logger.info(f"Schedule loaded from environment: interval={interval} minutes")
+                            logger.debug(f"Schedule loaded from environment: interval={interval} minutes")
                         return True
+                    else:
+                        logger.warning(f"QBT_SCHEDULE interval must be > 0 (got {interval})")
                 except ValueError:
-                    logger.warning(f"Invalid QBT_SCHEDULE environment variable: {env_schedule}")
+                    logger.warning(f"Invalid QBT_SCHEDULE environment variable (not cron or positive int): {env_schedule}")
 
         if not suppress_logging:
-            logger.debug("No valid schedule configuration found")
+            logger.debug("No valid schedule configuration found (file + env both absent/invalid)")
         return False
 
     def save_schedule(self, schedule_type: str, schedule_value: Union[str, int]) -> bool:
         """
-        Save schedule configuration to persistent file.
-
-        Args:
-            schedule_type: Either 'cron' or 'interval'
-            schedule_value: Cron expression string or interval in minutes
-
-        Returns:
-            bool: True if saved successfully
+        Save schedule configuration to persistent file (includes disabled flag).
+        Always re-enables persistence (disabled flag cleared) when an explicit save is requested.
         """
         if not self._validate_schedule(schedule_type, schedule_value):
             logger.error(f"Invalid schedule: {schedule_type}={schedule_value}")
             return False
-
         try:
-            data = {"type": schedule_type, "value": schedule_value, "updated_at": datetime.now().isoformat(), "version": 1}
+            # Requirement: any explicit save (e.g. via WebUI) must re-enable persistence
+            if self._persistence_disabled:
+                logger.debug("save_schedule: auto re-enabling persistence (was disabled)")
+            self._persistence_disabled = False
 
-            yaml_writer = YAML(input_data="")
-            yaml_writer.data = data
-            yaml_writer.path = str(self.schedule_file)
-            yaml_writer.save()
-
-            # Update current schedule
+            self._persist_schedule_file(schedule_type, schedule_value)
             with self.lock:
                 self.current_schedule = (schedule_type, schedule_value)
                 self.next_run = self._calculate_next_run()
-
-            # Log with formatted next run information
             if self.next_run:
                 next_run_info = calc_next_run(self.next_run)
                 logger.info(f"Schedule saved and updated: {schedule_type}={schedule_value}")
@@ -155,38 +200,53 @@ class Scheduler:
             else:
                 logger.info(f"Schedule saved and updated: {schedule_type}={schedule_value}")
             return True
-
         except Exception as e:
             logger.error(f"Failed to save schedule: {e}")
             return False
 
-    def delete_schedule(self) -> bool:
-        """Delete the persistent schedule file and reload from environment variable."""
+    def toggle_persistence(self) -> bool:
+        """
+        Toggle persistent schedule enable/disable (non-destructive, stored in schedule.yml as disabled flag).
+        Reduced logging (no stack trace).
+        """
         try:
+            # Load existing file data (if any) to preserve schedule type/value
+            existing_type = None
+            existing_value = None
             if self.schedule_file.exists():
-                self.schedule_file.unlink()
-                logger.info("Persistent schedule deleted")
+                file_data = self._read_schedule_file()
+                if file_data:
+                    existing_type = file_data.get("type")
+                    existing_value = file_data.get("value")
 
-                # Reload schedule from environment variable
+            if not self._persistence_disabled:
+                # Disable persistence (set disabled true, keep schedule metadata)
+                self._persistence_disabled = True
+                self._persist_schedule_file(existing_type, existing_value)  # includes disabled=True
                 with self.lock:
                     self.current_schedule = None
                     self.next_run = None
-
-                # Try to load from environment variable
-                self._load_schedule()
-
+                # Reload with suppressed logging to avoid duplicate lines
+                self._load_schedule(suppress_logging=True)
                 if self.current_schedule:
-                    logger.info("Scheduler reloaded from environment variable")
-                    # Log formatted next run information
-                    if self.next_run:
-                        next_run_info = calc_next_run(self.next_run)
-                        logger.info(f"{next_run_info['next_run_str']}")
+                    st, sv = self.current_schedule
+                    logger.info(f"Persistence disabled; active {st}={sv} (env fallback)")
                 else:
-                    logger.info("No environment variable found - scheduler stopped")
+                    logger.info("Persistence disabled; no active schedule")
+            else:
+                # Enable persistence
+                self._persistence_disabled = False
+                self._persist_schedule_file(existing_type, existing_value)
+                self._load_schedule(suppress_logging=True)
+                if self.current_schedule:
+                    st, sv = self.current_schedule
+                    logger.info(f"Persistence enabled; active {st}={sv}")
+                else:
+                    logger.info("Persistence enabled; no schedule configured")
 
             return True
         except Exception as e:
-            logger.error(f"Failed to delete schedule file: {e}")
+            logger.error(f"Failed to toggle persistent schedule: {e}")
             return False
 
     def _read_schedule_file(self) -> Optional[dict[str, Any]]:
@@ -204,50 +264,52 @@ class Scheduler:
         return None
 
     def get_schedule_info(self) -> dict[str, Any]:
-        """Get detailed schedule information including source and persistence status."""
+        """Get detailed schedule information including source, persistence, and disabled state."""
         with self.lock:
-            # Always check file first for most up-to-date data
-            if self.schedule_file.exists():
+            disabled = self._persistence_disabled
+            file_exists = self.schedule_file.exists()
+            file_data = None
+            if file_exists:
                 try:
-                    # Read current file contents
                     file_data = self._read_schedule_file()
-                    if file_data:
-                        schedule_type = file_data.get("type")
-                        schedule_value = file_data.get("value")
-                        source = self.schedule_file.name  # Show actual filename
-                        persistent = True
-
-                        return {
-                            "schedule": str(schedule_value),
-                            "type": schedule_type,
-                            "source": source,
-                            "persistent": persistent,
-                            "file_exists": True,
-                        }
+                    if file_data and bool(file_data.get("disabled")) != disabled:
+                        # Keep in-memory flag consistent with file if manual edits occurred
+                        disabled = bool(file_data.get("disabled"))
+                        self._persistence_disabled = disabled
                 except Exception as e:
                     logger.error(f"Error reading schedule file: {e}")
-                    # Fall through to use in-memory data
 
-            # Fall back to in-memory schedule (environment variable or no schedule)
-            if self.current_schedule:
-                schedule_type, schedule_value = self.current_schedule
-                source = "QBT_SCHEDULE"  # Environment variable
-                persistent = False
-
+            if not disabled and file_data:
+                schedule_type = file_data.get("type")
+                schedule_value = file_data.get("value")
                 return {
                     "schedule": str(schedule_value),
                     "type": schedule_type,
-                    "source": source,
-                    "persistent": persistent,
-                    "file_exists": self.schedule_file.exists(),
+                    "source": self.schedule_file.name,
+                    "persistent": True,
+                    "file_exists": True,
+                    "disabled": False,
+                }
+
+            # Disabled or no file schedule active
+            if self.current_schedule:
+                schedule_type, schedule_value = self.current_schedule
+                return {
+                    "schedule": str(schedule_value),
+                    "type": schedule_type,
+                    "source": "QBT_SCHEDULE" if not disabled else "disabled",
+                    "persistent": False,
+                    "file_exists": file_exists,
+                    "disabled": disabled,
                 }
             else:
                 return {
                     "schedule": None,
                     "type": None,
-                    "source": None,
+                    "source": "disabled" if disabled else None,
                     "persistent": False,
-                    "file_exists": self.schedule_file.exists(),
+                    "file_exists": file_exists,
+                    "disabled": disabled,
                 }
 
     def update_schedule(self, schedule_type: str, schedule_value: Union[str, int], suppress_logging: bool = False) -> bool:
@@ -374,6 +436,8 @@ class Scheduler:
 
     def _validate_schedule(self, schedule_type: str, schedule_value: Union[str, int]) -> bool:
         """Validate schedule parameters."""
+        if schedule_type is None:
+            return False
         if schedule_type not in ["cron", "interval"]:
             return False
 
@@ -421,6 +485,25 @@ class Scheduler:
             logger.error(f"Error calculating next run: {e}")
 
         return None
+
+    def _persist_schedule_file(self, schedule_type: Optional[str], schedule_value: Optional[Union[str, int]]) -> None:
+        """
+        Internal helper to persist schedule.yml including disabled flag.
+        If schedule_type/value are None (e.g., user disabled before ever saving), we still write disabled state.
+        """
+        data = {
+            "type": schedule_type,
+            "value": schedule_value,
+            "disabled": self._persistence_disabled,
+            "updated_at": datetime.now().isoformat(),
+            "version": 1,
+        }
+        tmp_path = self.schedule_file.with_suffix(".yml.tmp")
+        yaml_writer = YAML(input_data="")
+        yaml_writer.data = data
+        yaml_writer.path = str(tmp_path)
+        yaml_writer.save()
+        os.replace(tmp_path, self.schedule_file)
 
     def _scheduler_loop(self):
         """Main scheduler loop running in background thread."""

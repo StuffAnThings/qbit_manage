@@ -234,14 +234,17 @@ def get_default_config_dir(config_hint: str = None) -> str:
 
     Resolution order:
     1) If config_hint is an absolute path or contains a directory component, use its parent directory
-    2) Otherwise, if config_hint is a name/pattern, search for a match in:
-       - /config (if present)
-       - repository ./config
-       - user OS config directory
-       and return the first base directory containing a match
+    2) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
+         - A direct match to that filename/pattern
+         - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
+       Common bases (in order):
+         - /config (container volume)
+         - repository ./config
+         - user OS config directory
+       Return the first base containing either.
     3) Fallback to legacy-ish behavior:
-       - /config if it contains any YAML
-       - otherwise user OS config directory
+         - /config if it contains any *.yml / *.yaml
+         - otherwise user OS config directory
     """
     # 1) If a direct path is provided, prefer its parent directory
     if config_hint:
@@ -253,7 +256,7 @@ def get_default_config_dir(config_hint: str = None) -> str:
                 base = p if p.is_dir() else p.parent
                 return str(base.resolve())
 
-            # 2) Try to resolve a plain filename/pattern in common bases
+            # 2) Try to resolve a plain filename/pattern or schedule.yml in common bases
             candidates = []
             if os.path.isdir("/config"):
                 candidates.append(Path("/config"))
@@ -263,7 +266,8 @@ def get_default_config_dir(config_hint: str = None) -> str:
 
             for base in candidates:
                 try:
-                    if list(base.glob(primary)):
+                    # Match the primary pattern OR detect existing schedule.yml (persistence)
+                    if list(base.glob(primary)) or (base / "schedule.yml").exists():
                         return str(base.resolve())
                 except Exception:
                     # ignore and continue to next base

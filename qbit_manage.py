@@ -834,13 +834,12 @@ if __name__ == "__main__":
                         schedule_type = update_data["type"]
                         schedule_value = update_data["value"]
 
-                        if schedule_type == "delete":
-                            logger.debug("Received scheduler delete notification from web API")
-                            success = scheduler.delete_schedule()
-                            if success:
-                                logger.debug("Main process scheduler reloaded after deletion")
-                            else:
-                                logger.error("Failed to reload main process scheduler after deletion")
+                        if schedule_type == "toggle_persistence":
+                            try:
+                                scheduler._load_schedule(suppress_logging=True)
+                                logger.debug("Scheduler persistence toggle processed")
+                            except Exception as e:
+                                logger.error(f"Failed to refresh scheduler after persistence toggle: {e}")
                         else:
                             logger.debug(f"Received scheduler update from web API: {schedule_type} = {schedule_value}")
                             success = scheduler.update_schedule(schedule_type, schedule_value, suppress_logging=True)
@@ -856,6 +855,8 @@ if __name__ == "__main__":
                 if next_run_time:
                     next_run_info = calc_next_run(next_run_time)
                     next_scheduled_run_info_shared.update(next_run_info)
+                    if next_run_info["next_run"] != next_run_time:
+                        logger.info(f"Next scheduled run updated: {next_run_info['next_run_str']}")
 
                 # Sleep for a reasonable interval
                 time.sleep(30)
