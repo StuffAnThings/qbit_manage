@@ -158,18 +158,6 @@ jobs:
             cargo tauri build --bundles deb
           fi
 
-      - name: Debug - List build outputs
-        shell: bash
-        run: |
-          echo "=== Contents of target/release ==="
-          ls -la desktop/tauri/src-tauri/target/release/ || echo "target/release not found"
-          echo "=== Contents of target/release/bundle ==="
-          ls -la desktop/tauri/src-tauri/target/release/bundle/ || echo "bundle directory not found"
-          echo "=== Recursive find in target ==="
-          find desktop/tauri/src-tauri/target -type f \( -name "*qbit*" -o -name "*.exe" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.msi" -o -name "*.AppImage" \) -exec ls -la {} \; || echo "No build artifacts found"
-          echo "=== Full target directory structure ==="
-          find desktop/tauri/src-tauri/target -type d | head -20
-
       - name: Upload Tauri bundle
         uses: actions/upload-artifact@v4
         with:
