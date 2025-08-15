@@ -1037,17 +1037,38 @@ class WebAPI:
             logger.error(f"Error listing backups for '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def restore_config_from_backup(self, filename: str, request: dict) -> dict:
+    async def restore_config_from_backup(self, filename: str) -> dict:
         """Restore configuration from a backup file."""
         try:
-            backup_filename = request.get("backup_id")
+            # Use the filename from the URL path as the backup file to restore
+            backup_filename = filename
             if not backup_filename:
-                raise HTTPException(status_code=400, detail="backup_id is required")
+                raise HTTPException(status_code=400, detail="filename is required")
 
-            backup_file_path = self.backup_path / backup_filename
+            # Security: Validate and sanitize the backup_filename to prevent path traversal
+            # Remove any path separators and parent directory references
+            sanitized_backup_filename = os.path.basename(backup_filename)
+            if not sanitized_backup_filename or sanitized_backup_filename != backup_filename:
+                raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+
+            # Additional validation: ensure the backup filename doesn't contain dangerous characters
+            if any(char in sanitized_backup_filename for char in ["..", "/", "\\", "\0"]):
+                raise HTTPException(status_code=400, detail="Invalid filename: contains forbidden characters")
+
+            # Construct the backup file path safely
+            backup_file_path = self.backup_path / sanitized_backup_filename
+
+            # Security: Ensure the resolved path is still within the backup directory
+            try:
+                backup_file_path = backup_file_path.resolve()
+                backup_dir_resolved = self.backup_path.resolve()
+                if not str(backup_file_path).startswith(str(backup_dir_resolved)):
+                    raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid filename: unable to resolve path")
 
             if not backup_file_path.exists():
-                raise HTTPException(status_code=404, detail=f"Backup file '{backup_filename}' not found")
+                raise HTTPException(status_code=404, detail=f"Backup file '{sanitized_backup_filename}' not found")
 
             # Load backup data
             yaml_loader = YAML(str(backup_file_path))
@@ -1058,7 +1079,7 @@ class WebAPI:
 
             return {
                 "status": "success",
-                "message": f"Backup '{backup_filename}' loaded successfully",
+                "message": f"Backup '{sanitized_backup_filename}' loaded successfully",
                 "data": backup_data_for_frontend,
             }
 
