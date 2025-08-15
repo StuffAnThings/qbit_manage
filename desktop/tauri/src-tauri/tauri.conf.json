@@ -11,9 +11,9 @@
     "bundle": {
         "category": "Utility",
         "icon": [
-            "../../icons/qbm_logo.icns",
-            "../../icons/qbm_logo.ico",
-            "../../icons/qbm_logo.png"
+            "../../../icons/qbm_logo.icns",
+            "../../../icons/qbm_logo.ico",
+            "../../../icons/qbm_logo.png"
         ],
         "targets": "all",
         "externalBin": [
@@ -47,14 +47,11 @@
             }
         ],
         "trayIcon": {
-            "iconPath": "../../icons/qbm_logo.png",
+            "iconPath": "../../../icons/qbm_logo.png",
             "iconAsTemplate": false
         },
         "security": {
-            "csp": null,
-            "capabilities": [
-                "core:default"
-            ]
+            "csp": null
         },
         "withGlobalTauri": false
     }

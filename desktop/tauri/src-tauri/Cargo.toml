@@ -19,6 +19,7 @@ tauri = { version = "2", features = ["tray-icon"] }
 # Plugins (v2)
 tauri-plugin-single-instance = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-opener = "2"
 # (clipboard + dialog now via separate plugins if later needed)
 
 serde = { version = "1.0", features = ["derive"] }

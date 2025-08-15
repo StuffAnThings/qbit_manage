@@ -12,11 +12,12 @@ use tauri::{
   AppHandle,
   Manager,
   WindowEvent,
-  menu::{MenuBuilder, MenuItemBuilder, MenuItem},
+  Emitter,
+  menu::{MenuBuilder, MenuItemBuilder},
   tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState}
 };
 use tauri_plugin_single_instance::init as single_instance;
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -112,8 +113,10 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   let mut guard = SERVER_STATE.lock().unwrap();
 
   // if already running, do nothing
-  if guard.as_ref().map(|c| c.try_wait().ok().flatten().is_none()).unwrap_or(false) {
-    return Ok(());
+  if let Some(child) = guard.as_mut() {
+    if child.try_wait().ok().flatten().is_none() {
+      return Ok(());
+    }
   }
 
   let server_path = resolve_server_binary(app).unwrap_or_else(|| {
@@ -234,14 +237,15 @@ pub fn run() {
       }
     }))
     .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_opener::init())
     .setup(|app| {
       let app_handle = app.handle().clone();
 
       // Build tray menu (v2 API)
-      let open_item = MenuItemBuilder::with_id("open", "Open").build(app);
-      let start_item = MenuItemBuilder::with_id("start", "Start Server").build(app);
-      let stop_item = MenuItemBuilder::with_id("stop", "Stop Server").build(app);
-      let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app);
+      let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+      let start_item = MenuItemBuilder::with_id("start", "Start Server").build(app)?;
+      let stop_item = MenuItemBuilder::with_id("stop", "Stop Server").build(app)?;
+      let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
       let tray_menu = MenuBuilder::new(app)
         .items(&[&open_item, &start_item, &stop_item, &quit_item])
         .build()?;
@@ -316,7 +320,7 @@ pub fn run() {
               Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
               _ => format!("http://127.0.0.1:{}", cfg.port),
             };
-            let _ = app_handle3.shell().open(url, None);
+            let _ = app_handle3.opener().open_url(url, None::<String>);
           }
         }
       });
