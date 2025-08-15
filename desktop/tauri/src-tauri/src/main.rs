@@ -6,8 +6,15 @@ use std::{
   sync::{Arc, Mutex},
   time::Duration,
 };
-use tauri::{AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowEvent};
+use tauri::{
+  AppHandle,
+  Manager,
+  WindowEvent,
+  menu::{MenuBuilder, MenuItemBuilder, MenuItem},
+  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState}
+};
 use tauri_plugin_single_instance::init as single_instance;
+use tauri_plugin_shell::ShellExt;
 use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -17,15 +24,6 @@ struct AppConfig {
   port: u16,
   base_url: Option<String>,
   no_browser: bool,
-}
-
-
-fn tray_menu() -> SystemTrayMenu {
-  let open = CustomMenuItem::new("open".to_string(), "Open");
-  let start = CustomMenuItem::new("start".to_string(), "Start Server");
-  let stop = CustomMenuItem::new("stop".to_string(), "Stop Server");
-  let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-  SystemTrayMenu::new().add_item(open).add_item(start).add_item(stop).add_item(quit)
 }
 
 fn app_config(app: &AppHandle) -> AppConfig {
@@ -69,8 +67,8 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
     ]
   };
 
-  // resource dir
-  if let Ok(resource_dir) = tauri::api::path::resource_dir(app.package_info(), &app.config()).ok_or(()) {
+  // resource dir (Tauri 2 path resolver)
+  if let Some(resource_dir) = app.path().resource_dir() {
     for name in &bin_names {
       let p = resource_dir.join("bin").join(name);
       if p.exists() {
@@ -191,59 +189,80 @@ fn open_app_window(app: &AppHandle, cfg: &AppConfig) {
 }
 
 
-fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
-  match event {
-    SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-      "open" => {
-        if let Some(win) = app.get_window("main") {
-          let _ = win.show();
-          let _ = win.set_focus();
-        }
-      }
-      "start" => {
-        let cfg = app_config(app);
-        if start_server(app, &cfg).is_ok() {
-          tauri::async_runtime::spawn(async move {
-            let _ = wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await;
-          });
-        }
-      }
-      "stop" => {
-        stop_server();
-      }
-      "quit" => {
-        stop_server();
-        std::process::exit(0);
-      }
-      _ => {}
-    },
-    SystemTrayEvent::LeftClick { .. } => {
-      if let Some(win) = app.get_window("main") {
-        let _ = win.show();
-        let _ = win.set_focus();
-      }
-    }
-    _ => {}
-  }
-}
 
 pub fn run() {
   tauri::Builder::default()
+    // Single instance should be first (per docs)
     .plugin(single_instance(|app, _argv, _cwd| {
-      if let Some(win) = app.get_window("main") {
+      if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
         let _ = win.set_focus();
       }
     }))
+    .plugin(tauri_plugin_shell::init())
     .setup(|app| {
       let app_handle = app.handle().clone();
-      // Intercept close to hide window (minimize-to-tray)
-      if let Some(win) = app.get_window("main") {
+
+      // Build tray menu (v2 API)
+      let open_item: MenuItem = MenuItemBuilder::with_id("open", "Open").build(app);
+      let start_item: MenuItem = MenuItemBuilder::with_id("start", "Start Server").build(app);
+      let stop_item: MenuItem = MenuItemBuilder::with_id("stop", "Stop Server").build(app);
+      let quit_item: MenuItem = MenuItemBuilder::with_id("quit", "Quit").build(app);
+      let tray_menu = MenuBuilder::new(app)
+        .items(&[&open_item, &start_item, &stop_item, &quit_item])
+        .build()?;
+
+      // Create tray icon
+      TrayIconBuilder::new()
+        .menu(&tray_menu)
+        .on_tray_icon_event(|tray, event| {
+          if let TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+          } = event {
+            let app = tray.app_handle();
+            if let Some(win) = app.get_webview_window("main") {
+              let _ = win.show();
+              let _ = win.set_focus();
+            }
+          }
+        })
+        .on_menu_event(move |app, event| {
+          match event.id().as_ref() {
+            "open" => {
+              if let Some(win) = app.get_webview_window("main") {
+                let _ = win.show();
+                let _ = win.set_focus();
+              }
+            }
+            "start" => {
+              let cfg = app_config(app);
+              if start_server(app, &cfg).is_ok() {
+                tauri::async_runtime::spawn(async move {
+                  let _ = wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await;
+                });
+              }
+            }
+            "stop" => {
+              stop_server();
+            }
+            "quit" => {
+              stop_server();
+              std::process::exit(0);
+            }
+            _ => {}
+          }
+        })
+        .build(app)?;
+
+      // Intercept window close to hide instead (minimize to tray)
+      if let Some(win) = app.get_webview_window("main") {
         let app_handle2 = app_handle.clone();
         win.on_window_event(move |e| {
           if let WindowEvent::CloseRequested { api, .. } = e {
             api.prevent_close();
-            if let Some(w) = app_handle2.get_window("main") {
+            if let Some(w) = app_handle2.get_webview_window("main") {
               let _ = w.hide();
             }
           }
@@ -257,21 +276,18 @@ pub fn run() {
         let _ = start_server(&app_handle3, &cfg);
         if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
           open_app_window(&app_handle3, &cfg);
-          // also open default browser if desired (optional)
           if !cfg.no_browser {
             let url = match &cfg.base_url {
               Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
               _ => format!("http://127.0.0.1:{}", cfg.port),
             };
-            let _ = tauri::api::shell::open(&app_handle3.shell_scope(), url, None);
+            let _ = app_handle3.shell().open(url, None);
           }
         }
       });
 
       Ok(())
     })
-    .system_tray(SystemTray::new().with_menu(tray_menu()))
-    .on_system_tray_event(handle_tray_event)
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

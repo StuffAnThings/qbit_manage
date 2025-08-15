@@ -8,18 +8,23 @@ repository = ""
 edition = "2021"
 rust-version = "1.70"
 
+# Tauri 2 build script
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = ["system-tray", "shell-open", "dialog-open", "clipboard-write-text"] }
+# Core Tauri 2 crate
+tauri = { version = "2", features = ["tray-icon"] }
+# Plugins (v2)
+tauri-plugin-single-instance = "2"
+tauri-plugin-shell = "2"
+# (clipboard + dialog now via separate plugins if later needed)
+
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 once_cell = "1.19"
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls", "json"] }
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "time", "process"] }
-tauri-plugin-single-instance = "0.2"
 
 [features]
-default = ["custom-protocol"]
-custom-protocol = ["tauri/custom-protocol"]
+default = []

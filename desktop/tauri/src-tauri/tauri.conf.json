@@ -1,69 +1,38 @@
 {
+    "productName": "qBit Manage",
+    "version": "0.1.0",
+    "identifier": "com.qbitmanage.desktop",
     "build": {
-        "beforeBuildCommand": "",
         "beforeDevCommand": "",
-        "devPath": "http://localhost:8080",
-        "distDir": "http://localhost:8080"
+        "beforeBuildCommand": "",
+        "devUrl": "http://localhost:8080",
+        "frontendDist": "../web-ui"
     },
-    "package": {
-        "productName": "qBit Manage",
-        "version": "0.1.0"
-    },
-    "tauri": {
+    "bundle": {
+        "category": "Utility",
+        "icon": [
+            "../../icons/qbm_logo.icns",
+            "../../icons/qbm_logo.ico",
+            "../../icons/qbm_logo.png"
+        ],
+        "targets": "all",
         "externalBin": [
             "bin/qbit-manage-windows-amd64.exe",
             "bin/qbit-manage-macos-x86_64",
             "bin/qbit-manage-macos-arm64",
             "bin/qbit-manage-linux-amd64"
         ],
-        "allowlist": {
-            "shell": {
-                "open": true
-            },
-            "window": {
-                "close": true,
-                "hide": true,
-                "minimize": true,
-                "show": true
+        "linux": {
+            "deb": {
+                "depends": [
+                    "libgtk-3-0",
+                    "libayatana-appindicator3-1",
+                    "libwebkit2gtk-4.1-0"
+                ]
             }
-        },
-        "bundle": {
-            "active": true,
-            "category": "Utility",
-            "identifier": "com.qbitmanage.desktop",
-            "targets": "all",
-            "icon": [
-                "../../icons/qbm_logo.icns",
-                "../../icons/qbm_logo.ico",
-                "../../icons/qbm_logo.png"
-            ],
-            "windows": {
-                "certificateThumbprint": null,
-                "digestAlgorithm": "sha256",
-                "timestampUrl": ""
-            },
-            "macOS": {
-                "frameworks": [],
-                "minimumSystemVersion": null,
-                "exceptionDomain": ""
-            },
-            "linux": {
-                "deb": {
-                    "depends": [
-                        "libgtk-3-0",
-                        "libayatana-appindicator3-1",
-                        "libwebkit2gtk-4.0-37"
-                    ]
-                }
-            }
-        },
-        "security": {
-            "csp": null
-        },
-        "systemTray": {
-            "iconPath": "../../icons/qbm_logo.png",
-            "iconAsTemplate": false
-        },
+        }
+    },
+    "app": {
         "windows": [
             {
                 "title": "qBit Manage",
@@ -76,6 +45,17 @@
                 "decorations": true,
                 "visible": true
             }
-        ]
+        ],
+        "trayIcon": {
+            "iconPath": "../../icons/qbm_logo.png",
+            "iconAsTemplate": false
+        },
+        "security": {
+            "csp": null,
+            "capabilities": [
+                "core:default"
+            ]
+        },
+        "withGlobalTauri": false
     }
 }
