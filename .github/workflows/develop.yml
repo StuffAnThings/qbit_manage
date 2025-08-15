@@ -125,13 +125,7 @@ jobs:
         run: |
           mkdir -p desktop/tauri/src-tauri/bin
 
-          # Create placeholder files for all platforms to satisfy Tauri build requirements
-          touch "desktop/tauri/src-tauri/bin/qbit-manage-windows-amd64.exe"
-          touch "desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64"
-          touch "desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64"
-          touch "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
-
-          # Now copy the actual binary for this platform, overwriting the placeholder
+          # Copy the actual binary for this platform as a resource
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cp "out/${APP_NAME}-windows-amd64.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-amd64.exe"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then

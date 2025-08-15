@@ -16,11 +16,8 @@
             "../../../icons/qbm_logo.png"
         ],
         "targets": "all",
-        "externalBin": [
-            "bin/qbit-manage-windows-amd64.exe",
-            "bin/qbit-manage-macos-x86_64",
-            "bin/qbit-manage-macos-arm64",
-            "bin/qbit-manage-linux-amd64"
+        "resources": [
+            "bin/*"
         ],
         "linux": {
             "deb": {
