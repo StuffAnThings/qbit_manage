@@ -1,0 +1,81 @@
+{
+    "build": {
+        "beforeBuildCommand": "",
+        "beforeDevCommand": "",
+        "devPath": "http://localhost:8080",
+        "distDir": "http://localhost:8080"
+    },
+    "package": {
+        "productName": "qBit Manage",
+        "version": "0.1.0"
+    },
+    "tauri": {
+        "externalBin": [
+            "bin/qbit-manage-windows-amd64.exe",
+            "bin/qbit-manage-macos-x86_64",
+            "bin/qbit-manage-macos-arm64",
+            "bin/qbit-manage-linux-amd64"
+        ],
+        "allowlist": {
+            "shell": {
+                "open": true
+            },
+            "window": {
+                "close": true,
+                "hide": true,
+                "minimize": true,
+                "show": true
+            }
+        },
+        "bundle": {
+            "active": true,
+            "category": "Utility",
+            "identifier": "com.qbitmanage.desktop",
+            "targets": "all",
+            "icon": [
+                "../../icons/qbm_logo.icns",
+                "../../icons/qbm_logo.ico",
+                "../../icons/qbm_logo.png"
+            ],
+            "windows": {
+                "certificateThumbprint": null,
+                "digestAlgorithm": "sha256",
+                "timestampUrl": ""
+            },
+            "macOS": {
+                "frameworks": [],
+                "minimumSystemVersion": null,
+                "exceptionDomain": ""
+            },
+            "linux": {
+                "deb": {
+                    "depends": [
+                        "libgtk-3-0",
+                        "libayatana-appindicator3-1",
+                        "libwebkit2gtk-4.0-37"
+                    ]
+                }
+            }
+        },
+        "security": {
+            "csp": null
+        },
+        "systemTray": {
+            "iconPath": "../../icons/qbm_logo.png",
+            "iconAsTemplate": false
+        },
+        "windows": [
+            {
+                "title": "qBit Manage",
+                "width": 1100,
+                "height": 800,
+                "minWidth": 900,
+                "minHeight": 600,
+                "resizable": true,
+                "fullscreen": false,
+                "decorations": true,
+                "visible": true
+            }
+        ]
+    }
+}

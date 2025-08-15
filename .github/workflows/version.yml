@@ -80,7 +80,12 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             mv "dist/${APP_NAME}.exe" "out/${APP_NAME}-windows-amd64.exe"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-x86_64"
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "arm64" ]]; then
+              mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-arm64"
+            else
+              mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-x86_64"
+            fi
           else
             mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-amd64"
           fi
@@ -90,6 +95,53 @@ jobs:
         with:
           name: ${{ env.APP_NAME }}-${{ runner.os }}
           path: out/*
+
+      # Build Tauri desktop shell after binaries are ready
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Prepare Tauri server binary
+        shell: bash
+        run: |
+          mkdir -p desktop/tauri/src-tauri/bin
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cp "out/${APP_NAME}-windows-amd64.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-amd64.exe"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "arm64" ]]; then
+              cp "out/${APP_NAME}-macos-arm64" "desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64"
+              chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64"
+            else
+              cp "out/${APP_NAME}-macos-x86_64" "desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64"
+              chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64"
+            fi
+          else
+            cp "out/${APP_NAME}-linux-amd64" "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
+            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
+          fi
+
+      - name: Build Tauri app
+        working-directory: desktop/tauri/src-tauri
+        run: |
+          cargo install tauri-cli --locked
+          cargo tauri build
+
+      - name: Upload Tauri bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-${{ runner.os }}
+          path: desktop/tauri/src-tauri/target/release/bundle/**
 
   docker-develop:
     runs-on: ubuntu-latest
