@@ -46,9 +46,7 @@
         },
         "macOS": {
             "frameworks": [],
-            "minimumSystemVersion": "10.13",
-            "license": "",
-            "useBootstrapper": false
+            "minimumSystemVersion": "10.13"
         }
     },
     "app": {
