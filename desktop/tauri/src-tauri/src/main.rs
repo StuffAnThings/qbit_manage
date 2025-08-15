@@ -14,13 +14,15 @@ use tauri::{
   WindowEvent,
   Emitter,
   menu::{MenuBuilder, MenuItemBuilder},
-  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState}
+  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
+  RunEvent,
 };
 use tauri_plugin_single_instance::init as single_instance;
 use tauri_plugin_opener::OpenerExt;
 use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
+static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 
 #[derive(Debug, Clone)]
 struct AppConfig {
@@ -184,9 +186,40 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
 
 fn stop_server() {
   if let Some(mut child) = SERVER_STATE.lock().unwrap().take() {
-    let _ = child.kill();
+    // Try graceful shutdown first
+    #[cfg(unix)]
+    {
+      // Send SIGTERM for graceful shutdown
+      let pid = child.id();
+      unsafe {
+        libc::kill(pid as i32, libc::SIGTERM);
+      }
+
+      // Wait a bit for graceful shutdown
+      std::thread::sleep(Duration::from_millis(500));
+
+      // Check if process is still alive
+      if child.try_wait().ok().flatten().is_none() {
+        // Force kill if still running
+        let _ = child.kill();
+      }
+    }
+
+    #[cfg(not(unix))]
+    {
+      // On Windows, directly kill the process
+      let _ = child.kill();
+    }
+
+    // Wait for process to fully terminate
     let _ = child.wait();
   }
+}
+
+fn cleanup_and_exit() {
+  *SHOULD_EXIT.lock().unwrap() = true;
+  stop_server();
+  std::process::exit(0);
 }
 
 async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duration) -> bool {
@@ -213,15 +246,20 @@ async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duratio
   false
 }
 
-fn open_app_window(app: &AppHandle, cfg: &AppConfig) {
+fn open_app_window(app: &AppHandle) {
+  if let Some(win) = app.get_webview_window("main") {
+    let _ = win.show();
+    let _ = win.set_focus();
+  }
+}
+
+fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
   let url = match &cfg.base_url {
     Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
     _ => format!("http://127.0.0.1:{}", cfg.port),
   };
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.eval(&format!("window.location.replace('{}')", url));
-    let _ = win.show();
-    let _ = win.set_focus();
   }
 }
 
@@ -250,7 +288,7 @@ pub fn run() {
         .items(&[&open_item, &start_item, &stop_item, &quit_item])
         .build()?;
 
-      // Create tray icon
+      // Create tray icon (uses default app icon automatically)
       TrayIconBuilder::new()
         .menu(&tray_menu)
         .on_tray_icon_event(|tray, event| {
@@ -269,10 +307,7 @@ pub fn run() {
         .on_menu_event(move |app, event| {
           match event.id().as_ref() {
             "open" => {
-              if let Some(win) = app.get_webview_window("main") {
-                let _ = win.show();
-                let _ = win.set_focus();
-              }
+              open_app_window(app);
             }
             "start" => {
               let cfg = app_config(app);
@@ -286,8 +321,7 @@ pub fn run() {
               stop_server();
             }
             "quit" => {
-              stop_server();
-              std::process::exit(0);
+              cleanup_and_exit();
             }
             _ => {}
           }
@@ -307,14 +341,17 @@ pub fn run() {
         });
       }
 
-      // Start server automatically and point the window to it when ready
+      // Show the window immediately with loading page
+      open_app_window(&app_handle);
+
+      // Start server automatically and redirect when ready
       let cfg = app_config(&app_handle);
       let app_handle3 = app_handle.clone();
       tauri::async_runtime::spawn(async move {
         let _ = start_server(&app_handle3, &cfg);
-        // We can begin showing logs immediately; window navigates after ready
+        // Wait for server to be ready, then redirect
         if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
-          open_app_window(&app_handle3, &cfg);
+          redirect_to_server(&app_handle3, &cfg);
           if !cfg.no_browser {
             let url = match &cfg.base_url {
               Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
@@ -327,8 +364,27 @@ pub fn run() {
 
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(move |_app, event| {
+      match event {
+        RunEvent::ExitRequested { api, .. } => {
+          // Always allow exit, but clean up first
+          stop_server();
+          api.prevent_exit();
+          // Give a moment for cleanup, then force exit
+          std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_millis(100));
+            std::process::exit(0);
+          });
+        }
+        RunEvent::Exit => {
+          // Final cleanup on actual exit
+          stop_server();
+        }
+        _ => {}
+      }
+    });
 }
 
 fn main() {

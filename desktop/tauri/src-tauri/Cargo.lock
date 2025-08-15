@@ -2917,8 +2917,9 @@ dependencies = [
 
 [[package]]
 name = "qbit-manage-desktop"
-version = "0.1.0"
+version = "4.5.4-develop30"
 dependencies = [
+ "libc",
  "once_cell",
  "reqwest 0.11.27",
  "serde",
@@ -2929,6 +2930,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
  "tokio",
+ "toml 0.8.2",
 ]
 
 [[package]]

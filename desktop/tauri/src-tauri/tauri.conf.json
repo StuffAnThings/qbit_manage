@@ -1,12 +1,29 @@
 {
-    "productName": "qBit Manage",
-    "version": "0.1.0",
-    "identifier": "com.qbitmanage.desktop",
+    "app": {
+        "security": {
+            "csp": null
+        },
+        "windows": [
+            {
+                "decorations": true,
+                "fullscreen": false,
+                "height": 800,
+                "label": "main",
+                "minHeight": 600,
+                "minWidth": 900,
+                "resizable": true,
+                "title": "qBit Manage",
+                "visible": false,
+                "width": 1100
+            }
+        ],
+        "withGlobalTauri": false
+    },
     "build": {
-        "beforeDevCommand": "",
         "beforeBuildCommand": "",
+        "beforeDevCommand": "",
         "devUrl": "http://localhost:8080",
-        "frontendDist": null
+        "frontendDist": "../src"
     },
     "bundle": {
         "active": true,
@@ -15,16 +32,6 @@
             "../../../icons/qbm_logo.icns",
             "../../../icons/qbm_logo.ico",
             "../../../icons/qbm_logo.png"
-        ],
-        "targets": [
-            "deb",
-            "msi",
-            "nsis",
-            "app",
-            "dmg"
-        ],
-        "resources": [
-            "bin/*"
         ],
         "linux": {
             "deb": {
@@ -35,40 +42,29 @@
                 ]
             }
         },
-        "windows": {
-            "certificateThumbprint": null,
-            "digestAlgorithm": "sha256",
-            "timestampUrl": "",
-            "nsis": {
-                "displayLanguageSelector": true
-            }
-        },
         "macOS": {
             "frameworks": [],
             "minimumSystemVersion": "10.13"
+        },
+        "resources": [
+            "bin/*"
+        ],
+        "targets": [
+            "deb",
+            "nsis",
+            "app",
+            "dmg"
+        ],
+        "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": "sha256",
+            "nsis": {
+                "displayLanguageSelector": true
+            },
+            "timestampUrl": ""
         }
     },
-    "app": {
-        "windows": [
-            {
-                "title": "qBit Manage",
-                "width": 1100,
-                "height": 800,
-                "minWidth": 900,
-                "minHeight": 600,
-                "resizable": true,
-                "fullscreen": false,
-                "decorations": true,
-                "visible": true
-            }
-        ],
-        "trayIcon": {
-            "iconPath": "../../../icons/qbm_logo.png",
-            "iconAsTemplate": false
-        },
-        "security": {
-            "csp": null
-        },
-        "withGlobalTauri": false
-    }
+    "identifier": "com.qbitmanage.desktop",
+    "productName": "qBit Manage",
+    "version": "4.5.4-develop30"
 }

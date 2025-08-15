@@ -20,9 +20,9 @@ jobs:
           - os: 'macos-latest' # for Arm based macs (M1 and above).
             python-version: '3.12'
             arch: arm64
-          # - os: 'macos-13' # for Intel based macs.
-          #   python-version: '3.12'
-          #   arch: x86_64
+          - os: 'macos-13' # for Intel based macs.
+            python-version: '3.12'
+            arch: x86_64
     env:
       APP_NAME: qbit-manage
       ENTRY: qbit_manage.py
@@ -151,7 +151,7 @@ jobs:
 
           # Build with explicit bundle targets for this platform
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cargo tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis
+            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             cargo tauri build --bundles app,dmg
           else
