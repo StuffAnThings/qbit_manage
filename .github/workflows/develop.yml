@@ -155,7 +155,7 @@ jobs:
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             cargo tauri build --bundles app,dmg
           else
-            cargo tauri build --bundles deb,appimage
+            cargo tauri build --bundles deb
           fi
 
       - name: Debug - List build outputs
