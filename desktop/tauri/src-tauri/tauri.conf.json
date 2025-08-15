@@ -9,13 +9,21 @@
         "frontendDist": null
     },
     "bundle": {
+        "active": true,
         "category": "Utility",
         "icon": [
             "../../../icons/qbm_logo.icns",
             "../../../icons/qbm_logo.ico",
             "../../../icons/qbm_logo.png"
         ],
-        "targets": "all",
+        "targets": [
+            "deb",
+            "appimage",
+            "msi",
+            "nsis",
+            "app",
+            "dmg"
+        ],
         "resources": [
             "bin/*"
         ],
@@ -27,6 +35,20 @@
                     "libwebkit2gtk-4.1-0"
                 ]
             }
+        },
+        "windows": {
+            "certificateThumbprint": null,
+            "digestAlgorithm": "sha256",
+            "timestampUrl": "",
+            "nsis": {
+                "displayLanguageSelector": true
+            }
+        },
+        "macOS": {
+            "frameworks": [],
+            "minimumSystemVersion": "10.13",
+            "license": "",
+            "useBootstrapper": false
         }
     },
     "app": {

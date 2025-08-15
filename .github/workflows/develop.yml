@@ -20,9 +20,9 @@ jobs:
           - os: 'macos-latest' # for Arm based macs (M1 and above).
             python-version: '3.12'
             arch: arm64
-          - os: 'macos-13' # for Intel based macs.
-            python-version: '3.12'
-            arch: x86_64
+          # - os: 'macos-13' # for Intel based macs.
+          #   python-version: '3.12'
+          #   arch: x86_64
     env:
       APP_NAME: qbit-manage
       ENTRY: qbit_manage.py
@@ -147,13 +147,38 @@ jobs:
         run: |
           # Install Tauri 2 CLI (project migrated to Tauri v2 config & deps)
           cargo install tauri-cli --version ^2 --locked --force
-          cargo tauri build
+
+          # Build with explicit bundle targets for this platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cargo tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cargo tauri build --bundles app,dmg
+          else
+            cargo tauri build --bundles deb,appimage
+          fi
+
+      - name: Debug - List build outputs
+        shell: bash
+        run: |
+          echo "=== Contents of target/release ==="
+          ls -la desktop/tauri/src-tauri/target/release/ || echo "target/release not found"
+          echo "=== Contents of target/release/bundle ==="
+          ls -la desktop/tauri/src-tauri/target/release/bundle/ || echo "bundle directory not found"
+          echo "=== Recursive find in target ==="
+          find desktop/tauri/src-tauri/target -type f \( -name "*qbit*" -o -name "*.exe" -o -name "*.app" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.msi" -o -name "*.AppImage" \) -exec ls -la {} \; || echo "No build artifacts found"
+          echo "=== Full target directory structure ==="
+          find desktop/tauri/src-tauri/target -type d | head -20
 
       - name: Upload Tauri bundle
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.os }}-develop
-          path: desktop/tauri/src-tauri/target/release/bundle/**
+          path: |
+            desktop/tauri/src-tauri/target/release/bundle/
+            desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
+            desktop/tauri/src-tauri/target/release/qbit-manage-desktop*
+            desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/qbit-manage-desktop*
+          if-no-files-found: warn
 
   docker-develop:
     runs-on: ubuntu-latest
