@@ -40,7 +40,7 @@ fn app_config(app: &AppHandle) -> AppConfig {
     .unwrap_or(false);
 
   // log for debug
-  let _ = app.emit_all("app-config", format!("port={port}, base_url={base_url:?}, no_browser={no_browser}"));
+  let _ = app.emit("app-config", format!("port={port}, base_url={base_url:?}, no_browser={no_browser}"));
 
   AppConfig { port, base_url, no_browser }
 }
@@ -70,7 +70,7 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
   };
 
   // resource dir (Tauri 2 path resolver)
-  if let Some(resource_dir) = app.path().resource_dir() {
+  if let Ok(resource_dir) = app.path().resource_dir() {
     for name in &bin_names {
       let p = resource_dir.join("bin").join(name);
       if p.exists() {
@@ -86,19 +86,21 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
   }
 
   // executable dir
-  if let Ok(mut exe_dir) = std::env::current_exe().map(|p| p.parent().map(|pp| pp.to_path_buf())).flatten() {
-    for name in &bin_names {
-      let p = exe_dir.join(name);
-      if p.exists() {
-        return Some(p);
+  if let Ok(exe) = std::env::current_exe() {
+    if let Some(mut exe_dir) = exe.parent().map(|p| p.to_path_buf()) {
+      for name in &bin_names {
+        let p = exe_dir.join(name);
+        if p.exists() {
+          return Some(p);
+        }
       }
-    }
-    // try ../Resources
-    exe_dir = exe_dir.join("..");
-    for name in &bin_names {
-      let p = exe_dir.join(name);
-      if p.exists() {
-        return Some(p);
+      // try ../Resources
+      exe_dir = exe_dir.join("..");
+      for name in &bin_names {
+        let p = exe_dir.join(name);
+        if p.exists() {
+          return Some(p);
+        }
       }
     }
   }
@@ -143,7 +145,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     cmd.creation_flags(0x08000000);
   }
 
-  let mut child = cmd.spawn().map_err(|e| tauri::Error::FailedToExecuteApi(e.to_string()))?;
+  let mut child = cmd.spawn()?;
 
   // Log streaming (optional disable via QBT_DISABLE_LOG_STREAM=1)
   if std::env::var("QBT_DISABLE_LOG_STREAM").unwrap_or_default() != "1" {
@@ -155,7 +157,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
         move || {
           let reader = BufReader::new(stdout);
           for line in reader.lines().flatten() {
-            let _ = app_handle.emit_all("server-log", &line);
+            let _ = app_handle.emit("server-log", &line);
           }
         }
       });
@@ -166,7 +168,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
         move || {
           let reader = BufReader::new(stderr);
           for line in reader.lines().flatten() {
-            let _ = app_handle.emit_all("server-log", &format!("ERR: {line}"));
+            let _ = app_handle.emit("server-log", &format!("ERR: {line}"));
           }
         }
       });
@@ -213,7 +215,7 @@ fn open_app_window(app: &AppHandle, cfg: &AppConfig) {
     Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
     _ => format!("http://127.0.0.1:{}", cfg.port),
   };
-  if let Some(win) = app.get_window("main") {
+  if let Some(win) = app.get_webview_window("main") {
     let _ = win.eval(&format!("window.location.replace('{}')", url));
     let _ = win.show();
     let _ = win.set_focus();
@@ -236,10 +238,10 @@ pub fn run() {
       let app_handle = app.handle().clone();
 
       // Build tray menu (v2 API)
-      let open_item: MenuItem = MenuItemBuilder::with_id("open", "Open").build(app);
-      let start_item: MenuItem = MenuItemBuilder::with_id("start", "Start Server").build(app);
-      let stop_item: MenuItem = MenuItemBuilder::with_id("stop", "Stop Server").build(app);
-      let quit_item: MenuItem = MenuItemBuilder::with_id("quit", "Quit").build(app);
+      let open_item = MenuItemBuilder::with_id("open", "Open").build(app);
+      let start_item = MenuItemBuilder::with_id("start", "Start Server").build(app);
+      let stop_item = MenuItemBuilder::with_id("stop", "Stop Server").build(app);
+      let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app);
       let tray_menu = MenuBuilder::new(app)
         .items(&[&open_item, &start_item, &stop_item, &quit_item])
         .build()?;

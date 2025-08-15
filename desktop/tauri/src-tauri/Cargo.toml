@@ -7,6 +7,7 @@ license = "MIT"
 repository = ""
 edition = "2021"
 rust-version = "1.70"
+build = "build.rs"
 
 # Tauri 2 build script
 [build-dependencies]

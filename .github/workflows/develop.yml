@@ -17,12 +17,12 @@ jobs:
             python-version: '3.12'
           - os: windows-latest
             python-version: '3.12'
-          # Apple Silicon (arm64)
-          - os: macos-14
+          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+            args: '--target aarch64-apple-darwin'
             python-version: '3.12'
             arch: arm64
-          # Intel (x86_64) runner for legacy mac support
-          - os: macos-13
+          - platform: 'macos-latest' # for Intel based macs.
+            args: '--target x86_64-apple-darwin'
             python-version: '3.12'
             arch: x86_64
     env:
