@@ -144,6 +144,7 @@ jobs:
 
       - name: Build Tauri app
         working-directory: desktop/tauri/src-tauri
+        shell: bash
         run: |
           # Install Tauri 2 CLI (project migrated to Tauri v2 config & deps)
           cargo install tauri-cli --version ^2 --locked --force
