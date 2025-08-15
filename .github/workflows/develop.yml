@@ -12,8 +12,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.12']
+        include:
+          - os: ubuntu-latest
+            python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.12'
+          # Apple Silicon (arm64)
+          - os: macos-14
+            python-version: '3.12'
+            arch: arm64
+          # Intel (x86_64) runner for legacy mac support
+          - os: macos-13
+            python-version: '3.12'
+            arch: x86_64
     env:
       APP_NAME: qbit-manage
       ENTRY: qbit_manage.py
@@ -94,7 +105,7 @@ jobs:
       - name: Upload develop build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-${{ runner.os }}-develop
+          name: ${{ env.APP_NAME }}-${{ matrix.os }}-develop
           path: out/*
 
       # Build Tauri desktop shell after binaries are ready
@@ -141,7 +152,7 @@ jobs:
       - name: Upload Tauri bundle
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ runner.os }}-develop
+          name: tauri-${{ matrix.os }}-develop
           path: desktop/tauri/src-tauri/target/release/bundle/**
 
   docker-develop:

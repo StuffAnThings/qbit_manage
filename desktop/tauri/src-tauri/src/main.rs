@@ -5,6 +5,8 @@ use std::{
   process::{Child, Command, Stdio},
   sync::{Arc, Mutex},
   time::Duration,
+  io::{BufRead, BufReader},
+  thread,
 };
 use tauri::{
   AppHandle,
@@ -126,8 +128,9 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   cmd.env("QBT_WEB_SERVER", "true")
     .env("QBT_PORT", cfg.port.to_string())
     .stdin(Stdio::null())
-    .stdout(Stdio::null())
-    .stderr(Stdio::null());
+    // Pipe stdout/stderr so we can forward logs to the app & (optionally) browser
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
 
   if let Some(base) = &cfg.base_url {
     cmd.env("QBT_BASE_URL", base);
@@ -140,7 +143,36 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     cmd.creation_flags(0x08000000);
   }
 
-  let child = cmd.spawn().map_err(|e| tauri::Error::FailedToExecuteApi(e.to_string()))?;
+  let mut child = cmd.spawn().map_err(|e| tauri::Error::FailedToExecuteApi(e.to_string()))?;
+
+  // Log streaming (optional disable via QBT_DISABLE_LOG_STREAM=1)
+  if std::env::var("QBT_DISABLE_LOG_STREAM").unwrap_or_default() != "1" {
+    let app_handle_clone = app.clone();
+
+    if let Some(stdout) = child.stdout.take() {
+      thread::spawn({
+        let app_handle = app_handle_clone.clone();
+        move || {
+          let reader = BufReader::new(stdout);
+          for line in reader.lines().flatten() {
+            let _ = app_handle.emit_all("server-log", &line);
+          }
+        }
+      });
+    }
+    if let Some(stderr) = child.stderr.take() {
+      thread::spawn({
+        let app_handle = app_handle_clone.clone();
+        move || {
+          let reader = BufReader::new(stderr);
+          for line in reader.lines().flatten() {
+            let _ = app_handle.emit_all("server-log", &format!("ERR: {line}"));
+          }
+        }
+      });
+    }
+  }
+
   *guard = Some(child);
   Ok(())
 }
@@ -274,6 +306,7 @@ pub fn run() {
       let app_handle3 = app_handle.clone();
       tauri::async_runtime::spawn(async move {
         let _ = start_server(&app_handle3, &cfg);
+        // We can begin showing logs immediately; window navigates after ready
         if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
           open_app_window(&app_handle3, &cfg);
           if !cfg.no_browser {

@@ -6,7 +6,7 @@
         "beforeDevCommand": "",
         "beforeBuildCommand": "",
         "devUrl": "http://localhost:8080",
-        "frontendDist": "../web-ui"
+        "frontendDist": null
     },
     "bundle": {
         "category": "Utility",
