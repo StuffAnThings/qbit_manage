@@ -115,20 +115,9 @@ fn stop_server() {
     let mut child = server_process.child;
     let pid = child.id();
 
-    // Try graceful shutdown first
-    #[cfg(unix)]
-    {
-      unsafe { libc::kill(pid as i32, libc::SIGTERM); }
-      // Reduced from 1000ms to 200ms for faster response
-      std::thread::sleep(Duration::from_millis(200));
-      if child.try_wait().ok().flatten().is_none() {
-        let _ = child.kill();
-      }
-    }
-
+    // On Windows, use immediate process tree termination for faster cleanup
     #[cfg(all(windows, feature = "winjob"))]
     {
-      // On Windows with winjob feature, terminate the job object to kill the entire process tree
       if let Some(job) = server_process.job {
         unsafe {
           use windows::Win32::System::JobObjects::TerminateJobObject;
@@ -144,14 +133,25 @@ fn stop_server() {
       terminate_process_tree_windows(pid);
     }
 
-    // Wait for process to fully terminate with shorter timeout
+    // On Unix, try graceful shutdown first but with minimal delay
+    #[cfg(unix)]
+    {
+      unsafe { libc::kill(pid as i32, libc::SIGTERM); }
+      // Very brief wait for graceful shutdown
+      std::thread::sleep(Duration::from_millis(50));
+      if child.try_wait().ok().flatten().is_none() {
+        let _ = child.kill();
+      }
+    }
+
+    // Brief wait to ensure process termination, but don't wait too long
     let start = std::time::Instant::now();
-    while start.elapsed() < Duration::from_millis(1000) {
+    while start.elapsed() < Duration::from_millis(200) {
       match child.try_wait() {
         Ok(Some(_)) => break, // Process has exited
         Ok(None) => {
           // Process still running, wait a bit more
-          std::thread::sleep(Duration::from_millis(50));
+          std::thread::sleep(Duration::from_millis(10));
         }
         Err(_) => break, // Error occurred, assume process is gone
       }
@@ -180,12 +180,10 @@ fn terminate_process_tree_windows(pid: u32) {
 fn cleanup_and_exit() {
   *SHOULD_EXIT.lock().unwrap() = true;
 
-  // Start server cleanup in background - don't wait for it
-  std::thread::spawn(|| {
-    stop_server();
-  });
+  // Do immediate cleanup synchronously to ensure it happens
+  stop_server();
 
-  // Exit immediately for responsive UI
+  // Exit after cleanup is done
   std::process::exit(0);
 }
 
@@ -458,20 +456,16 @@ pub fn run() {
           // Set exit flag immediately for responsive UI
           *SHOULD_EXIT.lock().unwrap() = true;
 
-          // Start cleanup in background - don't wait for it
-          std::thread::spawn(|| {
-            stop_server();
-          });
+          // Do cleanup synchronously but quickly
+          stop_server();
 
-          // Exit immediately for responsive UI - don't wait for cleanup
+          // Exit after cleanup is done
           std::process::exit(0);
         }
         RunEvent::Exit => {
-          // Start cleanup in background if not already started
+          // Final cleanup on actual exit
           if !*SHOULD_EXIT.lock().unwrap() {
-            std::thread::spawn(|| {
-              stop_server();
-            });
+            stop_server();
           }
         }
         _ => {}
