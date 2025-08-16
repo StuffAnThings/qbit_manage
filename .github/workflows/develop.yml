@@ -4,6 +4,10 @@ on:
   push:
     branches: [ develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   build-binaries:
@@ -36,6 +40,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            uv.lock
 
       - name: Upgrade Pip and install project + PyInstaller
         run: |
@@ -100,15 +108,21 @@ jobs:
             mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-amd64"
           fi
 
-      - name: Upload develop build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.APP_NAME }}-${{ matrix.os }}-server
-          path: out/*
 
       # Build Tauri desktop shell after binaries are ready
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            desktop/tauri/src-tauri -> desktop/tauri/src-tauri/target
+
+      - name: Install NSIS (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install nsis -y
 
       - name: Install Tauri dependencies (Linux)
         if: runner.os == 'Linux'
@@ -165,36 +179,165 @@ jobs:
             cargo tauri build --bundles deb
           fi
 
-      - name: Upload Tauri bundle
+      - name: Set BUILD_ARCH for artifact naming
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            ARCH=$(uname -m)
+            if [[ "$ARCH" == "arm64" ]]; then
+              echo "BUILD_ARCH=arm64" >> $GITHUB_ENV
+            else
+              echo "BUILD_ARCH=x86_64" >> $GITHUB_ENV
+            fi
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "BUILD_ARCH=amd64" >> $GITHUB_ENV
+          else
+            echo "BUILD_ARCH=amd64" >> $GITHUB_ENV
+          fi
+
+      - name: Upload build outputs (binary + Tauri bundles)
         uses: actions/upload-artifact@v4
         with:
-          name: qbit-manage-${{ matrix.os }}-installer
+          name: build-outputs-${{ runner.os }}-${{ env.BUILD_ARCH }}
           path: |
-            desktop/tauri/src-tauri/target/release/bundle/**
-            desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**
-          if-no-files-found: warn
+            out/**
+            desktop/tauri/src-tauri/target/**/release/bundle/**
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
-  download-binaries:
+  prepare-release-assets:
     runs-on: ubuntu-latest
     needs: build-binaries
+    permissions:
+      actions: write
+      contents: read
     steps:
-      - name: Download required artifacts only (exclude ephemeral dockerbuild)
+      - name: Download and collect all build outputs
         uses: actions/download-artifact@v5
         with:
-          # Only pull the artifacts we actually need for packaging/distribution
-          pattern: qbit-manage-*-installer
+          pattern: build-outputs-*
           path: collected
           merge-multiple: true
 
-      - name: Download server artifacts
-        uses: actions/download-artifact@v5
-        with:
-          pattern: qbit-manage-*-server
-          path: collected
-          merge-multiple: true
+      - name: Filter and rename files for release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
 
-      - name: Display structure of downloaded files
-        run: ls -R collected
+          echo "=== Collecting server binaries (standalone executables) ==="
+          # Copy server binaries with error checking
+          server_files=(
+            "qbit-manage-linux-amd64"
+            "qbit-manage-macos-arm64"
+            "qbit-manage-macos-x86_64"
+            "qbit-manage-windows-amd64.exe"
+          )
+
+          for server_file in "${server_files[@]}"; do
+            if find collected -name "$server_file" -exec cp {} release-assets/ \; -print | grep -q .; then
+              echo "✓ Found and copied: $server_file"
+            else
+              echo "⚠️  Warning: $server_file not found"
+            fi
+          done
+
+          echo "=== Processing installer files (desktop app packages) ==="
+
+          # Linux .deb installer
+          deb_count=$(find collected -name "*.deb" -exec cp {} release-assets/ \; -print | wc -l)
+          if [ "$deb_count" -gt 0 ]; then
+            echo "✓ Found $deb_count .deb installer(s)"
+            for file in release-assets/*.deb; do
+              if [ -f "$file" ]; then
+                basename=$(basename "$file" .deb)
+                mv "$file" "release-assets/${basename}-desktop-installer.deb"
+                echo "  → Renamed to: ${basename}-desktop-installer.deb"
+              fi
+            done
+          else
+            echo "⚠️  Warning: No .deb installers found"
+          fi
+
+          # macOS .dmg installers
+          dmg_count=$(find collected -name "*.dmg" -exec cp {} release-assets/ \; -print | wc -l)
+          if [ "$dmg_count" -gt 0 ]; then
+            echo "✓ Found $dmg_count .dmg installer(s)"
+            for file in release-assets/*.dmg; do
+              if [ -f "$file" ]; then
+                basename=$(basename "$file" .dmg)
+                mv "$file" "release-assets/${basename}-desktop-installer.dmg"
+                echo "  → Renamed to: ${basename}-desktop-installer.dmg"
+              fi
+            done
+          else
+            echo "⚠️  Warning: No .dmg installers found"
+          fi
+
+          # Windows .exe installer
+          exe_count=$(find collected -name "*-setup.exe" -exec cp {} release-assets/ \; -print | wc -l)
+          if [ "$exe_count" -gt 0 ]; then
+            echo "✓ Found $exe_count .exe installer(s)"
+            for file in release-assets/*-setup.exe; do
+              if [ -f "$file" ]; then
+                basename=$(basename "$file" -setup.exe)
+                mv "$file" "release-assets/${basename}-desktop-installer-setup.exe"
+                echo "  → Renamed to: ${basename}-desktop-installer-setup.exe"
+              fi
+            done
+          else
+            echo "⚠️  Warning: No .exe installers found"
+          fi
+
+          echo "=== File processing completed ==="
+
+      - name: Display final release assets
+        run: |
+          echo "=== Final Release Assets ==="
+          ls -la release-assets/
+          echo ""
+          echo "=== File Count Summary ==="
+          echo "Server binaries: $(find release-assets -name "qbit-manage-*" -not -name "*desktop*" | wc -l)"
+          echo "Desktop installers: $(find release-assets -name "*desktop-installer*" | wc -l)"
+
+      - name: Upload final release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: qbit-manage-release-assets
+          path: release-assets/
+          if-no-files-found: error
+          compression-level: 6
+
+      - name: Clean up temporary build artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get all artifacts from this workflow run
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+
+            // Delete temporary build artifacts, keep only the final release assets
+            for (const artifact of artifacts.data.artifacts) {
+              if (artifact.name.startsWith('build-outputs-')) {
+                console.log(`Deleting temporary artifact: ${artifact.name}`);
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id,
+                  });
+                  console.log(`✓ Successfully deleted: ${artifact.name}`);
+                } catch (error) {
+                  console.log(`⚠️  Failed to delete ${artifact.name}: ${error.message}`);
+                }
+              } else {
+                console.log(`✓ Keeping final artifact: ${artifact.name}`);
+              }
+            }
 
   docker-develop:
     runs-on: ubuntu-latest

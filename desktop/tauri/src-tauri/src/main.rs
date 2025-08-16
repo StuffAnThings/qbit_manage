@@ -226,8 +226,10 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     let job = CreateJobObjectW(None, None).ok();
     if let Some(job) = job {
       // Configure job to kill all processes when the job handle is closed
+      // and prevent processes from breaking out of the job
       let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-      info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+      info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
 
       let _ = SetInformationJobObject(
         job,
@@ -235,6 +237,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
         &info as *const _ as *const _,
         std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
       );
+
       Some(job)
     } else {
       None
@@ -269,10 +272,20 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     unsafe {
       use windows::Win32::System::JobObjects::AssignProcessToJobObject;
       use windows::Win32::Foundation::HANDLE;
-      use std::os::windows::process::CommandExt;
+      use windows::Win32::System::Threading::OpenProcess;
+      use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
 
-      let process_handle = HANDLE(child.id() as isize);
-      let _ = AssignProcessToJobObject(job, process_handle);
+      // Get proper process handle from PID
+      let process_handle = OpenProcess(PROCESS_ALL_ACCESS, false, child.id());
+      if let Ok(handle) = process_handle {
+        let result = AssignProcessToJobObject(job, handle);
+        if result.is_err() {
+          eprintln!("Failed to assign process to job object: {:?}", result);
+        }
+        // Don't close the handle here as it's managed by the system
+      } else {
+        eprintln!("Failed to open process handle for PID: {}", child.id());
+      }
     }
   }
 

@@ -59,12 +59,15 @@
             "certificateThumbprint": null,
             "digestAlgorithm": "sha256",
             "nsis": {
-                "displayLanguageSelector": true
+                "displayLanguageSelector": true,
+                "installMode": "currentUser",
+                "installerHooks": "../nsis-hooks",
+                "installerIcon": "../../../icons/qbm_logo.ico"
             },
             "timestampUrl": ""
         }
     },
     "identifier": "com.qbitmanage.desktop",
     "productName": "qBit Manage",
-    "version": "4.5.4-develop37"
+    "version": "4.5.4-develop38"
 }
