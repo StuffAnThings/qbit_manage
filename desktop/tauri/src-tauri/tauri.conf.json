@@ -61,7 +61,7 @@
             "nsis": {
                 "displayLanguageSelector": true,
                 "installMode": "currentUser",
-                "installerHooks": "../../nsis-hooks",
+                "installerHooks": "./desktop/nsis-hooks",
                 "installerIcon": "../../../icons/qbm_logo.ico"
             },
             "timestampUrl": ""
@@ -69,5 +69,5 @@
     },
     "identifier": "com.qbitmanage.desktop",
     "productName": "qBit Manage",
-    "version": "4.5.4-develop39"
+    "version": "4.5.4-develop41"
 }
