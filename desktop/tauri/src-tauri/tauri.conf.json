@@ -17,7 +17,7 @@
                 "width": 1100
             }
         ],
-        "withGlobalTauri": false
+        "withGlobalTauri": true
     },
     "build": {
         "beforeBuildCommand": "",
@@ -66,5 +66,5 @@
     },
     "identifier": "com.qbitmanage.desktop",
     "productName": "qBit Manage",
-    "version": "4.5.4-develop36"
+    "version": "4.5.4-develop37"
 }

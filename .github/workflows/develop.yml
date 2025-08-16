@@ -182,13 +182,16 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           # Only pull the artifacts we actually need for packaging/distribution
-          pattern: |
-            qbit-manage-*-installer
-            qbit-manage-*-server
+          pattern: qbit-manage-*-installer
           path: collected
           merge-multiple: true
-          # In case one matrix leg didn't upload (reruns/partial), do not fail the whole job
-          if-no-artifact-found: ignore
+
+      - name: Download server artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: qbit-manage-*-server
+          path: collected
+          merge-multiple: true
 
       - name: Display structure of downloaded files
         run: ls -R collected
