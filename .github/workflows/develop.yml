@@ -112,6 +112,27 @@ jobs:
       # Build Tauri desktop shell after binaries are ready
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+        env:
+          RUSTUP_MAX_RETRIES: 10
+        timeout-minutes: 10
+        continue-on-error: true
+        id: rust-setup
+
+      - name: Wait before retry (network recovery)
+        if: steps.rust-setup.outcome == 'failure'
+        run: sleep 30
+        shell: bash
+
+      - name: Retry Rust toolchain setup on failure
+        if: steps.rust-setup.outcome == 'failure'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+        env:
+          RUSTUP_MAX_RETRIES: 10
+        timeout-minutes: 10
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
