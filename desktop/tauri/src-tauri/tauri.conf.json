@@ -15,18 +15,6 @@
                 "title": "qBit Manage",
                 "visible": false,
                 "width": 1100
-            },
-            {
-                "decorations": true,
-                "fullscreen": false,
-                "height": 600,
-                "label": "logs",
-                "minHeight": 400,
-                "minWidth": 600,
-                "resizable": true,
-                "title": "qBit Manage - Server Logs",
-                "visible": false,
-                "width": 800
             }
         ],
         "withGlobalTauri": false

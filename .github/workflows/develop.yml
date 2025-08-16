@@ -142,6 +142,13 @@ jobs:
             chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
           fi
 
+      - name: Update Tauri version files
+        working-directory: desktop/tauri/src-tauri
+        shell: bash
+        run: |
+          # Run cargo check to trigger build script and update version files
+          cargo check
+
       - name: Build Tauri app
         working-directory: desktop/tauri/src-tauri
         shell: bash
@@ -166,6 +173,13 @@ jobs:
             desktop/tauri/src-tauri/target/release/bundle/**
             desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/**
           if-no-files-found: warn
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: collected
+      - name: Display structure of downloaded files
+        run: ls -R collected
 
   docker-develop:
     runs-on: ubuntu-latest

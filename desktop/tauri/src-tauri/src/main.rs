@@ -5,8 +5,6 @@ use std::{
   process::{Child, Command, Stdio},
   sync::{Arc, Mutex},
   time::Duration,
-  io::{BufRead, BufReader},
-  thread,
 };
 use tauri::{
   AppHandle,
@@ -18,7 +16,6 @@ use tauri::{
   RunEvent,
 };
 use tauri_plugin_single_instance::init as single_instance;
-use tauri_plugin_opener::OpenerExt;
 use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
@@ -28,7 +25,6 @@ static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(fa
 struct AppConfig {
   port: u16,
   base_url: Option<String>,
-  no_browser: bool,
 }
 
 fn app_config(app: &AppHandle) -> AppConfig {
@@ -38,14 +34,11 @@ fn app_config(app: &AppHandle) -> AppConfig {
     let s = v.trim().to_string();
     if s.is_empty() { None } else { Some(s) }
   });
-  let no_browser = std::env::var("QBT_NO_BROWSER")
-    .map(|v| v.eq_ignore_ascii_case("true"))
-    .unwrap_or(false);
 
   // log for debug
-  let _ = app.emit("app-config", format!("port={port}, base_url={base_url:?}, no_browser={no_browser}"));
+  let _ = app.emit("app-config", format!("port={port}, base_url={base_url:?}"));
 
-  AppConfig { port, base_url, no_browser }
+  AppConfig { port, base_url }
 }
 
 fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
@@ -151,38 +144,8 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     cmd.creation_flags(0x08000000);
   }
 
-  let mut child = cmd.spawn()?;
-
-  // Log streaming (optional disable via QBT_DISABLE_LOG_STREAM=1)
-  if std::env::var("QBT_DISABLE_LOG_STREAM").unwrap_or_default() != "1" {
-    let app_handle_clone = app.clone();
-
-    if let Some(stdout) = child.stdout.take() {
-      thread::spawn({
-        let app_handle = app_handle_clone.clone();
-        move || {
-          let reader = BufReader::new(stdout);
-          for line in reader.lines().flatten() {
-            let _ = app_handle.emit("server-log", &line);
-          }
-        }
-      });
-    }
-    if let Some(stderr) = child.stderr.take() {
-      thread::spawn({
-        let app_handle = app_handle_clone.clone();
-        move || {
-          let reader = BufReader::new(stderr);
-          for line in reader.lines().flatten() {
-            let _ = app_handle.emit("server-error", &line);
-          }
-        }
-      });
-    }
-  }
-
+  let child = cmd.spawn()?;
   *guard = Some(child);
-  let _ = app.emit("server-status", "Server Running");
   Ok(())
 }
 
@@ -282,24 +245,6 @@ fn open_app_window(app: &AppHandle) {
   }
 }
 
-fn open_logs_window(app: &AppHandle) {
-  // Check if logs window already exists
-  if let Some(win) = app.get_webview_window("logs") {
-    let _ = win.show();
-    let _ = win.set_focus();
-    return;
-  }
-
-  // Create new logs window
-  use tauri::{WebviewUrl, WebviewWindowBuilder};
-  let _logs_window = WebviewWindowBuilder::new(app, "logs", WebviewUrl::App("logs.html".into()))
-    .title("qBit Manage - Server Logs")
-    .inner_size(800.0, 600.0)
-    .min_inner_size(600.0, 400.0)
-    .resizable(true)
-    .visible(true)
-    .build();
-}
 
 fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
   let url = match &cfg.base_url {
@@ -329,12 +274,10 @@ pub fn run() {
 
       // Build tray menu (v2 API)
       let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
-      let logs_item = MenuItemBuilder::with_id("logs", "Show Server Logs").build(app)?;
-      let start_item = MenuItemBuilder::with_id("start", "Start Server").build(app)?;
-      let stop_item = MenuItemBuilder::with_id("stop", "Stop Server").build(app)?;
+      let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
       let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
       let tray_menu = MenuBuilder::new(app)
-        .items(&[&open_item, &logs_item, &start_item, &stop_item, &quit_item])
+        .items(&[&open_item, &restart_item, &quit_item])
         .build()?;
 
       // Create tray icon with explicit icon
@@ -359,19 +302,15 @@ pub fn run() {
             "open" => {
               open_app_window(app);
             }
-            "logs" => {
-              open_logs_window(app);
-            }
-            "start" => {
+            "restart" => {
+              // Stop server first, then start it again
+              stop_server();
               let cfg = app_config(app);
               if start_server(app, &cfg).is_ok() {
                 tauri::async_runtime::spawn(async move {
                   let _ = wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await;
                 });
               }
-            }
-            "stop" => {
-              stop_server();
             }
             "quit" => {
               cleanup_and_exit();
@@ -405,13 +344,6 @@ pub fn run() {
         // Wait for server to be ready, then redirect
         if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
           redirect_to_server(&app_handle3, &cfg);
-          if !cfg.no_browser {
-            let url = match &cfg.base_url {
-              Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
-              _ => format!("http://127.0.0.1:{}", cfg.port),
-            };
-            let _ = app_handle3.opener().open_url(url, None::<String>);
-          }
         }
       });
 
