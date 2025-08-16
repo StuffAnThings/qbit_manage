@@ -6,6 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0" />
   <title>qBit Manage - Console</title>
+  <!-- Note: CDN may be blocked/offline in packaged app; we include a JS fallback below if xterm is unavailable -->
   <link rel="stylesheet" href="https://unpkg.com/xterm@5.5.0/css/xterm.css" />
   <style>
     :root {
@@ -80,12 +81,17 @@
       box-sizing: border-box;
     }
 
-    #terminal {
+    #terminal, #fallback {
       width: 100%;
       height: 100%;
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      overflow: hidden;
+      overflow: auto;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
     }
 
     /* Xterm theme tweaks */
@@ -105,70 +111,102 @@
   </div>
   <div class="terminal-wrap">
     <div id="terminal"></div>
+    <!-- Fallback container (hidden by default; shown if xterm fails to load) -->
+    <pre id="fallback" style="display:none;padding:8px;"></pre>
   </div>
 
-  <!-- xterm.js + fit addon from CDN -->
+  <!-- xterm.js + fit addon from CDN (may fail offline; we handle fallback) -->
   <script src="https://unpkg.com/xterm@5.5.0/lib/xterm.js"></script>
   <script src="https://unpkg.com/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
 
-  <script>
-    // Prefer Tauri global (v2) for plain HTML integration
-    const hasTauri = typeof window.__TAURI__ !== 'undefined' && window.__TAURI__.event;
+  <!-- Use Tauri v2 module imports to avoid relying on window.__TAURI__ when withGlobalTauri=false -->
+  <script type="module">
+    import { listen, emit } from 'tauri://event';
 
-    // Initialize xterm
-    const term = new Terminal({
-      convertEol: true,
-      cursorBlink: true,
-      cursorStyle: 'block',
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim(),
-      fontSize: 12,
-      theme: {
-        background: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim(),
-        foreground: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
-        cursor: '#3b82f6',
-        selectionBackground: 'rgba(59,130,246,0.35)'
-      }
-    });
-    const fitAddon = new window.FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
+    function setupFallback() {
+      const termDiv = document.getElementById('terminal');
+      const fb = document.getElementById('fallback');
+      termDiv.style.display = 'none';
+      fb.style.display = 'block';
 
-    const container = document.getElementById('terminal');
-    term.open(container);
-    fitAddon.fit();
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-      try { fitAddon.fit(); } catch {}
-    });
-
-    // Titlebar actions
-    document.getElementById('clearBtn')?.addEventListener('click', () => term.clear());
-    document.getElementById('copyBtn')?.addEventListener('click', async () => {
-      try {
-        const text = term.getSelection() || term.buffer.active.getLine(0)?.translateToString(true) || '';
-        if (text) await navigator.clipboard.writeText(text);
-      } catch {}
-    });
-
-    // Wire terminal -> backend (stdin)
-    term.onData((data) => {
-      if (!hasTauri) return;
-      try {
-        window.__TAURI__.event.emit('console-input', data);
-      } catch {}
-    });
-
-    // Wire backend -> terminal (stdout/stderr)
-    if (hasTauri) {
-      window.__TAURI__.event.listen('console-data', (event) => {
-        if (event?.payload != null) term.write(event.payload);
+      document.getElementById('clearBtn')?.addEventListener('click', () => { fb.textContent = ''; });
+      document.getElementById('copyBtn')?.addEventListener('click', async () => {
+        try {
+          const text = fb.textContent || '';
+          if (text) await navigator.clipboard.writeText(text);
+        } catch {}
       });
-    } else {
-      term.writeln('\\x1b[33m[Tauri not detected]\\x1b[0m Console events will not function in this environment.');
+
+      // Backend -> fallback
+      listen('console-data', (event) => {
+        if (event?.payload != null) {
+          fb.textContent += event.payload;
+          fb.scrollTop = fb.scrollHeight;
+        }
+      });
+
+      fb.textContent += '[console] xterm unavailable; using basic output fallback.\n';
+      // Ping backend to ensure input path is active
+      emit('console-input', '');
     }
 
-    // Initial message
-    term.writeln('\\x1b[36mqBit Manage PTY console ready. Type to interact with the running server process.\\x1b[0m');
+    function setupXterm() {
+      const term = new window.Terminal({
+        convertEol: true,
+        cursorBlink: true,
+        cursorStyle: 'block',
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim(),
+        fontSize: 12,
+        theme: {
+          background: getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim(),
+          foreground: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
+          cursor: '#3b82f6',
+          selectionBackground: 'rgba(59,130,246,0.35)'
+        }
+      });
+      const fitAddon = new (window.FitAddon?.FitAddon || function(){ this.fit = ()=>{}; })();
+      if (term.loadAddon && fitAddon) try { term.loadAddon(fitAddon); } catch {}
+
+      const container = document.getElementById('terminal');
+      term.open(container);
+      if (fitAddon && fitAddon.fit) try { fitAddon.fit(); } catch {}
+
+      window.addEventListener('resize', () => {
+        try { fitAddon.fit(); } catch {}
+      });
+
+      document.getElementById('clearBtn')?.addEventListener('click', () => term.clear());
+      document.getElementById('copyBtn')?.addEventListener('click', async () => {
+        try {
+          const text = term.getSelection() || term.buffer?.active?.getLine?.(0)?.translateToString(true) || '';
+          if (text) await navigator.clipboard.writeText(text);
+        } catch {}
+      });
+
+      // stdin -> backend
+      term.onData((data) => {
+        emit('console-input', data);
+      });
+
+      // stdout/stderr -> xterm
+      listen('console-data', (event) => {
+        if (event?.payload != null) term.write(event.payload);
+      });
+
+      term.writeln('\\x1b[36mqBit Manage PTY console ready.\\x1b[0m');
+
+      // Ping backend to ensure input path is active
+      emit('console-input', '');
+    }
+
+    // Prefer xterm if available; otherwise fallback
+    (function init() {
+      if (typeof window.Terminal === 'undefined') {
+        setupFallback();
+      } else {
+        setupXterm();
+      }
+    })();
   </script>
 </body>
 </html>
