@@ -42,7 +42,7 @@ license = "MIT"
 name = "qbit-manage-desktop"
 repository = ""
 rust-version = "1.70"
-version = "4.5.4-develop30"
+version = "4.5.4-develop31"
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"

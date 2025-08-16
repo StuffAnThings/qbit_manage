@@ -134,6 +134,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   let mut cmd = Command::new(server_path);
   cmd.env("QBT_WEB_SERVER", "true")
     .env("QBT_PORT", cfg.port.to_string())
+    .env("QBT_DESKTOP_APP", "true")  // Indicate running in desktop app to prevent browser opening
     .stdin(Stdio::null())
     // Pipe stdout/stderr so we can forward logs to the app & (optionally) browser
     .stdout(Stdio::piped())
@@ -173,7 +174,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
         move || {
           let reader = BufReader::new(stderr);
           for line in reader.lines().flatten() {
-            let _ = app_handle.emit("server-log", &format!("ERR: {line}"));
+            let _ = app_handle.emit("server-error", &line);
           }
         }
       });
@@ -181,16 +182,18 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   }
 
   *guard = Some(child);
+  let _ = app.emit("server-status", "Server Running");
   Ok(())
 }
 
 fn stop_server() {
   if let Some(mut child) = SERVER_STATE.lock().unwrap().take() {
+    let pid = child.id();
+
     // Try graceful shutdown first
     #[cfg(unix)]
     {
       // Send SIGTERM for graceful shutdown
-      let pid = child.id();
       unsafe {
         libc::kill(pid as i32, libc::SIGTERM);
       }
@@ -205,15 +208,44 @@ fn stop_server() {
       }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-      // On Windows, directly kill the process
+      // On Windows, kill the entire process tree to ensure all child processes are terminated
+      kill_process_tree_windows(pid);
+
+      // Also kill the direct child process
       let _ = child.kill();
     }
 
     // Wait for process to fully terminate
     let _ = child.wait();
   }
+}
+
+#[cfg(windows)]
+fn kill_process_tree_windows(pid: u32) {
+  use std::process::Command;
+
+  // Use taskkill to kill the process tree
+  // /F = Force termination
+  // /T = Terminate all child processes along with the parent process (process tree)
+  // /PID = Process ID to terminate
+  let _ = Command::new("taskkill")
+    .args(&["/F", "/T", "/PID", &pid.to_string()])
+    .output();
+
+  // Also try to kill by process name as a backup
+  let _ = Command::new("taskkill")
+    .args(&["/F", "/IM", "qbit-manage-windows-amd64.exe"])
+    .output();
+
+  let _ = Command::new("taskkill")
+    .args(&["/F", "/IM", "qbit-manage.exe"])
+    .output();
+}
+
+fn emit_server_status(app: &AppHandle, status: &str) {
+  let _ = app.emit("server-status", status);
 }
 
 fn cleanup_and_exit() {
@@ -253,6 +285,25 @@ fn open_app_window(app: &AppHandle) {
   }
 }
 
+fn open_logs_window(app: &AppHandle) {
+  // Check if logs window already exists
+  if let Some(win) = app.get_webview_window("logs") {
+    let _ = win.show();
+    let _ = win.set_focus();
+    return;
+  }
+
+  // Create new logs window
+  use tauri::{WebviewUrl, WebviewWindowBuilder};
+  let _logs_window = WebviewWindowBuilder::new(app, "logs", WebviewUrl::App("logs.html".into()))
+    .title("qBit Manage - Server Logs")
+    .inner_size(800.0, 600.0)
+    .min_inner_size(600.0, 400.0)
+    .resizable(true)
+    .visible(true)
+    .build();
+}
+
 fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
   let url = match &cfg.base_url {
     Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
@@ -281,16 +332,18 @@ pub fn run() {
 
       // Build tray menu (v2 API)
       let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+      let logs_item = MenuItemBuilder::with_id("logs", "Show Server Logs").build(app)?;
       let start_item = MenuItemBuilder::with_id("start", "Start Server").build(app)?;
       let stop_item = MenuItemBuilder::with_id("stop", "Stop Server").build(app)?;
       let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
       let tray_menu = MenuBuilder::new(app)
-        .items(&[&open_item, &start_item, &stop_item, &quit_item])
+        .items(&[&open_item, &logs_item, &start_item, &stop_item, &quit_item])
         .build()?;
 
-      // Create tray icon (uses default app icon automatically)
-      TrayIconBuilder::new()
+      // Create tray icon with explicit icon
+      let _tray_icon = TrayIconBuilder::new()
         .menu(&tray_menu)
+        .icon(app.default_window_icon().unwrap().clone())
         .on_tray_icon_event(|tray, event| {
           if let TrayIconEvent::Click {
             button: MouseButton::Left,
@@ -308,6 +361,9 @@ pub fn run() {
           match event.id().as_ref() {
             "open" => {
               open_app_window(app);
+            }
+            "logs" => {
+              open_logs_window(app);
             }
             "start" => {
               let cfg = app_config(app);

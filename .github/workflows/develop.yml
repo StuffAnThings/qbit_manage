@@ -162,11 +162,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.os }}-develop
-          path: |
-            desktop/tauri/src-tauri/target/release/bundle/
-            desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
-            desktop/tauri/src-tauri/target/release/qbit-manage-desktop*
-            desktop/tauri/src-tauri/target/x86_64-pc-windows-msvc/release/qbit-manage-desktop*
+          path: desktop/tauri/src-tauri/target/release/bundle/**
           if-no-files-found: warn
 
   docker-develop:

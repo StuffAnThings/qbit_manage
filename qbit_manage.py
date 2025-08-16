@@ -731,8 +731,9 @@ if __name__ == "__main__":
             web_process.start()
             logger.info("Web server started in separate process")
 
-            # If not running in Docker, open the WebUI automatically in a browser tab when ready
-            if not is_docker:
+            # If not running in Docker or desktop app, open the WebUI automatically in a browser tab when ready
+            is_desktop_app = os.getenv("QBT_DESKTOP_APP", "").lower() == "true"
+            if not is_docker and not is_desktop_app:
                 try:
                     ui_url = f"http://127.0.0.1:{port}"
                     if base_url:
