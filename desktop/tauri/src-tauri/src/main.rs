@@ -119,7 +119,8 @@ fn stop_server() {
     #[cfg(unix)]
     {
       unsafe { libc::kill(pid as i32, libc::SIGTERM); }
-      std::thread::sleep(Duration::from_millis(1000));
+      // Reduced from 1000ms to 200ms for faster response
+      std::thread::sleep(Duration::from_millis(200));
       if child.try_wait().ok().flatten().is_none() {
         let _ = child.kill();
       }
@@ -143,14 +144,14 @@ fn stop_server() {
       terminate_process_tree_windows(pid);
     }
 
-    // Wait for process to fully terminate with timeout
+    // Wait for process to fully terminate with shorter timeout
     let start = std::time::Instant::now();
-    while start.elapsed() < Duration::from_secs(5) {
+    while start.elapsed() < Duration::from_millis(1000) {
       match child.try_wait() {
         Ok(Some(_)) => break, // Process has exited
         Ok(None) => {
           // Process still running, wait a bit more
-          std::thread::sleep(Duration::from_millis(100));
+          std::thread::sleep(Duration::from_millis(50));
         }
         Err(_) => break, // Error occurred, assume process is gone
       }
@@ -382,17 +383,16 @@ pub fn run() {
               open_app_window(app);
             }
             "restart" => {
-              // Stop server first, then start it again with proper delay
+              // Stop server first, then start it again with minimal delay
               stop_server();
-
-              // Wait a moment to ensure process is fully terminated
-              std::thread::sleep(Duration::from_millis(1000));
 
               let cfg = app_config(app);
               let app_handle_restart = app.clone();
 
               // Start server in a separate thread to avoid blocking the UI
               std::thread::spawn(move || {
+                // Brief delay to ensure process cleanup
+                std::thread::sleep(Duration::from_millis(200));
                 if start_server(&app_handle_restart, &cfg).is_ok() {
                   tauri::async_runtime::spawn(async move {
                     if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await {
@@ -442,22 +442,16 @@ pub fn run() {
     .expect("error while building tauri application")
     .run(move |_app, event| {
       match event {
-        RunEvent::ExitRequested { api, .. } => {
+        RunEvent::ExitRequested { .. } => {
           // Check if we should exit cleanly
           if *SHOULD_EXIT.lock().unwrap() {
             // Already in exit process, allow immediate exit
             return;
           }
-
-          // Prevent exit and clean up properly
-          api.prevent_exit();
-
-          // Set exit flag and clean up in background
+          // Set exit flag immediately for responsive UI
           *SHOULD_EXIT.lock().unwrap() = true;
           std::thread::spawn(|| {
             stop_server();
-            // Give more time for proper cleanup
-            std::thread::sleep(Duration::from_millis(1500));
             std::process::exit(0);
           });
         }
