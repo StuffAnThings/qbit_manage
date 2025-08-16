@@ -177,15 +177,26 @@ fn terminate_process_tree_windows(pid: u32) {
 }
 
 
-fn cleanup_and_exit() {
+fn cleanup_and_exit_with_app(app: &AppHandle) {
   *SHOULD_EXIT.lock().unwrap() = true;
 
-  // Do immediate cleanup synchronously to ensure it happens
-  stop_server();
+  // Hide window immediately for instant visual feedback
+  if let Some(win) = app.get_webview_window("main") {
+    let _ = win.hide();
+  }
 
-  // Exit after cleanup is done
-  std::process::exit(0);
+  // Hide tray icon immediately for instant visual feedback
+  if let Some(tray) = app.tray_by_id("main") {
+    let _ = tray.set_visible(false);
+  }
+
+  // Do cleanup and exit in background thread so UI doesn't freeze
+  std::thread::spawn(|| {
+    stop_server();
+    std::process::exit(0);
+  });
 }
+
 
 async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duration) -> bool {
   let client = reqwest::Client::builder().danger_accept_invalid_certs(true).build().ok();
@@ -407,7 +418,7 @@ pub fn run() {
               });
             }
             "quit" => {
-              cleanup_and_exit();
+              cleanup_and_exit_with_app(app);
             }
             _ => {}
           }
@@ -456,11 +467,11 @@ pub fn run() {
           // Set exit flag immediately for responsive UI
           *SHOULD_EXIT.lock().unwrap() = true;
 
-          // Do cleanup synchronously but quickly
-          stop_server();
-
-          // Exit after cleanup is done
-          std::process::exit(0);
+          // Do cleanup in background thread to avoid UI freeze
+          std::thread::spawn(|| {
+            stop_server();
+            std::process::exit(0);
+          });
         }
         RunEvent::Exit => {
           // Final cleanup on actual exit
