@@ -165,14 +165,24 @@ fn stop_server() {
 
 #[cfg(windows)]
 fn terminate_process_tree_windows(pid: u32) {
-  // Kill the process tree on Windows using taskkill
+  use std::os::windows::process::CommandExt;
+
+  // Kill the process tree on Windows using taskkill with hidden window
   let _ = std::process::Command::new("taskkill")
     .args(&["/F", "/T", "/PID", &pid.to_string()])
+    .creation_flags(0x08000000) // CREATE_NO_WINDOW
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
     .output();
 
-  // Also try direct process termination as backup
-  let _ = std::process::Command::new("cmd")
-    .args(&["/C", &format!("taskkill /F /IM qbit-manage-windows-amd64.exe")])
+  // Also try direct process termination as backup with hidden window
+  let _ = std::process::Command::new("taskkill")
+    .args(&["/F", "/IM", "qbit-manage-windows-amd64.exe"])
+    .creation_flags(0x08000000) // CREATE_NO_WINDOW
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
     .output();
 }
 
@@ -183,14 +193,12 @@ fn cleanup_and_exit_with_app(app: &AppHandle) {
   // Hide window immediately for instant visual feedback
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.hide();
-  }
-
-  // Hide tray icon immediately for instant visual feedback
-  if let Some(tray) = app.tray_by_id("main") {
-    let _ = tray.set_visible(false);
+    // Also minimize to ensure it's completely hidden
+    let _ = win.minimize();
   }
 
   // Do cleanup and exit in background thread so UI doesn't freeze
+  // The tray will disappear when the process exits
   std::thread::spawn(|| {
     stop_server();
     std::process::exit(0);
