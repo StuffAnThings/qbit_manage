@@ -2,13 +2,17 @@
 
 use once_cell::sync::Lazy;
 use std::{
-  process::{Child, Command, Stdio},
+  process::{Child},
   sync::{Arc, Mutex},
   time::Duration,
+  io::{Read, Write},
+  thread,
 };
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use tauri::{
   AppHandle,
   Manager,
+  Listener,
   WindowEvent,
   Emitter,
   menu::{MenuBuilder, MenuItemBuilder},
@@ -20,6 +24,16 @@ use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+
+// PTY-based console state (always-run-in-PTY mode)
+struct PtyState {
+  child: Box<dyn portable_pty::Child + Send>,
+  // Keep master alive for the lifetime of the session
+  master: Box<dyn portable_pty::MasterPty + Send>,
+  // Writer to send user input from the console window
+  writer: Arc<Mutex<Box<dyn Write + Send>>>,
+}
+static PTY_STATE: Lazy<Arc<Mutex<Option<PtyState>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 #[derive(Debug, Clone)]
 struct AppConfig {
@@ -104,107 +118,116 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
   None
 }
 
-fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
-  let mut guard = SERVER_STATE.lock().unwrap();
-
-  // if already running, do nothing
-  if let Some(child) = guard.as_mut() {
-    if child.try_wait().ok().flatten().is_none() {
-      return Ok(());
-    }
-  }
-
-  let server_path = resolve_server_binary(app).unwrap_or_else(|| {
-    // fall back to expecting binary on PATH
-    if cfg!(target_os = "windows") {
-      std::path::PathBuf::from("qbit-manage.exe")
-    } else {
-      std::path::PathBuf::from("qbit-manage")
-    }
-  });
-
-  // build command
-  let mut cmd = Command::new(server_path);
-  cmd.env("QBT_WEB_SERVER", "true")
-    .env("QBT_PORT", cfg.port.to_string())
-    .env("QBT_DESKTOP_APP", "true")  // Indicate running in desktop app to prevent browser opening
-    .stdin(Stdio::null())
-    // Pipe stdout/stderr so we can forward logs to the app & (optionally) browser
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
-
-  if let Some(base) = &cfg.base_url {
-    cmd.env("QBT_BASE_URL", base);
-  }
-
-  // On Windows, make sure process does not open a console window
-  #[cfg(target_os = "windows")]
-  {
-    use std::os::windows::process::CommandExt;
-    cmd.creation_flags(0x08000000);
-  }
-
-  let child = cmd.spawn()?;
-  *guard = Some(child);
-  Ok(())
-}
-
 fn stop_server() {
+  // Prefer stopping PTY-managed process if running
+  if let Some(mut state) = PTY_STATE.lock().unwrap().take() {
+    // Attempt graceful termination of PTY child
+    let _ = state.child.kill();
+
+    // Drop writer/master to close streams, then wait a moment
+    drop(state.writer);
+    drop(state.master);
+
+    // Nothing further to wait on; portable-pty Child.kill() requests termination.
+    // Short sleep to allow OS cleanup.
+    std::thread::sleep(Duration::from_millis(200));
+    return;
+  }
+
+  // Fallback: legacy non-PTY child (shouldn't be used in "always PTY" mode)
   if let Some(mut child) = SERVER_STATE.lock().unwrap().take() {
     let pid = child.id();
 
     // Try graceful shutdown first
     #[cfg(unix)]
     {
-      // Send SIGTERM for graceful shutdown
-      unsafe {
-        libc::kill(pid as i32, libc::SIGTERM);
-      }
-
-      // Wait a bit for graceful shutdown
+      unsafe { libc::kill(pid as i32, libc::SIGTERM); }
       std::thread::sleep(Duration::from_millis(500));
-
-      // Check if process is still alive
       if child.try_wait().ok().flatten().is_none() {
-        // Force kill if still running
         let _ = child.kill();
       }
     }
 
     #[cfg(windows)]
     {
-      // On Windows, kill the entire process tree to ensure all child processes are terminated
       kill_process_tree_windows(pid);
-
-      // Also kill the direct child process
       let _ = child.kill();
     }
 
-    // Wait for process to fully terminate
     let _ = child.wait();
   }
 }
 
 #[cfg(windows)]
 fn kill_process_tree_windows(pid: u32) {
+  use std::mem::size_of;
   use std::process::Command;
+  use windows::Win32::Foundation::CloseHandle;
+  use windows::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject, TerminateJobObject,
+    JobObjectExtendedLimitInformation, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+  };
+  use windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
+  };
 
-  // Use taskkill to kill the process tree
-  // /F = Force termination
-  // /T = Terminate all child processes along with the parent process (process tree)
-  // /PID = Process ID to terminate
-  let _ = Command::new("taskkill")
-    .args(&["/F", "/T", "/PID", &pid.to_string()])
-    .output();
+  // Helper fallback using taskkill without /F (avoid force when possible)
+  fn fallback_taskkill(pid: u32) {
+    let _ = Command::new("taskkill")
+      .args(&["/T", "/PID", &pid.to_string()])
+      .output();
+  }
 
-  // Also try to kill by process name as a backup
-  let _ = Command::new("taskkill")
-    .args(&["/F", "/IM", "qbit-manage-windows-amd64.exe"])
-    .output();
+  unsafe {
+    // Create a Job Object and set "kill on close" so the entire tree terminates together.
+    let job = CreateJobObjectW(None, None);
+    if job.0 == 0 {
+      fallback_taskkill(pid);
+      return;
+    }
 
-  let _ = Command::new("taskkill")
-    .args(&["/F", "/IM", "qbit-manage.exe"])
-    .output();
+    let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    // Ensure all associated processes are killed when the job is terminated/closed
+    info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+    if !SetInformationJobObject(
+      job,
+      JobObjectExtendedLimitInformation,
+      &info as *const _ as *const _,
+      size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+    )
+    .as_bool()
+    {
+      let _ = CloseHandle(job);
+      fallback_taskkill(pid);
+      return;
+    }
+
+    // Open the target process and attach it to the job object. Its children will follow.
+    let process = OpenProcess(
+      PROCESS_TERMINATE | PROCESS_SET_QUOTA | PROCESS_SET_INFORMATION | PROCESS_QUERY_INFORMATION,
+      false,
+      pid,
+    );
+    if process.0 == 0 {
+      let _ = CloseHandle(job);
+      fallback_taskkill(pid);
+      return;
+    }
+
+    if !AssignProcessToJobObject(job, process).as_bool() {
+      let _ = CloseHandle(process);
+      let _ = CloseHandle(job);
+      fallback_taskkill(pid);
+      return;
+    }
+
+    // Request termination of the entire job (process tree) without using the external taskkill tool.
+    let _ = TerminateJobObject(job, 1);
+
+    let _ = CloseHandle(process);
+    let _ = CloseHandle(job);
+  }
 }
 
 
@@ -245,6 +268,42 @@ fn open_app_window(app: &AppHandle) {
   }
 }
 
+fn open_console_window(app: &AppHandle) {
+  // Helper to attach input listener to a given window
+  let attach_listener = |win: &tauri::WebviewWindow| {
+    if let Some(state) = PTY_STATE.lock().unwrap().as_ref() {
+      let writer_arc = Arc::clone(&state.writer);
+      win.listen("console-input", move |event| {
+        // Tauri v2 webview event payload is &str
+        let data = event.payload();
+        if let Ok(mut w) = writer_arc.lock() {
+          let _ = w.write_all(data.as_bytes());
+          let _ = w.flush();
+        }
+      });
+    }
+  };
+
+  if let Some(win) = app.get_webview_window("console") {
+    attach_listener(&win);
+    let _ = win.show();
+    let _ = win.set_focus();
+    return;
+  }
+
+  use tauri::{WebviewUrl, WebviewWindowBuilder};
+  if let Ok(win) = WebviewWindowBuilder::new(app, "console", WebviewUrl::App("terminal.html".into()))
+    .title("qBit Manage - Console")
+    .inner_size(900.0, 600.0)
+    .min_inner_size(600.0, 400.0)
+    .resizable(true)
+    .visible(true)
+    .build()
+  {
+    attach_listener(&win);
+  }
+}
+
 
 fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
   let url = match &cfg.base_url {
@@ -254,6 +313,89 @@ fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.eval(&format!("window.location.replace('{}')", url));
   }
+}
+
+// Always-run-in-PTY: start qbit-manage inside a pseudo terminal and stream I/O via events.
+fn start_server(app: &AppHandle, cfg: &AppConfig) -> anyhow::Result<()> {
+  // If already running, do nothing
+  if PTY_STATE.lock().unwrap().is_some() {
+    return Ok(());
+  }
+
+  let server_path = resolve_server_binary(app).unwrap_or_else(|| {
+    if cfg!(target_os = "windows") {
+      std::path::PathBuf::from("qbit-manage.exe")
+    } else {
+      std::path::PathBuf::from("qbit-manage")
+    }
+  });
+
+  // Create PTY and spawn process inside it
+  let pty_system = native_pty_system();
+  let pair = pty_system
+    .openpty(PtySize {
+      rows: 30,
+      cols: 120,
+      pixel_width: 0,
+      pixel_height: 0,
+    })
+    .map_err(|e| anyhow::anyhow!("openpty failed: {e}"))?;
+
+  // Build command
+  let mut cmd = CommandBuilder::new(server_path.to_string_lossy().to_string());
+  // Env
+  cmd.env("QBT_WEB_SERVER", "true");
+  cmd.env("QBT_PORT", cfg.port.to_string());
+  cmd.env("QBT_DESKTOP_APP", "true");
+  if let Some(base) = &cfg.base_url {
+    cmd.env("QBT_BASE_URL", base);
+  }
+
+  // Spawn
+  let child = pair
+    .slave
+    .spawn_command(cmd)
+    .map_err(|e| anyhow::anyhow!("spawn_command failed: {e}"))?;
+
+  // Keep master endpoints
+  let mut reader = pair
+    .master
+    .try_clone_reader()
+    .map_err(|e| anyhow::anyhow!("clone reader failed: {e}"))?;
+  let writer = pair
+    .master
+    .take_writer()
+    .map_err(|e| anyhow::anyhow!("take writer failed: {e}"))?;
+
+  let writer = Arc::new(Mutex::new(writer));
+  {
+    // Stream PTY output to the console window only
+    let app_handle = app.clone();
+    thread::spawn(move || {
+      let mut buf = [0u8; 4096];
+      loop {
+        match reader.read(&mut buf) {
+          Ok(0) => break, // EOF
+          Ok(n) => {
+            let chunk = String::from_utf8_lossy(&buf[..n]).to_string();
+            let _ = app_handle.emit_to("console", "console-data", chunk);
+          }
+          Err(_) => break,
+        }
+      }
+    });
+  }
+
+  // Console input listener is registered on the console window when it opens.
+
+  // Save PTY state so we can stop later
+  *PTY_STATE.lock().unwrap() = Some(PtyState {
+    child,
+    master: pair.master,
+    writer,
+  });
+
+  Ok(())
 }
 
 
@@ -274,10 +416,11 @@ pub fn run() {
 
       // Build tray menu (v2 API)
       let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+      let console_item = MenuItemBuilder::with_id("console", "Open Console").build(app)?;
       let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
       let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
       let tray_menu = MenuBuilder::new(app)
-        .items(&[&open_item, &restart_item, &quit_item])
+        .items(&[&open_item, &console_item, &restart_item, &quit_item])
         .build()?;
 
       // Create tray icon with explicit icon
@@ -302,8 +445,11 @@ pub fn run() {
             "open" => {
               open_app_window(app);
             }
+            "console" => {
+              open_console_window(app);
+            }
             "restart" => {
-              // Stop server first, then start it again
+              // Stop server first, then start it again (in PTY)
               stop_server();
               let cfg = app_config(app);
               if start_server(app, &cfg).is_ok() {
@@ -336,12 +482,11 @@ pub fn run() {
       // Show the window immediately with loading page
       open_app_window(&app_handle);
 
-      // Start server automatically and redirect when ready
+      // Start server automatically (in PTY) and redirect when ready
       let cfg = app_config(&app_handle);
       let app_handle3 = app_handle.clone();
       tauri::async_runtime::spawn(async move {
         let _ = start_server(&app_handle3, &cfg);
-        // Wait for server to be ready, then redirect
         if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
           redirect_to_server(&app_handle3, &cfg);
         }
