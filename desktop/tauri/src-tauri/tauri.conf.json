@@ -61,7 +61,7 @@
             "nsis": {
                 "displayLanguageSelector": true,
                 "installMode": "currentUser",
-                "installerHooks": "../../../desktop/nsis-hooks",
+                "installerHooks": "../../nsis-hooks/installer.nsh",
                 "installerIcon": "../../../icons/qbm_logo.ico"
             },
             "timestampUrl": ""
