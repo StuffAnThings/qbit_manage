@@ -32,12 +32,9 @@ version = "2"
 features = ["macros", "rt-multi-thread", "time", "process"]
 version = "1.37"
 
-[dependencies.windows]
-features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading"]
-version = "0.56"
-
 [features]
 default = []
+winjob = ["windows"]
 
 [package]
 authors = ["qbit_manage"]
@@ -48,7 +45,12 @@ license = "MIT"
 name = "qbit-manage-desktop"
 repository = ""
 rust-version = "1.70"
-version = "4.5.4-develop34"
+version = "4.5.4-develop35"
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+
+[target."cfg(windows)".dependencies.windows]
+features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"]
+optional = true
+version = "0.58.0"

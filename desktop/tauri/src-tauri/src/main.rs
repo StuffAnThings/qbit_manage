@@ -24,16 +24,20 @@ use tokio::time::sleep;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<Child>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+static PTY_STATE: Lazy<Arc<Mutex<Option<PtyState>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 // PTY-based console state (always-run-in-PTY mode)
 struct PtyState {
+  // PTY child process handle
   child: Box<dyn portable_pty::Child + Send>,
   // Keep master alive for the lifetime of the session
   master: Box<dyn portable_pty::MasterPty + Send>,
   // Writer to send user input from the console window
   writer: Arc<Mutex<Box<dyn Write + Send>>>,
+  // Optional Windows Job handle when feature is enabled to terminate the whole process tree
+  #[cfg(all(windows, feature = "winjob"))]
+  job: Option<windows::Win32::Foundation::HANDLE>,
 }
-static PTY_STATE: Lazy<Arc<Mutex<Option<PtyState>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 #[derive(Debug, Clone)]
 struct AppConfig {
@@ -121,15 +125,33 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
 fn stop_server() {
   // Prefer stopping PTY-managed process if running
   if let Some(mut state) = PTY_STATE.lock().unwrap().take() {
-    // Attempt graceful termination of PTY child
-    let _ = state.child.kill();
+    #[cfg(all(windows, feature = "winjob"))]
+    {
+      use windows::Win32::Foundation::CloseHandle;
+      use windows::Win32::System::JobObjects::TerminateJobObject;
+
+      // If we created/attached a Job Object for the PTY child, terminate it to kill the whole tree.
+      if let Some(job) = state.job {
+        unsafe {
+          let _ = TerminateJobObject(job, 1);
+          let _ = CloseHandle(job);
+        }
+      } else {
+        // Fallback to killing just the PTY child if job wasn't created
+        let _ = state.child.kill();
+      }
+    }
+
+    #[cfg(not(all(windows, feature = "winjob")))]
+    {
+      // Non-Windows or feature disabled: request child termination
+      let _ = state.child.kill();
+    }
 
     // Drop writer/master to close streams, then wait a moment
     drop(state.writer);
     drop(state.master);
 
-    // Nothing further to wait on; portable-pty Child.kill() requests termination.
-    // Short sleep to allow OS cleanup.
     std::thread::sleep(Duration::from_millis(200));
     return;
   }
@@ -150,7 +172,16 @@ fn stop_server() {
 
     #[cfg(windows)]
     {
-      kill_process_tree_windows(pid);
+      // If winjob feature is enabled, prefer job-based termination, else fallback.
+      #[cfg(feature = "winjob")]
+      {
+        kill_process_tree_windows(pid);
+      }
+      #[cfg(not(feature = "winjob"))]
+      {
+        // As a minimal fallback, request termination of the direct child.
+        // (Process tree cleanup is best-effort without job objects.)
+      }
       let _ = child.kill();
     }
 
@@ -158,11 +189,9 @@ fn stop_server() {
   }
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, feature = "winjob"))]
 fn kill_process_tree_windows(pid: u32) {
-  use std::mem::size_of;
-  use std::process::Command;
-  use windows::Win32::Foundation::CloseHandle;
+  use windows::Win32::Foundation::{CloseHandle, HANDLE};
   use windows::Win32::System::JobObjects::{
     AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject, TerminateJobObject,
     JobObjectExtendedLimitInformation, JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
@@ -171,63 +200,46 @@ fn kill_process_tree_windows(pid: u32) {
     OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_SET_INFORMATION, PROCESS_SET_QUOTA, PROCESS_TERMINATE,
   };
 
-  // Helper fallback using taskkill without /F (avoid force when possible)
-  fn fallback_taskkill(pid: u32) {
-    let _ = Command::new("taskkill")
-      .args(&["/T", "/PID", &pid.to_string()])
-      .output();
-  }
-
   unsafe {
-    // Create a Job Object and set "kill on close" so the entire tree terminates together.
-    let job = CreateJobObjectW(None, None);
-    if job.0 == 0 {
-      fallback_taskkill(pid);
-      return;
-    }
+    // Create a Job Object and set KILL_ON_JOB_CLOSE
+    let job: HANDLE = CreateJobObjectW(None, None).expect("CreateJobObjectW failed");
 
     let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-    // Ensure all associated processes are killed when the job is terminated/closed
     info.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-    if !SetInformationJobObject(
+    SetInformationJobObject(
       job,
       JobObjectExtendedLimitInformation,
       &info as *const _ as *const _,
-      size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+      std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
     )
-    .as_bool()
-    {
-      let _ = CloseHandle(job);
-      fallback_taskkill(pid);
-      return;
-    }
+    .expect("SetInformationJobObject failed");
 
-    // Open the target process and attach it to the job object. Its children will follow.
-    let process = OpenProcess(
+    // Open the process and attach it to the job
+    let process: HANDLE = OpenProcess(
       PROCESS_TERMINATE | PROCESS_SET_QUOTA | PROCESS_SET_INFORMATION | PROCESS_QUERY_INFORMATION,
       false,
       pid,
-    );
-    if process.0 == 0 {
-      let _ = CloseHandle(job);
-      fallback_taskkill(pid);
-      return;
-    }
+    )
+    .expect("OpenProcess failed");
 
-    if !AssignProcessToJobObject(job, process).as_bool() {
-      let _ = CloseHandle(process);
-      let _ = CloseHandle(job);
-      fallback_taskkill(pid);
-      return;
-    }
+    AssignProcessToJobObject(job, process).expect("AssignProcessToJobObject failed");
 
-    // Request termination of the entire job (process tree) without using the external taskkill tool.
+    // Terminate the whole job (process tree)
     let _ = TerminateJobObject(job, 1);
 
     let _ = CloseHandle(process);
     let _ = CloseHandle(job);
   }
+}
+
+#[cfg(all(windows, not(feature = "winjob")))]
+fn kill_process_tree_windows(pid: u32) {
+  use std::process::Command;
+  // Minimal fallback without /F to avoid force when possible
+  let _ = Command::new("taskkill")
+    .args(&["/T", "/PID", &pid.to_string()])
+    .output();
 }
 
 
@@ -272,7 +284,8 @@ fn open_console_window(app: &AppHandle) {
   // Helper to attach input listener to a given window
   let attach_listener = |win: &tauri::WebviewWindow| {
     if let Some(state) = PTY_STATE.lock().unwrap().as_ref() {
-      let writer_arc = Arc::clone(&state.writer);
+      // Provide an explicit type for inference
+      let writer_arc: Arc<Mutex<Box<dyn Write + Send>>> = Arc::clone(&state.writer);
       win.listen("console-input", move |event| {
         // Tauri v2 webview event payload is &str
         let data = event.payload();
