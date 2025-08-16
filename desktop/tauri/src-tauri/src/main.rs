@@ -179,7 +179,13 @@ fn terminate_process_tree_windows(pid: u32) {
 
 fn cleanup_and_exit() {
   *SHOULD_EXIT.lock().unwrap() = true;
-  stop_server();
+
+  // Start server cleanup in background - don't wait for it
+  std::thread::spawn(|| {
+    stop_server();
+  });
+
+  // Exit immediately for responsive UI
   std::process::exit(0);
 }
 
@@ -448,16 +454,25 @@ pub fn run() {
             // Already in exit process, allow immediate exit
             return;
           }
+
           // Set exit flag immediately for responsive UI
           *SHOULD_EXIT.lock().unwrap() = true;
+
+          // Start cleanup in background - don't wait for it
           std::thread::spawn(|| {
             stop_server();
-            std::process::exit(0);
           });
+
+          // Exit immediately for responsive UI - don't wait for cleanup
+          std::process::exit(0);
         }
         RunEvent::Exit => {
-          // Final cleanup on actual exit
-          stop_server();
+          // Start cleanup in background if not already started
+          if !*SHOULD_EXIT.lock().unwrap() {
+            std::thread::spawn(|| {
+              stop_server();
+            });
+          }
         }
         _ => {}
       }
