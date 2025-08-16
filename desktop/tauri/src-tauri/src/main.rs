@@ -119,7 +119,7 @@ fn stop_server() {
     #[cfg(unix)]
     {
       unsafe { libc::kill(pid as i32, libc::SIGTERM); }
-      std::thread::sleep(Duration::from_millis(500));
+      std::thread::sleep(Duration::from_millis(1000));
       if child.try_wait().ok().flatten().is_none() {
         let _ = child.kill();
       }
@@ -134,18 +134,45 @@ fn stop_server() {
           let _ = TerminateJobObject(job, 1);
         }
       } else {
-        let _ = child.kill();
+        terminate_process_tree_windows(pid);
       }
     }
 
     #[cfg(all(windows, not(feature = "winjob")))]
     {
-      let _ = child.kill();
+      terminate_process_tree_windows(pid);
     }
 
-    // Wait for process to fully terminate
+    // Wait for process to fully terminate with timeout
+    let start = std::time::Instant::now();
+    while start.elapsed() < Duration::from_secs(5) {
+      match child.try_wait() {
+        Ok(Some(_)) => break, // Process has exited
+        Ok(None) => {
+          // Process still running, wait a bit more
+          std::thread::sleep(Duration::from_millis(100));
+        }
+        Err(_) => break, // Error occurred, assume process is gone
+      }
+    }
+
+    // Force kill if still running
+    let _ = child.kill();
     let _ = child.wait();
   }
+}
+
+#[cfg(windows)]
+fn terminate_process_tree_windows(pid: u32) {
+  // Kill the process tree on Windows using taskkill
+  let _ = std::process::Command::new("taskkill")
+    .args(&["/F", "/T", "/PID", &pid.to_string()])
+    .output();
+
+  // Also try direct process termination as backup
+  let _ = std::process::Command::new("cmd")
+    .args(&["/C", &format!("taskkill /F /IM qbit-manage-windows-amd64.exe")])
+    .output();
 }
 
 
@@ -201,10 +228,21 @@ fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
 fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   let mut guard = SERVER_STATE.lock().unwrap();
 
-  // if already running, do nothing
+  // Check if server is already running and clean up if needed
   if let Some(server_process) = guard.as_mut() {
-    if server_process.child.try_wait().ok().flatten().is_none() {
-      return Ok(());
+    match server_process.child.try_wait() {
+      Ok(Some(_)) => {
+        // Process has exited, clean up the old entry
+        *guard = None;
+      }
+      Ok(None) => {
+        // Process is still running, don't start another
+        return Ok(());
+      }
+      Err(_) => {
+        // Error checking process status, assume it's dead and clean up
+        *guard = None;
+      }
     }
   }
 
@@ -344,14 +382,25 @@ pub fn run() {
               open_app_window(app);
             }
             "restart" => {
-              // Stop server first, then start it again
+              // Stop server first, then start it again with proper delay
               stop_server();
+
+              // Wait a moment to ensure process is fully terminated
+              std::thread::sleep(Duration::from_millis(1000));
+
               let cfg = app_config(app);
-              if start_server(app, &cfg).is_ok() {
-                tauri::async_runtime::spawn(async move {
-                  let _ = wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await;
-                });
-              }
+              let app_handle_restart = app.clone();
+
+              // Start server in a separate thread to avoid blocking the UI
+              std::thread::spawn(move || {
+                if start_server(&app_handle_restart, &cfg).is_ok() {
+                  tauri::async_runtime::spawn(async move {
+                    if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await {
+                      redirect_to_server(&app_handle_restart, &cfg);
+                    }
+                  });
+                }
+              });
             }
             "quit" => {
               cleanup_and_exit();
@@ -394,12 +443,21 @@ pub fn run() {
     .run(move |_app, event| {
       match event {
         RunEvent::ExitRequested { api, .. } => {
-          // Always allow exit, but clean up first
-          stop_server();
+          // Check if we should exit cleanly
+          if *SHOULD_EXIT.lock().unwrap() {
+            // Already in exit process, allow immediate exit
+            return;
+          }
+
+          // Prevent exit and clean up properly
           api.prevent_exit();
-          // Give a moment for cleanup, then force exit
+
+          // Set exit flag and clean up in background
+          *SHOULD_EXIT.lock().unwrap() = true;
           std::thread::spawn(|| {
-            std::thread::sleep(Duration::from_millis(100));
+            stop_server();
+            // Give more time for proper cleanup
+            std::thread::sleep(Duration::from_millis(1500));
             std::process::exit(0);
           });
         }

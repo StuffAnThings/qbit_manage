@@ -326,7 +326,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: qbit-manage-release-assets
-          path: release-assets/
+          path: release-assets/*
           if-no-files-found: error
           compression-level: 6
 
