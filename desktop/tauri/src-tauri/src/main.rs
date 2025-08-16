@@ -244,9 +244,6 @@ fn kill_process_tree_windows(pid: u32) {
     .output();
 }
 
-fn emit_server_status(app: &AppHandle, status: &str) {
-  let _ = app.emit("server-status", status);
-}
 
 fn cleanup_and_exit() {
   *SHOULD_EXIT.lock().unwrap() = true;
