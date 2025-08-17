@@ -3,7 +3,19 @@
 
 The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI.md), which requires the [Web API](Web-API.md) to be enabled.
 
-By default, the script looks at `/config/config.yml` when running locally or `/app/config.yml` in docker for the Configuration File unless otherwise specified.
+## Default Configuration File Locations
+
+The script looks for the configuration file in different locations depending on your platform:
+
+### Local Installation (Platform-specific)
+- **Windows**: `%APPDATA%\qbit-manage\config.yml` (typically `C:\Users\<username>\AppData\Roaming\qbit-manage\config.yml`)
+- **macOS**: `~/Library/Application Support/qbit-manage/config.yml`
+- **Linux/Unix**: `~/.config/qbit-manage/config.yml` (or `$XDG_CONFIG_HOME/qbit-manage/config.yml` if XDG_CONFIG_HOME is set)
+
+### Docker Installation
+- `/app/config.yml` (inside the container)
+
+You can override the default location by using the `--config-file` or `-c` command line option to specify a custom path.
 
 A template Configuration File can be found in the repo [config/config.yml.sample](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample).
 

@@ -4,9 +4,21 @@ This wiki should tell you everything you need to know about the script to get it
 
 ## Getting Started
 
-1. Install qbit_manage either by installing Python3.9.0+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.<br>
-1. Once installed, you have to [set up your Configuration](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) by create a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) filled with all your values to connect to your qBittorrent instance.
-1. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
+1. **Choose your installation method:**
+   - **Desktop App** (Recommended): Download and install the GUI application for [Windows, macOS, or Linux](Installation.md#desktop-app-installation)
+   - **Standalone Binary**: Download the command-line executable for [Windows, macOS, or Linux](Installation.md#standalone-binary-installation)
+   - **Docker**: Follow the [Docker Installation](Docker-Installation) guide for containerized environments
+   - **Python/Source**: Install from [PyPI or source code](Local-Installations) for development
+   - **unRAID**: Follow the [unRAID Installation](Unraid-Installation) guide for unRAID systems
+
+2. **Configure qbit_manage:**
+   - Desktop app users: Configuration is handled through the GUI
+   - Command-line users: [Set up your Configuration](Config-Setup) by creating a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) with your qBittorrent connection details
+
+3. **Start using qbit_manage:**
+   - Review the [Commands](Commands) documentation to understand available features
+   - Try the [Web UI](Web-UI) for an intuitive configuration experience
+   - Use the [Web API](Web-API) for automation and integration
 
 ## Support
 

@@ -20,6 +20,23 @@ pip install .
 
 * Create Config
 
+**Note:** If using the standalone desktop app, it will automatically create the necessary directories and config files. For command-line usage, you have these options:
+
+**Option 1 - Use default system location:**
+
+```bash
+# Create the config directory
+mkdir -p ~/.config/qbit-manage
+
+# Copy the sample config
+cp config/config.yml.sample ~/.config/qbit-manage/config.yml
+
+# Edit the config file
+nano ~/.config/qbit-manage/config.yml
+```
+
+**Option 2 - Keep in project directory:**
+
 ```bash
 cd config
 cp config.yml.sample config.yml
@@ -120,12 +137,12 @@ chmod +x qbm-update.sh
 
 To run qBit Manage with the Web API and Web UI enabled, execute the `qbit_manage.py` script with the `--web-server` flag:
 
+**If using the default config location (`~/.config/qbit-manage/config.yml`):**
 ```bash
 python qbit_manage.py --web-server
 ```
 
-You can also specify a configuration file and log file:
-
+**If using a custom config location:**
 ```bash
 python qbit_manage.py --web-server --config-file /path/to/your/config.yml --log-file /path/to/your/activity.log
 ```
