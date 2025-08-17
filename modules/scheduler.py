@@ -427,7 +427,7 @@ class Scheduler:
     def get_next_run(self) -> Optional[datetime]:
         """Get the next scheduled run time."""
         with self.lock:
-            return self.next_run
+            return self._calculate_next_run()
 
     def get_current_schedule(self) -> Optional[tuple[str, Union[str, int]]]:
         """Get the current schedule configuration."""

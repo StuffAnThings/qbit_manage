@@ -332,36 +332,6 @@ jobs:
           if-no-files-found: error
           compression-level: 6
 
-      - name: Clean up temporary build artifacts
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // Get all artifacts from this workflow run
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-            });
-
-            // Delete temporary build artifacts, keep only the final release assets
-            for (const artifact of artifacts.data.artifacts) {
-              if (artifact.name.startsWith('build-outputs-')) {
-                console.log(`Deleting temporary artifact: ${artifact.name}`);
-                try {
-                  await github.rest.actions.deleteArtifact({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    artifact_id: artifact.id,
-                  });
-                  console.log(`✓ Successfully deleted: ${artifact.name}`);
-                } catch (error) {
-                  console.log(`⚠️  Failed to delete ${artifact.name}: ${error.message}`);
-                }
-              } else {
-                console.log(`✓ Keeping final artifact: ${artifact.name}`);
-              }
-            }
-
   docker-develop:
     runs-on: ubuntu-latest
 
