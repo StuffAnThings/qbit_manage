@@ -12,6 +12,8 @@ jobs:
 
   build-binaries:
     name: Build Standalone Binaries (${{ matrix.os }})
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
