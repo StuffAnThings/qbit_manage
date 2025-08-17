@@ -864,10 +864,11 @@ if __name__ == "__main__":
 
             # Stop the scheduler gracefully
             scheduler.stop()
-            if web_process:
-                web_process.terminate()
-                web_process.join()
-            end()
+        # Cleanup and exit (common for both run and scheduled modes)
+        if web_process:
+            web_process.terminate()
+            web_process.join()
+        end()
     except KeyboardInterrupt:
         scheduler.stop()
         if web_process:
