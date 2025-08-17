@@ -1,0 +1,54 @@
+[build-dependencies]
+serde_json = "1.0"
+toml = "0.8"
+
+[build-dependencies.tauri-build]
+features = []
+version = "2"
+
+[dependencies]
+once_cell = "1.19"
+serde_json = "1.0"
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-single-instance = "2"
+
+[dependencies.reqwest]
+default-features = false
+features = ["rustls-tls", "json"]
+version = "0.11"
+
+[dependencies.serde]
+features = ["derive"]
+version = "1.0"
+
+[dependencies.tauri]
+features = ["tray-icon"]
+version = "2"
+
+[dependencies.tokio]
+features = ["macros", "rt-multi-thread", "time", "process"]
+version = "1.37"
+
+[features]
+default = []
+winjob = ["windows"]
+
+[package]
+authors = ["qbit_manage"]
+build = "build.rs"
+description = "Tauri desktop shell for qbit_manage with tray + minimize-to-tray and server lifecycle"
+edition = "2021"
+license = "MIT"
+name = "qbit-manage-desktop"
+repository = ""
+rust-version = "1.70"
+version = "4.5.4-develop52"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2"
+
+[target."cfg(windows)".dependencies.windows]
+features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security"]
+optional = true
+version = "0.58.0"

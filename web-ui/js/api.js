@@ -166,10 +166,8 @@ class API {
     /**
      * Restore configuration from backup
      */
-    async restoreConfig(filename, backupId) {
-        return this.post(`/configs/${encodeURIComponent(filename)}/restore`, {
-            backup_id: backupId
-        });
+    async restoreConfig(filename) {
+        return this.post(`/configs/${encodeURIComponent(filename)}/restore`, {});
     }
 
     /**

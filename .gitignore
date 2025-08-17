@@ -15,3 +15,5 @@ qbit_manage.egg-info/
 **/build
 .roo*
 memory-bank
+**/src-tauri/gen
+**/src-tauri/target

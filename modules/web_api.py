@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import glob
 import json
 import logging
 import os
 import re
 import shutil
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
@@ -24,6 +24,7 @@ import ruamel.yaml
 from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import HTTPException
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,7 +36,13 @@ from modules.util import YAML
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
-logger = util.logger
+
+class _LoggerProxy:
+    def __getattr__(self, name):
+        return getattr(util.logger, name)
+
+
+logger = _LoggerProxy()
 
 
 class CommandRequest(BaseModel):
@@ -132,13 +139,7 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
 
-    default_dir: str = field(
-        default_factory=lambda: (
-            "/config"
-            if os.path.isdir("/config") and glob.glob(os.path.join("/config", "*.yml"))
-            else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config")
-        )
-    )
+    default_dir: str = field(default_factory=lambda: util.ensure_config_dir_initialized(util.get_default_config_dir()))
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default=None)
     is_running: Synchronized[bool] = field(default=None)
@@ -175,6 +176,18 @@ class WebAPI:
         app = FastAPI(lifespan=lifespan)
         object.__setattr__(self, "app", app)
 
+        # If caller provided a config_dir (e.g., computed in qbit_manage), prefer it
+        try:
+            provided_dir = self.args.get("config_dir")
+            if provided_dir:
+                resolved_dir = util.ensure_config_dir_initialized(provided_dir)
+                object.__setattr__(self, "default_dir", resolved_dir)
+            else:
+                # Ensure default dir is initialized
+                object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
+        except Exception as e:
+            logger.error(f"Failed to apply provided config_dir '{self.args.get('config_dir')}': {e}")
+
         # Initialize paths during startup
         object.__setattr__(self, "config_path", Path(self.default_dir))
         object.__setattr__(self, "logs_path", Path(self.default_dir) / "logs")
@@ -209,7 +222,7 @@ class WebAPI:
         # Schedule management routes
         api_router.get("/scheduler")(self.get_scheduler_status)
         api_router.put("/schedule")(self.update_schedule)
-        api_router.delete("/schedule")(self.delete_schedule)
+        api_router.post("/schedule/persistence/toggle")(self.toggle_schedule_persistence)
 
         api_router.get("/logs")(self.get_logs)
         api_router.get("/log_files")(self.list_log_files)
@@ -225,7 +238,7 @@ class WebAPI:
         self.app.include_router(api_router, prefix=api_prefix)
 
         # Mount static files for web UI
-        web_ui_dir = Path(__file__).parent.parent / "web-ui"
+        web_ui_dir = util.runtime_path("web-ui")
         if web_ui_dir.exists():
             if base_url:
                 # When base URL is configured, mount static files at the base URL path
@@ -244,7 +257,7 @@ class WebAPI:
                 return RedirectResponse(url=base_url + "/", status_code=302)
 
             # Otherwise, serve the web UI normally
-            web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+            web_ui_path = util.runtime_path("web-ui", "index.html")
             if web_ui_path.exists():
                 return FileResponse(str(web_ui_path))
             raise HTTPException(status_code=404, detail="Web UI not found")
@@ -254,7 +267,7 @@ class WebAPI:
 
             @self.app.get(base_url + "/")
             async def serve_base_url_index():
-                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                web_ui_path = util.runtime_path("web-ui", "index.html")
                 if web_ui_path.exists():
                     return FileResponse(str(web_ui_path))
                 raise HTTPException(status_code=404, detail="Web UI not found")
@@ -268,7 +281,7 @@ class WebAPI:
 
             # For any non-API route that doesn't start with api/ or static/, serve the index.html (SPA routing)
             if not full_path.startswith(f"{api_path}/") and not full_path.startswith(f"{static_path}/"):
-                web_ui_path = Path(__file__).parent.parent / "web-ui" / "index.html"
+                web_ui_path = util.runtime_path("web-ui", "index.html")
                 if web_ui_path.exists():
                     return FileResponse(str(web_ui_path))
 
@@ -1024,17 +1037,38 @@ class WebAPI:
             logger.error(f"Error listing backups for '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def restore_config_from_backup(self, filename: str, request: dict) -> dict:
+    async def restore_config_from_backup(self, filename: str) -> dict:
         """Restore configuration from a backup file."""
         try:
-            backup_filename = request.get("backup_id")
+            # Use the filename from the URL path as the backup file to restore
+            backup_filename = filename
             if not backup_filename:
-                raise HTTPException(status_code=400, detail="backup_id is required")
+                raise HTTPException(status_code=400, detail="filename is required")
 
-            backup_file_path = self.backup_path / backup_filename
+            # Security: Validate and sanitize the backup_filename to prevent path traversal
+            # Remove any path separators and parent directory references
+            sanitized_backup_filename = os.path.basename(backup_filename)
+            if not sanitized_backup_filename or sanitized_backup_filename != backup_filename:
+                raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+
+            # Additional validation: ensure the backup filename doesn't contain dangerous characters
+            if any(char in sanitized_backup_filename for char in ["..", "/", "\\", "\0"]):
+                raise HTTPException(status_code=400, detail="Invalid filename: contains forbidden characters")
+
+            # Construct the backup file path safely
+            backup_file_path = self.backup_path / sanitized_backup_filename
+
+            # Security: Ensure the resolved path is still within the backup directory
+            try:
+                backup_file_path = backup_file_path.resolve()
+                backup_dir_resolved = self.backup_path.resolve()
+                if not str(backup_file_path).startswith(str(backup_dir_resolved)):
+                    raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid filename: unable to resolve path")
 
             if not backup_file_path.exists():
-                raise HTTPException(status_code=404, detail=f"Backup file '{backup_filename}' not found")
+                raise HTTPException(status_code=404, detail=f"Backup file '{sanitized_backup_filename}' not found")
 
             # Load backup data
             yaml_loader = YAML(str(backup_file_path))
@@ -1045,7 +1079,7 @@ class WebAPI:
 
             return {
                 "status": "success",
-                "message": f"Backup '{backup_filename}' loaded successfully",
+                "message": f"Backup '{sanitized_backup_filename}' loaded successfully",
                 "data": backup_data_for_frontend,
             }
 
@@ -1150,6 +1184,7 @@ class WebAPI:
                 "source": schedule_info.get("source"),
                 "persistent": schedule_info.get("persistent", False),
                 "file_exists": schedule_info.get("file_exists", False),
+                "disabled": schedule_info.get("disabled", False),
             }
 
         except HTTPException:
@@ -1158,15 +1193,28 @@ class WebAPI:
             logger.error(f"Error getting scheduler status: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def update_schedule(self, request: dict) -> dict:
-        """Update and persist schedule configuration."""
+    async def update_schedule(self, request: Request) -> dict:
+        """Update and persist schedule configuration with diagnostic instrumentation."""
         try:
             from modules.scheduler import Scheduler
 
-            # Extract schedule data from request
-            schedule_data = await request.json() if hasattr(request, "json") else request
-            schedule_value = schedule_data.get("schedule", "").strip()
-            schedule_type = schedule_data.get("type", "").strip()
+            correlation_id = uuid.uuid4().hex[:12]
+            client_host = "n/a"
+            if getattr(request, "client", None):
+                try:
+                    client_host = request.client.host  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+
+            # Extract schedule data from FastAPI Request
+            schedule_data = await request.json()
+            schedule_value = (schedule_data.get("schedule") or "").strip()
+            schedule_type = (schedule_data.get("type") or "").strip()
+
+            logger.debug(
+                f"UPDATE /schedule cid={correlation_id} client={client_host} "
+                f"payload_raw_type={type(schedule_data).__name__} value={schedule_value!r} type_hint={schedule_type!r}"
+            )
 
             if not schedule_value:
                 raise HTTPException(status_code=400, detail="Schedule value is required")
@@ -1176,14 +1224,14 @@ class WebAPI:
                 schedule_type, parsed_value = self._parse_schedule(schedule_value)
                 if not schedule_type:
                     raise HTTPException(
-                        status_code=400, detail="Invalid schedule format. Must be a cron expression or interval in minutes"
+                        status_code=400,
+                        detail="Invalid schedule format. Must be a cron expression or interval in minutes",
                     )
             else:
                 # Validate provided type
                 if schedule_type not in ["cron", "interval"]:
                     raise HTTPException(status_code=400, detail="Schedule type must be 'cron' or 'interval'")
-
-                # Parse and validate the value
+                # Parse & validate value
                 if schedule_type == "interval":
                     try:
                         parsed_value = int(schedule_value)
@@ -1191,25 +1239,45 @@ class WebAPI:
                             raise ValueError("Interval must be positive")
                     except ValueError:
                         raise HTTPException(status_code=400, detail="Invalid interval value")
-                else:  # cron
-                    parsed_value = schedule_value
+                else:
+                    parsed_value = schedule_value  # cron
 
-            # Create a scheduler instance to save the schedule
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
+            existed_before = scheduler.schedule_file.exists()
+            prev_contents = None
+            if existed_before:
+                try:
+                    with open(scheduler.schedule_file, encoding="utf-8", errors="ignore") as f:
+                        prev_contents = f.read().strip()
+                except Exception:
+                    prev_contents = "<read_error>"
 
-            # Save to persistent storage
             success = scheduler.save_schedule(schedule_type, str(parsed_value))
+            new_size = None
+            if scheduler.schedule_file.exists():
+                try:
+                    new_size = scheduler.schedule_file.stat().st_size
+                except Exception:
+                    pass
 
             if not success:
+                logger.error(f"UPDATE /schedule cid={correlation_id} failed to save schedule")
                 raise HTTPException(status_code=500, detail="Failed to save schedule")
+
+            logger.debug(
+                f"UPDATE /schedule cid={correlation_id} persisted path={scheduler.schedule_file} "
+                f"existed_before={existed_before} new_exists={scheduler.schedule_file.exists()} "
+                f"new_size={new_size} prev_hash={hash(prev_contents) if prev_contents else None}"
+            )
 
             # Send update to main process via IPC queue
             if self.scheduler_update_queue:
                 try:
-                    update_data = {"type": schedule_type, "value": parsed_value}
+                    update_data = {"type": schedule_type, "value": parsed_value, "cid": correlation_id}
                     self.scheduler_update_queue.put(update_data)
+                    logger.debug(f"UPDATE /schedule cid={correlation_id} IPC sent")
                 except Exception as e:
-                    logger.error(f"Failed to send scheduler update to main process: {e}")
+                    logger.error(f"Failed IPC scheduler update cid={correlation_id}: {e}")
 
             return {
                 "success": True,
@@ -1217,6 +1285,7 @@ class WebAPI:
                 "schedule": str(parsed_value),
                 "type": schedule_type,
                 "persistent": True,
+                "correlationId": correlation_id,
             }
 
         except HTTPException:
@@ -1228,34 +1297,46 @@ class WebAPI:
             logger.error(f"Error updating schedule: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def delete_schedule(self) -> dict:
-        """Delete persistent schedule configuration."""
+    async def toggle_schedule_persistence(self, request: Request) -> dict:
+        """
+        Toggle persistent schedule enable/disable (non-destructive) with diagnostics.
+        """
         try:
             from modules.scheduler import Scheduler
 
-            # Create a scheduler instance to delete the schedule
+            correlation_id = uuid.uuid4().hex[:12]
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
+            file_exists_before = scheduler.schedule_file.exists()
 
-            success = scheduler.delete_schedule()
+            # Execute toggle (scheduler emits single summary line internally)
+            success = scheduler.toggle_persistence()
+            if not success:
+                raise HTTPException(status_code=500, detail="Failed to toggle persistence")
 
-            if success:
-                # Send delete notification to main process via IPC queue
-                if self.scheduler_update_queue:
-                    try:
-                        update_data = {"type": "delete", "value": None}
-                        self.scheduler_update_queue.put(update_data)
-                        logger.debug("Sent scheduler delete notification to main process")
-                    except Exception as e:
-                        logger.error(f"Failed to send scheduler delete notification to main process: {e}")
+            disabled_after = getattr(scheduler, "_persistence_disabled", False)
+            action = "disabled" if disabled_after else "enabled"
 
-                return {"success": True, "message": "Persistent schedule deleted successfully"}
-            else:
-                raise HTTPException(status_code=500, detail="Failed to delete schedule")
+            # Notify main process with new explicit type (minimal logging)
+            if self.scheduler_update_queue:
+                try:
+                    update_data = {"type": "toggle_persistence", "value": None, "cid": correlation_id}
+                    self.scheduler_update_queue.put(update_data)
+                except Exception as e:
+                    logger.error(f"Failed to send scheduler toggle notification: {e}")
+
+            return {
+                "success": True,
+                "message": f"Persistent schedule {action}",
+                "correlationId": correlation_id,
+                "fileExistedBefore": file_exists_before,
+                "disabled": disabled_after,
+                "action": action,
+            }
 
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error deleting schedule: {str(e)}")
+            logger.error(f"Error toggling persistent schedule: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def _parse_schedule(self, schedule_value: str) -> tuple[Optional[str], Optional[Union[str, int]]]:

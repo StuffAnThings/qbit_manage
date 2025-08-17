@@ -4,9 +4,11 @@ import glob
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import signal
+import sys
 import time
 from fnmatch import fnmatch
 from pathlib import Path
@@ -15,7 +17,30 @@ import requests
 import ruamel.yaml
 from pytimeparse2 import parse
 
-logger = logging.getLogger("qBit Manage")
+
+class LoggerProxy:
+    """Proxy that defers attribute access to the active logger instance.
+
+    This allows modules that import `util.logger` at import time to still
+    route all logging calls to the final MyLogger instance once it is
+    initialized and set via `set_logger`.
+    """
+
+    def __init__(self):
+        self._logger = None
+
+    def set_logger(self, logger):
+        self._logger = logger
+
+    def __getattr__(self, name):
+        # If MyLogger is set, delegate to it; otherwise, fallback to std logging.
+        if self._logger is not None:
+            return getattr(self._logger, name)
+        fallback = logging.getLogger("qBit Manage")
+        return getattr(fallback, name)
+
+
+logger = LoggerProxy()
 
 
 def get_list(data, lower=False, split=True, int_list=False, upper=False):
@@ -174,6 +199,114 @@ def get_arg(env_str, default, arg_bool=False, arg_int=False):
         return default
 
 
+def runtime_path(*parts) -> Path:
+    """
+    Resolve a bundled/runtime-safe path for assets.
+    - In PyInstaller bundles, files are extracted under sys._MEIPASS.
+    - In source runs, resolve relative to the project root.
+    """
+    if hasattr(sys, "_MEIPASS"):  # type: ignore[attr-defined]
+        return Path(getattr(sys, "_MEIPASS")).joinpath(*parts)  # type: ignore[arg-type]
+    # modules/util.py =&gt; project root is parent of modules/
+    return Path(__file__).resolve().parent.parent.joinpath(*parts)
+
+
+def _platform_config_base() -> Path:
+    """Return the platform-specific base directory for app config."""
+    system = platform.system()
+    home = Path.home()
+
+    if system == "Windows":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else home / "AppData" / "Roaming"
+        return base / "qbit-manage"
+    elif system == "Darwin":
+        return home / "Library" / "Application Support" / "qbit-manage"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        base = Path(xdg) if xdg else home / ".config"
+        return base / "qbit-manage"
+
+
+def get_default_config_dir(config_hint: str = None) -> str:
+    """
+    Determine the default persistent config directory, leveraging a provided config path/pattern first.
+
+    Resolution order:
+    1) If config_hint is an absolute path or contains a directory component, use its parent directory
+    2) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
+         - A direct match to that filename/pattern
+         - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
+       Common bases (in order):
+         - /config (container volume)
+         - repository ./config
+         - user OS config directory
+       Return the first base containing either.
+    3) Fallback to legacy-ish behavior:
+         - /config if it contains any *.yml / *.yaml
+         - otherwise user OS config directory
+    """
+    # 1) If a direct path is provided, prefer its parent directory
+    if config_hint:
+        primary = str(config_hint).split(",")[0].strip()  # take first if comma-separated
+        if primary:
+            p = Path(primary).expanduser()
+            # If absolute or contains a parent component, use that directory
+            if p.is_absolute() or (str(p.parent) not in (".", "")):
+                base = p if p.is_dir() else p.parent
+                return str(base.resolve())
+
+            # 2) Try to resolve a plain filename/pattern or schedule.yml in common bases
+            candidates = []
+            if os.path.isdir("/config"):
+                candidates.append(Path("/config"))
+            repo_config = Path(__file__).resolve().parent.parent / "config"
+            candidates.append(repo_config)
+            candidates.append(_platform_config_base())
+
+            for base in candidates:
+                try:
+                    # Match the primary pattern OR detect existing schedule.yml (persistence)
+                    if list(base.glob(primary)) or (base / "schedule.yml").exists():
+                        return str(base.resolve())
+                except Exception:
+                    # ignore and continue to next base
+                    pass
+
+    # 3) Fallbacks
+    has_yaml = glob.glob(os.path.join("/config", "*.yml")) or glob.glob(os.path.join("/config", "*.yaml"))
+    if os.path.isdir("/config") and has_yaml:
+        return "/config"
+    return str(_platform_config_base())
+
+
+def ensure_config_dir_initialized(config_dir) -> str:
+    """
+    Ensure the config directory exists and is initialized:
+    - Creates the config directory
+    - Creates logs/ and .backups/ subdirectories
+    - Seeds a default config.yml from bundled config/config.yml.sample if no *.yml/*.yaml present
+    Returns the absolute config directory as a string.
+    """
+    p = Path(config_dir).expanduser().resolve()
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "logs").mkdir(parents=True, exist_ok=True)
+    (p / ".backups").mkdir(parents=True, exist_ok=True)
+
+    has_yaml = any(p.glob("*.yml")) or any(p.glob("*.yaml"))
+    if not has_yaml:
+        sample = runtime_path("config", "config.yml.sample")
+        if sample.exists():
+            dest = p / "config.yml"
+            try:
+                shutil.copyfile(sample, dest)
+            except Exception:
+                # Non-fatal; if copy fails, user can create a config manually
+                pass
+
+    return str(p)
+
+
 class TorrentMessages:
     """Contains list of messages to check against a status of a torrent"""
 
@@ -309,18 +442,35 @@ def get_current_version():
     # Initialize version tuple
     version = ("Unknown", "Unknown", 0)
 
-    # Read and parse VERSION file (same logic as qbit_manage.py:400-406)
+    # Read and parse VERSION file with PyInstaller-safe resolution
     try:
-        version_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION")
-        with open(version_file_path) as handle:
-            for line in handle.readlines():
-                line = line.strip()
-                if len(line) > 0:
-                    version = parse_version(line)
-                    break
+        # Prefer bundled path when running as a frozen app
+        version_path = None
+        try:
+            bundled = runtime_path("VERSION")
+            if bundled.exists():
+                version_path = bundled
+        except Exception:
+            pass
+
+        # Fallback to repository structure: modules/../VERSION
+        if version_path is None:
+            repo_relative = Path(__file__).resolve().parent.parent / "VERSION"
+            if repo_relative.exists():
+                version_path = repo_relative
+
+        # If we found a version file, parse it
+        if version_path is not None:
+            with open(version_path, encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if line:
+                        version = parse_version(line)
+                        break
+        # If not found, leave version as ("Unknown", "Unknown", 0)
     except Exception as e:
-        logger.error(f"Error reading VERSION file: {str(e)}")
-        return version, "Unknown"
+        # Non-fatal in frozen apps; keep noise low if VERSION is missing
+        logger.debug(f"VERSION read fallback hit: {e}")
 
     # Get environment version (same as qbit_manage.py:282)
     env_version = os.environ.get("BRANCH_NAME", "master")
@@ -917,43 +1067,61 @@ class CheckHardLinks:
 
 
 def get_root_files(root_dir, remote_dir, exclude_dir=None):
-    """Get all files in root directory with optimized path handling and filtering."""
+    """
+    Get all files in root directory with optimized path handling and filtering.
+
+    Windows/UNC-safe:
+    - If remote_dir is empty or effectively the same as root_dir, walk root_dir directly.
+    - Otherwise, walk remote_dir (the accessible path) and map paths back to the root_dir representation.
+    """
     if not root_dir:
         return []
-    # Don't check if root_dir exists when remote_dir != root_dir, since root_dir might not be accessible
-    if root_dir == remote_dir and not os.path.exists(root_dir):
+
+    # Normalize for robust equality checks across platforms (handles UNC vs local, slashes, case on Windows)
+    try:
+        rd_norm = os.path.normcase(os.path.normpath(root_dir)) if root_dir else ""
+        rem_norm = os.path.normcase(os.path.normpath(remote_dir)) if remote_dir else ""
+    except Exception:
+        rd_norm = root_dir or ""
+        rem_norm = remote_dir or ""
+
+    # Treat missing/empty remote_dir as "same path" (walk root_dir directly)
+    is_same_path = (not remote_dir) or (rem_norm == rd_norm)
+
+    # Determine which base directory to walk and validate it exists
+    base_to_walk = root_dir if is_same_path else remote_dir
+    if not base_to_walk or not os.path.isdir(base_to_walk):
         return []
 
-    # Pre-calculate path transformations
-    is_same_path = remote_dir == root_dir
+    # Build an exclude path in the correct namespace
     local_exclude_dir = None
+    if exclude_dir:
+        if is_same_path:
+            local_exclude_dir = exclude_dir
+        else:
+            # Convert an exclude in remote namespace to root namespace for comparison after replacement
+            try:
+                local_exclude_dir = exclude_dir.replace(remote_dir, root_dir, 1)
+            except Exception:
+                local_exclude_dir = None
 
-    if exclude_dir and not is_same_path:
-        local_exclude_dir = exclude_dir.replace(remote_dir, root_dir)
-
-    # Use list comprehension with pre-filtered results
     root_files = []
 
-    # Optimize path replacement
     if is_same_path:
-        # Fast path when paths are the same
-        for path, subdirs, files in os.walk(root_dir):
-            if local_exclude_dir and local_exclude_dir in path:
+        # Fast path when paths are the same or remote_dir not provided
+        for path, subdirs, files in os.walk(base_to_walk):
+            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(path):
                 continue
-            root_files.extend(os.path.join(path, name) for name in files)
+            for name in files:
+                root_files.append(os.path.join(path, name))
     else:
-        # Path replacement needed - walk remote_dir (accessible) and convert paths to root_dir format
-        path_replacements = {}
-        for path, subdirs, files in os.walk(remote_dir):
-            if local_exclude_dir and local_exclude_dir in path:
+        # Walk the accessible remote_dir and convert to root_dir representation once per directory
+        for path, subdirs, files in os.walk(base_to_walk):
+            replaced_path = path.replace(remote_dir, root_dir, 1)
+            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(replaced_path):
                 continue
-
-            # Cache path replacement - convert remote_dir paths to root_dir paths
-            if path not in path_replacements:
-                path_replacements[path] = path.replace(remote_dir, root_dir)
-
-            replaced_path = path_replacements[path]
-            root_files.extend(os.path.join(replaced_path, name) for name in files)
+            for name in files:
+                root_files.append(os.path.join(replaced_path, name))
 
     return root_files
 

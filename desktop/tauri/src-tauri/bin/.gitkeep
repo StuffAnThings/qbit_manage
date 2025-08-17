@@ -1,0 +1,2 @@
+# This directory contains server binaries during CI builds
+# Local development doesn't require these files

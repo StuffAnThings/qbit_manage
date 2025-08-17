@@ -1,70 +1,20 @@
-name: Docker Latest Release
+name: Update Develop Branch
 
 on:
   push:
     branches: [ master ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
 
-  docker-latest:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: set lower case owner name
-        run: |
-          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
-        env:
-          OWNER: '${{ github.repository_owner }}'
-
-      - name: Check Out Repo
-        uses: actions/checkout@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-      - name: Login to ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ env.OWNER_LC }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push
-        id: docker_build
-        uses: docker/build-push-action@v6
-        with:
-          context: ./
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_HUB_USERNAME }}/qbit_manage:latest
-            ghcr.io/${{ env.OWNER_LC }}/qbit_manage:latest
-
   update-develop:
     runs-on: ubuntu-latest
-    needs: docker-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0

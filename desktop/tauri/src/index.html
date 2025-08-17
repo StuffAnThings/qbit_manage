@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>qBit Manage</title>
+    <style>
+        /* CSS Custom Properties matching web-ui theme */
+        :root {
+            /* Dark theme colors matching web-ui/css/themes.css */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --primary-color: #3b82f6;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* Auto theme based on system preference */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8fafc;
+                --text-primary: #1e293b;
+                --text-secondary: #64748b;
+            }
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-primary);
+            transition: background-color 0.25s ease-in-out, color 0.25s ease-in-out;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Removed white background and border-radius for transparent logo */
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            /* Logo will now be transparent without white background */
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            margin-top: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="qbm_logo.png" alt="qBit Manage Logo" />
+        </div>
+        <h1>qBit Manage</h1>
+        <div class="spinner"></div>
+        <div class="status" id="status">Starting server...</div>
+    </div>
+
+    <script>
+        // This will be replaced by the Rust backend when the server is ready
+        console.log('qBit Manage loading...');
+
+        // Listen for server status updates
+        if (window.__TAURI__) {
+            const { listen } = window.__TAURI__.event;
+
+            listen('server-log', (event) => {
+                console.log('Server log:', event.payload);
+            });
+
+            listen('app-config', (event) => {
+                console.log('App config:', event.payload);
+            });
+        }
+
+        // Update status periodically
+        const statusMessages = [
+            'Starting server...',
+            'Initializing qbit_manage...',
+            'Almost ready...'
+        ];
+        let currentStatus = 0;
+
+        setInterval(() => {
+            const statusEl = document.getElementById('status');
+            if (statusEl && currentStatus < statusMessages.length - 1) {
+                currentStatus++;
+                statusEl.textContent = statusMessages[currentStatus];
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

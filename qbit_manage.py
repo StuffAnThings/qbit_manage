@@ -2,25 +2,31 @@
 """qBittorrent Manager."""
 
 import argparse
-import glob
 import multiprocessing
 import os
 import platform
 import sys
+import threading
 import time
+import webbrowser
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import Manager
 
+import requests
+
 from modules.scheduler import Scheduler
 from modules.scheduler import calc_next_run
 from modules.scheduler import is_valid_cron_syntax
+from modules.util import ensure_config_dir_initialized
 from modules.util import execute_qbit_commands
 from modules.util import format_stats_summary
 from modules.util import get_arg
+from modules.util import get_default_config_dir
 from modules.util import get_matching_config_files
 
 try:
+    from croniter import croniter
     from humanize import precisedelta
 
     from modules.logs import MyLogger
@@ -45,8 +51,9 @@ parser.add_argument(
     "--web-server",
     dest="web_server",
     action="store_true",
-    default=False,
-    help="Start the webUI server to handle command requests via HTTP API.",
+    default=None,
+    help="Start the webUI server to handle command requests via HTTP API. "
+    "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
     "-p",
@@ -229,7 +236,8 @@ parser.add_argument(
 parser.add_argument(
     "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
 )
-args = parser.parse_args()
+# Use parse_known_args to ignore PyInstaller/multiprocessing injected flags on Windows
+args, _unknown_cli = parser.parse_known_args()
 
 
 try:
@@ -246,6 +254,9 @@ except ImportError:
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
+# Auto-enable web server by default on non-Docker if not explicitly set via env/flag
+if web_server is None and not is_docker:
+    web_server = True
 port = get_arg("QBT_PORT", args.port, arg_int=True)
 base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
@@ -281,10 +292,8 @@ stats = {}
 args = {}
 scheduler = None  # Global scheduler instance
 
-if os.path.isdir("/config") and glob.glob(os.path.join("/config", config_files)):
-    default_dir = "/config"
-else:
-    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
+default_dir = ensure_config_dir_initialized(get_default_config_dir(config_files))
+args["config_dir"] = default_dir
 
 config_files = get_matching_config_files(config_files, default_dir)
 
@@ -342,7 +351,12 @@ except ValueError:
 logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, log_size, log_count)
 from modules import util  # noqa
 
-util.logger = logger
+# Ensure all modules that imported util.logger earlier route to this MyLogger
+try:
+    util.logger.set_logger(logger)
+except AttributeError:
+    # Fallback if util.logger is not a proxy (legacy behavior)
+    util.logger = logger
 from modules.config import Config  # noqa
 from modules.core.category import Category  # noqa
 from modules.core.recheck import ReCheck  # noqa
@@ -367,6 +381,27 @@ def my_except_hook(exctype, value, tbi):
 sys.excepthook = my_except_hook
 
 version, branch = util.get_current_version()
+
+
+def _open_browser_when_ready(url: str, logger):
+    """Poll the web API until it responds, then open the browser to the WebUI."""
+    try:
+        for _ in range(40):  # ~10 seconds total with 0.25s sleep
+            try:
+                resp = requests.get(url, timeout=1)
+                if resp.status_code < 500:
+                    logger.debug(f"Opening browser to {url}")
+                    try:
+                        webbrowser.open(url, new=2)  # new tab if possible
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                pass
+            time.sleep(0.25)
+    except Exception:
+        # Never let browser-opening issues impact main app
+        pass
 
 
 def start_loop(first_run=False):
@@ -445,8 +480,6 @@ def start():
                 if scheduler and getattr(scheduler, "current_schedule", None):
                     stype, sval = scheduler.current_schedule
                     if stype == "cron":
-                        from croniter import croniter
-
                         cron = croniter(sval, now_local)
                         nxt = cron.get_next(datetime)
                         while nxt <= now_local:
@@ -472,8 +505,6 @@ def start():
                     if stype_chk == "cron":
                         now_guard = datetime.now()
                         if nxt_time <= now_guard:
-                            from croniter import croniter
-
                             cron = croniter(sval_chk, now_guard)
                             nxt_time = cron.get_next(datetime)
                             while nxt_time <= now_guard:
@@ -556,6 +587,55 @@ def end():
     sys.exit(0)
 
 
+# Define the web server target at module level (required for Windows spawn/frozen PyInstaller)
+def run_web_server(
+    port,
+    process_args,
+    is_running,
+    is_running_lock,
+    web_api_queue,
+    scheduler_update_queue,
+    next_scheduled_run_info_shared,
+):
+    """Run web server in a separate process with shared args (safe for Windows/PyInstaller)."""
+    try:
+        # Create a read-only scheduler in the child process (avoid pickling issues on Windows)
+        from modules.scheduler import Scheduler
+        from modules.web_api import create_app
+
+        config_dir_local = process_args.get("config_dir", "config")
+        child_scheduler = Scheduler(config_dir_local, suppress_logging=True, read_only=True)
+
+        # Create FastAPI app instance with process args and shared state
+        app = create_app(
+            process_args,
+            is_running,
+            is_running_lock,
+            web_api_queue,
+            scheduler_update_queue,
+            next_scheduled_run_info_shared,
+            child_scheduler,
+        )
+
+        # Configure and run uvicorn
+        import uvicorn as _uvicorn
+
+        config = _uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
+        server = _uvicorn.Server(config)
+        server.run()
+    except KeyboardInterrupt:
+        # Gracefully allow shutdown
+        pass
+    except Exception:
+        # Avoid dependency on application logger here; print minimal traceback for diagnostics
+        try:
+            import traceback
+
+            traceback.print_exc()
+        except Exception:
+            pass
+
+
 def print_logo(logger):
     global is_docker, version, git_branch
     logger.separator()
@@ -581,6 +661,7 @@ def print_logo(logger):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     killer = GracefulKiller()
     logger.add_main_handler()
     print_logo(logger)
@@ -595,46 +676,6 @@ if __name__ == "__main__":
         raise
 
     try:
-
-        def run_web_server(
-            port,
-            process_args,
-            is_running,
-            is_running_lock,
-            web_api_queue,
-            scheduler_update_queue,
-            next_scheduled_run_info_shared,
-            scheduler,
-        ):
-            """Run web server in a separate process with shared args"""
-            try:
-                import uvicorn
-
-                from modules.web_api import create_app
-
-                # Create FastAPI app instance with process args and shared state
-                app = create_app(
-                    process_args,
-                    is_running,
-                    is_running_lock,
-                    web_api_queue,
-                    scheduler_update_queue,
-                    next_scheduled_run_info_shared,
-                    scheduler,
-                )
-
-                # Configure uvicorn settings
-                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
-
-                # Run the server
-                server = uvicorn.Server(config)
-                server.run()
-            except ImportError:
-                logger.critical("Web server dependencies not installed. Please install with: pip install qbit_manage[web]")
-                sys.exit(1)
-            except KeyboardInterrupt:
-                pass
-
         manager = Manager()
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
         is_running_lock = manager.Lock()  # Separate lock for is_running synchronization
@@ -645,6 +686,24 @@ if __name__ == "__main__":
         # Start web server if enabled and not in run mode
         web_process = None
         if web_server:
+            # One-time info message about how the web server was enabled
+            try:
+                _cli_ws_flag = any(a in ("-ws", "--web-server") for a in sys.argv[1:])
+                _env_ws_set = "QBT_WEB_SERVER" in os.environ
+                if web_server:
+                    if _env_ws_set:
+                        logger.info("    Web server enabled via override: ENV (QBT_WEB_SERVER)")
+                    elif _cli_ws_flag:
+                        logger.info("    Web server enabled via override: CLI (-ws/--web-server)")
+                    else:
+                        logger.info("    Web server enabled automatically (desktop default)")
+            except Exception:
+                pass
+
+            # Log any unknown CLI args (useful for PyInstaller/multiprocessing flags on Windows)
+            if _unknown_cli:
+                logger.debug(f"Unknown CLI arguments ignored: {_unknown_cli}")
+
             logger.separator("Starting Web Server")
             logger.info(f"Web API server running on http://0.0.0.0:{port}")
             if base_url:
@@ -656,9 +715,6 @@ if __name__ == "__main__":
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
             process_args["web_server"] = True  # Indicate this is for the web server
-            # Create a read-only scheduler for the web server process
-            # This scheduler can provide status information (for webAPI) but cannot execute tasks
-            web_scheduler = Scheduler(default_dir, suppress_logging=True, read_only=True)
 
             web_process = multiprocessing.Process(
                 target=run_web_server,
@@ -670,11 +726,21 @@ if __name__ == "__main__":
                     web_api_queue,
                     scheduler_update_queue,
                     next_scheduled_run_info_shared,
-                    web_scheduler,
                 ),
             )
             web_process.start()
             logger.info("Web server started in separate process")
+
+            # If not running in Docker or desktop app, open the WebUI automatically in a browser tab when ready
+            is_desktop_app = os.getenv("QBT_DESKTOP_APP", "").lower() == "true"
+            if not is_docker and not is_desktop_app:
+                try:
+                    ui_url = f"http://127.0.0.1:{port}"
+                    if base_url:
+                        ui_url = f"{ui_url}/{base_url.lstrip('/')}"
+                    threading.Thread(target=_open_browser_when_ready, args=(ui_url, logger), daemon=True).start()
+                except Exception:
+                    pass
 
         # Handle normal run modes
         if run:
@@ -689,31 +755,47 @@ if __name__ == "__main__":
                     run_msg = f"   Scheduled Mode: Running cron '{schedule_value_local}' (from {source_text_local})"
                     if not already_configured:
                         scheduler.update_schedule("cron", schedule_value_local)
-                else:
-                    interval_minutes_local = int(schedule_value_local)
-                    delta_local = timedelta(minutes=interval_minutes_local)
-                    run_msg = f"   Scheduled Mode: Running every {precisedelta(delta_local)} (from {source_text_local})."
-                    if not already_configured:
-                        # Ensure interval schedule is set so next_run is available
-                        scheduler.update_schedule("interval", interval_minutes_local)
 
-                # Compute next run info for logging/UI
-                nr_time = scheduler.get_next_run()
-                nr_info = calc_next_run(nr_time)
-                next_scheduled_run_info_shared.update(nr_info)
+                    # Compute next run info for logging/UI
+                    nr_time = scheduler.get_next_run()
+                    nr_info = calc_next_run(nr_time)
+                    next_scheduled_run_info_shared.update(nr_info)
 
-                if schedule_type_local == "interval" and startupDelay:
-                    run_msg += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     run_msg += f"\n     {nr_info['next_run_str']}"
+                    logger.info(run_msg)
+
+                    # Start scheduler for subsequent runs
+                    scheduler.start(callback=start_loop)
+                    return
+
+                # Interval schedule
+                interval_minutes_local = int(schedule_value_local)
+                delta_local = timedelta(minutes=interval_minutes_local)
+                run_msg = f"   Scheduled Mode: Running every {precisedelta(delta_local)} (from {source_text_local})."
+                if not already_configured:
+                    # Ensure interval schedule is set so next_run is available
+                    scheduler.update_schedule("interval", interval_minutes_local)
+
+                # For interval mode: ALWAYS execute an immediate first run on startup
+                if startupDelay:
+                    run_msg += f"\n    Startup Delay: Initial Run will start after {startupDelay} seconds"
                     logger.info(run_msg)
                     time.sleep(startupDelay)
-                    # Execute first run immediately after startup delay
-                    start_loop()
-                    # Reset baseline for subsequent interval runs
-                    scheduler.update_schedule("interval", int(schedule_value_local), suppress_logging=True)
                 else:
-                    run_msg += f"\n     {nr_info['next_run_str']}"
+                    run_msg += "\n    Initial Run: Starting immediately"
                     logger.info(run_msg)
+
+                # Execute first run immediately (after optional startupDelay)
+                start_loop()
+                # Reset baseline for subsequent interval runs
+                scheduler.update_schedule("interval", int(schedule_value_local), suppress_logging=True)
+
+                # Refresh and publish the corrected next run info after immediate run
+                corrected_next = scheduler.get_next_run()
+                if corrected_next:
+                    corrected_info = calc_next_run(corrected_next)
+                    next_scheduled_run_info_shared.update(corrected_info)
+                    logger.info(f"     {corrected_info['next_run_str']}")
 
                 # Start scheduler for subsequent runs
                 scheduler.start(callback=start_loop)
@@ -753,13 +835,12 @@ if __name__ == "__main__":
                         schedule_type = update_data["type"]
                         schedule_value = update_data["value"]
 
-                        if schedule_type == "delete":
-                            logger.debug("Received scheduler delete notification from web API")
-                            success = scheduler.delete_schedule()
-                            if success:
-                                logger.debug("Main process scheduler reloaded after deletion")
-                            else:
-                                logger.error("Failed to reload main process scheduler after deletion")
+                        if schedule_type == "toggle_persistence":
+                            try:
+                                scheduler._load_schedule(suppress_logging=True)
+                                logger.debug("Scheduler persistence toggle processed")
+                            except Exception as e:
+                                logger.error(f"Failed to refresh scheduler after persistence toggle: {e}")
                         else:
                             logger.debug(f"Received scheduler update from web API: {schedule_type} = {schedule_value}")
                             success = scheduler.update_schedule(schedule_type, schedule_value, suppress_logging=True)
@@ -775,6 +856,8 @@ if __name__ == "__main__":
                 if next_run_time:
                     next_run_info = calc_next_run(next_run_time)
                     next_scheduled_run_info_shared.update(next_run_info)
+                    if next_run_info["next_run"] != next_run_time:
+                        logger.info(f"Next scheduled run updated: {next_run_info['next_run_str']}")
 
                 # Sleep for a reasonable interval
                 time.sleep(30)

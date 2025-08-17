@@ -387,7 +387,7 @@ export class HistoryManager {
      */
     async _loadFromBackup(configName, backupFilename) {
         try {
-            const response = await this.api.restoreConfig(configName, backupFilename);
+            const response = await this.api.restoreConfig(backupFilename);
             return response.data;
         } catch (error) {
             throw new Error(`Failed to load backup ${backupFilename}: ${error.message}`);

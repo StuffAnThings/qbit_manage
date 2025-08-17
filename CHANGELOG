@@ -1,24 +1,14 @@
-# Requirements Updated
-- "retrying==1.4.2",
-
-
-# New Features
-- **Web UI**: Implement dynamic schedule management via web UI/API
-- **Share Limits**: Add limit upload speed when share limits are reached (New config option: `upload_speed_on_limit_reached`) (Fixes #731, #737, #703)
-- **Share Limits**: Add min/max torrent size filters (New config option: `min_torrent_size` / `max_torrent_size`) (Fixes #472)
-- **Remove Unregistered**: Add grace period for unregistered torrent removal (New config option: `rem_unregistered_grace_minutes`) (Fixes #898)
-- **Scheduler (Web API)**: Implement dynamic schedule management via web API
-
 # Improvements
-- **Mover Script**: Allow granular control with pause, resume and move args
-- **web UI**: When saving, don’t delete config comments and empty lines (Fixes #890)
+- Support cross-platform binary builds (Linux/Windows/MacOS)
+- Adds desktop app installers (Linux/Windows/MacOS)
+- Container images for latest now pointed to newest version automatically (Fixes #897)
+- Enable automatic open of webUI in local installs
+- Add persistence toggling for webUI scheduler
 
 # Bug Fixes
-- Fix Error acquiring lock: cannot assign to field '_last_run_start' (Fixes #895)
-- Fix remove_orphaned not working correctly with `remote_dir` and reporting 0 files removed
-- fix(web-ui): prevent XSS vulnerabilities and prototype pollution
-- Potential fix for code scanning alert no. 13: Client-side cross-site scripting (#896)
+- Fix schedule.yml not loaded upon restarting Docker container (Fixes #906)
+- Fix bug where torrents were not being paused after share limits reached (Fixes #901)
+- Fix(api): prevent path traversal vulnerability in backup restore endpoint (Fixes CWE-22 Security Vulnerability)
+- Fix scheduler to run interval jobs immediately on startup
 
-
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.2...v4.5.3
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.3...v4.5.4
