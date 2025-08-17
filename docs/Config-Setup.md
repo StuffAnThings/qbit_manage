@@ -1,7 +1,7 @@
 
 # Overview
 
-The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI.md), which requires the [Web API](Web-API.md) to be enabled.
+The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI), which requires the [Web API](Web-API) to be enabled.
 
 ## Default Configuration File Locations
 

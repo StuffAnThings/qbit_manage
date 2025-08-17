@@ -78,7 +78,7 @@ After installation, qbit_manage will look for configuration files in platform-sp
    copy config\config.yml.sample "%APPDATA%\qbit-manage\config.yml"  # Windows
    ```
 
-3. Edit the configuration file as outlined in the [Config-Setup](Config-Setup.md) guide.
+3. Edit the configuration file as outlined in the [Config-Setup](Config-Setup) guide.
 
 **Alternative**: You can place the config file anywhere and specify its location using the `--config-file` option.
 
@@ -141,7 +141,7 @@ qbit-manage --schedule 1440  # Run every 24 hours (1440 minutes)
 | `--schedule`, `-sch` | Run on a schedule (minutes) |
 | `--run`, `-r` | Run once and exit (no scheduler) |
 
-For a complete list of commands and options, see the [Commands](Commands.md) documentation.
+For a complete list of commands and options, see the [Commands](Commands) documentation.
 
 ### Virtual Environment (Recommended)
 
