@@ -2,7 +2,7 @@
 
 This guide covers installing qbit_manage from source code or PyPI for development purposes or when you need the latest features.
 
-**Note**: For most users, we recommend using the [Desktop App or Standalone Binary](Installation.md) instead, as they're easier to install and use.
+**Note**: For most users, we recommend using the [Desktop App or Standalone Binary](Installation) instead, as they're easier to install and use.
 
 ## Prerequisites
 
