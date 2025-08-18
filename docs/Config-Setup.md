@@ -149,7 +149,7 @@ If you are unsure what key word to use. Simply select a torrent within qB and do
 >[!TIP]
 > The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
 
-> [!INFO]
+> [!NOTE]
 > **NOTE** If `other` is not used then trackers will be auto added.
 
 ## **nohardlinks:**
@@ -164,7 +164,8 @@ If you're needing information regarding hardlinks here are some excellent resour
 * [Trash-Guides: Hardlinks and Instant Moves (Atomic-Moves)](https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/)
 * [Wikipedia: Hardlinks](https://en.wikipedia.org/wiki/Hard_link)
 
-Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
+> [!NOTE]
+> Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
 Beyond this you'll need to use one of the [categories](#cat) above as the key.
 
 | Configuration | Definition                                                | Required           |
@@ -223,6 +224,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `save_torrents`      | This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent. This requires the [torrents_dir](#directory) to be defined             | False          | <center>❌</center> |
 | `split_by_category`  | This will split the recycle bin folder by the save path defined in the [cat](#cat) attribute and add the base folder name of the recycle bin that was defined in [recycle_bin](#directory) | False          | <center>❌</center> |
 
+> [!TIP]
 > Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Recycle Bin.
 
 ## **orphaned:**
@@ -240,8 +242,8 @@ This is handy when you have automatically generated files that certain OSs decid
 | `min_file_age_minutes`         | Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion to prevent removal of actively uploading files. Set to 0 to disable age protection.                          | 0             | <center>❌</center> |
 
 
-
-> Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
+> [!TIP]
+> The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
 
 ## **apprise:**
 
