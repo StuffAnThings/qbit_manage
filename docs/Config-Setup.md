@@ -91,7 +91,12 @@ This section defines the directories that qbit_manage will be looking into for v
 ---
 This section defines the categories that you are currently using and the save path's that are associated with them.
 
-> **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category. You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
+The `cat` command will use the cats defined to Category function takes the save path of the torrent and assigns the category to it based on that save path
+
+> [!WARNING]
+> **ALL save paths** of all torrents must be defined here, If the save path is in your qBit, then it **MUST** be defined here, if not the script will throw errors.
+> If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
+> You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
 
 | Configuration | Definition                | Required           |
 | :------------ | :------------------------ | :----------------- |
@@ -108,7 +113,9 @@ category: <path>/<to>/category
 
 ---
 This moves all the torrents from one category to another category if the torrents are marked as complete.
-> **NOTE** **WARNING**: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
+
+> [!DANGER]
+> If the paths are different and Default Torrent Management Mode is set to Automatic the files could be moved !!!
 
 | Configuration | Definition                    | Required           |
 | :------------ | :---------------------------- | :----------------- |
