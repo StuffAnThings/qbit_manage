@@ -21,7 +21,8 @@ A template Configuration File can be found in the repo [config/config.yml.sample
 
 You can reference environment variables inside your `config.yml` by `!ENV VAR_NAME`
 
-**WARNING**: As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
+> [!CAUTION]
+> **WARNING**: As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
 
 # Config File
 
@@ -114,7 +115,7 @@ category: <path>/<to>/category
 ---
 This moves all the torrents from one category to another category if the torrents are marked as complete.
 
-> [!DANGER]
+> [!CAUTION]
 > If the paths are different and Default Torrent Management Mode is set to Automatic the files could be moved !!!
 
 | Configuration | Definition                    | Required           |
@@ -145,8 +146,10 @@ This section defines the tags used based upon the tracker's URL.
 
 If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
 
-> **NOTE** The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
+>[!TIP]
+> The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
 
+> [!INFO]
 > **NOTE** If `other` is not used then trackers will be auto added.
 
 ## **nohardlinks:**
