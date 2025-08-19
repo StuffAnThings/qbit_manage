@@ -1,72 +1,72 @@
 {
-    "app": {
-        "security": {
-            "csp": null
-        },
-        "windows": [
-            {
-                "decorations": true,
-                "fullscreen": false,
-                "height": 800,
-                "label": "main",
-                "minHeight": 600,
-                "minWidth": 900,
-                "resizable": true,
-                "title": "qBit Manage",
-                "visible": false,
-                "width": 1100
-            }
-        ],
-        "withGlobalTauri": true
+  "app": {
+    "security": {
+      "csp": null
     },
-    "build": {
-        "beforeBuildCommand": "",
-        "beforeDevCommand": "",
-        "devUrl": "http://localhost:8080",
-        "frontendDist": "../src"
+    "windows": [
+      {
+        "decorations": true,
+        "fullscreen": false,
+        "height": 800,
+        "label": "main",
+        "minHeight": 600,
+        "minWidth": 900,
+        "resizable": true,
+        "title": "qBit Manage",
+        "visible": false,
+        "width": 1100
+      }
+    ],
+    "withGlobalTauri": true
+  },
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:8080",
+    "frontendDist": "../src"
+  },
+  "bundle": {
+    "active": true,
+    "category": "Utility",
+    "icon": [
+      "../../../icons/qbm_logo.icns",
+      "../../../icons/qbm_logo.ico",
+      "../../../icons/qbm_logo.png"
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "libgtk-3-0",
+          "libayatana-appindicator3-1",
+          "libwebkit2gtk-4.1-0"
+        ]
+      }
     },
-    "bundle": {
-        "active": true,
-        "category": "Utility",
-        "icon": [
-            "../../../icons/qbm_logo.icns",
-            "../../../icons/qbm_logo.ico",
-            "../../../icons/qbm_logo.png"
-        ],
-        "linux": {
-            "deb": {
-                "depends": [
-                    "libgtk-3-0",
-                    "libayatana-appindicator3-1",
-                    "libwebkit2gtk-4.1-0"
-                ]
-            }
-        },
-        "macOS": {
-            "frameworks": [],
-            "minimumSystemVersion": "10.13"
-        },
-        "resources": [
-            "bin/*"
-        ],
-        "targets": [
-            "deb",
-            "nsis",
-            "app",
-            "dmg"
-        ],
-        "windows": {
-            "certificateThumbprint": null,
-            "digestAlgorithm": "sha256",
-            "nsis": {
-                "displayLanguageSelector": true,
-                "installMode": "currentUser",
-                "installerIcon": "../../../icons/qbm_logo.ico"
-            },
-            "timestampUrl": ""
-        }
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13"
     },
-    "identifier": "com.qbitmanage.desktop",
-    "productName": "qBit Manage",
-    "version": "4.5.4-develop52"
+    "resources": [
+      "bin/*"
+    ],
+    "targets": [
+      "deb",
+      "nsis",
+      "app",
+      "dmg"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "nsis": {
+        "displayLanguageSelector": true,
+        "installMode": "currentUser",
+        "installerIcon": "../../../icons/qbm_logo.ico"
+      },
+      "timestampUrl": ""
+    }
+  },
+  "identifier": "com.qbitmanage.desktop",
+  "productName": "qBit Manage",
+  "version": "4.5.5-develop8"
 }

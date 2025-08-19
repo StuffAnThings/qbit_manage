@@ -376,6 +376,16 @@ jobs:
         id: buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read version from VERSION file
+        id: get_version
+        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Set build metadata
+        id: build_meta
+        run: |
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "VCS_REF=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
       - name: Build and push
         id: docker_build
         uses: docker/build-push-action@v6
@@ -383,7 +393,10 @@ jobs:
           context: ./
           file: ./Dockerfile
           build-args: |
-            "BRANCH_NAME=develop"
+            BRANCH_NAME=develop
+            APP_VERSION=${{ steps.get_version.outputs.APP_VERSION }}
+            BUILD_DATE=${{ steps.build_meta.outputs.BUILD_DATE }}
+            VCS_REF=${{ steps.build_meta.outputs.VCS_REF }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |

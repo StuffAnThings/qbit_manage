@@ -5,6 +5,7 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        exclude: ^desktop/tauri/src-tauri/tauri\.conf\.json$
       - id: check-merge-conflict
       - id: check-json
       - id: check-yaml
@@ -13,6 +14,7 @@ repos:
       - id: fix-byte-order-marker
       - id: pretty-format-json
         args: [--autofix, --indent, '4', --no-sort-keys]
+        exclude: ^desktop/tauri/src-tauri/tauri\.conf\.json$
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1  # or higher tag
     hooks:
@@ -41,3 +43,11 @@ repos:
         language: script
         pass_filenames: false
         stages: [pre-commit]
+      - id: cargo-check
+        name: Cargo check for Tauri desktop app
+        entry: bash -c "cd desktop/tauri/src-tauri && cargo check"
+        language: system
+        pass_filenames: false
+        files: ^desktop/tauri/src-tauri/.*\.(rs|toml|lock|json)$
+        stages: [pre-commit]
+        types_or: [rust, toml, json]
