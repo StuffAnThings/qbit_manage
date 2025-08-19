@@ -1,103 +1,111 @@
+# Unraid Installation
 
-# Unraid Installation - Docker (Recommended)
+## Docker Installation (Recommended)
 
-Thankfully, getting qbit_manager working on unRAID is a fairly simple task. unRAID works mostly with docker containers, so the pre-built container available on docker hub works perfectly with a little configuration. To install a container from docker hub, you will need community applications - a very popular plugin for unRAID servers. If you don't already have this installed, you can install it [here](https://forums.unraid.net/topic/38582-plug-in-community-applications/)
+The easiest way to run qbit_manage on Unraid is using the Docker container from Docker Hub.
 
-## Basic Installation
+### Prerequisites
 
-1. Head to the Apps tab of unRAID (Community Applications), and search qbit_manage in the upper left search box.
-2. Once you have searched for qbit_manage you can simply select it from the list of containers and select install.
-3. The template should show all variables that can be edited.
-4. Fill out your location for your downloads downloads folder (`Root_Dir`).
-   1. qbit_manage needs to be able to view all torrents the way that your qbittorrent views them.
-      1. Example: If you have qbittorrent mapped to `/mnt/user/data/:/data` This means that you **MUST** have qbit_managed mapped the same way.
-      2. Furthermore, the config file must map the root directory you wish to monitor. This means that in our example of `/data` (which is how qbittorrent views the torrents) that if in your `/data` directory you drill down to `/torrents` that you'll need to update your config file to `/data/torrents`
-   2. This could be different depending on your specific setup.
-   3. The key takeaways are
-      1. Both qbit_manage needs to have the same mappings as qbittorrent
-      2. The config file needs to drill down (if required) further to the desired root dir.
-5. Select what QBT env options you want to enable or disable (true/false). It is recommended to enable the Web API by setting `QBT_WEB_SERVER=true` to utilize the Web UI.
-6. Hit Apply, and allow unRAID to download the docker container.
-7. Navigate to the Docker tab in unRAID, and stop the qbit_manage container if it has auto-started.
-8. Create the [config.yml](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) file as-per the [config-setup documentation](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) and place in the Appdata folder (`/mnt/user/appdata/qbit_manage/` in the example) **Remember to remove the .sample from the filename**
-9. Once finished, run the container. Voila! Logs are located in `/mnt/user/appdata/qbit_manage/logs`.
+Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-community-applications/) plugin if you haven't already.
 
-# Unraid Installation - Localhost (Alternative)
+### Installation Steps
 
-We recommend using the Docker method to install qBit Manage but here is an alternative way to install it locally without the use of docker with the user of userscripts.
+1. **Install the Container**
+   - Go to the **Apps** tab in Unraid
+   - Search for "qbit_manage" in the search box
+   - Select the qbit_manage container and click **Install**
 
-**qBit Management**
-First, we are going to need [Nerd Pack](https://forums.unraid.net/topic/35866-unraid-6-nerdpack-cli-tools-iftop-iotop-screen-kbd-etc/). <br>
-This can be also downloaded from the **Apps** store
+2. **Configure Path Mapping**
+   
+   > [!IMPORTANT]  
+   > qbit_manage must have the same path mappings as your qBittorrent container to properly access your torrents.
 
-Nerd pack will be located in the settings tab
-When you open it up you'll see a bunch of packages that you can install. <br> We'll need:
+   **Example:** If qBittorrent is mapped as `/mnt/user/data/:/data`, then qbit_manage must also be mapped the same way.
 
-* `python-pip`
+   - Set the `Root_Dir` variable to match your qBittorrent download path
+   - Ensure both containers can see torrents at the same paths
 
-* `python3`
+3. **Configure Environment Variables**
+   - Set `QBT_WEB_SERVER=true` to enable the Web UI (recommended)
+   - Configure other QBT environment options as needed
 
-* `python-setuptools`
+4. **Apply and Download**
+   - Click **Apply** to download and create the container
+   - The container may auto-start - stop it if needed
 
-To get this running in unRAID go ahead and download the repo to your computer.
+5. **Create Configuration File**
+   - Navigate to `/mnt/user/appdata/qbit_manage/` on your Unraid server
+   - Download the [sample config file](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample)
+   - Rename it to `config.yml` (remove the `.sample` extension)
+   - Edit the file according to the [Config Setup guide](Config-Setup)
 
-Then take all the data from the zip file and place it somewhere on your server.
+   > [!TIP]
+   > Make sure the `root_dir` in your config matches how qBittorrent sees your torrents (e.g., `/data/torrents`)
 
-An example of this would be: `/mnt/user/data/scripts/qbit/`
+6. **Start the Container**
+   - Start the qbit_manage container from the Docker tab
+   - Check logs at `/mnt/user/appdata/qbit_manage/logs/`
 
-Now we need to install the requirements for this script.
+### Web UI Access
 
-Head back over to **User Scripts**
-
-Create a new script: An example of this would be `install-requirements`
-
-In the new text field you'll need to place:
-
-```bash
-#!/bin/bash
-echo "Installing required packages"
-python3 -m pip install /mnt/user/path/to/qbit
-echo "Required packages installed"
+If you enabled the web server, access the Web UI at:
+```
+http://[UNRAID-IP]:8080
 ```
 
-Replace `path/to/` with your path example mines `/data/scripts/qbit/`
+## Alternative: User Scripts Installation
 
-Now click **Save Changes**
+> [!WARNING]  
+> This method is more complex and not recommended for most users. Use the Docker method above instead.
 
-Now to set a schedule for this bash script to run.
+<details>
+<summary>Click to expand User Scripts installation method</summary>
 
-Select **At First Array Start Only** This will run this script every time the array starts on every boot
+### Requirements
+- [Nerd Pack](https://forums.unraid.net/topic/35866-unraid-6-nerdpack-cli-tools-iftop-iotop-screen-kbd-etc/) plugin
+- Python packages: `python-pip`, `python3`, `python-setuptools`
 
-Now we need to edit the config file that came with the zip file.
-<br>The config file should be pretty self-explanatory.
-<br>The only thing that must be followed is that **ALL** categories that you see in your qBit **MUST** be added to the config file with associated directories, each directory must be unique for each category.
+### Installation
+1. Install required Python packages via Nerd Pack
+2. Download qbit_manage source to your server (e.g., `/mnt/user/data/scripts/qbit/`)
+3. Create a User Script to install requirements:
+   ```bash
+   #!/bin/bash
+   echo "Installing required packages"
+   python3 -m pip install /mnt/user/data/scripts/qbit/
+   echo "Required packages installed"
+   ```
+4. Set the script to run "At First Array Start Only"
+5. Create another User Script to run qbit_manage:
+   ```bash
+   #!/bin/bash
+   echo "Running qBitTorrent Management"
+   python3 /mnt/user/data/scripts/qbit/qbit_manage.py \
+     --config-file /mnt/user/data/scripts/qbit/config.yml \
+     --log-file /mnt/user/data/scripts/qbit/activity.log \
+     --run
+   echo "qBitTorrent Management Completed"
+   ```
+6. Set a cron schedule (e.g., `*/30 * * * *` for every 30 minutes)
 
-> If you'd like a guide on setting up cross-seed on unRAID please visit [here](https://github.com/Drazzilb08/cross-seed-guide)
+> [!TIP]
+> Use `--dry-run` flag first to test your configuration before running live.
 
-Now we need to go back to **User Scripts** and create our script to run this script
+</details>
 
-## Add a new script
+## Troubleshooting
 
-  You can name yours something like `auto-manage-qbittorrent`
-  Here is an example script:
+### Common Issues
 
-  ```bash
-  #!/bin/bash
-echo "Running qBitTorrent Management"
-python3 /mnt/user/data/scripts/qbit/qbit_manage.py --web-server -c /mnt/user/data/scripts/qbit/config.yml -l /mnt/user/data/scripts/qbit/activity.log -r -<list of commands>
-echo "qBitTorrent Management Completed"
-  ```
+**Path Mapping Problems:**
+- Ensure qbit_manage and qBittorrent have identical path mappings
+- Check that the `root_dir` in config.yml matches the container's view of torrents
 
-However, at the core, you'll want
+**Permission Issues:**
+- Verify the qbit_manage container has read/write access to your download directories
+- Check Unraid user/group permissions
 
-```bash
-python3 /<path to script>/qbit_manage.py -c /<path to config>/config.yml -l /<path to where you want log file>/activity.log -r -<list of commands>
-```
-
-if you want to change the arguments in the `<list of commands>`. The full list of arguments can be seen by using the `-h` command or on the README.
-
-  Once you've got the config file set up you should be all set.
-  Don't forget to set a cron schedule mines <br>`*/30 * * * *` <-- Runs every 30 min
-
-**Final note:**<br>
-If you're wanting to do a test run please use the `--dry-run` argument anywhere w/in the call to test how things will look. Please do this before running a full run.
+**Container Won't Start:**
+- Review container logs in the Docker tab
+- Verify config.yml syntax is correct
+- Ensure all required path mappings exist

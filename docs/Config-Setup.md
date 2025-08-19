@@ -22,7 +22,7 @@ A template Configuration File can be found in the repo [config/config.yml.sample
 You can reference environment variables inside your `config.yml` by `!ENV VAR_NAME`
 
 > [!CAUTION]
-> **WARNING**: As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
+> As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
 
 # Config File
 
@@ -95,7 +95,7 @@ This section defines the categories that you are currently using and the save pa
 The `cat` command will use the cats defined to Category function takes the save path of the torrent and assigns the category to it based on that save path
 
 > [!WARNING]
-> **ALL save paths** of all torrents must be defined here, If the save path is in your qBit, then it **MUST** be defined here, if not the script will throw errors.
+> **ALL save paths** of all torrents must be defined here. If the save path is in your qBit, then it **MUST** be defined here, if not the script will throw errors.
 > If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
 > You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
 
@@ -150,7 +150,7 @@ If you are unsure what key word to use. Simply select a torrent within qB and do
 > The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
 
 > [!NOTE]
-> **NOTE** If `other` is not used then trackers will be auto added.
+> If `other` is not used then trackers will be auto added.
 
 ## **nohardlinks:**
 

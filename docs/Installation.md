@@ -30,10 +30,9 @@ Perfect for server environments, automation, or users who prefer command-line to
 
 - [Desktop App Installation](#desktop-app-installation)
 - [Standalone Binary Installation](#standalone-binary-installation)
+- [Python/Source Installation](#pythonsource-installation)
 - [Docker Installation](Docker-Installation)
-- [Python/Source Installation](Local-Installations)
 - [unRAID Installation](Unraid-Installation)
-- [NIX Installation](Nix-Installation)
 
 ## Desktop App Installation
 
@@ -101,6 +100,84 @@ Perfect for server environments, automation, or users who prefer command-line to
    ```bash
    ./qbit-manage-linux-amd64 --help
    ```
+
+## Python/Source Installation
+
+For developers or users who want to modify the code, you can install from source or PyPI.
+
+### Prerequisites
+- Python 3.9 or higher
+- Git (for source installation)
+
+### Method 1: Install from PyPI
+
+```bash
+# Install uv first
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install qbit-manage
+uv tool install qbit-manage
+```
+
+### Method 2: Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/StuffAnThings/qbit_manage.git
+cd qbit_manage
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install the package
+uv tool install .
+```
+
+### Usage
+
+After installation, you can run qbit_manage using:
+
+```bash
+qbit-manage --help
+```
+
+> [!TIP]
+> For Python installations, it's recommended to use a virtual environment to avoid conflicts with other packages.
+
+### Development Installation
+
+For development work or to contribute to the project:
+
+```bash
+# Clone the repository
+git clone https://github.com/StuffAnThings/qbit_manage.git
+cd qbit_manage
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment and install dependencies
+uv venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate  # Windows
+
+# Install in development mode
+uv pip install -e .
+```
+
+### Updating
+
+**Tool installation:**
+```bash
+uv tool upgrade qbit-manage
+```
+
+**Development installation:**
+```bash
+cd qbit_manage
+git pull
+uv pip install -e . --upgrade
+```
 
 ## Quick Reference: Default Configuration File Locations
 
