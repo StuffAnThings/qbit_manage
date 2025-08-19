@@ -2,7 +2,7 @@
     - [Installation](Installation)
         - [Desktop App & Binary Installation](Installation)
         - [Docker Installation](Docker-Installation)
-        - [Python/Source Installation](Local-Installations)
+        - [Python/Source Installation](pythonsource-installation)
         - [unRAID Installation](Unraid-Installation)
         - [NIX Installation](Nix-Installation)
         - [V4 Migration Guide](v4-Migration-Guide)
