@@ -16,8 +16,8 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
    - Select the qbit_manage container and click **Install**
 
 2. **Configure Path Mapping**
-   
-   > [!IMPORTANT]  
+
+   > [!IMPORTANT]
    > qbit_manage must have the same path mappings as your qBittorrent container to properly access your torrents.
 
    **Example:** If qBittorrent is mapped as `/mnt/user/data/:/data`, then qbit_manage must also be mapped the same way.
@@ -55,7 +55,7 @@ http://[UNRAID-IP]:8080
 
 ## Alternative: User Scripts Installation
 
-> [!WARNING]  
+> [!WARNING]
 > This method is more complex and not recommended for most users. Use the Docker method above instead.
 
 <details>
