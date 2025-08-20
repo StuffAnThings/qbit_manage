@@ -66,25 +66,25 @@ export const shareLimitsSchema = {
                 max_seeding_time: {
                     type: 'text',
                     label: 'Maximum Seeding Time',
-                    description: 'The maximum seeding time before a torrent is paused. Use -2 for the global limit and -1 for no limit. (e.g., "30d", "1w 4d 2h").',
+                    description: 'The maximum seeding time before a torrent is paused. Use -2 for the global limit and -1 for no limit. (e.g., "30d", "1w4d2h").',
                     default: '-1'
                 },
                 max_last_active: {
                     type: 'text',
                     label: 'Maximum Last Active',
-                    description: 'If cleanup is enabled, delete torrents that have been inactive for this duration. Use -1 for no limit. (e.g., "30d", "1w 4d 2h").',
+                    description: 'If cleanup is enabled, delete torrents that have been inactive for this duration. Use -1 for no limit. (e.g., "30d", "1w4d2h").',
                     default: '-1'
                 },
                 min_seeding_time: {
                     type: 'text',
                     label: 'Minimum Seeding Time',
-                    description: 'Prevents cleanup from deleting a torrent until it has been seeding for at least this long. (e.g., "30d", "1w 4d 2h").',
+                    description: 'Prevents cleanup from deleting a torrent until it has been seeding for at least this long. (e.g., "30d", "1w4d2h").',
                     default: '0'
                 },
                 min_last_active: {
                     type: 'text',
                     label: 'Minimum Last Active',
-                    description: 'Prevents cleanup from deleting a torrent if it has been active within this duration. (e.g., "30d", "1w 4d 2h").',
+                    description: 'Prevents cleanup from deleting a torrent if it has been active within this duration. (e.g., "30d", "1w4d2h").',
                     default: '0'
                 },
                 limit_upload_speed: {
