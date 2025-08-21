@@ -8,7 +8,7 @@ This wiki should tell you everything you need to know about the script to get it
    - **Desktop App** (Recommended): Download and install the GUI application for [Windows, macOS, or Linux](Installation#desktop-app-installation)
    - **Standalone Binary**: Download the command-line executable for [Windows, macOS, or Linux](Installation#standalone-binary-installation)
    - **Docker**: Follow the [Docker Installation](Docker-Installation) guide for containerized environments
-   - **Python/Source**: Install from [PyPI or source code](Local-Installations) for development
+   - **Python/Source**: Install from [PyPI or source code](Installation#pythonsource-installation) for development
    - **unRAID**: Follow the [unRAID Installation](Unraid-Installation) guide for unRAID systems
 
 2. **Configure qbit_manage:**
