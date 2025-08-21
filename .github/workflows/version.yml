@@ -1,7 +1,7 @@
 name: Version Release
 
 on:
-  create:
+  push:
     tags:
       - v*
 

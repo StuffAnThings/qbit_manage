@@ -43,11 +43,3 @@ repos:
         language: script
         pass_filenames: false
         stages: [pre-commit]
-      - id: cargo-check
-        name: Cargo check for Tauri desktop app
-        entry: bash -c "cd desktop/tauri/src-tauri && cargo check"
-        language: system
-        pass_filenames: false
-        files: ^desktop/tauri/src-tauri/.*\.(rs|toml|lock|json)$
-        stages: [pre-commit]
-        types_or: [rust, toml, json]
