@@ -13,6 +13,9 @@ tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-single-instance = "2"
 
+[dependencies.glib]
+version = "0.20.0"
+
 [dependencies.reqwest]
 default-features = false
 features = ["rustls-tls", "json"]
@@ -43,7 +46,7 @@ license = "MIT"
 name = "qbit-manage-desktop"
 repository = ""
 rust-version = "1.70"
-version = "4.5.5-develop8"
+version = "4.5.5-develop9"
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
