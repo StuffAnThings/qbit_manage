@@ -133,6 +133,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv tool install .
 ```
 
+### Running qbit-manage
+
+After installation, you can run qbit-manage from anywhere:
+
+```bash
+# Show help and available options
+qbit-manage --help
+
+# Run once (without scheduler)
+qbit-manage --run
+
+# Run with web UI (default on desktop)
+qbit-manage --web-server
+```
+
 ### Usage
 
 After installation, you can run qbit_manage using:

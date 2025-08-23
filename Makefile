@@ -87,3 +87,228 @@ lint: venv
 format: venv
 	@echo "Running formatter..."
 	@. $(VENV_ACTIVATE) && $(VENV_RUFF) format .
+
+.PHONY: build
+build: venv
+	@echo "Building package..."
+	@$(UV_PATH) pip install --python $(VENV_PYTHON) build twine
+	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m build
+	@echo "Package built successfully. Files in dist/"
+
+.PHONY: check-dist
+check-dist: build
+	@echo "Checking distribution files..."
+	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m twine check dist/*
+
+.PHONY: setup-pypi
+setup-pypi:
+	@echo "Setting up PyPI configuration..."
+	@if [ -f ~/.pypirc ] && grep -q "password = pypi-" ~/.pypirc 2>/dev/null; then \
+		echo "✓ ~/.pypirc already exists with API tokens configured"; \
+	else \
+		$(MAKE) setup-pypi-interactive; \
+	fi
+
+.PHONY: setup-pypi-interactive
+setup-pypi-interactive:
+	@echo ""
+	@echo "This will set up your PyPI credentials for automatic uploads."
+	@echo "You'll need API tokens from:"
+	@echo "  - Test PyPI: https://test.pypi.org/manage/account/token/"
+	@echo "  - Live PyPI: https://pypi.org/manage/account/token/"
+	@echo ""
+	@echo "Creating accounts (if needed):"
+	@echo "  - Test PyPI: https://test.pypi.org/account/register/"
+	@echo "  - Live PyPI: https://pypi.org/account/register/"
+	@echo ""
+	@printf "Press Enter to continue or Ctrl+C to cancel..."
+	@read dummy
+	@echo ""
+	@printf "Please enter your Test PyPI API token (starts with 'pypi-'): "
+	@read testpypi_token; \
+	echo ""; \
+	printf "Please enter your PyPI API token (starts with 'pypi-'): "; \
+	read pypi_token; \
+	echo ""; \
+	if [ -z "$$testpypi_token" ] || [ -z "$$pypi_token" ]; then \
+		echo "❌ Both tokens are required. Setup cancelled."; \
+		exit 1; \
+	fi; \
+	if ! echo "$$testpypi_token" | grep -q "^pypi-" || ! echo "$$pypi_token" | grep -q "^pypi-"; then \
+		echo "❌ Invalid token format. Tokens should start with 'pypi-'"; \
+		exit 1; \
+	fi; \
+	echo "Creating ~/.pypirc configuration file..."; \
+	echo "[distutils]" > ~/.pypirc; \
+	echo "index-servers =" >> ~/.pypirc; \
+	echo "    pypi" >> ~/.pypirc; \
+	echo "    testpypi" >> ~/.pypirc; \
+	echo "" >> ~/.pypirc; \
+	echo "[pypi]" >> ~/.pypirc; \
+	echo "repository = https://upload.pypi.org/legacy/" >> ~/.pypirc; \
+	echo "username = __token__" >> ~/.pypirc; \
+	echo "password = $$pypi_token" >> ~/.pypirc; \
+	echo "" >> ~/.pypirc; \
+	echo "[testpypi]" >> ~/.pypirc; \
+	echo "repository = https://test.pypi.org/legacy/" >> ~/.pypirc; \
+	echo "username = __token__" >> ~/.pypirc; \
+	echo "password = $$testpypi_token" >> ~/.pypirc; \
+	chmod 600 ~/.pypirc; \
+	echo "✓ PyPI configuration saved to ~/.pypirc"; \
+	echo "✓ You can now use 'make upload-test' and 'make upload-pypi' without entering tokens"
+
+.PHONY: upload-test
+upload-test: check-dist
+	@echo "Uploading to Test PyPI..."
+	@if [ -z "$$TWINE_PASSWORD_TESTPYPI" ] && ! grep -q "password = pypi-" ~/.pypirc 2>/dev/null; then \
+		echo ""; \
+		echo "No API token found. Please either:"; \
+		echo "1. Set environment variable: export TWINE_PASSWORD_TESTPYPI=your-test-pypi-token"; \
+		echo "2. Run 'make setup-pypi' and edit ~/.pypirc with your tokens"; \
+		echo "3. Get token from: https://test.pypi.org/manage/account/token/"; \
+		exit 1; \
+	fi
+	@if [ -n "$$TWINE_PASSWORD_TESTPYPI" ]; then \
+		echo "Using environment variable for authentication"; \
+		. $(VENV_ACTIVATE) && TWINE_USERNAME=__token__ TWINE_PASSWORD=$$TWINE_PASSWORD_TESTPYPI $(VENV_PYTHON) -m twine upload --repository testpypi --verbose --skip-existing dist/*; \
+	else \
+		echo "Using ~/.pypirc for authentication"; \
+		. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m twine upload --repository testpypi --verbose --skip-existing dist/*; \
+	fi
+	@echo "Upload to Test PyPI complete!"
+	@echo "Test installation with: pip install --index-url https://test.pypi.org/simple/ qbit-manage"
+
+.PHONY: upload-pypi
+upload-pypi: check-dist
+	@echo "Uploading to PyPI..."
+	@echo "WARNING: This will upload to the LIVE PyPI repository!"
+	@if [ -z "$$TWINE_PASSWORD_PYPI" ] && ! grep -q "password = pypi-" ~/.pypirc 2>/dev/null; then \
+		echo ""; \
+		echo "No API token found. Please either:"; \
+		echo "1. Set environment variable: export TWINE_PASSWORD_PYPI=your-pypi-token"; \
+		echo "2. Run 'make setup-pypi' and edit ~/.pypirc with your tokens"; \
+		echo "3. Get token from: https://pypi.org/manage/account/token/"; \
+		exit 1; \
+	fi
+	@read -p "Are you sure you want to continue? (y/N): " confirm && [ "$$confirm" = "y" ]
+	@if [ -n "$$TWINE_PASSWORD_PYPI" ]; then \
+		echo "Using environment variable for authentication"; \
+		. $(VENV_ACTIVATE) && TWINE_USERNAME=__token__ TWINE_PASSWORD=$$TWINE_PASSWORD_PYPI $(VENV_PYTHON) -m twine upload --verbose --skip-existing dist/*; \
+	else \
+		echo "Using ~/.pypirc for authentication"; \
+		. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m twine upload --verbose --skip-existing dist/*; \
+	fi
+	@echo "Upload to PyPI complete!"
+	@echo "Package is now available at: https://pypi.org/project/qbit-manage/"
+
+.PHONY: bump-version
+bump-version:
+	@echo "Current version: $$(cat VERSION)"
+	@echo "Bumping patch version for testing..."
+	@current_version=$$(cat VERSION | cut -d'-' -f1); \
+	IFS='.' read -r major minor patch <<< "$$current_version"; \
+	new_patch=$$((patch + 1)); \
+	new_version="$$major.$$minor.$$new_patch"; \
+	echo "$$new_version-dev" > VERSION; \
+	echo "✓ Version bumped to: $$(cat VERSION)"
+	@echo "Now you can run: make build && make upload-test"
+
+.PHONY: debug-upload
+debug-upload: check-dist
+	@echo "Debugging upload configuration..."
+	@echo "Current version: $$(cat VERSION 2>/dev/null || echo 'VERSION file not found')"
+	@echo ""
+	@echo "Checking ~/.pypirc configuration:"
+	@if [ -f ~/.pypirc ]; then \
+		echo "✓ ~/.pypirc exists"; \
+		echo "Repositories configured:"; \
+		grep -E "^\[.*\]" ~/.pypirc || echo "No repositories found"; \
+		echo ""; \
+		echo "Test PyPI config:"; \
+		sed -n '/\[testpypi\]/,/^\[/p' ~/.pypirc | head -n -1 || echo "No testpypi section found"; \
+	else \
+		echo "❌ ~/.pypirc not found"; \
+	fi
+	@echo ""
+	@echo "Environment variables:"
+	@echo "TWINE_USERNAME: $${TWINE_USERNAME:-not set}"
+	@echo "TWINE_PASSWORD_TESTPYPI: $${TWINE_PASSWORD_TESTPYPI:+set (hidden)}"
+	@echo "TWINE_PASSWORD_PYPI: $${TWINE_PASSWORD_PYPI:+set (hidden)}"
+	@echo ""
+	@echo "Package information:"
+	@ls -la dist/ 2>/dev/null || echo "No dist/ directory found"
+	@echo ""
+	@echo "Common issues and solutions:"
+	@echo "  - File already exists: Run 'make bump-version' to create a new version"
+	@echo "  - Invalid token: Run 'make setup-pypi' to reconfigure"
+	@echo "  - Package name taken: Change name in pyproject.toml"
+
+.PHONY: clean-dist
+clean-dist:
+	@echo "Cleaning distribution files..."
+	@rm -rf dist/
+	@rm -rf build/
+	@rm -rf *.egg-info/
+	@echo "Distribution files cleaned."
+
+# UV Tool Installation targets
+.PHONY: install
+install:
+	@echo "Installing qbit-manage using uv tool..."
+	@echo "Cleaning cache and build artifacts to ensure fresh install..."
+	@rm -rf build/ dist/ *.egg-info/ 2>/dev/null || true
+	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	@$(UV_PATH) cache clean >/dev/null 2>&1 || true
+	@$(UV_PATH) tool install . --force
+	@echo "✓ Installation complete!"
+	@echo "Test with: qbit-manage --version"
+
+.PHONY: install-dev
+install-dev:
+	@echo "Installing qbit-manage in development mode..."
+	@echo "Cleaning cache and build artifacts to ensure fresh install..."
+	@rm -rf build/ dist/ *.egg-info/ 2>/dev/null || true
+	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	@$(UV_PATH) cache clean >/dev/null 2>&1 || true
+	@$(UV_PATH) tool install . --force
+	@echo "✓ Development installation complete!"
+	@echo "Run 'make install-dev' again after making code changes"
+	@echo "Test with: qbit-manage --version"
+
+.PHONY: install-clean
+install-clean: install
+	@echo "✓ Clean installation complete!"
+
+.PHONY: uninstall
+uninstall:
+	@echo "Uninstalling qbit-manage..."
+	@$(UV_PATH) tool uninstall qbit-manage || echo "qbit-manage was not installed"
+	@echo "✓ Uninstall complete!"
+
+.PHONY: reinstall
+reinstall: uninstall install
+	@echo "✓ Reinstall complete!"
+
+.PHONY: help
+help:
+	@echo "Available targets:"
+	@echo "  install       - Install qbit-manage using uv tool (overwrites existing)"
+	@echo "  install-dev   - Install qbit-manage in development mode (same as install)"
+	@echo "  uninstall     - Uninstall qbit-manage from uv tools"
+	@echo "  reinstall     - Uninstall then install (clean reinstall)"
+	@echo "  venv          - Create virtual environment and install dependencies"
+	@echo "  sync          - Sync dependencies from pyproject.toml"
+	@echo "  test          - Run tests"
+	@echo "  lint          - Run linter with fixes"
+	@echo "  format        - Run code formatter"
+	@echo "  pre-commit    - Run pre-commit hooks"
+	@echo "  build         - Build package for distribution"
+	@echo "  check-dist    - Check distribution files"
+	@echo "  setup-pypi    - Set up PyPI configuration (~/.pypirc)"
+	@echo "  bump-version  - Bump patch version for testing uploads"
+	@echo "  debug-upload  - Debug PyPI upload configuration"
+	@echo "  upload-test   - Upload to Test PyPI (uses env vars or ~/.pypirc)"
+	@echo "  upload-pypi   - Upload to PyPI (LIVE) (uses env vars or ~/.pypirc)"
+	@echo "  clean-dist    - Clean distribution files"
+	@echo "  clean         - Clean up all generated files"
+	@echo "  help          - Show this help message"

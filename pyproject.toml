@@ -12,7 +12,7 @@ dynamic = ["version"]
 description = "This tool will help manage tedious tasks in qBittorrent and automate them. Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "bobokun"},
 ]
@@ -29,6 +29,9 @@ dependencies = [
     "ruamel.yaml==0.18.15",
     "uvicorn==0.35.0",
 ]
+
+[project.scripts]
+qbit-manage = "qbit_manage:main"
 
 [project.urls]
 Homepage = "https://github.com/StuffAnThings"
