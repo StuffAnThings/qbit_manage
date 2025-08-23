@@ -17,8 +17,8 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
 
 2. **Configure Path Mapping**
 
-   > [!IMPORTANT]
-   > qbit_manage must have the same path mappings as your qBittorrent container to properly access your torrents.
+> [!IMPORTANT]
+> qbit_manage must have the same path mappings as your qBittorrent container to properly access your torrents.
 
    **Example:** If qBittorrent is mapped as `/mnt/user/data/:/data`, then qbit_manage must also be mapped the same way.
 
@@ -39,8 +39,8 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
    - Rename it to `config.yml` (remove the `.sample` extension)
    - Edit the file according to the [Config Setup guide](Config-Setup)
 
-   > [!TIP]
-   > Make sure the `root_dir` in your config matches how qBittorrent sees your torrents (e.g., `/data/torrents`)
+ > [!TIP]
+ > Make sure the `root_dir` in your config matches how qBittorrent sees your torrents (e.g., `/data/torrents`)
 
 6. **Start the Container**
    - Start the qbit_manage container from the Docker tab
