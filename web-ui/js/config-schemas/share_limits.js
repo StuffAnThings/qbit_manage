@@ -4,6 +4,13 @@ export const shareLimitsSchema = {
     type: 'share-limits-config',
     fields: [
         {
+            type: 'documentation',
+            title: 'Share Limits Configuration Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'share_limits',
+            defaultExpanded: false
+        },
+        {
             name: 'share_limit_groups',
             type: 'object',
             label: 'Share Limit Groups',

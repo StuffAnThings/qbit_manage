@@ -17,7 +17,7 @@ export class ShareLimitsComponent {
         this.data = data;
         this.onDataChange = onDataChange;
         this.draggedElement = null;
-        this.schema = shareLimitsSchema.fields[0].properties; // Get the properties schema
+        this.schema = shareLimitsSchema.fields[1].properties; // Get the properties schema from share_limit_groups field
 
         // Clean up any existing modals before initializing
         this.closeExistingModals();

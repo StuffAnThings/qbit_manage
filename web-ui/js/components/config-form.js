@@ -118,18 +118,21 @@ class ConfigForm {
 
         // Initialize ShareLimitsComponent for share_limits section
         if (this.currentSection === 'share_limits') {
-            const shareLimitsContainer = this.container.querySelector('.share-limits-config');
-            if (shareLimitsContainer) {
-                this.shareLimitsComponent = new ShareLimitsComponent(
-                    shareLimitsContainer,
-                    this.currentData,
-                    (newData) => {
-                        this.currentData = newData;
-                        this.onDataChange(this.currentData);
-                        this._dispatchDirtyEvent();
-                    }
-                );
-            }
+            // Wait for documentation components to be created before initializing ShareLimitsComponent
+            setTimeout(() => {
+                const shareLimitsContainer = this.container.querySelector('.share-limits-config');
+                if (shareLimitsContainer) {
+                    this.shareLimitsComponent = new ShareLimitsComponent(
+                        shareLimitsContainer,
+                        this.currentData,
+                        (newData) => {
+                            this.currentData = newData;
+                            this.onDataChange(this.currentData);
+                            this._dispatchDirtyEvent();
+                        }
+                    );
+                }
+            }, 150); // Wait slightly longer than the documentation component creation (100ms)
         }
 
         // Initialize lazy loading for notifications section

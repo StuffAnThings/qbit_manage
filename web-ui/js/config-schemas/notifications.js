@@ -4,6 +4,13 @@ export const notificationsSchema = {
     type: 'multi-root-object',
     fields: [
         {
+            type: 'documentation',
+            title: 'Apprise Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'apprise',
+            defaultExpanded: false
+        },
+        {
             type: 'section_header',
             label: 'Apprise Configuration'
         },
@@ -20,6 +27,13 @@ export const notificationsSchema = {
             label: 'Notification Services URL',
             description: 'The notification URL(s) for your desired services, as supported by Apprise.',
             placeholder: 'discord://webhook_id/webhook_token'
+        },
+        {
+            type: 'documentation',
+            title: 'Notifiarr Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'notifiarr',
+            defaultExpanded: false
         },
         {
             type: 'section_header',
@@ -58,6 +72,13 @@ export const notificationsSchema = {
             type: 'button',
             label: 'Apply to All',
             action: 'apply-to-all'
+        },
+        {
+            type: 'documentation',
+            title: 'Webhooks Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'webhooks',
+            defaultExpanded: false
         },
         {
             type: 'section_header',

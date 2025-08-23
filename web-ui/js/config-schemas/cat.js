@@ -6,6 +6,15 @@ export const catSchema = {
     keyDescription: 'Name of the category as it appears in qBittorrent.',
     // Special handling for flat string values (category: path format)
     flatStringValues: true,
+    fields: [
+        {
+            type: 'documentation',
+            title: 'Categories Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'cat',
+            defaultExpanded: false
+        }
+    ],
     patternProperties: {
         ".*": {
             type: 'string',

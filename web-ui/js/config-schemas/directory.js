@@ -3,6 +3,13 @@ export const directorySchema = {
     description: 'Configure directory paths for various operations. Proper configuration is crucial for features like orphaned file detection, no-hardlinks tagging, and the recycle bin.',
     fields: [
         {
+            type: 'documentation',
+            title: 'Directory Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'directory',
+            defaultExpanded: false
+        },
+        {
             name: 'root_dir',
             type: 'text',
             label: 'Root Directory',

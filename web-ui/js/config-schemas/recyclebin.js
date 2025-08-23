@@ -3,6 +3,13 @@ export const recyclebinSchema = {
     description: 'Configure the recycle bin to move deleted files to a temporary location instead of permanently deleting them. This provides a safety net for accidental deletions.',
     fields: [
         {
+            type: 'documentation',
+            title: 'Recycle Bin Configuration Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'recyclebin',
+            defaultExpanded: false
+        },
+        {
             name: 'enabled',
             type: 'boolean',
             label: 'Enable Recycle Bin',

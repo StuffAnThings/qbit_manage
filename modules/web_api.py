@@ -226,6 +226,7 @@ class WebAPI:
 
         api_router.get("/logs")(self.get_logs)
         api_router.get("/log_files")(self.list_log_files)
+        api_router.get("/docs")(self.get_documentation)
         api_router.get("/version")(self.get_version)
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
@@ -972,6 +973,36 @@ class WebAPI:
             logger.error(f"Error reading log file {log_file_path}: {str(e)}")
             logger.stacktrace()
             raise HTTPException(status_code=500, detail=f"Failed to read log file: {str(e)}")
+
+    async def get_documentation(self, file: str):
+        """Get documentation content from markdown files."""
+        try:
+            # Sanitize the file path to prevent directory traversal
+            safe_filename = os.path.basename(file)
+
+            # Only allow markdown files
+            if not safe_filename.endswith(".md"):
+                raise HTTPException(status_code=400, detail="Only markdown files are allowed")
+
+            # Construct the path to the docs directory
+            docs_path = util.runtime_path("docs", safe_filename)
+
+            if not docs_path.exists():
+                raise HTTPException(status_code=404, detail=f"Documentation file not found: {safe_filename}")
+
+            # Read and return the file content
+            with open(docs_path, encoding="utf-8") as f:
+                content = f.read()
+
+            from fastapi.responses import PlainTextResponse
+
+            return PlainTextResponse(content=content, media_type="text/markdown")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error reading documentation file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error reading documentation: {str(e)}")
 
     async def list_log_files(self) -> dict:
         """List available log files."""

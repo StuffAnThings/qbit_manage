@@ -43,7 +43,7 @@ services:
       # Scheduler Configuration
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
-      - QBT_CONFIG=/config/config.yml
+      - QBT_CONFIG=config.yml
       - QBT_LOGFILE=activity.log
 
       # Command Flags

@@ -5,6 +5,13 @@ export const catChangeSchema = {
     useCategoryDropdown: true, // Flag to indicate this should use category dropdown for keys
     fields: [
         {
+            type: 'documentation',
+            title: 'Category Changes Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'cat_change',
+            defaultExpanded: false
+        },
+        {
             name: 'category_changes',
             type: 'object',
             label: 'Category Changes',

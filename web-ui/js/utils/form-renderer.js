@@ -67,6 +67,11 @@ export function generateSectionHTML(config, data) {
     `;
 
     if (config.type === 'dynamic-key-value-list') {
+        // Process documentation fields first
+        if (config.fields) {
+            const docFields = config.fields.filter(field => field.type === 'documentation');
+            html += generateFieldsHTML(docFields, data);
+        }
         html += generateDynamicKeyValueListHTML(config, data);
     } else if (config.type === 'fixed-object-config') {
         // For fixed-object-config, render fields of the first (and usually only) field directly
@@ -74,8 +79,18 @@ export function generateSectionHTML(config, data) {
         const mainField = config.fields[0];
         html += generateFieldsHTML(Object.values(mainField.properties), data[mainField.name] || {}, mainField.name);
     } else if (config.type === 'share-limits-config') {
+        // Process documentation fields first
+        if (config.fields) {
+            const docFields = config.fields.filter(field => field.type === 'documentation');
+            html += generateFieldsHTML(docFields, data);
+        }
         html += generateShareLimitsHTML(config, data);
     } else if (config.type === 'complex-object') {
+        // Process documentation fields first
+        if (config.fields) {
+            const docFields = config.fields.filter(field => field.type === 'documentation');
+            html += generateFieldsHTML(docFields, data);
+        }
         html += generateComplexObjectHTML(config, data);
     } else if (config.type === 'multi-root-object') {
         // For multi-root-object, render fields directly without nesting under section name
@@ -133,47 +148,62 @@ function generateFieldsHTML(fields, data, prefix = '') {
  * @returns {string} The HTML string for the fields.
  */
 function generateNotificationsFieldsHTML(fields, data) {
-    // Group fields by section for better performance
-    const sections = {
-        apprise: [],
-        notifiarr: [],
-        applyToAll: [],
-        webhooks: [],
-        functionWebhooks: []
-    };
+    // Render fields in their original order to preserve documentation placement
+    let html = '';
+    let functionWebhooksFields = [];
+    let inFunctionWebhooks = false;
 
     fields.forEach(field => {
-        if (field.type === 'section_header') {
-            if (field.label.includes('Apprise')) sections.apprise.push(field);
-            else if (field.label.includes('Notifiarr')) sections.notifiarr.push(field);
-            else if (field.label.includes('Apply to All')) sections.applyToAll.push(field);
-            else if (field.label.includes('Webhooks Configuration')) sections.webhooks.push(field);
-            else if (field.label.includes('Function Specific')) sections.functionWebhooks.push(field);
+        // Check if we're entering the Function Specific Webhooks section
+        if (field.type === 'section_header' && field.label.includes('Function Specific')) {
+            inFunctionWebhooks = true;
+            // Start the lazy loading container for function webhooks
+            html += `<div class="webhook-sections-container">`;
+            html += `<div class="function-webhooks-lazy" data-section="function-webhooks">`;
+            html += `<div class="lazy-load-placeholder">Click to load Function Specific Webhooks...</div>`;
+            html += `<div class="lazy-content hidden">`;
+        }
+
+        if (inFunctionWebhooks) {
+            // Collect function webhook fields for lazy loading
+            functionWebhooksFields.push(field);
         } else {
-            if (field.name?.startsWith('apprise.')) sections.apprise.push(field);
-            else if (field.name?.startsWith('notifiarr.')) sections.notifiarr.push(field);
-            else if (field.name === 'apply_to_all_value' || field.action === 'apply-to-all') sections.applyToAll.push(field);
-            else if (field.name?.startsWith('webhooks.function.')) sections.functionWebhooks.push(field);
-            else if (field.name?.startsWith('webhooks.')) sections.webhooks.push(field);
+            // Render field normally in original order
+            if (field.type === 'section_header') {
+                html += generateFieldHTML(field, null, null);
+            } else {
+                let fieldName, value;
+                if (field.name) {
+                    fieldName = field.name;
+                    value = getNestedValue(data, fieldName) ?? field.default ?? '';
+                } else {
+                    fieldName = null;
+                    value = null;
+                }
+                html += generateFieldHTML(field, value, fieldName);
+            }
         }
     });
 
-    // Render sections with lazy loading containers
-    let html = '';
-
-    // Render critical sections first (Apprise, Notifiarr)
-    html += renderFieldSection(sections.apprise, data, 'apprise-section');
-    html += renderFieldSection(sections.notifiarr, data, 'notifiarr-section');
-    html += renderFieldSection(sections.applyToAll, data, 'apply-all-section');
-
-    // Render webhook sections with lazy loading
-    html += `<div class="webhook-sections-container">`;
-    html += renderFieldSection(sections.webhooks, data, 'webhooks-section');
-    html += `<div class="function-webhooks-lazy" data-section="function-webhooks">`;
-    html += `<div class="lazy-load-placeholder">Click to load Function Specific Webhooks...</div>`;
-    html += `<div class="lazy-content hidden">`;
-    html += renderFieldSection(sections.functionWebhooks, data, 'function-webhooks-section');
-    html += `</div></div></div>`;
+    // Render function webhooks in lazy loading container
+    if (functionWebhooksFields.length > 0) {
+        functionWebhooksFields.forEach(field => {
+            if (field.type === 'section_header') {
+                html += generateFieldHTML(field, null, null);
+            } else {
+                let fieldName, value;
+                if (field.name) {
+                    fieldName = field.name;
+                    value = getNestedValue(data, fieldName) ?? field.default ?? '';
+                } else {
+                    fieldName = null;
+                    value = null;
+                }
+                html += generateFieldHTML(field, value, fieldName);
+            }
+        });
+        html += `</div></div></div>`;
+    }
 
     return html;
 }
@@ -232,6 +262,36 @@ export function generateFieldHTML(field, value, fieldName) {
             inputHTML = `
                 <h3 class="section-subheader">${field.label}</h3>
             `;
+            break;
+
+        case 'documentation':
+            // Create a placeholder div that will be replaced with the documentation component
+            const docId = `doc-${Math.random().toString(36).substr(2, 9)}`;
+            inputHTML = `<div id="${docId}" class="documentation-placeholder"
+                              data-title="${field.title || 'Documentation'}"
+                              data-file-path="${field.filePath || ''}"
+                              data-section="${field.section || ''}"
+                              data-heading-level="${field.headingLevel || 2}"
+                              data-default-expanded="${field.defaultExpanded || false}"></div>`;
+
+            // Schedule the documentation component creation for after DOM insertion
+            setTimeout(() => {
+                const placeholder = document.getElementById(docId);
+                if (placeholder && window.DocumentationViewer) {
+                    window.DocumentationViewer.createDocumentationSection({
+                        title: placeholder.dataset.title,
+                        filePath: placeholder.dataset.filePath,
+                        section: placeholder.dataset.section || null,
+                        headingLevel: parseInt(placeholder.dataset.headingLevel),
+                        defaultExpanded: placeholder.dataset.defaultExpanded === 'true'
+                    }).then(docSection => {
+                        placeholder.parentNode.replaceChild(docSection, placeholder);
+                    }).catch(error => {
+                        console.error('Failed to create documentation section:', error);
+                        placeholder.innerHTML = '<div class="documentation-error">Failed to load documentation</div>';
+                    });
+                }
+            }, 100);
             break;
 
         case 'button':
@@ -554,6 +614,11 @@ function generateComplexObjectHTML(config, data) {
     const complexObjectData = data || {};
     let html = `
         <div class="complex-object">
+    `;
+
+    // Documentation is now handled in generateSectionHTML, so we don't need to duplicate it here
+
+    html += `
             <div class="complex-object-header">
                 <h3>${config.title}</h3>
                 <button type="button" class="btn btn-primary add-complex-object-item-btn">
