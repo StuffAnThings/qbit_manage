@@ -331,13 +331,33 @@ class WebAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_version(self) -> dict:
-        """Get the current qBit Manage version using centralized util function"""
+        """Get the current qBit Manage version with update availability details."""
         try:
             version, branch = util.get_current_version()
-            return {"version": version[0]}
+            latest_version = util.current_version(version, branch=branch)
+            update_available = False
+            latest_version_str = None
+
+            if latest_version and (version[1] != latest_version[1] or (version[2] and version[2] < latest_version[2])):
+                update_available = True
+                latest_version_str = latest_version[0]
+
+            return {
+                "version": version[0],
+                "branch": branch,
+                "build": version[2],
+                "latest_version": latest_version_str or version[0],
+                "update_available": update_available,
+            }
         except Exception as e:
             logger.error(f"Error getting version: {str(e)}")
-            return {"version": "Unknown"}
+            return {
+                "version": "Unknown",
+                "branch": "Unknown",
+                "build": 0,
+                "latest_version": None,
+                "update_available": False,
+            }
 
     async def health_check(self) -> HealthCheckResponse:
         """Health check endpoint providing application status information."""
