@@ -427,6 +427,11 @@ class Scheduler:
     def get_next_run(self) -> Optional[datetime]:
         """Get the next scheduled run time."""
         with self.lock:
+            # Return the stored next_run if it exists and is in the future
+            # This preserves the original schedule timing
+            if self.next_run and self.next_run > datetime.now():
+                return self.next_run
+            # Otherwise, calculate a new next run time
             return self._calculate_next_run()
 
     def get_current_schedule(self) -> Optional[tuple[str, Union[str, int]]]:
@@ -479,6 +484,8 @@ class Scheduler:
                 return cron.get_next(datetime)
 
             elif schedule_type == "interval":
+                # For interval schedules, calculate from current time
+                # The scheduler loop will handle maintaining proper intervals
                 return now + timedelta(minutes=int(schedule_value))
 
         except Exception as e:
