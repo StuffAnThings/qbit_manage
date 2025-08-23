@@ -68,6 +68,7 @@ jobs:
           ADD_SAMPLE_CFG="config/config.yml.sample${{ steps.sep.outputs.SEP }}config"
           ADD_LOGO="icons/qbm_logo.png${{ steps.sep.outputs.SEP }}."
           ADD_VERSION="VERSION${{ steps.sep.outputs.SEP }}."
+          ADD_DOCS="docs${{ steps.sep.outputs.SEP }}docs"
           ICON_ARG=""
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             ICON_ARG=--icon=icons/qbm_logo.ico
@@ -89,6 +90,7 @@ jobs:
                       --add-data "$ADD_SAMPLE_CFG" \
                       --add-data "$ADD_LOGO" \
                       --add-data "$ADD_VERSION" \
+                      --add-data "$ADD_DOCS" \
                       $ICON_ARG \
                       "${ENTRY}"
 
