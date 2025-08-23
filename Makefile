@@ -41,11 +41,14 @@ endif
 venv: install-uv
 	@echo "Creating virtual environment..."
 	@$(UV_PATH) venv $(VENV)
-	@echo "Installing project dependencies..."
-	@$(UV_PATH) pip install -e .
+	@echo "Installing project dependencies from pyproject.toml..."
+	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e . --config-settings editable_mode=compat
+	@echo "Removing conflicting console script to avoid PATH conflicts..."
+	@rm -f $(VENV)/bin/qbit-manage 2>/dev/null || true
 	@echo "Installing development dependencies..."
-	@$(UV_PATH) pip install pre-commit ruff
+	@$(UV_PATH) pip install --python $(VENV_PYTHON) pre-commit ruff
 	@echo "Virtual environment created and dependencies installed."
+	@echo "✓ Virtual environment ready for development"
 	@echo "To activate the virtual environment, run: source $(VENV_ACTIVATE)"
 
 .PHONY: sync
@@ -76,6 +79,15 @@ clean:
 	@rm -rf $(VENV)
 	@rm -rf .pytest_cache
 	@rm -rf .ruff_cache
+	@rm -rf dist/
+	@rm -rf build/
+	@rm -rf *.egg-info/
+	@rm -rf web-ui/dist/
+	@rm -rf web-ui/build/
+	@rm -rf web-ui/node_modules/
+	@rm -rf desktop/tauri/src-tauri/target/
+	@rm -rf desktop/tauri/src-tauri/gen/
+	@rm -rf desktop/tauri/node_modules/
 	@echo "Cleanup complete."
 
 .PHONY: lint
@@ -243,14 +255,6 @@ debug-upload: check-dist
 	@echo "  - Invalid token: Run 'make setup-pypi' to reconfigure"
 	@echo "  - Package name taken: Change name in pyproject.toml"
 
-.PHONY: clean-dist
-clean-dist:
-	@echo "Cleaning distribution files..."
-	@rm -rf dist/
-	@rm -rf build/
-	@rm -rf *.egg-info/
-	@echo "Distribution files cleaned."
-
 # UV Tool Installation targets
 .PHONY: install
 install:
@@ -262,22 +266,6 @@ install:
 	@$(UV_PATH) tool install . --force
 	@echo "✓ Installation complete!"
 	@echo "Test with: qbit-manage --version"
-
-.PHONY: install-dev
-install-dev:
-	@echo "Installing qbit-manage in development mode..."
-	@echo "Cleaning cache and build artifacts to ensure fresh install..."
-	@rm -rf build/ dist/ *.egg-info/ 2>/dev/null || true
-	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-	@$(UV_PATH) cache clean >/dev/null 2>&1 || true
-	@$(UV_PATH) tool install . --force
-	@echo "✓ Development installation complete!"
-	@echo "Run 'make install-dev' again after making code changes"
-	@echo "Test with: qbit-manage --version"
-
-.PHONY: install-clean
-install-clean: install
-	@echo "✓ Clean installation complete!"
 
 .PHONY: uninstall
 uninstall:
@@ -293,7 +281,6 @@ reinstall: uninstall install
 help:
 	@echo "Available targets:"
 	@echo "  install       - Install qbit-manage using uv tool (overwrites existing)"
-	@echo "  install-dev   - Install qbit-manage in development mode (same as install)"
 	@echo "  uninstall     - Uninstall qbit-manage from uv tools"
 	@echo "  reinstall     - Uninstall then install (clean reinstall)"
 	@echo "  venv          - Create virtual environment and install dependencies"
@@ -309,6 +296,5 @@ help:
 	@echo "  debug-upload  - Debug PyPI upload configuration"
 	@echo "  upload-test   - Upload to Test PyPI (uses env vars or ~/.pypirc)"
 	@echo "  upload-pypi   - Upload to PyPI (LIVE) (uses env vars or ~/.pypirc)"
-	@echo "  clean-dist    - Clean distribution files"
-	@echo "  clean         - Clean up all generated files"
+	@echo "  clean         - Clean up all generated files (venv, dist, build, cache)"
 	@echo "  help          - Show this help message"

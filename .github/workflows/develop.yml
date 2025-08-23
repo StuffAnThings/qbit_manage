@@ -188,13 +188,17 @@ jobs:
           # Run cargo check to trigger build script and update version files
           cargo check
 
-      - name: Build Tauri app
+      - name: Install Tauri CLI
         working-directory: desktop/tauri/src-tauri
         shell: bash
         run: |
           # Install Tauri 2 CLI (project migrated to Tauri v2 config & deps)
           cargo install tauri-cli --version ^2 --locked --force
 
+      - name: Build Tauri app (initial attempt)
+        working-directory: desktop/tauri/src-tauri
+        shell: bash
+        run: |
           # Build with explicit bundle targets for this platform
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
@@ -203,6 +207,60 @@ jobs:
           else
             cargo tauri build --bundles deb
           fi
+        continue-on-error: true
+        id: tauri-build
+
+      - name: Wait before retry (macOS DMG recovery)
+        if: steps.tauri-build.outcome == 'failure' && runner.os == 'macOS'
+        run: sleep 30
+        shell: bash
+
+      - name: Wait before retry (build recovery)
+        if: steps.tauri-build.outcome == 'failure'
+        run: sleep 30
+        shell: bash
+
+      - name: Retry Tauri build on failure (attempt 2)
+        if: steps.tauri-build.outcome == 'failure'
+        working-directory: desktop/tauri/src-tauri
+        shell: bash
+        run: |
+          # Build with explicit bundle targets for this platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cargo tauri build --bundles app,dmg
+          else
+            cargo tauri build --bundles deb
+          fi
+        continue-on-error: true
+        id: tauri-build-retry1
+
+      - name: Wait before final retry (build recovery)
+        if: steps.tauri-build-retry1.outcome == 'failure'
+        run: sleep 30
+        shell: bash
+
+      - name: Final retry Tauri build on failure (attempt 3)
+        if: steps.tauri-build-retry1.outcome == 'failure'
+        working-directory: desktop/tauri/src-tauri
+        shell: bash
+        run: |
+          # Build with explicit bundle targets for this platform
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            cargo tauri build --bundles app,dmg
+          else
+            cargo tauri build --bundles deb
+          fi
+
+      - name: Fail if all Tauri build attempts failed
+        if: steps.tauri-build.outcome == 'failure' && steps.tauri-build-retry1.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "❌ Tauri build failed after all attempts"
+          exit 1
 
       - name: Set BUILD_ARCH for artifact naming
         shell: bash
