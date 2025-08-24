@@ -457,7 +457,7 @@ def get_master():
 def get_version(level):
     try:
         # Always fetch fresh; bust caches and disable intermediaries
-        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/{level}/VERSION"
+        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/refs/heads/{level}/VERSION"
         params = {"ts": int(time.time())}
         headers = {
             "Cache-Control": "no-cache",
