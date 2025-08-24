@@ -47,9 +47,19 @@ jobs:
         run: |
           source .venv/bin/activate
           python scripts/update-readme-version.py ${{ github.event.inputs.targetBranch || github.ref_name }}
+      - name: Check for SUPPORTED_VERSIONS changes
+        id: detect-changes
+        run: |
+          if git diff --name-only | grep -q '^SUPPORTED_VERSIONS\.json$'; then
+            echo "SUPPORTED_VERSIONS.json changed."
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes to SUPPORTED_VERSIONS.json. Skipping remainder of workflow."
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Update develop versions
-        if: ${{ github.event.inputs.targetBranch || github.ref_name == 'develop' }}
+        if: ${{ steps.detect-changes.outputs.changed == 'true' && (github.event.inputs.targetBranch || github.ref_name) == 'develop' }}
         id: get-develop-version
         run: |
           # Run the script and capture its output
@@ -63,6 +73,7 @@ jobs:
           echo "Captured Version: $version"
 
       - name: Create Pull Request
+        if: ${{ steps.detect-changes.outputs.changed == 'true' }}
         id: create-pr
         uses: peter-evans/create-pull-request@v7
         with:
