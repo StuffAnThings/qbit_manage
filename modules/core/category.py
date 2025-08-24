@@ -19,6 +19,7 @@ class Category:
         self.status_filter = "completed" if self.config.settings["cat_filter_completed"] else "all"
         self.cat_update_all = self.config.settings["cat_update_all"]
         self.category()
+        self.change_categories()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="category")
 
     def category(self):
@@ -47,10 +48,6 @@ class Category:
                 continue
             if torrent_category not in new_cat:
                 self.update_cat(torrent, new_cat[0], False)
-            # Change categories
-            if self.config.cat_change and torrent_category in self.config.cat_change:
-                updated_cat = self.config.cat_change[torrent_category]
-                self.update_cat(torrent, updated_cat, True)
 
         if self.stats >= 1:
             logger.print_line(
@@ -62,6 +59,29 @@ class Category:
         end_time = time.time()
         duration = end_time - start_time
         logger.debug(f"Category command completed in {duration:.2f} seconds")
+
+    def change_categories(self):
+        """Handle category changes separately after main categorization"""
+        if not self.config.cat_change:
+            return
+
+        logger.separator("Changing Categories", space=False, border=False)
+        start_time = time.time()
+
+        for torrent_category, updated_cat in self.config.cat_change.items():
+            # Get torrents with the specific category to be changed
+            torrent_list_filter = {"status_filter": self.status_filter, "category": torrent_category}
+            if self.hashes:
+                torrent_list_filter["torrent_hashes"] = self.hashes
+
+            torrent_list = self.qbt.get_torrents(torrent_list_filter)
+
+            for torrent in torrent_list:
+                self.update_cat(torrent, updated_cat, True)
+
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug(f"Category change command completed in {duration:.2f} seconds")
 
     def get_tracker_cat(self, torrent):
         tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
