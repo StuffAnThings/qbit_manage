@@ -397,30 +397,78 @@ def current_version(version, branch=None):
 
 
 develop_version = None
+develop_version_ts = 0.0
 
 
 def get_develop():
-    global develop_version
-    if develop_version is None:
-        develop_version = get_version("develop")
-    return develop_version
+    """Return latest develop version using TTL cache."""
+    global develop_version, develop_version_ts
+    ttl = _get_version_cache_ttl_seconds()
+    now = time.time()
+    if develop_version is not None and (now - develop_version_ts) < ttl:
+        return develop_version
+    value = get_version("develop")
+    # Only cache successful lookups
+    if value and value[0] != "Unknown":
+        develop_version = value
+        develop_version_ts = now
+    return value
 
 
 master_version = None
+master_version_ts = 0.0
+
+
+def _get_version_cache_ttl_seconds() -> int:
+    """Resolve TTL for version cache from env QBM_VERSION_CACHE_TTL.
+
+    Accepts seconds (e.g., "600") or human strings (e.g., "10m", "1h").
+    Defaults to 600 seconds (10 minutes) if unset or invalid.
+    """
+    raw = os.environ.get("QBM_VERSION_CACHE_TTL", "600")
+    secs = None
+    try:
+        secs = int(raw)
+    except Exception:
+        try:
+            secs = parse(raw) if raw else None
+        except Exception:
+            secs = None
+    if not secs or secs < 1:
+        secs = 600
+    return int(secs)
 
 
 def get_master():
-    global master_version
-    if master_version is None:
-        master_version = get_version("master")
-    return master_version
+    """Return latest master version using TTL cache."""
+    global master_version, master_version_ts
+    ttl = _get_version_cache_ttl_seconds()
+    now = time.time()
+    if master_version is not None and (now - master_version_ts) < ttl:
+        return master_version
+    value = get_version("master")
+    # Only cache successful lookups
+    if value and value[0] != "Unknown":
+        master_version = value
+        master_version_ts = now
+    return value
 
 
 def get_version(level):
     try:
-        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/{level}/VERSION"
-        return parse_version(requests.get(url).content.decode().strip(), text=level)
-    except requests.exceptions.ConnectionError:
+        # Always fetch fresh; bust caches and disable intermediaries
+        url = f"https://raw.githubusercontent.com/StuffAnThings/qbit_manage/refs/heads/{level}/VERSION"
+        params = {"ts": int(time.time())}
+        headers = {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Accept": "text/plain",
+            "User-Agent": "qbit_manage-version-check",
+        }
+        resp = requests.get(url, headers=headers, params=params, timeout=5)
+        resp.raise_for_status()
+        return parse_version(resp.text.strip(), text=level)
+    except Exception:
         return "Unknown", "Unknown", 0
 
 

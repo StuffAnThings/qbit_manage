@@ -3,6 +3,13 @@ export const qbtSchema = {
     description: 'Configure the connection to your qBittorrent client.',
     fields: [
         {
+            type: 'documentation',
+            title: 'qBittorrent Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'qbt',
+            defaultExpanded: false
+        },
+        {
             name: 'host',
             type: 'text',
             label: 'Host',

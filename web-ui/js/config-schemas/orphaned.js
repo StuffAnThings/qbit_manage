@@ -3,6 +3,13 @@ export const orphanedSchema = {
     description: 'Configure settings for managing orphaned files, which are files in your root directory not associated with any torrent.',
     fields: [
         {
+            type: 'documentation',
+            title: 'Orphaned Files Configuration Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'orphaned',
+            defaultExpanded: false
+        },
+        {
             name: 'empty_after_x_days',
             type: 'number',
             label: 'Empty After X Days',

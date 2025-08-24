@@ -118,10 +118,28 @@ class QbitManageApp {
         try {
             const response = await this.api.getVersion();
             const versionText = response.version || 'Unknown';
-            document.getElementById('version-text').textContent = `qBit Manage v${versionText}`;
+            const versionEl = document.getElementById('version-text');
+            if (versionEl) {
+                versionEl.textContent = `qBit Manage v${versionText}`;
+                if (response.update_available) {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-warning';
+                    const latest = response.latest_version || 'latest';
+                    badge.textContent = `Update available: ${latest}`;
+                    badge.style.marginLeft = '0.5rem';
+                    if (versionEl.parentElement) {
+                        versionEl.parentElement.appendChild(badge);
+                    }
+                    const branch = response.branch ? ` (${response.branch})` : '';
+                    showToast(`A new version is available${branch}: ${latest}`, 'info');
+                }
+            }
         } catch (error) {
             console.error('Failed to fetch version from API:', error);
-            document.getElementById('version-text').textContent = 'qBit Manage vUnknown';
+            const versionEl = document.getElementById('version-text');
+            if (versionEl) {
+                versionEl.textContent = 'qBit Manage vUnknown';
+            }
         }
     }
 

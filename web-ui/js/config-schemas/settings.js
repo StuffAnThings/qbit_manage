@@ -3,6 +3,13 @@ export const settingsSchema = {
     description: 'Configure general application settings and default behaviors.',
     fields: [
         {
+            type: 'documentation',
+            title: 'Settings Configuration Guide',
+            filePath: 'Config-Setup.md',
+            section: 'settings',
+            defaultExpanded: false
+        },
+        {
             name: 'force_auto_tmm',
             type: 'boolean',
             label: 'Force Auto TMM',

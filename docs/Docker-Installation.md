@@ -43,7 +43,7 @@ services:
       # Scheduler Configuration
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
-      - QBT_CONFIG=/config/config.yml
+      - QBT_CONFIG=config.yml
       - QBT_LOGFILE=activity.log
 
       # Command Flags
@@ -78,7 +78,7 @@ The Web API and Web UI are enabled by default in this Docker setup.
 2. Access the Web UI at `http://your-host:8080`
 3. Access the Web API at `http://your-host:8080/api/run-command`
 
-See the [Web API Documentation](Web-API.md) for detailed usage instructions and examples.
+See the [Web API Documentation](Web-API) for detailed usage instructions and examples.
 
 You will also need to define not just the config volume but the volume to your torrents, this is in order to use the recycling bin, remove orphans and the no hard link options
 

@@ -2,6 +2,15 @@ export const trackerSchema = {
     title: 'Tracker',
     description: 'Configure tags and categories based on tracker URLs. Use a keyword from the tracker URL to define rules. The `other` key is a special keyword for trackers that do not match any other entry.',
     type: 'complex-object',
+    fields: [
+        {
+            type: 'documentation',
+            title: 'Tracker Configuration Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'tracker',
+            defaultExpanded: false
+        }
+    ],
     patternProperties: {
         "^(?!other$).*$": { // Matches any key except 'other'
             type: 'object',

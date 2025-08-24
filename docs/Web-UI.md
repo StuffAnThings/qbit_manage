@@ -1,5 +1,8 @@
 # qBit Manage Web UI
 
+> [!IMPORTANT]
+> Below is a summary of the WebUI. For details on the specific features and settings please see the rest of the wiki and sample config file to understand the functionality and description of each setting. The WebUI is effectively a GUI config file editor. You cannot edit environmental or container variables via the WebUI.
+
 ## Overview
 The qBit Manage Web UI provides a modern interface for configuring and managing qBit Manage. It offers real-time editing of YAML configuration files through an intuitive visual interface, eliminating the need for manual file editing.
 

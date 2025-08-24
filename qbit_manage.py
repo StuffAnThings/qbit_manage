@@ -236,6 +236,7 @@ parser.add_argument(
 parser.add_argument(
     "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
 )
+parser.add_argument("-v", "--version", dest="version", action="store_true", default=False, help="Display the version and exit")
 # Use parse_known_args to ignore PyInstaller/multiprocessing injected flags on Windows
 args, _unknown_cli = parser.parse_known_args()
 
@@ -486,6 +487,13 @@ def start():
                             nxt = cron.get_next(datetime)
                         return nxt
                     if stype == "interval":
+                        # For interval schedules, we should use the scheduler's authoritative next_run
+                        # rather than calculating from current time, to avoid drift from manual runs
+                        scheduler_next = scheduler.get_next_run()
+                        if scheduler_next and scheduler_next > now_local:
+                            return scheduler_next
+                        # Fallback: if scheduler's next_run is not available or in the past,
+                        # calculate from current time
                         return now_local + timedelta(minutes=int(sval))
             except Exception:
                 pass
@@ -660,7 +668,24 @@ def print_logo(logger):
     logger.info(f"    Platform: {platform.platform()}")
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for qbit-manage."""
+    if len(sys.argv) > 1 and sys.argv[1] in ["--version", "-v"]:
+        try:
+            version_info, branch = util.get_current_version()
+            # Extract just the version string (first element if tuple, otherwise use as-is)
+            if isinstance(version_info, tuple):
+                version = version_info[0]
+            else:
+                version = version_info
+            print(f"qbit-manage version {version}")
+            if branch and branch != "master":
+                print(f"Branch: {branch}")
+        except Exception:
+            # Fallback if version detection fails
+            print("qbit-manage version unknown")
+        sys.exit(0)
+
     multiprocessing.freeze_support()
     killer = GracefulKiller()
     logger.add_main_handler()
@@ -682,6 +707,12 @@ if __name__ == "__main__":
         web_api_queue = manager.Queue()
         scheduler_update_queue = manager.Queue()  # Queue for scheduler updates from web API
         next_scheduled_run_info_shared = manager.dict()
+
+        # Make these variables globally accessible
+        globals()["is_running"] = is_running
+        globals()["is_running_lock"] = is_running_lock
+        globals()["web_api_queue"] = web_api_queue
+        globals()["next_scheduled_run_info_shared"] = next_scheduled_run_info_shared
 
         # Start web server if enabled and not in run mode
         web_process = None
@@ -864,13 +895,18 @@ if __name__ == "__main__":
 
             # Stop the scheduler gracefully
             scheduler.stop()
-            if web_process:
-                web_process.terminate()
-                web_process.join()
-            end()
+        # Cleanup and exit (common for both run and scheduled modes)
+        if web_process:
+            web_process.terminate()
+            web_process.join()
+        end()
     except KeyboardInterrupt:
         scheduler.stop()
         if web_process:
             web_process.terminate()
             web_process.join()
         end()
+
+
+if __name__ == "__main__":
+    main()

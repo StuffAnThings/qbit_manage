@@ -5,6 +5,15 @@ export const nohardlinksSchema = {
     keyLabel: 'Category',
     keyDescription: 'Category to check for torrents without hardlinks.',
     useCategoryDropdown: true, // Flag to indicate this should use category dropdown
+    fields: [
+        {
+            type: 'documentation',
+            title: 'No Hardlinks Configuration Documentation',
+            filePath: 'Config-Setup.md',
+            section: 'nohardlinks',
+            defaultExpanded: false
+        }
+    ],
     patternProperties: {
         ".*": { // Matches any category name
             type: 'object',

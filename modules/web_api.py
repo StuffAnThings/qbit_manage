@@ -118,17 +118,40 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
 
             if not is_currently_running and not web_api.web_api_queue.empty():
                 logger.info("Processing queued requests...")
-                while not web_api.web_api_queue.empty():
-                    try:
-                        request = web_api.web_api_queue.get_nowait()
+                # Set is_running flag to prevent concurrent execution
+                try:
+                    if web_api.is_running_lock.acquire(timeout=0.1):
                         try:
-                            await web_api._execute_command(request)
-                            logger.info("Successfully processed queued request")
-                        except Exception as e:
-                            logger.error(f"Error processing queued request: {str(e)}")
-                    except:
-                        # Queue is empty, break out of inner loop
-                        break
+                            web_api.is_running.value = True
+                            object.__setattr__(web_api, "_last_run_start", datetime.now())
+                        finally:
+                            web_api.is_running_lock.release()
+                    else:
+                        # If we can't acquire the lock, skip processing this cycle
+                        continue
+                except Exception:
+                    # If there's an error setting the flag, skip processing this cycle
+                    continue
+                try:
+                    while not web_api.web_api_queue.empty():
+                        try:
+                            request = web_api.web_api_queue.get_nowait()
+                            try:
+                                await web_api._execute_command(request)
+                                logger.info("Successfully processed queued request")
+                            except Exception as e:
+                                logger.error(f"Error processing queued request: {str(e)}")
+                        except:
+                            # Queue is empty, break out of inner loop
+                            break
+                finally:
+                    # Always reset is_running flag after processing queue
+                    try:
+                        with web_api.is_running_lock:
+                            web_api.is_running.value = False
+                            object.__setattr__(web_api, "_last_run_start", None)
+                    except Exception as e:
+                        logger.error(f"Error resetting is_running flag after queue processing: {str(e)}")
             await asyncio.sleep(1)  # Check every second
     except asyncio.CancelledError:
         logger.info("Queue processing task cancelled")
@@ -226,6 +249,7 @@ class WebAPI:
 
         api_router.get("/logs")(self.get_logs)
         api_router.get("/log_files")(self.list_log_files)
+        api_router.get("/docs")(self.get_documentation)
         api_router.get("/version")(self.get_version)
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
@@ -331,13 +355,33 @@ class WebAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_version(self) -> dict:
-        """Get the current qBit Manage version using centralized util function"""
+        """Get the current qBit Manage version with update availability details."""
         try:
             version, branch = util.get_current_version()
-            return {"version": version[0]}
+            latest_version = util.current_version(version, branch=branch)
+            update_available = False
+            latest_version_str = None
+
+            if latest_version and (version[1] != latest_version[1] or (version[2] and version[2] < latest_version[2])):
+                update_available = True
+                latest_version_str = latest_version[0]
+
+            return {
+                "version": version[0],
+                "branch": branch,
+                "build": version[2],
+                "latest_version": latest_version_str or version[0],
+                "update_available": update_available,
+            }
         except Exception as e:
             logger.error(f"Error getting version: {str(e)}")
-            return {"version": "Unknown"}
+            return {
+                "version": "Unknown",
+                "branch": "Unknown",
+                "build": 0,
+                "latest_version": None,
+                "update_available": False,
+            }
 
     async def health_check(self) -> HealthCheckResponse:
         """Health check endpoint providing application status information."""
@@ -835,7 +879,11 @@ class WebAPI:
                 try:
                     if self.is_running.value:
                         # Check if the process has been stuck for too long
-                        if hasattr(self, "_last_run_start") and (datetime.now() - self._last_run_start).total_seconds() > 3600:
+                        if (
+                            hasattr(self, "_last_run_start")
+                            and self._last_run_start is not None
+                            and (datetime.now() - self._last_run_start).total_seconds() > 3600
+                        ):
                             logger.warning("Previous run appears to be stuck. Forcing reset of is_running flag.")
                             self.is_running.value = False
                             object.__setattr__(self, "_last_run_start", None)  # Clear the stuck timestamp
@@ -952,6 +1000,36 @@ class WebAPI:
             logger.error(f"Error reading log file {log_file_path}: {str(e)}")
             logger.stacktrace()
             raise HTTPException(status_code=500, detail=f"Failed to read log file: {str(e)}")
+
+    async def get_documentation(self, file: str):
+        """Get documentation content from markdown files."""
+        try:
+            # Sanitize the file path to prevent directory traversal
+            safe_filename = os.path.basename(file)
+
+            # Only allow markdown files
+            if not safe_filename.endswith(".md"):
+                raise HTTPException(status_code=400, detail="Only markdown files are allowed")
+
+            # Construct the path to the docs directory
+            docs_path = util.runtime_path("docs", safe_filename)
+
+            if not docs_path.exists():
+                raise HTTPException(status_code=404, detail=f"Documentation file not found: {safe_filename}")
+
+            # Read and return the file content
+            with open(docs_path, encoding="utf-8") as f:
+                content = f.read()
+
+            from fastapi.responses import PlainTextResponse
+
+            return PlainTextResponse(content=content, media_type="text/markdown")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error reading documentation file: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error reading documentation: {str(e)}")
 
     async def list_log_files(self) -> dict:
         """List available log files."""

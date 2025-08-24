@@ -1,7 +1,13 @@
 export const commandsSchema = {
     title: 'Commands',
-    description: 'Enable or disable specific commands to be executed during a run. These settings can be overridden by command-line arguments or environment variables.',
+    description: 'Enable or disable specific commands to be executed during a run. This section will override any commands that are defined via environment variable or command line',
     fields: [
+        {
+            type: 'documentation',
+            title: 'Commands Documentation',
+            filePath: 'Commands.md',
+            defaultExpanded: false
+        },
         {
             name: 'recheck',
             type: 'boolean',

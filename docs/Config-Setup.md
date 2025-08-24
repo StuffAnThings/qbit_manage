@@ -1,7 +1,7 @@
 
 # Overview
 
-The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI.md), which requires the [Web API](Web-API.md) to be enabled.
+The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI), which requires the [Web API](Web-API) to be enabled.
 
 ## Default Configuration File Locations
 
@@ -21,7 +21,8 @@ A template Configuration File can be found in the repo [config/config.yml.sample
 
 You can reference environment variables inside your `config.yml` by `!ENV VAR_NAME`
 
-**WARNING**: As this software is constantly evolving and this wiki might not be up to date the sample shown here might not might not be current. Please refer to the repo for the most current version.
+> [!CAUTION]
+> As this software is constantly evolving and this wiki might not be up to date the sample shown here might not be current. Please refer to the repo for the most current version.
 
 # Config File
 
@@ -91,7 +92,12 @@ This section defines the directories that qbit_manage will be looking into for v
 ---
 This section defines the categories that you are currently using and the save path's that are associated with them.
 
-> **NOTE** ALL save paths must be defined, if it is in your qBit, then it **MUST** be defined here, if not the script will throw errors. If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category. You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
+The `cat` command will use the cats defined to Category function takes the save path of the torrent and assigns the category to it based on that save path
+
+> [!WARNING]
+> **ALL save paths** of all torrents must be defined here. If the save path is in your qBit, then it **MUST** be defined here, if not the script will throw errors.
+> If you want to leave a save_path as uncategorized you can use the key 'Uncategorized' as the name of the category.
+> You may map a folder and its subdirectories to a single folder by appending `*` to the path e.g. `<path>/<to>/category/*`
 
 | Configuration | Definition                | Required           |
 | :------------ | :------------------------ | :----------------- |
@@ -108,7 +114,9 @@ category: <path>/<to>/category
 
 ---
 This moves all the torrents from one category to another category if the torrents are marked as complete.
-> **NOTE** **WARNING**: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
+
+> [!CAUTION]
+> If the paths are different and Default Torrent Management Mode is set to Automatic the files could be moved !!!
 
 | Configuration | Definition                    | Required           |
 | :------------ | :---------------------------- | :----------------- |
@@ -138,9 +146,11 @@ This section defines the tags used based upon the tracker's URL.
 
 If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
 
-> **NOTE** The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
+>[!TIP]
+> The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
 
-> **NOTE** If `other` is not used then trackers will be auto added.
+> [!NOTE]
+> If `other` is not used then trackers will be auto added.
 
 ## **nohardlinks:**
 
@@ -154,7 +164,8 @@ If you're needing information regarding hardlinks here are some excellent resour
 * [Trash-Guides: Hardlinks and Instant Moves (Atomic-Moves)](https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/)
 * [Wikipedia: Hardlinks](https://en.wikipedia.org/wiki/Hard_link)
 
-Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
+> [!NOTE]
+> Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
 Beyond this you'll need to use one of the [categories](#cat) above as the key.
 
 | Configuration | Definition                                                | Required           |
@@ -190,7 +201,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `max_last_active`                 | Will delete the torrent if cleanup variable is set and if torrent has been inactive longer than x minutes. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                           | -1                    | str       | <center>❌</center> |
 | `min_seeding_time`            | Will prevent torrent deletion by the cleanup variable if the torrent has reached the `max_ratio` limit you have set.  If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m. **MANDATORY: Must use also `max_ratio` with a value greater than `0` (default: `-1`) for this to work.** If you use both `min_seed_time` and `max_seed_time`, then you must set the value of `max_seed_time` to a number greater than `min_seed_time`. | 0                    | str       | <center>❌</center> |
 | `min_last_active`                 | Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes. If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                           | 0                    | str       | <center>❌</center> |
-| `limit_upload_speed`          | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 0                   | int       | <center>❌</center> |
+| `limit_upload_speed`          | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | -1                   | int       | <center>❌</center> |
 | `upload_speed_on_limit_reached` | When cleanup is `false` and a torrent reaches its share limits, throttle per‑torrent upload to this value (KiB/s). Use `-1` for unlimited. QBM will also clear the share limits to prevent qBittorrent from pausing, allowing continued seeding at the throttled rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                           | -1                   | int       | <center>❌</center> |
 | `enable_group_upload_speed`   | Upload speed limits are applied at the group level. This will take `limit_upload_speed` defined and divide it equally among the number of torrents in the group.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | False                | bool      | <center>❌</center> |
 | `reset_upload_speed_on_unmet_minimums` | Controls whether upload speed limits are reset when minimum conditions are not met. When `true` (default), upload speed limits will be reset to unlimited if minimum seeding time, number of seeds, or last active time conditions are not satisfied. When `false`, existing upload speed limits will be preserved for bandwidth management purposes.                                                                                                                                                                                                                                                                                                                                                                                | True                 | bool      | <center>❌</center> |
@@ -213,6 +224,7 @@ Control how torrent share limits are set depending on the priority of your group
 | `save_torrents`      | This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent. This requires the [torrents_dir](#directory) to be defined             | False          | <center>❌</center> |
 | `split_by_category`  | This will split the recycle bin folder by the save path defined in the [cat](#cat) attribute and add the base folder name of the recycle bin that was defined in [recycle_bin](#directory) | False          | <center>❌</center> |
 
+> [!TIP]
 > Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Recycle Bin.
 
 ## **orphaned:**
@@ -230,8 +242,8 @@ This is handy when you have automatically generated files that certain OSs decid
 | `min_file_age_minutes`         | Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion to prevent removal of actively uploading files. Set to 0 to disable age protection.                          | 0             | <center>❌</center> |
 
 
-
-> Note: The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
+> [!TIP]
+> The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.
 
 ## **apprise:**
 

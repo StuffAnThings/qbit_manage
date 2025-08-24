@@ -13,6 +13,7 @@ qbit_manage.egg-info/
 .tox
 *.env
 **/build
+dist/
 .roo*
 memory-bank
 **/src-tauri/gen
