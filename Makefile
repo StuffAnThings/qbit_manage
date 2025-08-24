@@ -277,6 +277,41 @@ uninstall:
 reinstall: uninstall install
 	@echo "✓ Reinstall complete!"
 
+.PHONY: prep-release
+prep-release:
+	@echo "Preparing release..."
+	@# Step 1: Strip '-develop*' suffix from VERSION
+	@current_version=$$(cat VERSION); \
+	clean_version=$$(echo $$current_version | sed 's/-develop.*$$//'); \
+	echo "$$clean_version" > VERSION; \
+	echo "✓ VERSION updated to $$clean_version"
+	@# Step 2: Check Tauri Rust project builds
+	@echo "Running cargo check in desktop/tauri/src-tauri..."
+	@cd desktop/tauri/src-tauri && cargo check
+	@# Step 3: Prepare CHANGELOG skeleton and bump Full Changelog link
+	@new_version=$$(cat VERSION); \
+	major=$$(echo "$$new_version" | cut -d. -f1); \
+	minor=$$(echo "$$new_version" | cut -d. -f2); \
+	patch=$$(echo "$$new_version" | cut -d. -f3); \
+	prev_patch=$$((patch - 1)); \
+	prev_version="$$major.$$minor.$$prev_patch"; \
+	echo "# Requirements Updated" > CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "# New Features" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "# Improvements" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "# Bug Fixes" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "" >> CHANGELOG; \
+	echo "**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v$$prev_version...v$$new_version" >> CHANGELOG; \
+	echo "✓ CHANGELOG prepared for release $$new_version"
+	@echo ""
+	@echo "REMINDER: Update the CHANGELOG contents with actual improvements and bug fixes before making the release."
+
 .PHONY: help
 help:
 	@echo "Available targets:"
@@ -293,6 +328,7 @@ help:
 	@echo "  check-dist    - Check distribution files"
 	@echo "  setup-pypi    - Set up PyPI configuration (~/.pypirc)"
 	@echo "  bump-version  - Bump patch version for testing uploads"
+	@echo "  prep-release - Strip '-develop*' from VERSION, cargo check, and template CHANGELOG"
 	@echo "  debug-upload  - Debug PyPI upload configuration"
 	@echo "  upload-test   - Upload to Test PyPI (uses env vars or ~/.pypirc)"
 	@echo "  upload-pypi   - Upload to PyPI (LIVE) (uses env vars or ~/.pypirc)"
