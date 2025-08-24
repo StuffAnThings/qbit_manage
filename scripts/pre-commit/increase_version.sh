@@ -79,4 +79,6 @@ elif git diff --name-only | grep -q "VERSION"; then
   exit 0
 elif ! git show --name-only HEAD | grep -q "VERSION"; then
   source "$(dirname "$0")/update_develop_version.sh"
+elif [[ -n "$(git diff --cached --name-only)" ]] && ! git diff --cached --name-only | grep -q "VERSION"; then
+  source "$(dirname "$0")/update_develop_version.sh"
 fi
