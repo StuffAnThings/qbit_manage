@@ -1,14 +1,13 @@
 # Improvements
-- Support cross-platform binary builds (Linux/Windows/MacOS)
-- Adds desktop app installers (Linux/Windows/MacOS)
-- Container images for latest now pointed to newest version automatically (Fixes #897)
-- Enable automatic open of webUI in local installs
-- Add persistence toggling for webUI scheduler
+- **ci(docker)**: add OCI labels and build metadata to Docker images
+- **Web UI**: Show an "Update available" badge next to the version and a toast notification when a newer version is detected
+- **Web UI**: Add integrated docs with collapsible sections
+- **ci(build)**: Publish to PyPI
+- **Category**: Allow category changes regardless of the "Category Update All" status (Fixes #913)
 
 # Bug Fixes
-- Fix schedule.yml not loaded upon restarting Docker container (Fixes #906)
-- Fix bug where torrents were not being paused after share limits reached (Fixes #901)
-- Fix(api): prevent path traversal vulnerability in backup restore endpoint (Fixes CWE-22 Security Vulnerability)
-- Fix scheduler to run interval jobs immediately on startup
+- Fixes container hanging when using run command with QBT_RUN flag (Fixes #911)
+- Fixes bug on interval scheduler not displaying the correct next run time
+- Fix bug on webAPI requests not being queued correctly when called during a scheduled run
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.3...v4.5.4
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.4...v4.5.5
