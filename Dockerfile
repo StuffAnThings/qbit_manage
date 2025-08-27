@@ -3,6 +3,7 @@ FROM python:3.13-alpine as builder
 
 ARG BRANCH_NAME=master
 ENV BRANCH_NAME=${BRANCH_NAME}
+ENV QBM_DOCKER=True
 
 # Install build-time dependencies only
 RUN apk add --no-cache \
@@ -48,6 +49,11 @@ LABEL org.opencontainers.image.base.name="python:3.13-alpine"
 
 ENV TINI_VERSION=v0.19.0
 
+# Default runtime identity and umask (overridable)
+ENV PUID=1000
+ENV PGID=1000
+ENV UMASK=022
+
 # Runtime dependencies (smaller than build stage)
 RUN apk add --no-cache \
     tzdata \
@@ -55,17 +61,20 @@ RUN apk add --no-cache \
     curl \
     jq \
     tini \
+    su-exec \
     && rm -rf /var/cache/apk/*
 
 # Copy installed packages and scripts from builder
 COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
 COPY --from=builder /app /app
 COPY . /app
+COPY entrypoint.sh /app/entrypoint.sh
 WORKDIR /app
+RUN chmod +x /app/entrypoint.sh
 VOLUME /config
 
 # Expose port 8080
 EXPOSE 8080
 
-ENTRYPOINT ["/sbin/tini", "-s", "--"]
+ENTRYPOINT ["/sbin/tini", "-s", "/app/entrypoint.sh"]
 CMD ["python3", "qbit_manage.py"]

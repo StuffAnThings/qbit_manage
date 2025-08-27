@@ -24,6 +24,7 @@ from modules.util import format_stats_summary
 from modules.util import get_arg
 from modules.util import get_default_config_dir
 from modules.util import get_matching_config_files
+from modules.util import in_docker
 
 try:
     from croniter import croniter
@@ -253,7 +254,7 @@ except ImportError:
     git_branch = None
 
 env_version = get_arg("BRANCH_NAME", "master")
-is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
+is_docker = get_arg("QBM_DOCKER", False, arg_bool=True) or in_docker()
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
 # Auto-enable web server by default on non-Docker if not explicitly set via env/flag
 if web_server is None and not is_docker:
@@ -655,7 +656,8 @@ def print_logo(logger):
     logger.info_center(r"  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
     logger.info_center("     | |         ______                            __/ |     ")  # noqa: W605
     logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
-    system_ver = "Docker" if is_docker else f"Python {platform.python_version()}"
+    python_ver = f"Python {platform.python_version()}"
+    system_ver = f"Docker: {python_ver}" if is_docker else python_ver
     logger.info(f"    Version: {version[0]} ({system_ver}){f' (Git: {git_branch})' if git_branch else ''}")
     latest_version = util.current_version(version, branch=branch)
     new_version = (

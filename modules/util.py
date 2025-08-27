@@ -151,6 +151,21 @@ def format_stats_summary(stats: dict, config) -> list[str]:
     return stats_output
 
 
+def in_docker():
+    # Docker 1.13+ puts this file inside containers
+    if os.path.exists("/.dockerenv"):
+        return True
+
+    # Fallback: check cgroup info
+    try:
+        with open("/proc/1/cgroup") as f:
+            return any("docker" in line or "kubepods" in line or "containerd" in line or "lxc" in line for line in f)
+    except FileNotFoundError:
+        pass
+
+    return False
+
+
 # Global variables for get_arg function
 test_value = None
 static_envs = []
@@ -243,7 +258,7 @@ def get_default_config_dir(config_hint: str = None) -> str:
          - user OS config directory
        Return the first base containing either.
     3) Fallback to legacy-ish behavior:
-         - /config if it contains any *.yml / *.yaml
+         - /config if it contains any *.yml.sample / *.yaml.sample
          - otherwise user OS config directory
     """
     # 1) If a direct path is provided, prefer its parent directory
@@ -274,8 +289,8 @@ def get_default_config_dir(config_hint: str = None) -> str:
                     pass
 
     # 3) Fallbacks
-    has_yaml = glob.glob(os.path.join("/config", "*.yml")) or glob.glob(os.path.join("/config", "*.yaml"))
-    if os.path.isdir("/config") and has_yaml:
+    has_yaml_sample = glob.glob(os.path.join("/config", "*.yml.sample")) or glob.glob(os.path.join("/config", "*.yaml.sample"))
+    if os.path.isdir("/config") and has_yaml_sample:
         return "/config"
     return str(_platform_config_base())
 
