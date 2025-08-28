@@ -20,6 +20,7 @@ venv
 .venv*
 test.py
 !config/config.yml.sample
+!config/config.yml.template
 .flake8
 qbit_manage.egg-info/
 .tox

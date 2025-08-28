@@ -258,7 +258,7 @@ def get_default_config_dir(config_hint: str = None) -> str:
          - user OS config directory
        Return the first base containing either.
     3) Fallback to legacy-ish behavior:
-         - /config if it contains any *.yml.sample / *.yaml.sample
+         - /config if it contains any *.yml.template / *.yaml.template
          - otherwise user OS config directory
     """
     # 1) If a direct path is provided, prefer its parent directory
@@ -289,8 +289,8 @@ def get_default_config_dir(config_hint: str = None) -> str:
                     pass
 
     # 3) Fallbacks
-    has_yaml_sample = glob.glob(os.path.join("/config", "*.yml.sample")) or glob.glob(os.path.join("/config", "*.yaml.sample"))
-    if os.path.isdir("/config") and has_yaml_sample:
+    has_yaml_template = glob.glob(os.path.join("/config", "*.yml.template")) or glob.glob(os.path.join("/config", "*.yaml.template"))
+    if os.path.isdir("/config") and has_yaml_template:
         return "/config"
     return str(_platform_config_base())
 
@@ -300,7 +300,7 @@ def ensure_config_dir_initialized(config_dir) -> str:
     Ensure the config directory exists and is initialized:
     - Creates the config directory
     - Creates logs/ and .backups/ subdirectories
-    - Seeds a default config.yml from bundled config/config.yml.sample if no *.yml/*.yaml present
+    - Seeds a default config.yml from bundled config/config.yml.template if no *.yml/*.yaml present
     Returns the absolute config directory as a string.
     """
     p = Path(config_dir).expanduser().resolve()
@@ -310,11 +310,11 @@ def ensure_config_dir_initialized(config_dir) -> str:
 
     has_yaml = any(p.glob("*.yml")) or any(p.glob("*.yaml"))
     if not has_yaml:
-        sample = runtime_path("config", "config.yml.sample")
-        if sample.exists():
+        template = runtime_path("config", "config.yml.template")
+        if template.exists():
             dest = p / "config.yml"
             try:
-                shutil.copyfile(sample, dest)
+                shutil.copyfile(template, dest)
             except Exception:
                 # Non-fatal; if copy fails, user can create a config manually
                 pass

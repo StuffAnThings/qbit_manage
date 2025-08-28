@@ -1,0 +1,66 @@
+# This is a base template configuration file. It will need to be modified for your specific use case.
+# Please refer to the link below for more details on how to set up the configuration file
+# https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup
+# https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample
+
+commands:
+  dry_run: true
+  recheck: false
+  cat_update: false
+  tag_update: false
+  rem_unregistered: false
+  rem_orphaned: false
+  tag_tracker_error: false
+  tag_nohardlinks: false
+  share_limits: false
+
+settings:
+  force_auto_tmm: False
+  force_auto_tmm_ignore_tags:
+    - cross-seed
+    - Upload
+  tracker_error_tag: issue
+  nohardlinks_tag: noHL
+  stalled_tag: stalledDL
+  share_limits_tag: ~share_limit
+  share_limits_min_seeding_time_tag: MinSeedTimeNotReached
+  share_limits_min_num_seeds_tag: MinSeedsNotMet
+  share_limits_last_active_tag: LastActiveLimitNotReached
+  cat_filter_completed: True
+  share_limits_filter_completed: True
+  tag_nohardlinks_filter_completed: True
+  rem_unregistered_filter_completed: False
+  cat_update_all: True
+  disable_qbt_default_share_limits: True
+  tag_stalled_torrents: True
+  rem_unregistered_ignore_list:
+    - example placeholder words
+    - ignore if found
+  rem_unregistered_grace_minutes: 10
+
+recyclebin:
+  enabled: true
+  empty_after_x_days:
+  save_torrents: false
+  split_by_category: false
+
+orphaned:
+  empty_after_x_days:
+  exclude_patterns:
+  max_orphaned_files_to_delete: 50
+  min_file_age_minutes: 0
+
+webhooks:
+  error:
+  run_start:
+  run_end:
+  function:
+    recheck:
+    cat_update:
+    tag_update:
+    rem_unregistered:
+    tag_tracker_error:
+    rem_orphaned:
+    tag_nohardlinks:
+    share_limits:
+    cleanup_dirs:

@@ -17,8 +17,8 @@ fi
 umask "$UMASK"
 
 # Configuration
-SOURCE_FILE="/app/config/config.yml.sample"
-DEST_FILE="/config/config.yml.sample"
+SOURCE_FILE="/app/config/config.yml.template"
+DEST_FILE="/config/config.yml.template"
 
 # Function to safely copy with atomic operation
 safe_copy() {

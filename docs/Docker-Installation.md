@@ -43,31 +43,10 @@ services:
       # Scheduler Configuration
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
+      # Ensure this value matches any config files you create manually or with the Web UI
+      # Supports wild cards
       - QBT_CONFIG=config*.yml
       - QBT_LOGFILE=qbit_manage.log
-
-      # Command Flags
-      - QBT_RECHECK=false
-      - QBT_CAT_UPDATE=false
-      - QBT_TAG_UPDATE=false
-      - QBT_REM_UNREGISTERED=false
-      - QBT_REM_ORPHANED=false
-      - QBT_TAG_TRACKER_ERROR=false
-      - QBT_TAG_NOHARDLINKS=false
-      - QBT_SHARE_LIMITS=false
-      - QBT_SKIP_CLEANUP=false
-      - QBT_DRY_RUN=false
-      - QBT_STARTUP_DELAY=0
-      - QBT_SKIP_QB_VERSION_CHECK=false
-      - QBT_DEBUG=false
-      - QBT_TRACE=false
-
-      # Logging Configuration
-      - QBT_LOG_LEVEL=INFO
-      - QBT_LOG_SIZE=10
-      - QBT_LOG_COUNT=5
-      - QBT_DIVIDER==
-      - QBT_WIDTH=100
     restart: on-failure:2
 ```
 
