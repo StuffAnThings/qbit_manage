@@ -635,7 +635,34 @@ class QbitManageApp {
             hideLoading();
 
             if (response.valid) {
-                showToast('Configuration is valid', 'success');
+                // Check if config was modified during validation
+                if (response.config_modified) {
+                    showToast('Configuration validated successfully! Default values have been added.', 'success');
+
+                    // Reload the configuration data from the server to reflect changes
+                    try {
+                        const configResponse = await this.api.getConfig(this.currentConfig);
+                        if (configResponse && configResponse.data) {
+                            // Update the app's config data
+                            this.configData = configResponse.data;
+
+                            // Reload the current section to reflect changes
+                            if (this.configForm && this.currentSection) {
+                                await this.configForm.loadSection(this.currentSection, this.configData[this.currentSection] || {});
+                            }
+
+                            // Update YAML preview if it's open
+                            if (this.yamlPreviewVisible) {
+                                this.updateYamlPreview();
+                            }
+                        }
+                    } catch (reloadError) {
+                        console.error('Error reloading config after main validation:', reloadError);
+                        showToast('Configuration validated but failed to reload updated data.', 'warning');
+                    }
+                } else {
+                    showToast('Configuration is valid', 'success');
+                }
             } else {
                 // Pass the errors array directly instead of converting to string
                 this.showValidationModal('Configuration Validation Failed', response.errors, response.warnings);

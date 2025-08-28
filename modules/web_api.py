@@ -5,14 +5,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import shutil
+import tempfile
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
+from datetime import timedelta
 from multiprocessing import Queue
 from multiprocessing.sharedctypes import Synchronized
 from pathlib import Path
@@ -27,12 +30,18 @@ from fastapi import HTTPException
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.responses import PlainTextResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from humanize import precisedelta
 from pydantic import BaseModel
 
 from modules import util
 from modules.config import Config
+from modules.scheduler import Scheduler
 from modules.util import YAML
+from modules.util import EnvStr
+from modules.util import execute_qbit_commands
 from modules.util import format_stats_summary
 from modules.util import get_matching_config_files
 
@@ -85,6 +94,7 @@ class ValidationResponse(BaseModel):
     valid: bool
     errors: list[str] = []
     warnings: list[str] = []
+    config_modified: bool = False
 
 
 class HealthCheckResponse(BaseModel):
@@ -276,8 +286,6 @@ class WebAPI:
         async def serve_index():
             # If base URL is configured, redirect to the base URL path
             if base_url:
-                from fastapi.responses import RedirectResponse
-
                 return RedirectResponse(url=base_url + "/", status_code=302)
 
             # Otherwise, serve the web UI normally
@@ -341,7 +349,6 @@ class WebAPI:
 
             if qbit_manager:
                 # Execute qBittorrent commands using shared function
-                from modules.util import execute_qbit_commands
 
                 execute_qbit_commands(qbit_manager, args, stats, hashes=hashes)
 
@@ -764,25 +771,58 @@ class WebAPI:
             raise HTTPException(status_code=500, detail=str(e))
 
     async def validate_config(self, filename: str, request: ConfigRequest) -> ValidationResponse:
-        """Validate a configuration."""
+        """Validate a configuration using a temporary file, but persist changes if defaults are added."""
         try:
             errors = []
             warnings = []
+            config_modified = False
 
-            # Create temporary config for validation
+            # Get the actual config file path
+            config_path = self.config_path / filename
+            if not config_path.exists():
+                raise HTTPException(status_code=404, detail=f"Config file '{filename}' not found")
+
+            # Load original config
+            original_yaml = None
+            try:
+                original_yaml = YAML(str(config_path))
+            except Exception as e:
+                logger.error(f"Error reading original config: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to read original config: {str(e)}")
+
+            # Create temporary config file for validation
+            temp_config_path = None
+            try:
+                # Create a temporary file in the same directory as the config
+                temp_fd, temp_path = tempfile.mkstemp(suffix=".yml", dir=str(config_path.parent))
+                temp_config_path = Path(temp_path)
+
+                # Convert !ENV strings back to EnvStr objects before saving
+                processed_data = self._restore_env_objects(request.data)
+
+                # Write to temporary file for validation
+                temp_yaml = YAML(str(temp_config_path))
+                temp_yaml.data = processed_data
+                temp_yaml.save_preserving_format(processed_data)
+
+                # Close the file descriptor
+                os.close(temp_fd)
+
+            except Exception as e:
+                logger.error(f"Error creating temporary config: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to create temporary config: {str(e)}")
+
+            # Create validation args using the temporary file
             now = datetime.now()
             temp_args = self.args.copy()
-            temp_args["config_file"] = filename
+            temp_args["config_file"] = temp_config_path.name  # Use temp file name
             temp_args["_from_web_api"] = True
             temp_args["time"] = now.strftime("%H:%M")
             temp_args["time_obj"] = now
             temp_args["run"] = True
 
-            # Write temporary config file for validation
-            temp_config_path = self.config_path / f".temp_{filename}"
             try:
                 logger.separator("Configuration Validation Check", space=False, border=False)
-                self._write_yaml_config(temp_config_path, request.data)
 
                 # Try to load config using existing validation logic
                 try:
@@ -794,19 +834,51 @@ class WebAPI:
                 if valid:
                     logger.separator("Configuration Valid", space=False, border=False)
 
+                # Check if temp config was modified during validation
+                try:
+                    # Reload the temp config to see if it was modified
+                    modified_temp_yaml = YAML(str(temp_config_path))
+                    modified_temp_data = modified_temp_yaml.data.copy() if modified_temp_yaml.data else {}
+
+                    # Compare the data structures
+                    if processed_data != modified_temp_data:
+                        config_modified = True
+                        logger.info("Configuration was modified during validation (defaults added)")
+
+                        # If config was modified, copy the changes to the original file
+                        try:
+                            original_yaml.data = modified_temp_data
+                            original_yaml.save_preserving_format(modified_temp_data)
+                            logger.info("Successfully applied validation changes to original config")
+                        except Exception as copy_error:
+                            logger.error(f"Failed to copy changes to original config: {str(copy_error)}")
+                            # Don't fail the validation if we can't copy changes
+                except Exception as e:
+                    logger.warning(f"Error checking if config was modified: {str(e)}")
+
+            except Exception as e:
+                logger.error(f"Validation failed: {str(e)}")
+                raise
             finally:
                 # Clean up temporary file
-                if temp_config_path.exists():
-                    temp_config_path.unlink()
+                try:
+                    if temp_config_path and temp_config_path.exists():
+                        temp_config_path.unlink()
+                        logger.debug(f"Cleaned up temporary config file: {temp_config_path}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary config file: {str(cleanup_error)}")
 
-            return ValidationResponse(valid=valid, errors=errors, warnings=warnings)
+            # Create response with modification info
+            response_data = {"valid": valid, "errors": errors, "warnings": warnings, "config_modified": config_modified}
+
+            logger.info(f"Validation response: {response_data}")
+            return ValidationResponse(**response_data)
         except Exception as e:
             logger.error(f"Error validating config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     def _write_yaml_config(self, config_path: Path, data: dict[str, Any]):
         """Write configuration data to YAML file while preserving formatting and comments."""
-        from modules.util import YAML
 
         try:
             logger.trace(f"Attempting to write config to: {config_path}")
@@ -814,15 +886,18 @@ class WebAPI:
 
             logger.trace(f"Data to write: {data}")
 
+            # Convert !ENV strings back to EnvStr objects
+            processed_data = self._convert_env_strings_to_objects(data)
+
             # Use the custom YAML class with format preservation
             if config_path.exists():
                 # Load existing file to preserve formatting
                 yaml_writer = YAML(path=str(config_path))
-                yaml_writer.save_preserving_format(data)
+                yaml_writer.save_preserving_format(processed_data)
             else:
                 # Create new file with standard formatting
                 yaml_writer = YAML(input_data="")
-                yaml_writer.data = data
+                yaml_writer.data = processed_data
                 yaml_writer.path = str(config_path)
                 yaml_writer.save()
 
@@ -1026,8 +1101,6 @@ class WebAPI:
             with open(docs_path, encoding="utf-8") as f:
                 content = f.read()
 
-            from fastapi.responses import PlainTextResponse
-
             return PlainTextResponse(content=content, media_type="text/markdown")
 
         except HTTPException:
@@ -1174,7 +1247,6 @@ class WebAPI:
 
     def _preserve_env_syntax(self, data):
         """Convert EnvStr objects back to !ENV syntax for frontend display"""
-        from modules.util import EnvStr
 
         if isinstance(data, EnvStr):
             # Return the original !ENV syntax
@@ -1191,9 +1263,6 @@ class WebAPI:
 
     def _restore_env_objects(self, data):
         """Convert !ENV syntax back to EnvStr objects for proper YAML serialization."""
-        import os
-
-        from modules.util import EnvStr
 
         if isinstance(data, str) and data.startswith("!ENV "):
             env_var = data[5:]  # Remove "!ENV " prefix
@@ -1208,7 +1277,6 @@ class WebAPI:
 
     def _log_env_str_values(self, data, path):
         """Helper method to log EnvStr values for debugging"""
-        from modules.util import EnvStr
 
         if isinstance(data, dict):
             for key, value in data.items():
@@ -1229,7 +1297,6 @@ class WebAPI:
         """Get complete scheduler status including schedule configuration and persistence information."""
         try:
             # Always create a fresh scheduler instance to get current state
-            from modules.scheduler import Scheduler
 
             fresh_scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
 
@@ -1279,8 +1346,6 @@ class WebAPI:
     async def update_schedule(self, request: Request) -> dict:
         """Update and persist schedule configuration with diagnostic instrumentation."""
         try:
-            from modules.scheduler import Scheduler
-
             correlation_id = uuid.uuid4().hex[:12]
             client_host = "n/a"
             if getattr(request, "client", None):
@@ -1385,8 +1450,6 @@ class WebAPI:
         Toggle persistent schedule enable/disable (non-destructive) with diagnostics.
         """
         try:
-            from modules.scheduler import Scheduler
-
             correlation_id = uuid.uuid4().hex[:12]
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
             file_exists_before = scheduler.schedule_file.exists()
@@ -1453,11 +1516,6 @@ class WebAPI:
     def _update_next_run_info(self, next_run: datetime):
         """Update the shared next run info dictionary."""
         try:
-            import math
-            from datetime import timedelta
-
-            from humanize import precisedelta
-
             current_time = datetime.now()
             current = current_time.strftime("%I:%M %p")
             time_to_run_str = next_run.strftime("%Y-%m-%d %I:%M %p")
