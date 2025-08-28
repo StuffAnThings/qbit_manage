@@ -66,8 +66,10 @@ if [ -d "/config" ]; then
         if [ ! -f "$DEST_FILE" ] || ! cmp -s "$SOURCE_FILE" "$DEST_FILE"; then
             # Safely copy the file (logs only when copy occurs)
             safe_copy "$SOURCE_FILE" "$DEST_FILE"
-            # Fix permissions (logs only if changes made)
-            fix_permissions "$DEST_FILE"
+            # Fix permissions (logs only if changes made) when running as root
+            if [ "$(id -u)" = "0" ]; then
+                fix_permissions "$DEST_FILE"
+            fi
         fi
     elif [ ! -f "$SOURCE_FILE" ]; then
         echo "ERROR: Source file $SOURCE_FILE does not exist"
@@ -77,10 +79,18 @@ fi
 
 # Fix /config ownership if present
 if [ -d "/config" ]; then
-    fix_permissions "/config"
+    if [ "$(id -u)" = "0" ]; then
+        fix_permissions "/config"
+    fi
     # Provide a reasonable HOME for non-root runs (only if /config exists)
     export HOME=/config
 fi
 
-# Execute the main command as requested UID:GID
-exec /sbin/su-exec "${PUID}:${PGID}" "$@"
+# Execute the main command:
+# - If running as root, drop privileges to PUID:PGID via su-exec
+# - If already non-root (e.g., docker-compose sets user:), run as-is
+if [ "$(id -u)" = "0" ]; then
+    exec /sbin/su-exec "${PUID}:${PGID}" "$@"
+else
+    exec "$@"
+fi
