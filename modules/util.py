@@ -300,7 +300,7 @@ def ensure_config_dir_initialized(config_dir) -> str:
     Ensure the config directory exists and is initialized:
     - Creates the config directory
     - Creates logs/ and .backups/ subdirectories
-    - Seeds a default config.yml from bundled config/config.yml.sample if no *.yml/*.yaml present
+    - Creates an empty config.yml if no *.yml/*.yaml present
     Returns the absolute config directory as a string.
     """
     p = Path(config_dir).expanduser().resolve()
@@ -310,14 +310,12 @@ def ensure_config_dir_initialized(config_dir) -> str:
 
     has_yaml = any(p.glob("*.yml")) or any(p.glob("*.yaml"))
     if not has_yaml:
-        sample = runtime_path("config", "config.yml.sample")
-        if sample.exists():
-            dest = p / "config.yml"
-            try:
-                shutil.copyfile(sample, dest)
-            except Exception:
-                # Non-fatal; if copy fails, user can create a config manually
-                pass
+        dest = p / "config.yml"
+        try:
+            dest.touch()  # Create empty file
+        except Exception:
+            # Non-fatal; if creation fails, user can create a config manually
+            pass
 
     return str(p)
 

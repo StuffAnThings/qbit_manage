@@ -225,8 +225,6 @@ class QbitManageApp {
             this.backupConfig();
         });
 
-        // Theme toggle is handled by ThemeManager
-
         // Undo button
         const undoBtn = get('undo-btn');
         if (undoBtn) {
@@ -442,7 +440,15 @@ class QbitManageApp {
         }
 
         try {
-            const processedData = this.configForm._postprocessDataForSave(this.currentSection, this.configForm.currentData);
+            // For commands section, collect all form values since commands should override env vars
+            let dataToProcess;
+            if (this.currentSection === 'commands') {
+                dataToProcess = this.configForm.collectAllFormValues(this.currentSection);
+            } else {
+                dataToProcess = this.configForm.currentData;
+            }
+
+            const processedData = this.configForm._postprocessDataForSave(this.currentSection, dataToProcess);
 
             const isMultiRoot = this.configForm.schemas[this.currentSection]?.type === 'multi-root-object';
             const dataToSave = isMultiRoot ? processedData : { [this.currentSection]: processedData };

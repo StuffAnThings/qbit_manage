@@ -1302,6 +1302,51 @@ class ConfigForm {
      * @param {object} obj - The object to clean up.
      * @returns {object} The cleaned up object.
      */
+    /**
+     * Collects all current form values for a section, not just dirty ones
+     * This is used for sections like commands where we want to save all values
+     */
+    collectAllFormValues(sectionName) {
+        const sectionConfig = this.schemas[sectionName];
+        if (!sectionConfig || !sectionConfig.fields) {
+            return {};
+        }
+
+        const allValues = {};
+
+        // Iterate through all fields in the schema
+        sectionConfig.fields.forEach(field => {
+            if (field.name && field.type !== 'documentation' && field.type !== 'section_header') {
+                // Find the corresponding form input
+                const input = this.container.querySelector(`[name="${field.name}"]`);
+
+                if (input) {
+                    let value;
+
+                    if (input.type === 'checkbox') {
+                        value = input.checked;
+                    } else if (input.type === 'number') {
+                        value = input.value ? parseFloat(input.value) : null;
+                    } else {
+                        value = input.value;
+                    }
+
+                    // Handle default values for boolean fields
+                    if (field.type === 'boolean' && value === null) {
+                        value = field.default || false;
+                    }
+
+                    allValues[field.name] = value;
+                } else if (field.default !== undefined) {
+                    // Use default value if input not found
+                    allValues[field.name] = field.default;
+                }
+            }
+        });
+
+        return allValues;
+    }
+
     cleanupEmptyValues(obj) {
         if (obj === null || obj === undefined) {
             return null;

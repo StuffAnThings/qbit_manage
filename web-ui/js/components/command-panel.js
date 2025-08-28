@@ -141,6 +141,9 @@ class CommandPanel {
 
             </div>
         `;
+
+        // Load saved quick action values after rendering
+        this.loadQuickActionValues();
     }
 
     bindEvents() {
@@ -175,6 +178,9 @@ class CommandPanel {
                 this.showRunCommandsModal();
             }
         });
+
+        // Bind quick action input change events for persistence
+        this.bindQuickActionPersistence();
     }
 
     async executeQuickCommand(command) {
@@ -473,6 +479,74 @@ class CommandPanel {
             this.hide();
         } else {
             this.show();
+        }
+    }
+
+    // Load saved quick action values from localStorage
+    loadQuickActionValues() {
+        if (!this.drawerContainer) return;
+
+        // Get saved values, defaulting dry run to true if not previously saved
+        const savedDryRunValue = localStorage.getItem('qbm-quick-dry-run');
+        const savedDryRun = savedDryRunValue !== null ? savedDryRunValue === 'true' : true; // Default to true
+        const savedSkipCleanup = localStorage.getItem('qbm-quick-skip-cleanup') === 'true';
+        const savedSkipQbVersionCheck = localStorage.getItem('qbm-quick-skip-qb-version-check') === 'true';
+        const savedLogLevel = localStorage.getItem('qbm-quick-log-level') || '';
+
+        const dryRunCheckbox = this.drawerContainer.querySelector('#dry-run-checkbox');
+        const skipCleanupCheckbox = this.drawerContainer.querySelector('#quick-skip-cleanup-checkbox');
+        const skipQbVersionCheckCheckbox = this.drawerContainer.querySelector('#quick-skip-qb-version-check-checkbox');
+        const logLevelSelect = this.drawerContainer.querySelector('#quick-log-level-select');
+
+        if (dryRunCheckbox) dryRunCheckbox.checked = savedDryRun;
+        if (skipCleanupCheckbox) skipCleanupCheckbox.checked = savedSkipCleanup;
+        if (skipQbVersionCheckCheckbox) skipQbVersionCheckCheckbox.checked = savedSkipQbVersionCheck;
+        if (logLevelSelect) logLevelSelect.value = savedLogLevel;
+
+        // Save the default value if it was set
+        if (savedDryRunValue === null) {
+            localStorage.setItem('qbm-quick-dry-run', 'true');
+        }
+    }
+
+    // Save quick action values to localStorage
+    saveQuickActionValues() {
+        if (!this.drawerContainer) return;
+
+        const dryRunCheckbox = this.drawerContainer.querySelector('#dry-run-checkbox');
+        const skipCleanupCheckbox = this.drawerContainer.querySelector('#quick-skip-cleanup-checkbox');
+        const skipQbVersionCheckCheckbox = this.drawerContainer.querySelector('#quick-skip-qb-version-check-checkbox');
+        const logLevelSelect = this.drawerContainer.querySelector('#quick-log-level-select');
+
+        const dryRun = dryRunCheckbox ? dryRunCheckbox.checked : false;
+        const skipCleanup = skipCleanupCheckbox ? skipCleanupCheckbox.checked : false;
+        const skipQbVersionCheck = skipQbVersionCheckCheckbox ? skipQbVersionCheckCheckbox.checked : false;
+        const logLevel = logLevelSelect ? logLevelSelect.value : '';
+
+        localStorage.setItem('qbm-quick-dry-run', dryRun);
+        localStorage.setItem('qbm-quick-skip-cleanup', skipCleanup);
+        localStorage.setItem('qbm-quick-skip-qb-version-check', skipQbVersionCheck);
+        localStorage.setItem('qbm-quick-log-level', logLevel);
+    }
+
+    // Bind event listeners for quick action persistence
+    bindQuickActionPersistence() {
+        if (!this.drawerContainer) return;
+
+        // Bind checkbox change events
+        const checkboxes = this.drawerContainer.querySelectorAll('#dry-run-checkbox, #quick-skip-cleanup-checkbox, #quick-skip-qb-version-check-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.saveQuickActionValues();
+            });
+        });
+
+        // Bind select change event
+        const logLevelSelect = this.drawerContainer.querySelector('#quick-log-level-select');
+        if (logLevelSelect) {
+            logLevelSelect.addEventListener('change', () => {
+                this.saveQuickActionValues();
+            });
         }
     }
 }
