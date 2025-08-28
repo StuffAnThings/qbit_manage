@@ -781,6 +781,7 @@ class WebAPI:
             # Write temporary config file for validation
             temp_config_path = self.config_path / f".temp_{filename}"
             try:
+                logger.separator("Configuration Validation Check", space=False, border=False)
                 self._write_yaml_config(temp_config_path, request.data)
 
                 # Try to load config using existing validation logic
@@ -788,13 +789,17 @@ class WebAPI:
                     Config(self.default_dir, temp_args)
                 except Exception as e:
                     errors.append(str(e))
+                    logger.separator("Configuration Validation Failed", space=False, border=False)
+                valid = len(errors) == 0
+                if valid:
+                    logger.separator("Configuration Valid", space=False, border=False)
 
             finally:
                 # Clean up temporary file
                 if temp_config_path.exists():
                     temp_config_path.unlink()
 
-            return ValidationResponse(valid=len(errors) == 0, errors=errors, warnings=warnings)
+            return ValidationResponse(valid=valid, errors=errors, warnings=warnings)
         except Exception as e:
             logger.error(f"Error validating config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))

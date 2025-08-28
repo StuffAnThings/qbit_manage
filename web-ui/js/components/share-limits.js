@@ -93,7 +93,7 @@ export class ShareLimitsComponent {
             addButton.disabled = loading;
             const uiTexts = shareLimitsSchema.ui?.texts || {};
             addButton.innerHTML = loading
-                ? `<span class="loading-spinner"></span> ${uiTexts.addGroupLoadingText || 'Creating...'}`
+                ? `<span class="spinner spinner-sm spinner-button"></span> ${uiTexts.addGroupLoadingText || 'Creating...'}`
                 : (uiTexts.addGroupButtonText || 'Add New Group');
         }
     }
