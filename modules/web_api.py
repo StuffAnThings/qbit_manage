@@ -887,7 +887,7 @@ class WebAPI:
             logger.trace(f"Data to write: {data}")
 
             # Convert !ENV strings back to EnvStr objects
-            processed_data = self._convert_env_strings_to_objects(data)
+            processed_data = self._restore_env_objects(data)
 
             # Use the custom YAML class with format preservation
             if config_path.exists():
