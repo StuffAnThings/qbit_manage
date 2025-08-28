@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           ADD_WEBUI="web-ui${{ steps.sep.outputs.SEP }}web-ui"
-          ADD_SAMPLE_CFG="config/config.yml.sample${{ steps.sep.outputs.SEP }}config"
+          ADD_TEMPLATE_CFG="config/config.yml.template${{ steps.sep.outputs.SEP }}config"
           ADD_LOGO="icons/qbm_logo.png${{ steps.sep.outputs.SEP }}."
           ADD_VERSION="VERSION${{ steps.sep.outputs.SEP }}."
           ADD_DOCS="docs${{ steps.sep.outputs.SEP }}docs"
@@ -87,7 +87,7 @@ jobs:
                       --onefile \
                       --name "${APP_NAME}" \
                       --add-data "$ADD_WEBUI" \
-                      --add-data "$ADD_SAMPLE_CFG" \
+                      --add-data "$ADD_TEMPLATE_CFG" \
                       --add-data "$ADD_LOGO" \
                       --add-data "$ADD_VERSION" \
                       --add-data "$ADD_DOCS" \
