@@ -289,7 +289,9 @@ def get_default_config_dir(config_hint: str = None) -> str:
                     pass
 
     # 3) Fallbacks
-    has_yaml_template = glob.glob(os.path.join("/config", "*.yml.template")) or glob.glob(os.path.join("/config", "*.yaml.template"))
+    has_yaml_template = glob.glob(os.path.join("/config", "*.yml.template")) or glob.glob(
+        os.path.join("/config", "*.yaml.template")
+    )
     if os.path.isdir("/config") and has_yaml_template:
         return "/config"
     return str(_platform_config_base())
