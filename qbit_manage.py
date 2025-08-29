@@ -56,7 +56,7 @@ parser.add_argument(
     "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
-    "-h",
+    "-H",
     "--host",
     dest="host",
     type=str,
