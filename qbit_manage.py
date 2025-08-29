@@ -778,7 +778,7 @@ def main():
             is_desktop_app = os.getenv("QBT_DESKTOP_APP", "").lower() == "true"
             if not is_docker and not is_desktop_app:
                 try:
-                    ui_url = f"http://{host == "0.0.0.0" ? "127.0.0.1" : host}:{port}"
+                    ui_url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
                     if base_url:
                         ui_url = f"{ui_url}/{base_url.lstrip('/')}"
                     threading.Thread(target=_open_browser_when_ready, args=(ui_url, logger), daemon=True).start()
