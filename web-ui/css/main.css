@@ -252,7 +252,114 @@ body {
   transition: all var(--transition-fast);
 }
 
-/* Animation for loading states */
+/* Unified Spinner System */
+@keyframes modern-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Unified Spinner System */
+@keyframes smooth-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Base spinner class - can be used anywhere */
+.spinner {
+  position: relative;
+  border-radius: 50%;
+  animation: smooth-rotate 1s linear infinite;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+  border-top: 2px solid var(--primary-color);
+}
+
+/* Size variants */
+.spinner-sm {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.spinner-md {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.spinner-lg {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+/* Context-specific spinner styles */
+.spinner.spinner-inline {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--spacing-xs);
+}
+
+.spinner.spinner-button {
+  border-top-color: currentColor;
+}
+
+/* Loading overlay specific styles */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: var(--z-modal-backdrop);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-inverse);
+  padding: var(--spacing-xl);
+  border-radius: var(--border-radius-lg);
+  background-color: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode: lighter text for better readability */
+[data-theme="dark"] .loading-spinner {
+  color: var(--text-secondary);
+}
+
+/* Auto dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .loading-spinner {
+    color: var(--text-secondary);
+  }
+}
+
+.loading-spinner .spinner {
+  margin-bottom: var(--spacing-md);
+}
+
+/* Legacy support - keep for backward compatibility */
 @keyframes rotate {
   from {
     transform: rotate(0deg);
@@ -693,37 +800,20 @@ body {
   border: 0;
 }\n
 .loading-overlay {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: var(--z-modal-backdrop); /* Use a high z-index to ensure it's on top */
+    z-index: var(--z-modal-backdrop);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
 }
 
-.loading-spinner {
-    text-align: center;
-    color: var(--text-inverse); /* Use text-inverse for better contrast on dark overlay */
-}
-
-.spinner {
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid var(--primary-color);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 10px auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
 
 /* Password Input Group */
 .password-input-group {

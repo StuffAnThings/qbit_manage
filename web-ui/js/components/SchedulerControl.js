@@ -133,7 +133,7 @@ class SchedulerControl {
                         <button type="submit" class="btn btn-primary" id="update-schedule-btn" disabled aria-describedby="update-help">
                             <span class="btn-text">Save Schedule</span>
                             <span class="btn-loading" style="display: none;" aria-hidden="true">
-                                <span class="loading-spinner" aria-hidden="true"></span>
+                                <span class="spinner spinner-sm spinner-button" aria-hidden="true"></span>
                                 Saving...
                             </span>
                         </button>

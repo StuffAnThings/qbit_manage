@@ -74,3 +74,11 @@ jobs:
           fi
 
           echo "Successfully updated develop branch to $NEW_VERSION"
+
+      - name: Trigger develop workflow
+        if: success()
+        run: |
+          echo "Triggering develop workflow..."
+          gh workflow run develop.yml --ref develop
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}

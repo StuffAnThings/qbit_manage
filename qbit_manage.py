@@ -24,6 +24,7 @@ from modules.util import format_stats_summary
 from modules.util import get_arg
 from modules.util import get_default_config_dir
 from modules.util import get_matching_config_files
+from modules.util import in_docker
 
 try:
     from croniter import croniter
@@ -115,9 +116,18 @@ parser.add_argument(
     action="store",
     default="config.yml",
     type=str,
+    help=argparse.SUPPRESS,
+)
+parser.add_argument(
+    "-cd",
+    "--config-dir",
+    dest="config_dir",
+    action="store",
+    default=None,
+    type=str,
     help=(
-        "This is used if you want to use a different name for your config.yml or if you want to load multiple"
-        "config files using *. Example: tv.yml or config*.yml"
+        "This is used to specify the configuration directory. It will treat all YAML files in this directory as valid configs."
+        "Takes precedence over --config-file. If not specified, falls back to --config-file logic."
     ),
 )
 parser.add_argument(
@@ -261,7 +271,7 @@ except ImportError:
     git_branch = None
 
 env_version = get_arg("BRANCH_NAME", "master")
-is_docker = get_arg("QBM_DOCKER", False, arg_bool=True)
+is_docker = get_arg("QBM_DOCKER", False, arg_bool=True) or in_docker()
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
 # Auto-enable web server by default on non-Docker if not explicitly set via env/flag
 if web_server is None and not is_docker:
@@ -273,6 +283,7 @@ run = get_arg("QBT_RUN", args.run, arg_bool=True)
 sch = get_arg("QBT_SCHEDULE", args.schedule)
 startupDelay = get_arg("QBT_STARTUP_DELAY", args.startupDelay)
 config_files = get_arg("QBT_CONFIG", args.configfiles)
+config_dir = get_arg("QBT_CONFIG_DIR", args.config_dir)
 log_file = get_arg("QBT_LOGFILE", args.logfile)
 recheck = get_arg("QBT_RECHECK", args.recheck, arg_bool=True)
 cat_update = get_arg("QBT_CAT_UPDATE", args.cat_update, arg_bool=True)
@@ -302,10 +313,13 @@ stats = {}
 args = {}
 scheduler = None  # Global scheduler instance
 
-default_dir = ensure_config_dir_initialized(get_default_config_dir(config_files))
+default_dir = ensure_config_dir_initialized(get_default_config_dir(config_files, config_dir))
 args["config_dir"] = default_dir
+args["config_dir_args"] = config_dir
 
-config_files = get_matching_config_files(config_files, default_dir)
+# Use config_dir_mode if --config-dir was provided, otherwise use legacy mode
+use_config_dir_mode = config_dir is not None and config_files
+config_files = get_matching_config_files(config_files, default_dir, use_config_dir_mode)
 
 
 for v in [
@@ -666,7 +680,8 @@ def print_logo(logger):
     logger.info_center(r"  \__, |_.__/|_|\__| |_| |_| |_|\__,_|_| |_|\__,_|\__, |\___|")  # noqa: W605
     logger.info_center("     | |         ______                            __/ |     ")  # noqa: W605
     logger.info_center("     |_|        |______|                          |___/      ")  # noqa: W605
-    system_ver = "Docker" if is_docker else f"Python {platform.python_version()}"
+    python_ver = f"Python {platform.python_version()}"
+    system_ver = f"Docker: {python_ver}" if is_docker else python_ver
     logger.info(f"    Version: {version[0]} ({system_ver}){f' (Git: {git_branch})' if git_branch else ''}")
     latest_version = util.current_version(version, branch=branch)
     new_version = (

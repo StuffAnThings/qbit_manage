@@ -65,7 +65,7 @@ export function showLoading(container, message = 'Loading...') {
         loadingOverlay.className = 'loading-overlay'; // Add a class for styling
         loadingOverlay.innerHTML = `
             <div class="loading-spinner">
-                <div class="spinner"></div>
+                <div class="spinner spinner-lg"></div>
                 <p>${message}</p>
             </div>
         `;
