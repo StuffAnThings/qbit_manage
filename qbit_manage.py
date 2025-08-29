@@ -59,7 +59,7 @@ parser.add_argument(
     "-h",
     "--host",
     dest="host",
-    type=int,
+    type=string,
     default="0.0.0.0",
     help="Hostname for the web server (default: 0.0.0.0).",
 )
