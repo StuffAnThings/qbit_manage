@@ -243,25 +243,31 @@ def _platform_config_base() -> Path:
         return base / "qbit-manage"
 
 
-def get_default_config_dir(config_hint: str = None) -> str:
+def get_default_config_dir(config_hint: str = None, config_dir: str = None) -> str:
     """
     Determine the default persistent config directory, leveraging a provided config path/pattern first.
 
     Resolution order:
-    1) If config_hint is an absolute path or contains a directory component, use its parent directory
-    2) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
-         - A direct match to that filename/pattern
-         - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
-       Common bases (in order):
-         - /config (container volume)
-         - repository ./config
-         - user OS config directory
-       Return the first base containing either.
-    3) Fallback to legacy-ish behavior:
-         - /config if it contains any *.yml.sample / *.yaml.sample
-         - otherwise user OS config directory
+    1) If config_dir is provided, use it directly (takes precedence over config_hint)
+    2) If config_hint is an absolute path or contains a directory component, use its parent directory
+    3) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
+          - A direct match to that filename/pattern
+          - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
+        Common bases (in order):
+          - /config (container volume)
+          - repository ./config
+          - user OS config directory
+        Return the first base containing either.
+    4) Fallback to legacy-ish behavior:
+          - /config if it contains any *.yml.sample / *.yaml.sample
+          - otherwise user OS config directory
     """
-    # 1) If a direct path is provided, prefer its parent directory
+    # 1) If config_dir is provided, use it directly (takes precedence)
+    if config_dir:
+        p = Path(config_dir).expanduser()
+        return str(p.resolve())
+
+    # 2) If a direct path is provided, prefer its parent directory
     if config_hint:
         primary = str(config_hint).split(",")[0].strip()  # take first if comma-separated
         if primary:
@@ -1470,12 +1476,14 @@ class EnvStr(str):
         return super().__repr__()
 
 
-def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
+def get_matching_config_files(config_pattern: str, default_dir: str, use_config_dir_mode: bool = False) -> list:
     """Get list of config files matching a pattern.
 
     Args:
         config_pattern (str): Config file pattern (e.g. "config.yml" or "config*.yml")
         default_dir (str): Default directory to look for configs
+        use_config_dir_mode (bool): If True, use new config-dir approach (find all .yml/.yaml files)
+                                   If False, use legacy config-file approach (pattern matching)
 
     Returns:
         list: List of matching config file names
@@ -1489,16 +1497,39 @@ def get_matching_config_files(config_pattern: str, default_dir: str) -> list:
     else:
         search_dir = default_dir
 
-    # Handle single file vs pattern
-    if "*" not in config_pattern:
-        return [config_pattern]
-    else:
-        glob_configs = glob.glob(os.path.join(search_dir, config_pattern))
-        if glob_configs:
-            # Return just the filenames without paths
-            return [os.path.split(x)[-1] for x in glob_configs]
+    if use_config_dir_mode:
+        # New --config-dir approach: find all .yml and .yaml files, excluding reserved files
+        config_files = []
+        for pattern in ["*.yml", "*.yaml"]:
+            glob_configs = glob.glob(os.path.join(search_dir, pattern))
+            for config_file in glob_configs:
+                filename = os.path.basename(config_file)
+                # Exclude reserved files
+                if filename != "schedule.yml":
+                    config_files.append(filename)
+
+        if config_files:
+            # Return just the filenames without paths, sorted for consistency
+            return sorted(config_files)
         else:
-            raise Failed(f"Config Error: Unable to find any config files in the pattern '{config_pattern}'")
+            raise Failed(f"Config Error: Unable to find any config files in '{search_dir}'")
+    else:
+        # Legacy --config-file approach: pattern matching
+        # Handle single file vs pattern
+        if "*" not in config_pattern:
+            # For single file, check if it exists
+            if os.path.exists(os.path.join(search_dir, config_pattern)):
+                return [config_pattern]
+            else:
+                raise Failed(f"Config Error: Unable to find config file '{config_pattern}' in '{search_dir}'")
+        else:
+            # For patterns, use glob matching
+            glob_configs = glob.glob(os.path.join(search_dir, config_pattern))
+            if glob_configs:
+                # Return just the filenames without paths
+                return [os.path.basename(x) for x in glob_configs]
+            else:
+                raise Failed(f"Config Error: Unable to find any config files in the pattern '{config_pattern}' in '{search_dir}'")
 
 
 def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):

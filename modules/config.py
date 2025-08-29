@@ -130,7 +130,11 @@ class Config:
         logger.debug(f"    --run (QBT_RUN): {self.args['run']}")
         logger.debug(f"    --schedule (QBT_SCHEDULE): {self.args['sch']}")
         logger.debug(f"    --startup-delay (QBT_STARTUP_DELAY): {self.args['startupDelay']}")
-        logger.debug(f"    --config-file (QBT_CONFIG): {self.args['config_files']}")
+        logger.debug(f"    --config-dir (QBT_CONFIG_DIR): {self.args['config_dir_args']}")
+        if self.args["config_dir_args"] is None:
+            logger.debug(f"    --config-file (QBT_CONFIG): {self.args['config_files']} (legacy)")
+        else:
+            logger.debug(f"    Configs found from QBT_CONFIG_DIR: {self.args['config_files']}")
         logger.debug(f"    --log-file (QBT_LOGFILE): {self.args['log_file']}")
         logger.debug(f"    --log-level (QBT_LOG_LEVEL): {self.args['log_level']}")
         logger.debug(f"    --log-size (QBT_LOG_SIZE): {self.args['log_size']}")
