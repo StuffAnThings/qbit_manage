@@ -118,7 +118,7 @@ parser.add_argument(
     default=None,
     type=str,
     help=(
-        "This is used to specify a custom configuration directory. "
+        "This is used to specify the configuration directory. It will treat all YAML files in this directory as valid configs."
         "Takes precedence over --config-file. If not specified, falls back to --config-file logic."
     ),
 )
@@ -309,7 +309,7 @@ args["config_dir"] = default_dir
 args["config_dir_args"] = config_dir
 
 # Use config_dir_mode if --config-dir was provided, otherwise use legacy mode
-use_config_dir_mode = config_dir is not None
+use_config_dir_mode = config_dir is not None and config_files
 config_files = get_matching_config_files(config_files, default_dir, use_config_dir_mode)
 
 
