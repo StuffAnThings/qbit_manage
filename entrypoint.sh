@@ -77,20 +77,25 @@ if [ -d "/config" ]; then
     fi
 fi
 
-# Fix /config ownership if present
+# Set HOME if /config exists
 if [ -d "/config" ]; then
-    if [ "$(id -u)" = "0" ]; then
-        fix_permissions "/config"
-    fi
-    # Provide a reasonable HOME for non-root runs (only if /config exists)
     export HOME=/config
 fi
 
 # Execute the main command:
 # - If running as root, drop privileges to PUID:PGID via su-exec
 # - If already non-root (e.g., docker-compose sets user:), run as-is
+set +e  # Temporarily disable exit on error for su-exec handling
 if [ "$(id -u)" = "0" ]; then
-    exec /sbin/su-exec "${PUID}:${PGID}" "$@"
+    /sbin/su-exec "${PUID}:${PGID}" "$@"
+    if [ $? -eq 0 ]; then
+        # Won't reach here if su-exec succeeds
+        true
+    else
+        echo "Warning: Could not drop privileges to ${PUID}:${PGID}, continuing as root"
+        exec "$@"
+    fi
 else
     exec "$@"
 fi
+set -e  # Re-enable exit on error
