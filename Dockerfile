@@ -49,10 +49,6 @@ LABEL org.opencontainers.image.base.name="python:3.13-alpine"
 
 ENV TINI_VERSION=v0.19.0
 
-# Default runtime identity and umask (overridable)
-ENV PUID=1000
-ENV PGID=1000
-ENV UMASK=022
 
 # Runtime dependencies (smaller than build stage)
 RUN apk add --no-cache \
