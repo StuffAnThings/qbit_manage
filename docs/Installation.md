@@ -206,7 +206,7 @@ uv pip install -e . --upgrade
 - **Host Mount**: Typically mounted from `/path/to/your/config:/config`
 
 ### Custom Location
-You can override the default location using the `--config-file` or `-c` command line option:
+You can override the default location using the `--config-dir` or `-cd` command line option:
 ```bash
-qbit-manage --config-file /path/to/your/config.yml
+qbit-manage --config-dir /path/to/your/config/directory
 ```

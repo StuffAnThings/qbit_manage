@@ -127,7 +127,6 @@ parser.add_argument(
     type=str,
     help=(
         "This is used to specify the configuration directory. It will treat all YAML files in this directory as valid configs."
-        "Takes precedence over --config-file. If not specified, falls back to --config-file logic."
     ),
 )
 parser.add_argument(

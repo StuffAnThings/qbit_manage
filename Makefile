@@ -280,23 +280,31 @@ reinstall: uninstall install
 .PHONY: prep-release
 prep-release:
 	@echo "Preparing release..."
-	@# Step 1: Strip '-develop*' suffix from VERSION
+	@# Step 1: Update uv lock and sync dependencies
+	@echo "Updating uv lock and syncing dependencies..."
+	@uv lock --upgrade
+	@uv sync
+	@echo "✓ Dependencies updated"
+	@# Step 2: Strip '-develop*' suffix from VERSION
 	@current_version=$$(cat VERSION); \
 	clean_version=$$(echo $$current_version | sed 's/-develop.*$$//'); \
 	echo "$$clean_version" > VERSION; \
 	echo "✓ VERSION updated to $$clean_version"
-	@# Step 2: Check Tauri Rust project builds
+	@# Step 3: Check Tauri Rust project builds
 	@echo "Running cargo check in desktop/tauri/src-tauri..."
 	@cd desktop/tauri/src-tauri && cargo check
-	@# Step 3: Prepare CHANGELOG skeleton and bump Full Changelog link
+	@# Step 4: Prepare CHANGELOG skeleton and bump Full Changelog link
 	@new_version=$$(cat VERSION); \
 	major=$$(echo "$$new_version" | cut -d. -f1); \
 	minor=$$(echo "$$new_version" | cut -d. -f2); \
 	patch=$$(echo "$$new_version" | cut -d. -f3); \
 	prev_patch=$$((patch - 1)); \
 	prev_version="$$major.$$minor.$$prev_patch"; \
+	updated_deps=$$(git diff master..HEAD -- pyproject.toml | grep '^+' | grep '==' | sed 's/^+//' | sed 's/^ *//' | sed 's/,$$//' | sed 's/^/- /'); \
 	echo "# Requirements Updated" > CHANGELOG; \
-	echo "" >> CHANGELOG; \
+	if [ -n "$$updated_deps" ]; then \
+		echo "$$updated_deps" >> CHANGELOG; \
+	fi; \
 	echo "" >> CHANGELOG; \
 	echo "# New Features" >> CHANGELOG; \
 	echo "" >> CHANGELOG; \
