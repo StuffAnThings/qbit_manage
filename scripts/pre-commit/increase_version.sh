@@ -11,13 +11,21 @@ fi
 if [[ "$IN_CI" == "true" ]]; then
   BASE_REF="${GITHUB_BASE_REF:-}"
 
-  # If BASE_REF not provided (e.g., pre-commit.ci), infer remote default branch
+  # If BASE_REF not provided (e.g., pre-commit.ci), try to infer it
   if [[ -z "$BASE_REF" ]]; then
+    # First try to get the default branch
     DEFAULT_BASE="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
     if [[ -z "$DEFAULT_BASE" ]]; then
       DEFAULT_BASE="$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p' | head -n1)"
     fi
-    BASE_REF="$DEFAULT_BASE"
+
+    # If current branch contains "develop", assume base is "develop"
+    CURRENT_BRANCH_CI="${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')}"
+    if [[ "$CURRENT_BRANCH_CI" == *"develop"* ]]; then
+      BASE_REF="develop"
+    else
+      BASE_REF="$DEFAULT_BASE"
+    fi
   fi
 
   # Resolve a usable base ref
@@ -52,12 +60,18 @@ if [[ "$IN_CI" == "true" ]]; then
     exit 0
   fi
 
-  # If diff is quiet, there were no changes to VERSION between base and head.
-  if git diff --quiet "$BASE_RESOLVED...HEAD" -- VERSION; then
-    echo "No VERSION bump detected in PR range ($BASE_RESOLVED...HEAD). Updating develop version."
+  # Check if VERSION file contains "develop"
+  if ! grep -q "develop" VERSION; then
+    echo "VERSION file does not contain 'develop'. Skipping version update."
+    exit 0
+  fi
+
+  # If VERSION is the same as base branch, user didn't bump it, so we should update
+  if git diff --quiet "$BASE_RESOLVED" -- VERSION 2>/dev/null; then
+    echo "VERSION file is the same as in base branch ($BASE_RESOLVED). User didn't bump version, so updating develop version."
     source "$(dirname "$0")/update_develop_version.sh"
   else
-    echo "PR includes a VERSION change. Skipping version update."
+    echo "VERSION file differs from base branch. User already bumped version. Skipping update."
   fi
   exit 0
 fi
@@ -70,15 +84,30 @@ if [[ "$IN_CI" != "true" && -z $(git diff --cached --name-only) ]]; then
   exit 0
 fi
 
-# Check if the VERSION file is staged for modification
-if git diff --cached --name-only | grep -q "VERSION"; then
-  echo "The VERSION file is already modified. Skipping version update."
-  exit 0
-elif git diff --name-only | grep -q "VERSION"; then
-  echo "The VERSION file has unstaged changes. Please stage them before committing."
-  exit 0
-elif ! git show --name-only HEAD | grep -q "VERSION"; then
+# For local development, check if VERSION contains "develop"
+if [[ "$IN_CI" != "true" ]]; then
+  # Check if VERSION file contains "develop"
+  if ! grep -q "develop" VERSION; then
+    echo "VERSION file does not contain 'develop'. Skipping version update."
+    exit 0
+  # Check if the VERSION file is staged for modification
+  elif git diff --cached --name-only | grep -q "VERSION"; then
+    echo "The VERSION file is already modified. Skipping version update."
+    exit 0
+  elif git diff --name-only | grep -q "VERSION"; then
+    echo "The VERSION file has unstaged changes. Please stage them before committing."
+    exit 0
+  fi
+fi
+
+# Check if we should run version update
+if ! git diff --quiet origin/develop -- VERSION 2>/dev/null; then
+  # VERSION differs from develop branch, so we should update it
   source "$(dirname "$0")/update_develop_version.sh"
 elif [[ -n "$(git diff --cached --name-only)" ]] && ! git diff --cached --name-only | grep -q "VERSION"; then
+  # There are staged changes but VERSION is not among them
+  source "$(dirname "$0")/update_develop_version.sh"
+elif ! git show --name-only HEAD | grep -q "VERSION"; then
+  # VERSION doesn't exist in HEAD (new file)
   source "$(dirname "$0")/update_develop_version.sh"
 fi
