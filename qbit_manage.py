@@ -57,6 +57,14 @@ parser.add_argument(
     "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
+    "-H",
+    "--host",
+    dest="host",
+    type=str,
+    default="0.0.0.0",
+    help="Hostname for the web server (default: 0.0.0.0).",
+)
+parser.add_argument(
     "-p",
     "--port",
     dest="port",
@@ -268,6 +276,7 @@ web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
 # Auto-enable web server by default on non-Docker if not explicitly set via env/flag
 if web_server is None and not is_docker:
     web_server = True
+host = get_arg("QBT_HOST", args.host, arg_int=True)
 port = get_arg("QBT_PORT", args.port, arg_int=True)
 base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
@@ -338,6 +347,7 @@ for v in [
     "debug",
     "trace",
     "web_server",
+    "host",
     "port",
     "base_url",
 ]:
@@ -611,6 +621,7 @@ def end():
 
 # Define the web server target at module level (required for Windows spawn/frozen PyInstaller)
 def run_web_server(
+    host,
     port,
     process_args,
     is_running,
@@ -642,7 +653,7 @@ def run_web_server(
         # Configure and run uvicorn
         import uvicorn as _uvicorn
 
-        config = _uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", access_log=False)
+        config = _uvicorn.Config(app, host=host, port=port, log_level="info", access_log=False)
         server = _uvicorn.Server(config)
         server.run()
     except KeyboardInterrupt:
@@ -751,12 +762,12 @@ def main():
                 logger.debug(f"Unknown CLI arguments ignored: {_unknown_cli}")
 
             logger.separator("Starting Web Server")
-            logger.info(f"Web API server running on http://0.0.0.0:{port}")
+            logger.info(f"Web API server running on http://{host}:{port}")
             if base_url:
-                logger.info(f"Access the WebUI at http://localhost:{port}/{base_url.lstrip('/')}")
-                logger.info(f"Root path http://localhost:{port}/ will redirect to the WebUI")
+                logger.info(f"Access the WebUI at http://{host}:{port}/{base_url.lstrip('/')}")
+                logger.info(f"Root path http://{host}:{port}/ will redirect to the WebUI")
             else:
-                logger.info(f"Access the WebUI at http://localhost:{port}")
+                logger.info(f"Access the WebUI at http://{host}:{port}")
 
             # Create a copy of args to pass to the web server process
             process_args = args.copy()
@@ -765,6 +776,7 @@ def main():
             web_process = multiprocessing.Process(
                 target=run_web_server,
                 args=(
+                    host,
                     port,
                     process_args,
                     is_running,
@@ -781,7 +793,7 @@ def main():
             is_desktop_app = os.getenv("QBT_DESKTOP_APP", "").lower() == "true"
             if not is_docker and not is_desktop_app:
                 try:
-                    ui_url = f"http://127.0.0.1:{port}"
+                    ui_url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port}"
                     if base_url:
                         ui_url = f"{ui_url}/{base_url.lstrip('/')}"
                     threading.Thread(target=_open_browser_when_ready, args=(ui_url, logger), daemon=True).start()
