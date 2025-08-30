@@ -146,6 +146,7 @@ class Config:
         logger.debug(f"    --web-server (QBT_WEB_SERVER): {self.args['web_server']}")
         logger.debug(f"    --port (QBT_PORT): {self.args['port']}")
         logger.debug(f"    --base-url (QBT_BASE_URL): {self.args['base_url']}")
+        logger.debug(f"    --host (QBT_HOST): {self.args['host']}")
 
         # Log run commands (which may come from config or env)
         logger.separator(command_source, space=False, border=False, loglevel="DEBUG")
