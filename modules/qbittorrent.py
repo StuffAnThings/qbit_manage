@@ -85,7 +85,6 @@ class Qbt:
         except Exception as exc:
             self.config.notify(exc, "Qbittorrent")
             raise Failed(exc)
-        logger.separator("Getting Torrent List", space=False, border=False)
         self.torrent_list = self.get_torrents({"sort": "added_on"})
         self.torrentfiles = {}  # a map of torrent files to track cross-seeds
 

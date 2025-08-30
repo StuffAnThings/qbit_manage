@@ -1,13 +1,20 @@
+# Requirements Updated
+- "humanize==4.13.0"
+- "ruff==0.12.11"
+
+# Breaking Changes
+- **DEPRECATE `QBT_CONFIG` / `--config-file` OPTION**
+    - No longer supporting `QBT_CONFIG` / `--config-file`. Instead please switch over to **`QBT_CONFIG_DIR` / `--config-dir`**.
+    - `QBT_CONFIG` / `--config-file` option will still work for now but is now considered legacy and will be removed in a future release.
+    - **Note**: All yml/yaml files will be treated as valid configuration files and loaded in the `QBT_CONFIG_DIR` path. Please ensure you **remove** any old/unused configurations that you don't want to be loaded prior to using this path.
+
 # Improvements
-- **ci(docker)**: add OCI labels and build metadata to Docker images
-- **Web UI**: Show an "Update available" badge next to the version and a toast notification when a newer version is detected
-- **Web UI**: Add integrated docs with collapsible sections
-- **ci(build)**: Publish to PyPI
-- **Category**: Allow category changes regardless of the "Category Update All" status (Fixes #913)
+- Adds docker support for PUID/PGID environment variables
+- Dockerfile copies the latest `config.yml.sample` in the config folder
+- Add `QBT_HOST` / `--host` option to specify webUI host address (#929 Thanks to @QuixThe2nd)
+- WebUI: Quick action settings persist now
 
 # Bug Fixes
-- Fixes container hanging when using run command with QBT_RUN flag (Fixes #911)
-- Fixes bug on interval scheduler not displaying the correct next run time
-- Fix bug on webAPI requests not being queued correctly when called during a scheduled run
+- WebUI: Fix loading spinner to be centered in the webUI
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.4...v4.5.5
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.5.5...v4.6.0

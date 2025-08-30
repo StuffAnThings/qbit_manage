@@ -81,7 +81,7 @@ http://[UNRAID-IP]:8080
    #!/bin/bash
    echo "Running qBitTorrent Management"
    python3 /mnt/user/data/scripts/qbit/qbit_manage.py \
-     --config-file /mnt/user/data/scripts/qbit/config.yml \
+     --config-dir /mnt/user/data/scripts/qbit/ \
      --log-file /mnt/user/data/scripts/qbit/activity.log \
      --run
    echo "qBitTorrent Management Completed"

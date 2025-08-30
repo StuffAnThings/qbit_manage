@@ -1,9 +1,10 @@
-# <img src="icons/qbm_logo.png" width="75"> qBit Manage
+# <img src="https://github.com/StuffAnThings/qbit_manage/blob/master/icons/qbm_logo.png?raw=true" width="75"> qBit Manage
 
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/StuffAnThings/qbit_manage?style=plastic)](https://github.com/StuffAnThings/qbit_manage/releases)
 [![GitHub commits since latest release (by SemVer)](https://img.shields.io/github/commits-since/StuffAnThings/qbit_manage/latest/develop?label=Commits%20in%20Develop&style=plastic)](https://github.com/StuffAnThings/qbit_manage/tree/develop)
 [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/bobokun/qbit_manage?label=docker&sort=semver&style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
-![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/StuffAnThings/qbit_manage/version.yml?style=plastic)
+[![PyPi (latest semver)](https://img.shields.io/pypi/v/qbit-manage?label=PyPI&sort=semver&style=plastic)](https://pypi.org/project/qbit-manage)
+[![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/StuffAnThings/qbit_manage/version.yml?style=plastic)](https://github.com/StuffAnThings/qbit_manage/actions/workflows/version.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/StuffAnThings/qbit_manage/master.svg)](https://results.pre-commit.ci/latest/github/StuffAnThings/qbit_manage/master)
 [![Ghcr packages](https://img.shields.io/badge/ghcr.io-packages?style=plastic&label=packages)](https://ghcr.io/StuffAnThings/qbit_manage)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bobokun/qbit_manage?style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)

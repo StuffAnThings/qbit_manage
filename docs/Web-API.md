@@ -2,14 +2,14 @@
 
 ## Overview
 
-qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs on port 8080 by default and can be configured using the `--port` option or `QBT_PORT` environment variable.
+qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8080, listening to all hostnames, by default and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
 
 ## Running the Web Server
 
 ### Command Line
 
 ```bash
-python qbit_manage.py --web-server --port 8080
+python qbit_manage.py --web-server --host 0.0.0.0 --port 8080
 ```
 
 ### Docker
@@ -22,6 +22,7 @@ services:
     container_name: qbit_manage
     environment:
       - QBT_WEB_SERVER=true # Enable web server
+      - QBT_HOST=0.0.0.0 # Set web server host
       - QBT_PORT=8080 # Set web server port
     ports:
       - "8080:8080" # Map container port to host

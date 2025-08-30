@@ -1302,6 +1302,51 @@ class ConfigForm {
      * @param {object} obj - The object to clean up.
      * @returns {object} The cleaned up object.
      */
+    /**
+     * Collects all current form values for a section, not just dirty ones
+     * This is used for sections like commands where we want to save all values
+     */
+    collectAllFormValues(sectionName) {
+        const sectionConfig = this.schemas[sectionName];
+        if (!sectionConfig || !sectionConfig.fields) {
+            return {};
+        }
+
+        const allValues = {};
+
+        // Iterate through all fields in the schema
+        sectionConfig.fields.forEach(field => {
+            if (field.name && field.type !== 'documentation' && field.type !== 'section_header') {
+                // Find the corresponding form input
+                const input = this.container.querySelector(`[name="${field.name}"]`);
+
+                if (input) {
+                    let value;
+
+                    if (input.type === 'checkbox') {
+                        value = input.checked;
+                    } else if (input.type === 'number') {
+                        value = input.value ? parseFloat(input.value) : null;
+                    } else {
+                        value = input.value;
+                    }
+
+                    // Handle default values for boolean fields
+                    if (field.type === 'boolean' && value === null) {
+                        value = field.default || false;
+                    }
+
+                    allValues[field.name] = value;
+                } else if (field.default !== undefined) {
+                    // Use default value if input not found
+                    allValues[field.name] = field.default;
+                }
+            }
+        });
+
+        return allValues;
+    }
+
     cleanupEmptyValues(obj) {
         if (obj === null || obj === undefined) {
             return null;
@@ -1346,7 +1391,7 @@ class ConfigForm {
         return null;
     }
 
-    validateSection() {
+    async validateSection() {
         const sectionConfig = this.schemas[this.currentSection];
         this.validationState = { valid: true, errors: [], warnings: [] };
 
@@ -1372,7 +1417,55 @@ class ConfigForm {
         this.updateValidationDisplay();
 
         if (this.validationState.errors.length === 0) {
-            showToast('Section is valid!', 'success');
+            // Perform backend validation which may add default values
+            try {
+                const response = await this.api.validateConfig(this.currentSection, this.currentData);
+
+                if (response.valid) {
+                    // Check if config was modified during validation
+                    if (response.config_modified) {
+                        showToast('Configuration validated successfully! Default values have been added.', 'success');
+
+                        // Reload the configuration data from the server to reflect changes
+                        try {
+                            const configResponse = await this.api.getConfig(this.currentSection);
+                            if (configResponse && configResponse.data) {
+                                // Update current data with the modified config
+                                this.currentData = this._preprocessComplexObjectData(this.currentSection, configResponse.data);
+
+                                // Store initial data only once per section
+                                if (!this.initialSectionData[this.currentSection]) {
+                                    this.initialSectionData[this.currentSection] = JSON.parse(JSON.stringify(this.currentData));
+                                }
+
+                                // Always reset to initial data when loading a section
+                                this.originalData = JSON.parse(JSON.stringify(this.initialSectionData[this.currentSection]));
+
+                                // Re-render the section with updated data
+                                await this.renderSection();
+
+                                // Notify parent component of data change
+                                this.onDataChange(this.currentData);
+                            }
+                        } catch (reloadError) {
+                            console.error('Error reloading config after validation:', reloadError);
+                            showToast('Configuration validated but failed to reload updated data.', 'warning');
+                        }
+                    } else {
+                        showToast('Configuration validated successfully!', 'success');
+                    }
+                } else {
+                    // Handle validation errors from backend
+                    this.validationState.valid = false;
+                    this.validationState.errors = response.errors || [];
+                    this.validationState.warnings = response.warnings || [];
+                    this.onValidationChange(this.validationState);
+                    this.updateValidationDisplay();
+                }
+            } catch (error) {
+                console.error('Error during backend validation:', error);
+                showToast('Failed to validate configuration with backend.', 'error');
+            }
         }
     }
 

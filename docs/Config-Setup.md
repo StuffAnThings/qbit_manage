@@ -13,9 +13,9 @@ The script looks for the configuration file in different locations depending on 
 - **Linux/Unix**: `~/.config/qbit-manage/config.yml` (or `$XDG_CONFIG_HOME/qbit-manage/config.yml` if XDG_CONFIG_HOME is set)
 
 ### Docker Installation
-- `/app/config.yml` (inside the container)
+- `/config/config.yml` (inside the container)
 
-You can override the default location by using the `--config-file` or `-c` command line option to specify a custom path.
+You can override the default location by using the `--config-dir` or `-cd` command line option to specify a custom directory.
 
 A template Configuration File can be found in the repo [config/config.yml.sample](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample).
 
