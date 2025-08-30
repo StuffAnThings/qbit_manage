@@ -23,6 +23,9 @@ if [[ "$IN_CI" == "true" ]]; then
     CURRENT_BRANCH_CI="${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')}"
     if [[ "$CURRENT_BRANCH_CI" == *"develop"* ]]; then
       BASE_REF="develop"
+    elif grep -q "develop" VERSION 2>/dev/null; then
+      # If VERSION contains "develop" but branch doesn't, still assume base is "develop"
+      BASE_REF="develop"
     else
       BASE_REF="$DEFAULT_BASE"
     fi
