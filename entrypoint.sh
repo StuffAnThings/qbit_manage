@@ -3,7 +3,8 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
 # Configuration
 readonly SOURCE_FILE="/app/config/config.yml.sample"
-readonly DEST_FILE="/config/config.yml.sample"
+readonly DEST_DIR="${QBT_CONFIG_DIR:-/config}"
+readonly DEST_FILE="${DEST_DIR}/config.yml.sample"
 
 # Logging function for consistent output
 log() {
@@ -155,7 +156,7 @@ main() {
     validate_user_group_ids
 
     # Handle config file setup
-    if [[ -d "/config" ]]; then
+    if [[ -d "$DEST_DIR" ]]; then
         if [[ -f "$SOURCE_FILE" ]] && [[ -s "$SOURCE_FILE" ]]; then
             # Check if destination needs updating
             if [[ ! -f "$DEST_FILE" ]] || ! cmp -s "$SOURCE_FILE" "$DEST_FILE" 2>/dev/null; then
