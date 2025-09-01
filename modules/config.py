@@ -1056,12 +1056,18 @@ class Config:
                         location_path_list = [location_path]
                 else:
                     location_path_list = [location_path]
-                location_files = [
-                    os.path.join(path, name)
-                    for r_path in location_path_list
-                    for path, subdirs, files in os.walk(r_path)
-                    for name in files
-                ]
+                location_files = []
+                for r_path in location_path_list:
+                    try:
+                        for path, subdirs, files in os.walk(r_path):
+                            for name in files:
+                                location_files.append(os.path.join(path, name))
+                    except PermissionError as e:
+                        logger.warning(f"Permission denied accessing directory {r_path}: {e}. Skipping this directory.")
+                        continue
+                    except OSError as e:
+                        logger.warning(f"Error accessing directory {r_path}: {e}. Skipping this directory.")
+                        continue
                 location_files = list(set(location_files))  # remove duplicates
                 location_files = sorted(location_files)
                 logger.trace(f"location_files: {location_files}")
@@ -1084,6 +1090,12 @@ class Config:
                             )
                             self.notify(ex, "Cleanup Dirs", False)
                             continue
+                        except PermissionError as e:
+                            logger.warning(f"Permission denied accessing file stats for {file}: {e}")
+                            continue
+                        except OSError as e:
+                            logger.warning(f"Error accessing file stats for {file}: {e}")
+                            continue
                         now = time.time()  # in seconds
                         days = (now - last_modified) / (60 * 60 * 24)
                         if empty_after_x_days <= days:
@@ -1094,9 +1106,29 @@ class Config:
                                 self.loglevel,
                             )
                             files += [str(filename)]
-                            size_bytes += os.path.getsize(file)
+                            try:
+                                size_bytes += os.path.getsize(file)
+                            except (PermissionError, OSError) as e:
+                                logger.warning(f"Could not get size for {file}: {e}")
+                                # Continue without size info
+
                             if not self.dry_run:
-                                os.remove(file)
+                                try:
+                                    os.remove(file)
+                                except PermissionError as e:
+                                    logger.warning(f"Permission denied deleting {file}: {e}. Skipping file.")
+                                    # Remove from files list since we couldn't delete it
+                                    if str(filename) in files:
+                                        files.remove(str(filename))
+                                    num_del -= 1  # Don't count this as a successful deletion
+                                    continue
+                                except OSError as e:
+                                    logger.warning(f"Error deleting {file}: {e}. Skipping file.")
+                                    # Remove from files list since we couldn't delete it
+                                    if str(filename) in files:
+                                        files.remove(str(filename))
+                                    num_del -= 1  # Don't count this as a successful deletion
+                                    continue
                         prevfolder = re.search(f".*{os.path.basename(location_path.rstrip(os.sep))}", file).group(0)
                     if num_del > 0:
                         if not self.dry_run:

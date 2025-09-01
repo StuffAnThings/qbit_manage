@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
@@ -70,9 +71,33 @@ class RemoveOrphaned:
 
         if min_file_age_minutes > 0:  # Only apply age protection if configured
             for file in orphaned_files:
+
+                def age_check_operation():
+                    try:
+                        file_mtime = os.path.getmtime(file)
+                        age_check_operation.result = file_mtime
+                    except Exception as e:
+                        age_check_operation.exception = e
+
+                age_check_operation.result = None
+                age_check_operation.exception = None
+
                 try:
-                    # Get file modification time
-                    file_mtime = os.path.getmtime(file)
+                    # Start the age check in a separate thread
+                    age_thread = threading.Thread(target=age_check_operation)
+                    age_thread.start()
+                    age_thread.join(timeout=60.0)  # 1 minute timeout for age checks
+
+                    if age_thread.is_alive():
+                        # Operation is still running (hung), skip this file
+                        logger.warning(f"Timeout checking file age (permission issue?): {file}")
+                        continue
+
+                    # Check if the operation raised an exception
+                    if age_check_operation.exception:
+                        raise age_check_operation.exception
+
+                    file_mtime = age_check_operation.result
                     file_age_minutes = (now - file_mtime) / 60
 
                     if file_age_minutes < min_file_age_minutes:
@@ -82,6 +107,8 @@ class RemoveOrphaned:
                             f"(age {file_age_minutes:.1f} mins < {min_file_age_minutes} mins)",
                             self.config.loglevel,
                         )
+                except PermissionError as e:
+                    logger.warning(f"Permission denied checking file age for {file}: {e}")
                 except Exception as e:
                     logger.error(f"Error checking file age for {file}: {e}")
 
@@ -153,7 +180,9 @@ class RemoveOrphaned:
             for i in range(0, len(orphaned_files), batch_size):
                 batch = orphaned_files[i : i + batch_size]
                 batch_results = self.executor.map(self.handle_orphaned_files, batch)
-                orphaned_parent_paths.update(batch_results)
+                # Filter out None values (skipped files due to permission errors)
+                valid_paths = [path for path in batch_results if path is not None]
+                orphaned_parent_paths.update(valid_paths)
 
             # Remove empty directories
             if orphaned_parent_paths:
@@ -186,11 +215,21 @@ class RemoveOrphaned:
                 util.delete_files(src)
             else:
                 util.move_files(src, dest, True)
+        except PermissionError as e:
+            logger.warning(f"Permission denied processing orphaned file {file}: {e}. Skipping file.")
+            # Return None to indicate this file should not be counted in parent path processing
+            return None
         except Exception as e:
             logger.error(f"Error processing orphaned file {file}: {e}")
             if self.config.orphaned["empty_after_x_days"] == 0:
                 # Fallback to move if delete fails
-                util.move_files(src, dest, True)
+                try:
+                    util.move_files(src, dest, True)
+                except PermissionError as move_e:
+                    logger.warning(f"Permission denied moving orphaned file {file}: {move_e}. Skipping file.")
+                    return None
+                except Exception as move_e:
+                    logger.error(f"Error moving orphaned file {file}: {move_e}")
 
         return orphaned_parent_path
 
