@@ -21,7 +21,7 @@ services:
     image: bobokun/qbit_manage:latest
     container_name: qbit_manage
     environment:
-      - QBT_WEB_SERVER=true # Enable web server
+      - QBT_WEB_SERVER=true # Enable web server (set to false to disable)
       - QBT_HOST=0.0.0.0 # Set web server host
       - QBT_PORT=8080 # Set web server port
     ports:
