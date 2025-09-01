@@ -51,9 +51,12 @@ parser.add_argument(
     "-ws",
     "--web-server",
     dest="web_server",
-    action="store_true",
+    nargs="?",
+    const=True,
+    type=lambda x: str(x).lower() not in ("false", "0", "no", "off", "f", "n"),
     default=None,
     help="Start the webUI server to handle command requests via HTTP API. "
+    "Pass --web-server to enable, --web-server=False to disable. "
     "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
