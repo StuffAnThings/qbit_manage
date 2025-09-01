@@ -1040,7 +1040,8 @@ class Config:
                         save_path = list(self.data["cat"].values())
                         cleaned_save_path = [
                             os.path.join(
-                                s.replace(self.root_dir, self.remote_dir), os.path.basename(location_path.rstrip(os.sep))
+                                util.path_replace(s, self.root_dir, self.remote_dir),
+                                os.path.basename(location_path.rstrip(os.sep)),
                             )
                             for s in save_path
                         ]

@@ -429,7 +429,7 @@ class Qbt:
         save_paths = set()
         categories = self.client.torrent_categories.categories
         for cat in categories:
-            save_path = categories[cat].savePath.replace(self.config.root_dir, self.config.remote_dir)
+            save_path = util.path_replace(categories[cat].savePath, self.config.root_dir, self.config.remote_dir)
             if save_path:
                 save_paths.add(save_path)
         # Also add root_dir to the list
@@ -448,7 +448,7 @@ class Qbt:
         @handle_qbit_api_errors(context="tor_delete_recycle_get_files", retry_attempts=1)
         def get_torrent_files():
             info_hash = torrent.hash
-            save_path = torrent.save_path.replace(self.config.root_dir, self.config.remote_dir)
+            save_path = util.path_replace(torrent.save_path, self.config.root_dir, self.config.remote_dir)
             # Define torrent files/folders
             for file in torrent.files:
                 tor_files.append(os.path.join(save_path, file.name))
@@ -529,7 +529,7 @@ class Qbt:
                     logger.info(backup_str)
                 torrent_json["tracker_torrent_files"] = tracker_torrent_files
                 if "files" not in torrent_json:
-                    files_cleaned = [f.replace(self.config.remote_dir, "") for f in tor_files]
+                    files_cleaned = [util.path_replace(f, self.config.remote_dir, "") for f in tor_files]
                     torrent_json["files"] = files_cleaned
                 if "deleted_contents" not in torrent_json:
                     torrent_json["deleted_contents"] = info["torrents_deleted_and_contents"]
@@ -546,13 +546,14 @@ class Qbt:
                 else:
                     logger.print_line("\n".join(tor_files), "DEBUG")
                 logger.debug(
-                    f"Moved {len(tor_files)} files to {recycle_path.replace(self.config.remote_dir, self.config.root_dir)}"
+                    f"Moved {len(tor_files)} files to "
+                    f"{util.path_replace(recycle_path, self.config.remote_dir, self.config.root_dir)}"
                 )
 
                 # Move files from torrent contents to Recycle bin
                 for file in tor_files:
                     src = file
-                    dest = os.path.join(recycle_path, file.replace(self.config.remote_dir, ""))
+                    dest = os.path.join(recycle_path, util.path_replace(file, self.config.remote_dir, ""))
                     # Move files and change date modified
                     try:
                         to_delete = util.move_files(src, dest, True)
@@ -560,7 +561,7 @@ class Qbt:
                         ex = logger.print_line(f"RecycleBin Warning - FileNotFound: No such file or directory: {src} ", "WARNING")
                         self.config.notify(ex, "Deleting Torrent", False)
                     # Add src file to orphan exclusion since sometimes deleting files are slow in certain environments
-                    exclude_file = src.replace(self.config.remote_dir, self.config.root_dir)
+                    exclude_file = util.path_replace(src, self.config.remote_dir, self.config.root_dir)
                     if exclude_file not in self.config.orphaned["exclude_patterns"]:
                         self.config.orphaned["exclude_patterns"].append(exclude_file)
                 # Delete torrent and files
@@ -573,7 +574,7 @@ class Qbt:
             if info["torrents_deleted_and_contents"] is True:
                 for file in tor_files:
                     # Add src file to orphan exclusion since sometimes deleting files are slow in certain environments
-                    exclude_file = file.replace(self.config.remote_dir, self.config.root_dir)
+                    exclude_file = util.path_replace(file, self.config.remote_dir, self.config.root_dir)
                     if exclude_file not in self.config.orphaned["exclude_patterns"]:
                         self.config.orphaned["exclude_patterns"].append(exclude_file)
                 torrent.delete(delete_files=True)

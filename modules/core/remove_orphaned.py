@@ -55,7 +55,7 @@ class RemoveOrphaned:
         if self.config.orphaned["exclude_patterns"]:
             logger.print_line("Processing orphan exclude patterns")
             exclude_patterns = [
-                exclude_pattern.replace(self.remote_dir, self.root_dir)
+                util.path_replace(exclude_pattern, self.remote_dir, self.root_dir)
                 for exclude_pattern in self.config.orphaned["exclude_patterns"]
             ]
 
@@ -130,7 +130,7 @@ class RemoveOrphaned:
         else:
             body += logger.print_line(
                 f"{'Not moving' if self.config.dry_run else 'Moving'} {num_orphaned} Orphaned files "
-                f"to {self.orphaned_dir.replace(self.remote_dir, self.root_dir)}",
+                f"to {util.path_replace(self.orphaned_dir, self.remote_dir, self.root_dir)}",
                 self.config.loglevel,
             )
 
@@ -139,7 +139,7 @@ class RemoveOrphaned:
             "title": f"Removing {num_orphaned} Orphaned Files",
             "body": "\n".join(body),
             "orphaned_files": list(orphaned_files),
-            "orphaned_directory": self.orphaned_dir.replace(self.remote_dir, self.root_dir),
+            "orphaned_directory": util.path_replace(self.orphaned_dir, self.remote_dir, self.root_dir),
             "total_orphaned_files": num_orphaned,
         }
         self.config.send_notifications(attr)
@@ -159,7 +159,7 @@ class RemoveOrphaned:
             if orphaned_parent_paths:
                 logger.print_line("Removing newly empty directories", self.config.loglevel)
                 exclude_patterns = [
-                    exclude_pattern.replace(self.remote_dir, self.root_dir)
+                    util.path_replace(exclude_pattern, self.remote_dir, self.root_dir)
                     for exclude_pattern in self.config.orphaned.get("exclude_patterns", [])
                 ]
 
@@ -177,9 +177,9 @@ class RemoveOrphaned:
 
     def handle_orphaned_files(self, file):
         """Handle orphaned file with improved error handling and batching"""
-        src = file.replace(self.root_dir, self.remote_dir)
-        dest = os.path.join(self.orphaned_dir, file.replace(self.root_dir, ""))
-        orphaned_parent_path = os.path.dirname(file).replace(self.root_dir, self.remote_dir)
+        src = util.path_replace(file, self.root_dir, self.remote_dir)
+        dest = os.path.join(self.orphaned_dir, util.path_replace(file, self.root_dir, ""))
+        orphaned_parent_path = util.path_replace(os.path.dirname(file), self.root_dir, self.remote_dir)
 
         try:
             if self.config.orphaned["empty_after_x_days"] == 0:
@@ -198,12 +198,7 @@ class RemoveOrphaned:
         """Get full paths for torrent files with improved path handling"""
         save_path = torrent.save_path
 
-        # Use list comprehension for better performance
-        fullpath_torrent_files = [
-            os.path.join(save_path, file.name).replace(r"/", "\\")
-            if ":\\" in os.path.join(save_path, file.name)
-            else os.path.join(save_path, file.name)
-            for file in torrent.files
-        ]
+        # Use list comprehension for better performance with cross-platform path normalization
+        fullpath_torrent_files = [os.path.normpath(os.path.join(save_path, file.name)) for file in torrent.files]
 
         return fullpath_torrent_files

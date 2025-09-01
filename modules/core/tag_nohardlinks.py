@@ -92,7 +92,7 @@ class TagNoHardLinks:
         """Helper method to process a single torrent for nohardlinks tagging."""
         tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
         has_nohardlinks = check_hardlinks.nohardlink(
-            torrent["content_path"].replace(self.root_dir, self.remote_dir),
+            util.path_replace(torrent["content_path"], self.root_dir, self.remote_dir),
             self.config.notify,
             ignore_root_dir,
         )

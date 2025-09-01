@@ -1034,7 +1034,7 @@ class CheckHardLinks:
                 continue
             else:
                 try:
-                    inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+                    inode_no = os.stat(path_replace(file, self.root_dir, self.remote_dir)).st_ino
                 except PermissionError as perm:
                     logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
                     continue
@@ -1169,7 +1169,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
         else:
             # Convert an exclude in remote namespace to root namespace for comparison after replacement
             try:
-                local_exclude_dir = exclude_dir.replace(remote_dir, root_dir, 1)
+                local_exclude_dir = path_replace(exclude_dir, remote_dir, root_dir)
             except Exception:
                 local_exclude_dir = None
 
@@ -1185,7 +1185,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
     else:
         # Walk the accessible remote_dir and convert to root_dir representation once per directory
         for path, subdirs, files in os.walk(base_to_walk):
-            replaced_path = path.replace(remote_dir, root_dir, 1)
+            replaced_path = path_replace(path, remote_dir, root_dir)
             if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(replaced_path):
                 continue
             for name in files:
@@ -1323,6 +1323,41 @@ def parse_size_to_bytes(value):
     if mul is None:
         return None
     return int(num * mul)
+
+
+def path_replace(path, old_path, new_path):
+    """
+    Cross-platform safe path replacement that handles different path separators.
+
+    This function replaces old_path with new_path in the given path, accounting for
+    differences in path separators between Windows (\\) and Unix-like systems (/).
+
+    Args:
+        path (str): The path to modify
+        old_path (str): The path segment to replace
+        new_path (str): The replacement path segment
+
+    Returns:
+        str: The modified path with cross-platform compatibility
+    """
+    if not path or not old_path:
+        return path
+
+    # Normalize all paths to use forward slashes for comparison
+    path_norm = path.replace("\\", "/")
+    old_norm = old_path.replace("\\", "/")
+    new_norm = new_path.replace("\\", "/") if new_path else ""
+
+    # Perform the replacement on normalized paths
+    if path_norm.startswith(old_norm):
+        result = new_norm + path_norm[len(old_norm) :]
+    elif old_norm in path_norm:
+        result = path_norm.replace(old_norm, new_norm, 1)
+    else:
+        return path
+
+    # Convert back to the platform's preferred separator
+    return os.path.normpath(result)
 
 
 class YAML:
