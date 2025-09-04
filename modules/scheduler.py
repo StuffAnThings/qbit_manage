@@ -31,13 +31,15 @@ logger = util.logger
 class Scheduler:
     """
     Simplified scheduler with built-in persistence support.
-    Handles both cron expressions and interval scheduling with automatic persistence.
+    Handles both cron expressions and interval scheduling with automatic persistence to qbm_settings.yml.
     """
 
     def __init__(self, config_dir: str = "config", suppress_logging: bool = False, read_only: bool = False):
         """Initialize the Scheduler with persistence support."""
         self.config_dir = Path(config_dir)
-        self.schedule_file = self.config_dir / "schedule.yml"
+        self.settings_file = self.config_dir / "qbm_settings.yml"
+        # Legacy file path for migration
+        self.legacy_schedule_file = self.config_dir / "schedule.yml"
         self.config_dir.mkdir(exist_ok=True, parents=True)
 
         # Thread-safe components
@@ -50,7 +52,7 @@ class Scheduler:
         self._callback = None
         self._read_only = read_only
 
-        # Persistence disabled flag (stored inside schedule.yml as 'disabled: true')
+        # Persistence disabled flag (stored inside qbm_settings.yml under schedule.disabled)
         self._persistence_disabled = False
 
         # Load schedule on initialization (will set _persistence_disabled if file says disabled)
@@ -63,53 +65,117 @@ class Scheduler:
         Load schedule from persistent file or environment variable.
 
         Priority (when not disabled):
-        1. schedule.yml file (persistent)
-        2. QBT_SCHEDULE environment variable (fallback)
+        1. qbm_settings.yml file (persistent) - new structure with 'schedule' root key
+        2. schedule.yml file (legacy, will be migrated to new format)
+        3. QBT_SCHEDULE environment variable (fallback)
 
-        If 'disabled: true' in schedule.yml, skip loading its schedule and fall back to env/none.
+        If 'disabled: true' in settings file, skip loading its schedule and fall back to env/none.
 
         Returns:
             bool: True if schedule loaded successfully
         """
-        schedule_path = str(self.schedule_file)
+        settings_path = str(self.settings_file)
 
         # Reset in-memory state; _persistence_disabled will be set if file indicates
         self._persistence_disabled = False
 
-        if self.schedule_file.exists():
-            try:
-                yaml_loader = YAML(str(self.schedule_file))
-                data = yaml_loader.data
-                if data and isinstance(data, dict):
-                    # Read disabled flag first
-                    if bool(data.get("disabled")):
-                        self._persistence_disabled = True
-                        if not suppress_logging:
-                            logger.debug(f"Persistent schedule disabled (disabled: true in {schedule_path})")
-                    schedule_type = data.get("type")
-                    schedule_value = data.get("value")
-                    if not self._persistence_disabled and schedule_type and schedule_value is not None:
-                        if self._validate_schedule(schedule_type, schedule_value):
-                            self.current_schedule = (schedule_type, schedule_value)
-                            if not self._read_only:
-                                self.next_run = self._calculate_next_run()
-                                next_run_info = calc_next_run(self.next_run)
-                                logger.info(f"{next_run_info['next_run_str']}")
-                            if not suppress_logging:
-                                logger.debug(
-                                    f"Schedule loaded from file: {schedule_type}={schedule_value} (path={schedule_path})"
-                                )
-                            return True
-                        else:
-                            logger.warning(f"Invalid schedule structure in file {schedule_path}: {data}")
-                else:
-                    logger.warning(f"schedule.yml did not contain a dict at {schedule_path}")
-            except Exception as e:
-                logger.error(f"Error loading schedule.yml at {schedule_path}: {e}")
-        else:
-            if not suppress_logging:
-                logger.debug(f"No schedule.yml found at startup (expected path: {schedule_path})")
+        # Check for new settings file first
+        if self.settings_file.exists():
+            return self._load_from_settings_file(settings_path, suppress_logging)
 
+        # Check for legacy schedule file and migrate if found
+        if self.legacy_schedule_file.exists():
+            if self._migrate_legacy_schedule_file(suppress_logging):
+                return self._load_from_settings_file(settings_path, suppress_logging)
+
+        if not suppress_logging:
+            logger.debug(f"No settings file found at startup (expected path: {settings_path})")
+        return self._load_from_environment(suppress_logging)
+
+    def _load_from_settings_file(self, settings_path: str, suppress_logging: bool = False) -> bool:
+        """Load schedule from qbm_settings.yml file."""
+        try:
+            yaml_loader = YAML(settings_path)
+            data = yaml_loader.data
+            if data and isinstance(data, dict):
+                # Handle new structure with 'schedule' root key
+                schedule_data = data.get("schedule", {})
+
+                # Read disabled flag first
+                if bool(schedule_data.get("disabled")):
+                    self._persistence_disabled = True
+                    if not suppress_logging:
+                        logger.debug(f"Persistent schedule disabled (disabled: true in {settings_path})")
+
+                schedule_type = schedule_data.get("type")
+                schedule_value = schedule_data.get("value")
+
+                if not self._persistence_disabled and schedule_type and schedule_value is not None:
+                    if self._validate_schedule(schedule_type, schedule_value):
+                        self.current_schedule = (schedule_type, schedule_value)
+                        if not self._read_only:
+                            self.next_run = self._calculate_next_run()
+                            next_run_info = calc_next_run(self.next_run)
+                            logger.info(f"{next_run_info['next_run_str']}")
+                        if not suppress_logging:
+                            logger.debug(f"Schedule loaded from file: {schedule_type}={schedule_value} (path={settings_path})")
+                        return True
+                    else:
+                        logger.warning(f"Invalid schedule structure in file {settings_path}: {schedule_data}")
+                elif self._persistence_disabled:
+                    if not suppress_logging:
+                        logger.debug(f"Schedule persistence disabled in {settings_path}")
+                    return False
+                else:
+                    logger.warning(f"qbm_settings.yml missing schedule data at {settings_path}")
+            else:
+                logger.warning(f"qbm_settings.yml did not contain a dict at {settings_path}")
+        except Exception as e:
+            logger.error(f"Error loading qbm_settings.yml at {settings_path}: {e}")
+        return False
+
+    def _migrate_legacy_schedule_file(self, suppress_logging: bool = False) -> bool:
+        """Migrate legacy schedule.yml to new qbm_settings.yml format."""
+        try:
+            # Read legacy file
+            yaml_loader = YAML(str(self.legacy_schedule_file))
+            legacy_data = yaml_loader.data
+
+            if legacy_data and isinstance(legacy_data, dict):
+                # Create new structure with schedule as root key
+                new_data = {
+                    "schedule": {
+                        "type": legacy_data.get("type"),
+                        "value": legacy_data.get("value"),
+                        "disabled": legacy_data.get("disabled", False),
+                        "updated_at": legacy_data.get("updated_at", datetime.now().isoformat()),
+                        # Remove version field from new structure
+                    }
+                }
+
+                # Write new settings file
+                tmp_path = self.settings_file.with_suffix(".yml.tmp")
+                yaml_writer = YAML(input_data="")
+                yaml_writer.data = new_data
+                yaml_writer.path = str(tmp_path)
+                yaml_writer.save()
+                os.replace(tmp_path, self.settings_file)
+
+                # Remove legacy file
+                self.legacy_schedule_file.unlink()
+
+                if not suppress_logging:
+                    logger.info("Migrated legacy schedule.yml to qbm_settings.yml")
+                return True
+            else:
+                logger.warning("Invalid legacy schedule.yml structure, skipping migration")
+                return False
+        except Exception as e:
+            logger.error(f"Error migrating legacy schedule.yml: {e}")
+            return False
+
+    def _load_from_environment(self, suppress_logging: bool = False) -> bool:
+        """Load schedule from environment variable as fallback."""
         # If disabled, do not attempt env override unless we want an environment fallback
         if self._persistence_disabled:
             # Attempt env fallback only if present
@@ -177,8 +243,9 @@ class Scheduler:
 
     def save_schedule(self, schedule_type: str, schedule_value: Union[str, int]) -> bool:
         """
-        Save schedule configuration to persistent file (includes disabled flag).
+        Save schedule configuration to qbm_settings.yml (includes disabled flag).
         Always re-enables persistence (disabled flag cleared) when an explicit save is requested.
+        Uses new structure with 'schedule' root key.
         """
         if not self._validate_schedule(schedule_type, schedule_value):
             logger.error(f"Invalid schedule: {schedule_type}={schedule_value}")
@@ -206,18 +273,20 @@ class Scheduler:
 
     def toggle_persistence(self) -> bool:
         """
-        Toggle persistent schedule enable/disable (non-destructive, stored in schedule.yml as disabled flag).
+        Toggle persistent schedule enable/disable (non-destructive, stored in qbm_settings.yml under schedule.disabled).
         Reduced logging (no stack trace).
         """
         try:
             # Load existing file data (if any) to preserve schedule type/value
             existing_type = None
             existing_value = None
-            if self.schedule_file.exists():
+            if self.settings_file.exists():
                 file_data = self._read_schedule_file()
                 if file_data:
-                    existing_type = file_data.get("type")
-                    existing_value = file_data.get("value")
+                    # Handle new structure with 'schedule' root key
+                    schedule_data = file_data.get("schedule", {})
+                    existing_type = schedule_data.get("type")
+                    existing_value = schedule_data.get("value")
 
             if not self._persistence_disabled:
                 # Disable persistence (set disabled true, keep schedule metadata)
@@ -250,42 +319,47 @@ class Scheduler:
             return False
 
     def _read_schedule_file(self) -> Optional[dict[str, Any]]:
-        """Read schedule data from file without modifying scheduler state."""
-        if not self.schedule_file.exists():
+        """Read qbm_settings.yml data from file without modifying scheduler state."""
+        if not self.settings_file.exists():
             return None
 
         try:
-            yaml_loader = YAML(str(self.schedule_file))
+            yaml_loader = YAML(str(self.settings_file))
             data = yaml_loader.data
             if data and isinstance(data, dict):
                 return data
         except Exception as e:
-            logger.error(f"Error reading schedule file: {e}")
+            logger.error(f"Error reading settings file: {e}")
         return None
 
     def get_schedule_info(self) -> dict[str, Any]:
-        """Get detailed schedule information including source, persistence, and disabled state."""
+        """Get detailed schedule information including source, persistence, and disabled state from qbm_settings.yml."""
         with self.lock:
             disabled = self._persistence_disabled
-            file_exists = self.schedule_file.exists()
+            file_exists = self.settings_file.exists()
             file_data = None
             if file_exists:
                 try:
                     file_data = self._read_schedule_file()
-                    if file_data and bool(file_data.get("disabled")) != disabled:
-                        # Keep in-memory flag consistent with file if manual edits occurred
-                        disabled = bool(file_data.get("disabled"))
-                        self._persistence_disabled = disabled
+                    if file_data:
+                        # Handle new structure with 'schedule' root key
+                        schedule_data = file_data.get("schedule", {})
+                        if bool(schedule_data.get("disabled")) != disabled:
+                            # Keep in-memory flag consistent with file if manual edits occurred
+                            disabled = bool(schedule_data.get("disabled"))
+                            self._persistence_disabled = disabled
                 except Exception as e:
-                    logger.error(f"Error reading schedule file: {e}")
+                    logger.error(f"Error reading settings file: {e}")
 
             if not disabled and file_data:
-                schedule_type = file_data.get("type")
-                schedule_value = file_data.get("value")
+                # Handle new structure with 'schedule' root key
+                schedule_data = file_data.get("schedule", {})
+                schedule_type = schedule_data.get("type")
+                schedule_value = schedule_data.get("value")
                 return {
                     "schedule": str(schedule_value),
                     "type": schedule_type,
-                    "source": self.schedule_file.name,
+                    "source": self.settings_file.name,
                     "persistent": True,
                     "file_exists": True,
                     "disabled": False,
@@ -495,22 +569,37 @@ class Scheduler:
 
     def _persist_schedule_file(self, schedule_type: Optional[str], schedule_value: Optional[Union[str, int]]) -> None:
         """
-        Internal helper to persist schedule.yml including disabled flag.
+        Internal helper to persist qbm_settings.yml including disabled flag.
+        Uses new structure with 'schedule' root key. Preserves other settings in the file.
         If schedule_type/value are None (e.g., user disabled before ever saving), we still write disabled state.
         """
-        data = {
+        # Load existing settings file to preserve other settings
+        existing_data = {}
+        if self.settings_file.exists():
+            try:
+                yaml_loader = YAML(str(self.settings_file))
+                existing_data = yaml_loader.data or {}
+            except Exception:
+                # If we can't read existing file, start fresh
+                existing_data = {}
+
+        # Update schedule section
+        schedule_data = {
             "type": schedule_type,
             "value": schedule_value,
             "disabled": self._persistence_disabled,
             "updated_at": datetime.now().isoformat(),
-            "version": 1,
         }
-        tmp_path = self.schedule_file.with_suffix(".yml.tmp")
+
+        # Merge with existing data
+        existing_data["schedule"] = schedule_data
+
+        tmp_path = self.settings_file.with_suffix(".yml.tmp")
         yaml_writer = YAML(input_data="")
-        yaml_writer.data = data
+        yaml_writer.data = existing_data
         yaml_writer.path = str(tmp_path)
         yaml_writer.save()
-        os.replace(tmp_path, self.schedule_file)
+        os.replace(tmp_path, self.settings_file)
 
     def _scheduler_loop(self):
         """Main scheduler loop running in background thread."""

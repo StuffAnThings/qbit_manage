@@ -253,7 +253,7 @@ def get_default_config_dir(config_hint: str = None, config_dir: str = None) -> s
     2) If config_hint is an absolute path or contains a directory component, use its parent directory
     3) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
           - A direct match to that filename/pattern
-          - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
+          - OR a persisted scheduler file 'qbm_settings.yml' or legacy 'schedule.yml' (so we don't lose an existing schedule)
         Common bases (in order):
           - /config (container volume)
           - repository ./config
@@ -288,8 +288,8 @@ def get_default_config_dir(config_hint: str = None, config_dir: str = None) -> s
 
             for base in candidates:
                 try:
-                    # Match the primary pattern OR detect existing schedule.yml (persistence)
-                    if list(base.glob(primary)) or (base / "schedule.yml").exists():
+                    # Match the primary pattern OR detect existing settings files (persistence)
+                    if list(base.glob(primary)) or (base / "qbm_settings.yml").exists() or (base / "schedule.yml").exists():
                         return str(base.resolve())
                 except Exception:
                     # ignore and continue to next base
@@ -1625,7 +1625,7 @@ def get_matching_config_files(config_pattern: str, default_dir: str, use_config_
             for config_file in glob_configs:
                 filename = os.path.basename(config_file)
                 # Exclude reserved files
-                if filename != "schedule.yml":
+                if filename not in ("schedule.yml", "qbm_settings.yml"):
                     config_files.append(filename)
 
         if config_files:

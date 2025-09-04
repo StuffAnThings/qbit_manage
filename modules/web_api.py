@@ -1391,20 +1391,20 @@ class WebAPI:
                     parsed_value = schedule_value  # cron
 
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
-            existed_before = scheduler.schedule_file.exists()
+            existed_before = scheduler.settings_file.exists()
             prev_contents = None
             if existed_before:
                 try:
-                    with open(scheduler.schedule_file, encoding="utf-8", errors="ignore") as f:
+                    with open(scheduler.settings_file, encoding="utf-8", errors="ignore") as f:
                         prev_contents = f.read().strip()
                 except Exception:
                     prev_contents = "<read_error>"
 
             success = scheduler.save_schedule(schedule_type, str(parsed_value))
             new_size = None
-            if scheduler.schedule_file.exists():
+            if scheduler.settings_file.exists():
                 try:
-                    new_size = scheduler.schedule_file.stat().st_size
+                    new_size = scheduler.settings_file.stat().st_size
                 except Exception:
                     pass
 
@@ -1413,8 +1413,8 @@ class WebAPI:
                 raise HTTPException(status_code=500, detail="Failed to save schedule")
 
             logger.debug(
-                f"UPDATE /schedule cid={correlation_id} persisted path={scheduler.schedule_file} "
-                f"existed_before={existed_before} new_exists={scheduler.schedule_file.exists()} "
+                f"UPDATE /schedule cid={correlation_id} persisted path={scheduler.settings_file} "
+                f"existed_before={existed_before} new_exists={scheduler.settings_file.exists()} "
                 f"new_size={new_size} prev_hash={hash(prev_contents) if prev_contents else None}"
             )
 
@@ -1452,7 +1452,7 @@ class WebAPI:
         try:
             correlation_id = uuid.uuid4().hex[:12]
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
-            file_exists_before = scheduler.schedule_file.exists()
+            file_exists_before = scheduler.settings_file.exists()
 
             # Execute toggle (scheduler emits single summary line internally)
             success = scheduler.toggle_persistence()
