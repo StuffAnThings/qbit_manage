@@ -172,7 +172,7 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
 
-    default_dir: str = field(default_factory=lambda: util.ensure_config_dir_initialized(util.get_default_config_dir()))
+    default_dir: str
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default=None)
     is_running: Synchronized[bool] = field(default=None)
@@ -209,17 +209,11 @@ class WebAPI:
         app = FastAPI(lifespan=lifespan)
         object.__setattr__(self, "app", app)
 
-        # If caller provided a config_dir (e.g., computed in qbit_manage), prefer it
+        # Ensure default dir is initialized
         try:
-            provided_dir = self.args.get("config_dir")
-            if provided_dir:
-                resolved_dir = util.ensure_config_dir_initialized(provided_dir)
-                object.__setattr__(self, "default_dir", resolved_dir)
-            else:
-                # Ensure default dir is initialized
-                object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
+            object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
         except Exception as e:
-            logger.error(f"Failed to apply provided config_dir '{self.args.get('config_dir')}': {e}")
+            logger.error(f"Failed to initialize default_dir '{self.default_dir}': {e}")
 
         # Initialize paths during startup
         object.__setattr__(self, "config_path", Path(self.default_dir))
@@ -1542,7 +1536,18 @@ def create_app(
     scheduler: object = None,
 ) -> FastAPI:
     """Create and return the FastAPI application."""
+    # Get default_dir from args, which should be set by qbit_manage.py
+    default_dir = args.get("config_dir")
+    if not default_dir:
+        # Fallback if not provided
+        default_dir = util.ensure_config_dir_initialized(
+            util.get_default_config_dir(
+                args.config_files,
+            )
+        )
+
     return WebAPI(
+        default_dir=default_dir,
         args=args,
         is_running=is_running,
         is_running_lock=is_running_lock,
