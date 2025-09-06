@@ -9,8 +9,8 @@ import re
 import shutil
 import signal
 import sys
-import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -890,95 +890,55 @@ def trunc_val(stg, delm, num=3):
 def move_files(src, dest, mod=False):
     """Move files from source to destination, mod variable is to change the date modified of the file being moved"""
 
-    def timeout_operation():
-        try:
-            if mod is True:
-                mod_time = time.time()
-                os.utime(src, (mod_time, mod_time))
-            shutil.move(src, dest)
-        except Exception as e:
-            timeout_operation.exception = e
-
     dest_path = os.path.dirname(dest)
     to_delete = False
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path, exist_ok=True)
 
-    timeout_operation.exception = None
+    # Use ThreadPoolExecutor for timeout protection without thread exhaustion
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        try:
+            # Submit move operation with timeout
+            future = executor.submit(_move_file_operation, src, dest, mod)
+            result = future.result(timeout=300.0)  # 5 minute timeout for file operations
+            to_delete = result
 
-    try:
-        # Start the file operation in a separate thread
-        operation_thread = threading.Thread(target=timeout_operation)
-        operation_thread.start()
-        operation_thread.join(timeout=300.0)  # 5 minute timeout for file operations
-
-        if operation_thread.is_alive():
-            # Operation is still running (hung), skip it
+        except TimeoutError:
             logger.warning(f"Timeout moving file (permission issue?): {src} -> {dest}")
             return to_delete
 
-        # Check if the operation raised an exception
-        if timeout_operation.exception:
-            raise timeout_operation.exception
+        except PermissionError as perm:
+            logger.warning(f"{perm} : Copying files instead.")
 
-    except PermissionError as perm:
-        logger.warning(f"{perm} : Copying files instead.")
-
-        def copy_operation():
             try:
-                shutil.copyfile(src, dest)
-            except Exception as e:
-                copy_operation.exception = e
+                # Use the existing copy_files function
+                copy_files(src, dest)
 
-        copy_operation.exception = None
-
-        try:
-            copy_thread = threading.Thread(target=copy_operation)
-            copy_thread.start()
-            copy_thread.join(timeout=300.0)
-
-            if copy_thread.is_alive():
-                logger.warning(f"Timeout copying file (permission issue?): {src} -> {dest}")
+            except Exception as ex:
+                logger.stacktrace()
+                logger.error(ex)
                 return to_delete
 
-            if copy_operation.exception:
-                raise copy_operation.exception
+            if os.path.isfile(src):
+                logger.warning(f"Removing original file: {src}")
 
+                try:
+                    # Submit remove operation with timeout
+                    future = executor.submit(_remove_file_operation, src)
+                    future.result(timeout=300.0)
+
+                except TimeoutError:
+                    logger.warning(f"Timeout removing original file (permission issue?): {src}")
+                except OSError as e:
+                    logger.warning(f"Error: {e.filename} - {e.strerror}.")
+
+            to_delete = True
+
+        except FileNotFoundError as file:
+            logger.warning(f"{file} : source: {src} -> destination: {dest}")
         except Exception as ex:
             logger.stacktrace()
             logger.error(ex)
-            return to_delete
-
-        if os.path.isfile(src):
-            logger.warning(f"Removing original file: {src}")
-
-            def remove_operation():
-                try:
-                    os.remove(src)
-                except Exception as e:
-                    remove_operation.exception = e
-
-            remove_operation.exception = None
-
-            try:
-                remove_thread = threading.Thread(target=remove_operation)
-                remove_thread.start()
-                remove_thread.join(timeout=300.0)
-
-                if remove_thread.is_alive():
-                    logger.warning(f"Timeout removing original file (permission issue?): {src}")
-                elif remove_operation.exception:
-                    raise remove_operation.exception
-
-            except OSError as e:
-                logger.warning(f"Error: {e.filename} - {e.strerror}.")
-
-        to_delete = True
-    except FileNotFoundError as file:
-        logger.warning(f"{file} : source: {src} -> destination: {dest}")
-    except Exception as ex:
-        logger.stacktrace()
-        logger.error(ex)
 
     return to_delete
 
@@ -986,36 +946,23 @@ def move_files(src, dest, mod=False):
 def delete_files(file_path):
     """Try to delete the file directly with timeout protection."""
 
-    def timeout_operation():
+    # Use ThreadPoolExecutor for timeout protection without thread exhaustion
+    with ThreadPoolExecutor(max_workers=1) as executor:
         try:
-            os.remove(file_path)
-        except Exception as e:
-            # Store the exception to be re-raised in main thread
-            timeout_operation.exception = e
+            # Submit delete operation with timeout
+            future = executor.submit(_remove_file_operation, file_path)
+            future.result(timeout=300.0)  # 5 minute timeout for file operations
 
-    timeout_operation.exception = None
-
-    try:
-        # Start the file operation in a separate thread
-        operation_thread = threading.Thread(target=timeout_operation)
-        operation_thread.start()
-        operation_thread.join(timeout=300.0)  # 5 minute timeout for file operations
-
-        if operation_thread.is_alive():
-            # Operation is still running (hung), skip it
+        except TimeoutError:
             logger.warning(f"Timeout deleting file (permission issue?): {file_path}")
             return
 
-        # Check if the operation raised an exception
-        if timeout_operation.exception:
-            raise timeout_operation.exception
-
-    except FileNotFoundError as e:
-        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
-    except PermissionError as e:
-        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
-    except OSError as e:
-        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
+        except FileNotFoundError as e:
+            logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+        except PermissionError as e:
+            logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+        except OSError as e:
+            logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
 
 
 def copy_files(src, dest):
@@ -1028,6 +975,20 @@ def copy_files(src, dest):
     except Exception as ex:
         logger.stacktrace()
         logger.error(ex)
+
+
+def _move_file_operation(src, dest, mod):
+    """Internal function for move operation."""
+    if mod is True:
+        mod_time = time.time()
+        os.utime(src, (mod_time, mod_time))
+    shutil.move(src, dest)
+    return True
+
+
+def _remove_file_operation(src):
+    """Internal function for remove operation."""
+    os.remove(src)
 
 
 def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patterns=[]):
