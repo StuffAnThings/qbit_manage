@@ -11,6 +11,13 @@ class API {
             'Accept': 'application/json'
         };
         this.supportsBackups = true; // Assume backups are supported until proven otherwise
+        this.csrfToken = this.getCsrfToken();
+    }
+
+    getCsrfToken() {
+        // Try to get CSRF token from meta tag
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        return metaTag ? metaTag.getAttribute('content') : null;
     }
 
     /**
@@ -25,13 +32,33 @@ class API {
      */
     async request(endpoint, options = {}) {
         const url = `${this.baseUrl}/api${endpoint}`;
+        const headers = { ...this.defaultHeaders, ...options.headers };
+
+        // Add CSRF token for state-changing requests
+        if (this.csrfToken && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase())) {
+            headers['X-CSRF-Token'] = this.csrfToken;
+        }
+
         const config = {
-            headers: { ...this.defaultHeaders, ...options.headers },
+            headers: headers,
             ...options
         };
 
         try {
             const response = await fetch(url, config);
+
+            // Check for authentication redirect (HTML response when we expect JSON)
+            const contentType = response.headers.get('content-type');
+            if (response.ok && contentType && contentType.includes('text/html')) {
+                // This is likely a redirect to login page
+                const htmlContent = await response.text();
+                if (htmlContent.includes('login-form') || htmlContent.includes('Please sign in')) {
+                    // Redirect to login page
+                    window.location.href = '/login';
+                    throw new APIError('Authentication required', 401, { redirect: true });
+                }
+                return htmlContent;
+            }
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -42,7 +69,6 @@ class API {
                 );
             }
 
-            const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 return await response.json();
             } else {
@@ -105,6 +131,19 @@ class API {
      */
     async delete(endpoint) {
         return this.request(endpoint, { method: 'DELETE' });
+    }
+
+    /**
+     * Generic makeRequest method for compatibility
+     */
+    async makeRequest(endpoint, method = 'GET', data = null) {
+        const options = { method: method.toUpperCase() };
+
+        if (data && (method.toUpperCase() === 'POST' || method.toUpperCase() === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+
+        return this.request(endpoint, options);
     }
 
     // Configuration Management Endpoints

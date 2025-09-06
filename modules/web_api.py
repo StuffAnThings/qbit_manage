@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -35,8 +36,18 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from humanize import precisedelta
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from modules import util
+from modules.auth import AuthenticationMiddleware
+from modules.auth import AuthSettings
+from modules.auth import SecuritySettingsRequest
+from modules.auth import generate_api_key
+from modules.auth import hash_password
+from modules.auth import load_auth_settings
+from modules.auth import save_auth_settings
 from modules.config import Config
 from modules.scheduler import Scheduler
 from modules.util import YAML
@@ -168,6 +179,37 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
         raise
 
 
+async def watch_settings_file(web_api: WebAPI) -> None:
+    """Monitor the settings file for changes and reload authentication settings."""
+    settings_path = web_api.default_dir / "qbm_settings.yml"
+    last_hash = None
+
+    try:
+        while True:
+            try:
+                if settings_path.exists():
+                    # Calculate current file hash
+                    with open(settings_path, "rb") as f:
+                        current_hash = hashlib.sha256(f.read()).hexdigest()
+
+                    # If hash has changed, reload authentication settings
+                    if last_hash is not None and current_hash != last_hash:
+                        logger.info("Settings file changed, reloading authentication settings")
+                        AuthenticationMiddleware.force_reload_all_settings()
+
+                    last_hash = current_hash
+                else:
+                    last_hash = None
+            except Exception as e:
+                logger.error(f"Error monitoring settings file: {e}")
+                last_hash = None
+
+            await asyncio.sleep(0.5)  # Check every 500ms for changes
+    except asyncio.CancelledError:
+        logger.info("Settings file watching task cancelled")
+        raise
+
+
 @dataclass(frozen=True)
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
@@ -193,17 +235,20 @@ class WebAPI:
         @asynccontextmanager
         async def lifespan(app: FastAPI):
             """Handle application startup and shutdown events."""
-            # Startup: Start background task for queue processing
+            # Startup: Start background tasks
             app.state.web_api = self
-            app.state.background_task = asyncio.create_task(process_queue_periodically(self))
+            app.state.queue_task = asyncio.create_task(process_queue_periodically(self))
+            app.state.settings_watcher_task = asyncio.create_task(watch_settings_file(self))
             yield
-            # Shutdown: Clean up background task
-            if hasattr(app.state, "background_task"):
-                app.state.background_task.cancel()
-                try:
-                    await app.state.background_task
-                except asyncio.CancelledError:
-                    pass
+            # Shutdown: Clean up background tasks
+            for task_name in ["queue_task", "settings_watcher_task"]:
+                if hasattr(app.state, task_name):
+                    task = getattr(app.state, task_name)
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
 
         # Create app with lifespan context manager
         app = FastAPI(lifespan=lifespan)
@@ -228,6 +273,26 @@ class WebAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        # Configure Rate Limiting
+        limiter = Limiter(key_func=get_remote_address)
+        self.app.state.limiter = limiter
+        self.app.add_middleware(SlowAPIMiddleware)
+
+        # Add Security Headers Middleware
+        @self.app.middleware("http")
+        async def add_security_headers(request: Request, call_next):
+            response = await call_next(request)
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            return response
+
+        # Configure Authentication Middleware
+        settings_path = Path(self.default_dir) / "qbm_settings.yml"
+        self.app.add_middleware(AuthenticationMiddleware, settings_path=settings_path)
+        logger.info(f"Authentication middleware configured with settings path: {settings_path}")
 
         # Create API router with clean route definitions
         api_router = APIRouter()
@@ -257,6 +322,10 @@ class WebAPI:
         api_router.get("/version")(self.get_version)
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
+
+        # Authentication routes
+        api_router.get("/security")(self.get_security_settings)
+        api_router.put("/security")(self.update_security_settings)
 
         # System management routes
         api_router.post("/system/force-reset")(self.force_reset_running_state)
@@ -1524,6 +1593,63 @@ class WebAPI:
 
         except Exception as e:
             logger.error(f"Error updating next run info: {str(e)}")
+
+    # Authentication methods
+
+    async def get_security_settings(self) -> AuthSettings:
+        """Get current security settings."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            settings = load_auth_settings(settings_path)
+
+            # Don't return the password hash for security
+            settings.password_hash = "***" if settings.password_hash else ""
+
+            return settings
+        except Exception as e:
+            logger.error(f"Error getting security settings: {str(e)}")
+            return AuthSettings()
+
+    async def update_security_settings(self, request: SecuritySettingsRequest) -> dict[str, Any]:
+        """Update security settings."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            current_settings = load_auth_settings(settings_path)
+
+            # Update settings
+            current_settings.enabled = request.enabled
+            current_settings.method = request.method
+            current_settings.bypass_auth_for_local = request.bypass_auth_for_local
+            current_settings.username = request.username
+
+            # Handle password
+            if request.password:
+                current_settings.password_hash = hash_password(request.password)
+
+            # Handle API key generation
+            if request.generate_api_key:
+                current_settings.api_key = generate_api_key()
+
+            # Handle API key clearing
+            if hasattr(request, "clear_api_key") and request.clear_api_key:
+                current_settings.api_key = ""
+
+            # Save settings
+            if save_auth_settings(settings_path, current_settings):
+                # Force reload authentication settings to ensure immediate effect
+                AuthenticationMiddleware.force_reload_all_settings()
+                logger.info("Authentication settings reloaded after update")
+                return {
+                    "success": True,
+                    "message": "Security settings updated successfully",
+                    "api_key": current_settings.api_key if (request.generate_api_key or request.clear_api_key) else None,
+                }
+            else:
+                return {"success": False, "message": "Failed to save security settings"}
+
+        except Exception as e:
+            logger.error(f"Error updating security settings: {str(e)}")
+            return {"success": False, "message": f"Error updating security settings: {str(e)}"}
 
 
 def create_app(

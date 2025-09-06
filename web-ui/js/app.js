@@ -8,6 +8,7 @@ import { ConfigForm } from './components/config-form.js';
 import { CommandPanel } from './components/command-panel.js';
 import { LogViewer } from './components/log-viewer.js';
 import { SchedulerControl } from './components/SchedulerControl.js';
+import { SecurityComponent } from './components/security.js';
 import { get, query, queryAll, show, hide, showLoading, hideLoading } from './utils/dom.js';
 import { initModal, showModal, hideModal } from './utils/modal.js';
 import { showToast } from './utils/toast.js';
@@ -30,6 +31,7 @@ class QbitManageApp {
         this.commandPanel = null;
         this.logViewer = null;
         this.schedulerControl = null;
+        this.securityComponent = null;
         this.helpModal = null; // To store the reference to the help modal
         this.historyManager = new HistoryManager(this.api); // Initialize history manager
 
@@ -82,6 +84,9 @@ class QbitManageApp {
 
             // Initialize scheduler after components
             this.initSchedulerControl();
+
+            // Initialize security component
+            this.initSecurityComponent();
         } catch (error) {
             console.error('Failed to initialize application:', error);
             showToast('Failed to initialize application', 'error');
@@ -177,6 +182,14 @@ class QbitManageApp {
         }
     }
 
+    initSecurityComponent() {
+        const securityContainer = get('security-container');
+        if (securityContainer) {
+            this.securityComponent = new SecurityComponent('security-container', this.api);
+            this.securityComponent.init();
+        }
+    }
+
     bindEvents() {
         this._bindHeaderEvents();
         this._bindNavigationEvents();
@@ -212,7 +225,11 @@ class QbitManageApp {
 
         // Save config button
         get('save-config-btn').addEventListener('click', () => {
-            this.saveConfig();
+            if (this.currentSection === 'security') {
+                this.saveSecuritySettings();
+            } else {
+                this.saveConfig();
+            }
         });
 
         // Validate config button
@@ -723,23 +740,36 @@ class QbitManageApp {
         const mainContentSection = get('section-content');
         const logsSection = get('logs-section');
         const schedulerSection = get('scheduler-section');
+        const securitySection = get('security-section');
 
         if (sectionName === 'logs') {
             if (mainContentSection) hide(mainContentSection);
             if (schedulerSection) hide(schedulerSection);
+            if (securitySection) hide(securitySection);
             this.logViewer.show(); // Use the LogViewer's show method
         } else if (sectionName === 'scheduler') {
             if (mainContentSection) hide(mainContentSection);
             if (logsSection) hide(logsSection);
+            if (securitySection) hide(securitySection);
             this.logViewer.hide(); // Use the LogViewer's hide method
             if (schedulerSection) show(schedulerSection);
 
             // Scheduler should already be initialized during app startup
             // No need to initialize again here
+        } else if (sectionName === 'security') {
+            if (mainContentSection) hide(mainContentSection);
+            if (logsSection) hide(logsSection);
+            if (schedulerSection) hide(schedulerSection);
+            if (securitySection) show(securitySection);
+            this.logViewer.hide(); // Use the LogViewer's hide method
+
+            // Security section is handled by SecurityComponent
+            // No need to load config data for security
         } else {
             if (mainContentSection) show(mainContentSection);
             if (logsSection) hide(logsSection);
             if (schedulerSection) hide(schedulerSection);
+            if (securitySection) hide(securitySection);
             this.logViewer.hide(); // Use the LogViewer's hide method
             // Load current section for config forms
             if (this.configData) {
@@ -1289,6 +1319,20 @@ class QbitManageApp {
                 }
             }
         ]);
+    }
+
+    async saveSecuritySettings() {
+        if (!this.securityComponent) {
+            showToast('Security component not initialized', 'error');
+            return;
+        }
+
+        try {
+            await this.securityComponent.saveSettings();
+        } catch (error) {
+            console.error('Failed to save security settings:', error);
+            showToast('Failed to save security settings', 'error');
+        }
     }
 }
 
