@@ -291,7 +291,7 @@ class WebAPI:
 
         # Configure Authentication Middleware
         settings_path = Path(self.default_dir) / "qbm_settings.yml"
-        self.app.add_middleware(AuthenticationMiddleware, settings_path=settings_path)
+        self.app.add_middleware(AuthenticationMiddleware, settings_path=settings_path, base_url=base_url)
         logger.info(f"Authentication middleware configured with settings path: {settings_path}")
 
         # Create API router with clean route definitions

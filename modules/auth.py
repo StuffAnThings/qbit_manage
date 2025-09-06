@@ -77,9 +77,9 @@ class SecuritySettingsRequest(BaseModel):
 
     @validator("username")
     def username_must_be_valid(cls, v):
-        if not v or len(v) < 3 or len(v) > 50:
+        if v and (len(v) < 3 or len(v) > 50):
             raise ValueError("Username must be 3-50 characters")
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+        if v and not re.match(r"^[a-zA-Z0-9_-]+$", v):
             raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
         return v
 
@@ -186,9 +186,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     # Class variable to store all instances for cache clearing
     _instances = []
 
-    def __init__(self, app, settings_path: Path):
+    def __init__(self, app, settings_path: Path, base_url: str = ""):
         super().__init__(app)
         self.settings_path = settings_path
+        self.base_url = base_url
         self._settings_cache = None
         self._last_settings_check = None
         self._settings_cache_duration = timedelta(seconds=1)  # Cache settings for 1 second
@@ -293,12 +294,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             settings = self._load_auth_settings()
 
             # Skip authentication for certain paths
+            base_api_path = f"{self.base_url}/api" if self.base_url else "/api"
+            base_static_path = f"{self.base_url}/static" if self.base_url else "/static"
             skip_auth_paths = [
-                "/static/",
-                "/api/health",
-                "/api/version",
-                "/api/get_base_url",
-                "/api/security",
+                base_static_path,
+                f"{base_api_path}/health",
+                f"{base_api_path}/version",
+                f"{base_api_path}/get_base_url",
+                f"{base_api_path}/security",
                 "/site.webmanifest",
             ]
 
@@ -337,7 +340,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         """Handle HTTP Basic authentication with API key support for API endpoints."""
 
         # For API endpoints, allow API key authentication
-        if request.url.path.startswith("/api/"):
+        base_api_path = f"{self.base_url}/api" if self.base_url else "/api"
+        if request.url.path.startswith(base_api_path):
             api_key = request.headers.get("X-API-Key")
             if api_key and verify_api_key(api_key, settings.api_key):
                 return await call_next(request)
@@ -378,7 +382,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def _handle_api_only_auth(self, request: Request, call_next, settings: AuthSettings):
         """Handle API-only authentication."""
         # Allow all non-API requests to pass through without authentication
-        if not request.url.path.startswith("/api/"):
+        base_api_path = f"{self.base_url}/api" if self.base_url else "/api"
+        if not request.url.path.startswith(base_api_path):
             return await call_next(request)
 
         # For API requests, require API key authentication
