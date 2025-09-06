@@ -1,5 +1,4 @@
 import os
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
@@ -70,47 +69,38 @@ class RemoveOrphaned:
         protected_files = set()
 
         if min_file_age_minutes > 0:  # Only apply age protection if configured
-            for file in orphaned_files:
-
-                def age_check_operation():
-                    try:
-                        file_mtime = os.path.getmtime(file)
-                        age_check_operation.result = file_mtime
-                    except Exception as e:
-                        age_check_operation.exception = e
-
-                age_check_operation.result = None
-                age_check_operation.exception = None
-
+            # Use ThreadPoolExecutor for age checks with timeout to prevent hanging
+            def check_file_age(file):
                 try:
-                    # Start the age check in a separate thread
-                    age_thread = threading.Thread(target=age_check_operation)
-                    age_thread.start()
-                    age_thread.join(timeout=60.0)  # 1 minute timeout for age checks
-
-                    if age_thread.is_alive():
-                        # Operation is still running (hung), skip this file
-                        logger.warning(f"Timeout checking file age (permission issue?): {file}")
-                        continue
-
-                    # Check if the operation raised an exception
-                    if age_check_operation.exception:
-                        raise age_check_operation.exception
-
-                    file_mtime = age_check_operation.result
+                    file_mtime = os.path.getmtime(file)
                     file_age_minutes = (now - file_mtime) / 60
+                    return file, file_mtime, file_age_minutes
+                except PermissionError as e:
+                    logger.warning(f"Permission denied checking file age for {file}: {e}")
+                    return file, None, None
+                except Exception as e:
+                    logger.error(f"Error checking file age for {file}: {e}")
+                    return file, None, None
 
-                    if file_age_minutes < min_file_age_minutes:
+            # Process age checks in parallel with timeout
+            age_check_futures = [self.executor.submit(check_file_age, file) for file in orphaned_files]
+
+            for future in age_check_futures:
+                try:
+                    file, file_mtime, file_age_minutes = future.result(timeout=30.0)  # 30 second timeout per file
+                    if file_mtime is not None and file_age_minutes < min_file_age_minutes:
                         protected_files.add(file)
                         logger.print_line(
                             f"Skipping orphaned file (too new): {os.path.basename(file)} "
                             f"(age {file_age_minutes:.1f} mins < {min_file_age_minutes} mins)",
                             self.config.loglevel,
                         )
-                except PermissionError as e:
-                    logger.warning(f"Permission denied checking file age for {file}: {e}")
+                except TimeoutError:
+                    logger.warning(f"Timeout checking file age (permission issue?): {file}")
+                    continue
                 except Exception as e:
-                    logger.error(f"Error checking file age for {file}: {e}")
+                    logger.error(f"Unexpected error during age check for {file}: {e}")
+                    continue
 
             # Remove protected files from orphaned files
             orphaned_files -= protected_files
