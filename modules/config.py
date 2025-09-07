@@ -4,9 +4,11 @@ import os
 import re
 import stat
 import time
+from fnmatch import fnmatch
 
 import requests
 from retrying import retry
+from ruamel.yaml import CommentedSeq
 
 from modules import util
 from modules.apprise import Apprise
@@ -282,6 +284,135 @@ class Config:
             )
             self.notify(err, "Config")
             raise Failed(err)
+
+        if has_categories:
+            try:
+                self.validate_categories_with_qbittorrent()
+            except Failed:
+                raise
+            except Exception as e:
+                logger.warning(f"Could not perform enhanced category validation: {e}")
+                logger.info("Basic category validation passed, continuing with standard validation")
+
+    def validate_categories_with_qbittorrent(self):
+        """
+        Enhanced category validation that connects to qBittorrent API to verify:
+        1. All torrent save paths are covered by category definitions
+        2. Categories exist in qBittorrent or can be created
+        3. Path matching logic works correctly
+
+        Provides actionable error messages with specific missing categories/paths.
+        """
+        logger.debug("Starting enhanced category validation with qBittorrent API...")
+
+        try:
+            qbt_manager = self.__connect()
+            logger.trace("Connected to qBittorrent for category validation")
+        except Exception as e:
+            logger.debug(f"Could not connect to qBittorrent for enhanced validation: {e}")
+            return
+
+        try:
+            torrents = qbt_manager.get_torrents({"status_filter": "all"})
+            logger.trace(f"Retrieved {len(torrents)} torrents for category validation")
+        except Exception as e:
+            logger.debug(f"Could not retrieve torrents for validation: {e}")
+            return
+
+        try:
+            qbt_categories = qbt_manager.client.torrent_categories.categories
+            qbt_category_names = set(qbt_categories.keys()) if qbt_categories else set()
+            logger.trace(f"Found {len(qbt_category_names)} categories in qBittorrent: {qbt_category_names}")
+        except Exception as e:
+            logger.debug(f"Could not retrieve qBittorrent categories: {e}")
+            qbt_category_names = set()
+
+        torrent_save_paths = {os.path.join(torrent.save_path, "") for torrent in torrents}
+        logger.trace(f"Found {len(torrent_save_paths)} unique save paths from torrents")
+
+        uncovered_paths = self._get_uncovered_save_paths(torrent_save_paths)
+        config_category_names = set(self.data.get("cat", {}).keys())
+        missing_from_config = qbt_category_names - config_category_names
+
+        logger.trace("=== Category Validation Debug Info ===")
+        logger.trace(f"Config categories: {list(config_category_names)}")
+        logger.trace(f"qBittorrent categories: {sorted(qbt_category_names)}")
+        logger.trace(f"Torrent save paths: {sorted(torrent_save_paths)}")
+        logger.trace(f"Uncovered paths: {sorted(uncovered_paths)}")
+        logger.trace("=== End Debug Info ===")
+
+        if missing_from_config or uncovered_paths:
+            error_parts = self._build_category_validation_error(missing_from_config, uncovered_paths, qbt_categories)
+            err = "Config Error: Category validation failed with qBittorrent API validation.\n\n" + "\n".join(error_parts)
+            self.notify(err, "Category Validation")
+            raise Failed(err)
+
+        logger.debug("Enhanced category validation passed - all save paths are covered")
+
+    def _get_uncovered_save_paths(self, torrent_save_paths):
+        """Check which save paths are covered by config categories using existing logic."""
+        uncovered_paths = set()
+        config_categories = self.data.get("cat", {})
+
+        for save_path in torrent_save_paths:
+            path_covered = False
+
+            for cat_name, cat_path in config_categories.items():
+                try:
+                    if cat_name == "Uncategorized" and isinstance(cat_path, CommentedSeq):
+                        if any(os.path.join(p, "") == save_path or fnmatch(save_path, p) for p in cat_path):
+                            path_covered = True
+                            break
+                    elif isinstance(cat_path, str):
+                        if os.path.join(cat_path, "") == save_path or fnmatch(save_path, cat_path):
+                            path_covered = True
+                            break
+                except (TypeError, AttributeError) as e:
+                    logger.trace(f"Error checking category {cat_name}: {e}")
+                    continue
+
+            if not path_covered:
+                uncovered_paths.add(save_path)
+
+        return uncovered_paths
+
+    def _build_category_validation_error(self, missing_from_config, uncovered_paths, qbt_categories):
+        """Build detailed error messages and suggestions for category validation failures."""
+        error_parts = []
+        suggestions = []
+
+        if missing_from_config:
+            error_parts.append(f"Categories exist in qBittorrent but not in config: {sorted(missing_from_config)}")
+            suggestions.append("Add these missing categories to your config file:")
+            for cat in sorted(missing_from_config):
+                if cat in qbt_categories:
+                    save_path = qbt_categories[cat].savePath
+                    suggestions.append(f"  {cat}: '{save_path}'")
+
+        if uncovered_paths:
+            error_parts.append(f"Save paths not covered by any category: {sorted(uncovered_paths)}")
+            suggestions.append("Add an 'Uncategorized' category to cover these paths:")
+            uncovered_list = sorted(uncovered_paths)
+            if len(uncovered_list) == 1:
+                suggestions.append(f"  Uncategorized: '{uncovered_list[0]}'")
+            else:
+                suggestions.append("  Uncategorized:")
+                for path in uncovered_list:
+                    suggestions.append(f"    - '{path}'")
+
+        if error_parts:
+            error_parts.append("")
+            error_parts.append("SOLUTION:")
+            if suggestions:
+                error_parts.extend(suggestions)
+
+        error_parts.extend([
+            "",
+            "This enhanced validation ensures ALL torrents can be properly categorized.",
+            "Use --log-level DEBUG for more detailed path matching information."
+        ])
+
+        return error_parts
 
     def process_config_settings(self):
         """
