@@ -746,6 +746,10 @@ class WebAPI:
             # Validate filename to prevent path traversal and block sensitive files
             config_file_path = self._validate_config_filename(filename)
 
+            # Explicitly block access to sensitive settings file
+            if filename == "qbm_settings.yml":
+                raise HTTPException(status_code=403, detail="Access to settings file is forbidden")
+
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
 
@@ -1669,11 +1673,6 @@ class WebAPI:
 
             # Don't return sensitive information for security
             settings.password_hash = "***" if settings.password_hash else ""
-            # Show only last 4 characters of API key for verification
-            if settings.api_key:
-                settings.api_key = f"***{settings.api_key[-4:]}" if len(settings.api_key) > 4 else "***"
-            else:
-                settings.api_key = ""
 
             return settings
         except Exception as e:

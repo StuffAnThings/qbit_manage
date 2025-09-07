@@ -134,7 +134,14 @@ export class SecurityComponent {
                         <div class="form-group">
                             <label for="api-key-display" class="form-label">API Key</label>
                             <div class="api-key-input-group">
-                                <input type="text" id="api-key-display" class="form-input" readonly value="${this.currentSettings.api_key || ''}" placeholder="No API key generated">
+                                <div class="password-input-group">
+                                    <input type="password" id="api-key-display" class="form-input" readonly value="${this.currentSettings.api_key || ''}" placeholder="No API key generated">
+                                    ${this.currentSettings.api_key ? `
+                                    <button type="button" class="btn btn-icon password-toggle" data-target="api-key-display" title="Show full API key">
+                                        ${EYE_ICON_SVG}
+                                    </button>
+                                    ` : ''}
+                                </div>
                                 <button type="button" class="btn btn-secondary" id="generate-api-key">
                                     ${this.currentSettings.api_key ? 'Generate New Key' : 'Generate Key'}
                                 </button>

@@ -93,8 +93,25 @@ class SecuritySettingsRequest(BaseModel):
 
     @validator("password")
     def password_must_be_strong(cls, v):
-        if v and len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
+        if v:
+            if len(v) < 8:
+                raise ValueError("Password must be at least 8 characters")
+
+            # Check for character type requirements
+            has_upper = bool(re.search(r"[A-Z]", v))
+            has_lower = bool(re.search(r"[a-z]", v))
+            has_number = bool(re.search(r"\d", v))
+            has_special = bool(re.search(r"[!@#$%^&*]", v))
+
+            # Count how many character types are present
+            type_count = sum([has_upper, has_lower, has_number, has_special])
+
+            if type_count < 3:
+                raise ValueError(
+                    "Password must contain at least 3 of: uppercase letters, "
+                    "lowercase letters, numbers, special characters (!@#$%^&*)"
+                )
+
         return v
 
     @validator("method")
