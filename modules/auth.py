@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import os
 import re
 import secrets
 from datetime import datetime
@@ -74,6 +75,11 @@ class SecuritySettingsRequest(BaseModel):
     password: str = ""
     generate_api_key: bool = False
     clear_api_key: bool = False
+
+    # Current credentials for reauthentication
+    current_username: str = ""
+    current_password: str = ""
+    current_api_key: str = ""
 
     @validator("username")
     def username_must_be_valid(cls, v):
@@ -243,6 +249,23 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         try:
             if self.settings_path.exists():
+                # Check file permissions for security
+                try:
+                    stat_info = self.settings_path.stat()
+                    # Check if file is readable/writable by group or others (should be 600 or similar)
+                    if stat_info.st_mode & 0o077:  # Check if group/other has any permissions
+                        logger.warning(
+                            f"Settings file {self.settings_path} has overly permissive permissions. "
+                            f"Fixing to 600 (owner read/write only)."
+                        )
+                        try:
+                            os.chmod(str(self.settings_path), 0o600)
+                            logger.info(f"Fixed permissions for settings file {self.settings_path} to 600.")
+                        except OSError as e:
+                            logger.error(f"Could not fix permissions for settings file: {e}")
+                except (OSError, AttributeError) as e:
+                    logger.warning(f"Could not check permissions for settings file: {e}")
+
                 with open(self.settings_path, encoding="utf-8") as f:
                     data = ruamel.yaml.YAML().load(f) or {}
 
@@ -363,14 +386,25 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
             username, password = decoded_credentials.split(":", 1)
 
-            # Verify credentials
-            if username == settings.username and verify_password(password, settings.password_hash):
-                return await call_next(request)
+            # Verify credentials with constant-time comparison to prevent timing attacks
+            if username == settings.username:
+                # Username matches, verify password
+                if verify_password(password, settings.password_hash):
+                    return await call_next(request)
+                else:
+                    logger.debug("Basic auth: invalid password")
             else:
-                logger.debug("Basic auth: invalid credentials")
-                # Record failed authentication attempt
-                record_auth_attempt(request)
-                return self._auth_challenge_response()
+                # Username doesn't match, but still verify password against dummy hash for constant time
+                dummy_hash = (
+                    "$argon2id$v=19$m=65536,t=3,p=4$pSFTuqiWsyxxjLN0fuXtrw$"
+                    "MvnRW8OTPn6ED7sun2PvdxqJuYDLvog+OpEmA+Y4eSQ"
+                )  # Dummy hash
+                verify_password(password, dummy_hash)  # This will always fail but takes constant time
+                logger.debug("Basic auth: invalid username")
+
+            # Record failed authentication attempt
+            record_auth_attempt(request)
+            return self._auth_challenge_response()
 
         except Exception:
             logger.debug("Basic auth: error processing credentials")
@@ -448,6 +482,12 @@ def save_auth_settings(settings_path: Path, settings: AuthSettings) -> bool:
         yaml.indent(mapping=2, sequence=4, offset=2)
         with open(settings_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f)
+
+        # Set restrictive permissions (600 - owner read/write only)
+        try:
+            os.chmod(str(settings_path), 0o600)
+        except OSError as e:
+            logger.error(f"Could not set permissions for settings file: {e}")
 
         return True
     except Exception as e:
