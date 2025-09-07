@@ -98,7 +98,11 @@ class Category:
             def set_category_with_creation():
                 try:
                     torrent.set_category(category=new_cat)
-                    if torrent.auto_tmm is False and self.config.settings["force_auto_tmm"]:
+                    if (
+                        torrent.auto_tmm is False
+                        and self.config.settings["force_auto_tmm"]
+                        and not any(tag in torrent.tags for tag in self.config.settings.get("force_auto_tmm_ignore_tags", []))
+                    ):
                         torrent.set_auto_management(True)
                 except Exception as e:
                     # Check if it's a category creation issue
