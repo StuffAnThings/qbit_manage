@@ -2,9 +2,11 @@
 
 import base64
 import hashlib
+import ipaddress
 import os
 import re
 import secrets
+from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
@@ -30,7 +32,6 @@ logger = _LoggerProxy()
 
 # Rate limiter for authentication attempts - using in-memory storage for simplicity
 # This tracks failed authentication attempts per IP address
-from collections import defaultdict
 
 # Simple in-memory rate limiting for authentication attempts
 auth_attempts = defaultdict(list)  # IP -> list of attempt timestamps
@@ -199,8 +200,6 @@ def get_real_client_ip(request: Request, trusted_proxies: list[str] = None) -> s
     # Check if immediate client is a trusted proxy
     is_trusted_proxy = False
     try:
-        import ipaddress
-
         immediate_ip_obj = ipaddress.ip_address(immediate_ip)
 
         for proxy in trusted_proxies:
@@ -262,10 +261,7 @@ def is_local_ip(request: Request, trusted_proxies: list[str] = None) -> bool:
 
     # Check RFC 1918 private IP ranges
     try:
-        import ipaddress
-
         ip = ipaddress.ip_address(real_ip)
-
         # RFC 1918 private IP ranges
         private_ranges = [
             ipaddress.ip_network("10.0.0.0/8"),  # 10.0.0.0 - 10.255.255.255
@@ -448,7 +444,6 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         except RateLimitExceeded:
             # Handle rate limit exceeded
-            from fastapi.responses import PlainTextResponse
 
             return PlainTextResponse("Rate limit exceeded. Try again later.", status_code=429, headers={"Retry-After": "60"})
 
@@ -486,7 +481,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 if verify_password(password, settings.password_hash):
                     return await call_next(request)
                 else:
-                    logger.debug("Basic auth: invalid password")
+                    logger.info(f"Basic auth failed for {request.url.path}: user={username} (invalid password)")
             else:
                 # Username doesn't match, but still verify password against dummy hash for constant time
                 dummy_hash = (
@@ -494,7 +489,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     "MvnRW8OTPn6ED7sun2PvdxqJuYDLvog+OpEmA+Y4eSQ"
                 )  # Dummy hash
                 verify_password(password, dummy_hash)  # This will always fail but takes constant time
-                logger.debug("Basic auth: invalid username")
+                logger.info(f"Basic auth failed for {request.url.path}: user={username} (invalid username)")
 
             # Record failed authentication attempt
             record_auth_attempt(request)
@@ -516,7 +511,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # For API requests, require API key authentication
         api_key = request.headers.get("X-API-Key")
         if not api_key:
-            logger.debug("API-only auth: missing API key for API request")
+            logger.info(f"API-only auth failed for {request.url.path} (missing API key)")
             return PlainTextResponse(
                 "API key required for API access", status_code=401, headers={"WWW-Authenticate": 'Bearer realm="qBit Manage API"'}
             )
@@ -527,7 +522,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return PlainTextResponse("Rate limit exceeded. Try again later.", status_code=429, headers={"Retry-After": "60"})
 
         if not verify_api_key(api_key, settings.api_key):
-            logger.debug("API-only auth: invalid API key")
+            logger.info(f"API-only auth failed for {request.url.path} (invalid API key)")
             # Record failed API key attempt
             record_auth_attempt(request)
             return PlainTextResponse(
