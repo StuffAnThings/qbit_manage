@@ -721,12 +721,18 @@ class WebAPI:
             for pattern in ["*.yml", "*.yaml"]:
                 config_files.extend([f.name for f in self.config_path.glob(pattern)])
 
+            # Define sensitive files to filter out
+            sensitive_files = {"qbm_settings.yml", "secrets.yml", "credentials.yml", "auth.yml", "keys.yml", "passwords.yml"}
+
+            # Filter out sensitive configuration files
+            filtered_configs = [f for f in config_files if f not in sensitive_files]
+
             # Determine default config
             default_config = "config.yml"
-            if "config.yml" not in config_files and config_files:
-                default_config = config_files[0]
+            if "config.yml" not in filtered_configs and filtered_configs:
+                default_config = filtered_configs[0]
 
-            return ConfigListResponse(configs=sorted(config_files), default_config=default_config)
+            return ConfigListResponse(configs=sorted(filtered_configs), default_config=default_config)
         except Exception as e:
             logger.error(f"Error listing configs: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -734,10 +740,18 @@ class WebAPI:
     async def get_config(self, filename: str) -> ConfigResponse:
         """Get a specific configuration file."""
         try:
+            # Define sensitive configuration files that should not be accessible via API
+            sensitive_files = {"qbm_settings.yml"}
+
             config_file_path = self.config_path / filename
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
+
+            # Check if the requested file is sensitive and block access
+            if filename in sensitive_files:
+                logger.warning(f"Access denied to sensitive configuration file: {filename}")
+                raise HTTPException(status_code=403, detail=f"Access denied to sensitive configuration file '{filename}'")
 
             # Load YAML data
             yaml_loader = YAML(str(config_file_path))

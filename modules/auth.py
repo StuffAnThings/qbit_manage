@@ -301,7 +301,6 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 f"{base_api_path}/health",
                 f"{base_api_path}/version",
                 f"{base_api_path}/get_base_url",
-                f"{base_api_path}/security",
                 "/site.webmanifest",
             ]
 
