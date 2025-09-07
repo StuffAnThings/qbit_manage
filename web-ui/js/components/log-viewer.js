@@ -318,16 +318,23 @@ class LogViewer {
      * @returns {string} - HTML with clickable links
      */
     makeLinksClickable(text) {
-        // URL regex pattern that matches http:// and https:// URLs
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        // URL regex patterns for both HTTP and HTTPS - handled identically
+        const httpRegex = /(http:\/\/[^\s]+)/g;
+        const httpsRegex = /(https:\/\/[^\s]+)/g;
 
         // Escape the entire text first for security
         const escapedText = this.escapeHtml(text);
 
-        // Replace URLs with clickable links
-        return escapedText.replace(urlRegex, (url) => {
+        // Replace both HTTP and HTTPS URLs with identical clickable links
+        let result = escapedText.replace(httpRegex, (url) => {
             return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="log-link">${url}</a>`;
         });
+
+        result = result.replace(httpsRegex, (url) => {
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="log-link">${url}</a>`;
+        });
+
+        return result;
     }
 
     scrollToTop() {
