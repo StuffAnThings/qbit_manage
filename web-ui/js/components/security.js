@@ -34,6 +34,7 @@ export class SecurityComponent {
                 enabled: false,
                 method: 'none',
                 bypass_auth_for_local: false,
+                trusted_proxies: [],
                 username: '',
                 password_hash: '',
                 api_key: ''
@@ -78,6 +79,16 @@ export class SecurityComponent {
                         </label>
                         <div class="field-description">
                             When checked, requests from localhost and RFC 1918 private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) won't require authentication
+                        </div>
+                    </div>
+
+                    <!-- Trusted Proxies -->
+                    <div class="form-group" id="trusted-proxies-group" style="${this.currentSettings.method === 'none' ? 'display: none;' : ''}">
+                        <label for="trusted-proxies" class="form-label">Trusted Proxy IPs/Subnets</label>
+                        <textarea id="trusted-proxies" class="form-textarea" rows="3" placeholder="One IP/subnet per line (e.g., 127.0.0.1, 172.17.0.0/16)">${(this.currentSettings.trusted_proxies || []).join('\n')}</textarea>
+                        <div class="field-description">
+                            List of trusted proxy IPs or subnets (one per line). When set, the app will trust X-Forwarded-For headers from these proxies to determine the real client IP for local bypass decisions. Leave empty for direct connections.<br>
+                            <strong>Format:</strong> IPv4 addresses (e.g., 192.168.1.1) or CIDR notation (e.g., 192.168.1.0/24, 10.0.0.0/8)
                         </div>
                     </div>
 
@@ -160,6 +171,7 @@ export class SecurityComponent {
         // Cache DOM elements for better performance
         this.authMethod = document.getElementById('auth-method');
         this.localAddressesGroup = document.getElementById('local-addresses-group');
+        this.trustedProxiesGroup = document.getElementById('trusted-proxies-group');
         this.credentialsSection = document.getElementById('credentials-section');
         this.generateApiKeyBtn = document.getElementById('generate-api-key');
         this.clearApiKeyBtn = document.getElementById('clear-api-key');
@@ -218,6 +230,9 @@ export class SecurityComponent {
         if (this.localAddressesGroup) {
             this.localAddressesGroup.style.display = isNone ? 'none' : '';
         }
+        if (this.trustedProxiesGroup) {
+            this.trustedProxiesGroup.style.display = isNone ? 'none' : '';
+        }
         if (this.credentialsSection) {
             this.credentialsSection.style.display = (isNone || isApiOnly) ? 'none' : '';
         }
@@ -249,6 +264,8 @@ export class SecurityComponent {
             const method = document.getElementById('auth-method').value;
             const allowLocalCheckbox = document.getElementById('allow-local');
             const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
+            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
+            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
             const username = document.getElementById('username')?.value.trim() || '';
             const password = document.getElementById('password')?.value || '';
 
@@ -256,6 +273,7 @@ export class SecurityComponent {
                 enabled: method !== 'none',
                 method: method,
                 bypass_auth_for_local: allowLocalIps,
+                trusted_proxies: trustedProxies,
                 username: username,
                 password: password,
                 generate_api_key: true
@@ -292,6 +310,8 @@ export class SecurityComponent {
             const method = document.getElementById('auth-method').value;
             const allowLocalCheckbox = document.getElementById('allow-local');
             const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
+            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
+            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
             const username = document.getElementById('username')?.value.trim() || '';
             const password = document.getElementById('password')?.value || '';
 
@@ -299,6 +319,7 @@ export class SecurityComponent {
                 enabled: method !== 'none',
                 method: method,
                 bypass_auth_for_local: allowLocalIps,
+                trusted_proxies: trustedProxies,
                 username: username,
                 password: password,
                 clear_api_key: true
@@ -347,14 +368,107 @@ export class SecurityComponent {
         return password.length >= minLength && typeCount >= 3;
     }
 
+    validateIpOrCidr(ip) {
+        // Check if it's a valid IPv4 address
+        const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+        const match = ip.match(ipv4Regex);
+
+        if (match) {
+            // Check if it's a valid IP address (each octet 0-255)
+            for (let i = 1; i <= 4; i++) {
+                const octet = parseInt(match[i], 10);
+                if (octet < 0 || octet > 255) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Check if it's a valid CIDR notation
+        const cidrRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
+        const cidrMatch = ip.match(cidrRegex);
+
+        if (cidrMatch) {
+            // Validate IP part
+            for (let i = 1; i <= 4; i++) {
+                const octet = parseInt(cidrMatch[i], 10);
+                if (octet < 0 || octet > 255) {
+                    return false;
+                }
+            }
+            // Validate subnet mask (0-32)
+            const mask = parseInt(cidrMatch[5], 10);
+            return mask >= 0 && mask <= 32;
+        }
+
+        return false;
+    }
+
+    validateTrustedProxies(proxies) {
+        if (!proxies || proxies.length === 0) {
+            return { valid: true }; // Empty is valid
+        }
+
+        const invalidEntries = [];
+        const duplicates = [];
+
+        for (let i = 0; i < proxies.length; i++) {
+            const proxy = proxies[i].trim();
+
+            if (!proxy) continue; // Skip empty lines
+
+            // Check format
+            if (!this.validateIpOrCidr(proxy)) {
+                invalidEntries.push(proxy);
+            }
+
+            // Check for duplicates
+            if (proxies.indexOf(proxy) !== i) {
+                if (!duplicates.includes(proxy)) {
+                    duplicates.push(proxy);
+                }
+            }
+        }
+
+        if (invalidEntries.length > 0 || duplicates.length > 0) {
+            return {
+                valid: false,
+                invalidEntries,
+                duplicates
+            };
+        }
+
+        return { valid: true };
+    }
+
     async saveSettings() {
         try {
             const method = document.getElementById('auth-method').value;
             const allowLocalCheckbox = document.getElementById('allow-local');
             const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
+            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
+            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
             const username = document.getElementById('username')?.value.trim() || '';
             const password = document.getElementById('password')?.value || '';
             const confirmPassword = document.getElementById('confirm-password')?.value || '';
+
+            // Validate trusted proxies
+            const proxyValidation = this.validateTrustedProxies(trustedProxies);
+            if (!proxyValidation.valid) {
+                let errorMessage = 'Invalid trusted proxy entries:';
+
+                if (proxyValidation.invalidEntries.length > 0) {
+                    errorMessage += `\n• Invalid format: ${proxyValidation.invalidEntries.join(', ')}`;
+                    errorMessage += '\n  (Use IPv4 addresses like 192.168.1.1 or CIDR notation like 192.168.1.0/24)';
+                }
+
+                if (proxyValidation.duplicates.length > 0) {
+                    errorMessage += `\n• Duplicates found: ${proxyValidation.duplicates.join(', ')}`;
+                }
+
+                showToast(errorMessage, 'error');
+                return;
+            }
 
             // Validation
             if (method !== 'none' && method !== 'api_only') {
@@ -380,6 +494,7 @@ export class SecurityComponent {
                 enabled: method !== 'none',
                 method: method,
                 bypass_auth_for_local: allowLocalIps,
+                trusted_proxies: trustedProxies,
                 username: username,
                 password: password,
                 generate_api_key: false
@@ -396,6 +511,7 @@ export class SecurityComponent {
                     enabled: method !== 'none',
                     method: method,
                     bypass_auth_for_local: allowLocalIps,
+                    trusted_proxies: trustedProxies,
                     username: username,
                     password_hash: password ? '***' : this.currentSettings.password_hash,
                     api_key: this.currentSettings.api_key

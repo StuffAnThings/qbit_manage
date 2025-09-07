@@ -52,6 +52,7 @@ class AuthSettings(BaseModel):
     enabled: bool = False
     method: str = "none"  # none, basic, api_only
     bypass_auth_for_local: bool = False  # Allow access from RFC 1918 private IPs without authentication
+    trusted_proxies: list[str] = []  # List of trusted proxy IPs/subnets (e.g., ["127.0.0.1", "172.17.0.0/16"])
     username: str = ""
     password_hash: str = ""
     api_key: str = ""
@@ -71,6 +72,7 @@ class SecuritySettingsRequest(BaseModel):
     enabled: bool
     method: str
     bypass_auth_for_local: bool = False
+    trusted_proxies: list[str] = []
     username: str = ""
     password: str = ""
     generate_api_key: bool = False
@@ -159,19 +161,93 @@ def authenticate_user(username: str, password: str, settings: AuthSettings) -> b
     return verify_password(password, settings.password_hash)
 
 
-def is_local_ip(request: Request) -> bool:
+def get_real_client_ip(request: Request, trusted_proxies: list[str] = None) -> str:
+    """Get the real client IP, considering trusted proxies."""
+    if not trusted_proxies:
+        trusted_proxies = []
+
+    # Get the immediate client IP
+    immediate_ip = request.client.host if request.client else "unknown"
+
+    # If immediate IP is unknown, try to infer from Host header for localhost access
+    if immediate_ip == "unknown":
+        host_header = request.headers.get("host", "").split(":")[0]
+        if host_header in ["localhost", "127.0.0.1", "::1"]:
+            immediate_ip = "127.0.0.1"
+
+    # If no trusted proxies configured, return immediate IP
+    if not trusted_proxies:
+        return immediate_ip
+
+    # Check if immediate client is a trusted proxy
+    is_trusted_proxy = False
+    try:
+        import ipaddress
+
+        immediate_ip_obj = ipaddress.ip_address(immediate_ip)
+
+        for proxy in trusted_proxies:
+            try:
+                if "/" in proxy:  # CIDR notation
+                    network = ipaddress.ip_network(proxy, strict=False)
+                    if immediate_ip_obj in network:
+                        is_trusted_proxy = True
+                        break
+                else:  # Single IP
+                    if immediate_ip_obj == ipaddress.ip_address(proxy):
+                        is_trusted_proxy = True
+                        break
+            except (ipaddress.AddressValueError, ValueError):
+                continue
+    except (ipaddress.AddressValueError, ValueError):
+        pass
+
+    # If immediate client is not a trusted proxy, return immediate IP
+    if not is_trusted_proxy:
+        return immediate_ip
+
+    # Extract real IP from headers (in order of preference)
+    headers_to_check = [
+        "CF-Connecting-IP",  # Cloudflare
+        "X-Real-IP",  # Nginx
+        "X-Forwarded-For",  # Standard proxy header
+    ]
+
+    for header in headers_to_check:
+        header_value = request.headers.get(header)
+        if header_value:
+            # X-Forwarded-For can contain multiple IPs, take the first (original client)
+            real_ip = header_value.split(",")[0].strip()
+            try:
+                # Validate the IP
+                ipaddress.ip_address(real_ip)
+                return real_ip
+            except (ipaddress.AddressValueError, ValueError):
+                continue
+
+    # If no valid IP found in headers, return immediate IP
+    return immediate_ip
+
+
+def is_local_ip(request: Request, trusted_proxies: list[str] = None) -> bool:
     """Check if request is from localhost or RFC 1918 private IP ranges."""
-    client_host = request.client.host if request.client else "unknown"
+    real_ip = get_real_client_ip(request, trusted_proxies)
 
     # Check localhost addresses
-    if client_host in ["127.0.0.1", "localhost", "::1"]:
+    if real_ip in ["127.0.0.1", "localhost", "::1"]:
         return True
+
+    # If IP detection failed and Host header indicates localhost, treat as local
+    if real_ip == "unknown":
+        host_header = request.headers.get("host", "").split(":")[0]
+        if host_header in ["localhost", "127.0.0.1", "::1"]:
+            return True
 
     # Check RFC 1918 private IP ranges
     try:
         import ipaddress
 
-        ip = ipaddress.ip_address(client_host)
+        ip = ipaddress.ip_address(real_ip)
 
         # RFC 1918 private IP ranges
         private_ranges = [
@@ -267,7 +343,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     logger.warning(f"Could not check permissions for settings file: {e}")
 
                 with open(self.settings_path, encoding="utf-8") as f:
-                    data = ruamel.yaml.YAML().load(f) or {}
+                    yaml_loader = ruamel.yaml.YAML(typ="safe")
+                    data = yaml_loader.load(f) or {}
 
                 auth_data = data.get("authentication", {})
                 settings = AuthSettings(**auth_data)
@@ -333,7 +410,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             # Check if authentication is required
             auth_required = False
             if settings.enabled:
-                if not settings.bypass_auth_for_local or not is_local_ip(request):
+                if not settings.bypass_auth_for_local or not is_local_ip(request, settings.trusted_proxies):
                     auth_required = True
 
             if not auth_required:
@@ -454,7 +531,8 @@ def load_auth_settings(settings_path: Path) -> AuthSettings:
     try:
         if settings_path.exists():
             with open(settings_path, encoding="utf-8") as f:
-                data = ruamel.yaml.YAML().load(f) or {}
+                yaml_loader = ruamel.yaml.YAML(typ="safe")
+                data = yaml_loader.load(f) or {}
 
             auth_data = data.get("authentication", {})
             return AuthSettings(**auth_data)
@@ -472,7 +550,8 @@ def save_auth_settings(settings_path: Path, settings: AuthSettings) -> bool:
         data = {}
         if settings_path.exists():
             with open(settings_path, encoding="utf-8") as f:
-                data = ruamel.yaml.YAML().load(f) or {}
+                yaml_loader = ruamel.yaml.YAML(typ="safe")
+                data = yaml_loader.load(f) or {}
 
         # Update authentication section
         data["authentication"] = settings.model_dump()

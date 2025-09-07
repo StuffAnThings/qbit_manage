@@ -47,6 +47,7 @@ from modules.auth import SecuritySettingsRequest
 from modules.auth import authenticate_user
 from modules.auth import generate_api_key
 from modules.auth import hash_password
+from modules.auth import is_local_ip
 from modules.auth import load_auth_settings
 from modules.auth import save_auth_settings
 from modules.auth import verify_api_key
@@ -742,19 +743,11 @@ class WebAPI:
     async def get_config(self, filename: str) -> ConfigResponse:
         """Get a specific configuration file."""
         try:
-            # Validate filename to prevent path traversal
+            # Validate filename to prevent path traversal and block sensitive files
             config_file_path = self._validate_config_filename(filename)
-
-            # Define sensitive configuration files that should not be accessible via API
-            sensitive_files = {"qbm_settings.yml"}
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
-
-            # Check if the requested file is sensitive and block access
-            if filename in sensitive_files:
-                logger.warning(f"Access denied to sensitive configuration file: {filename}")
-                raise HTTPException(status_code=403, detail=f"Access denied to sensitive configuration file '{filename}'")
 
             # Load YAML data
             yaml_loader = YAML(str(config_file_path))
@@ -1379,6 +1372,11 @@ class WebAPI:
                 elif isinstance(item, (dict, list)):
                     self._log_env_str_values(item, current_path)
 
+    def _is_sensitive_config_file(self, filename: str) -> bool:
+        """Check if a config file is sensitive and should be protected from API operations."""
+        sensitive_files = {"qbm_settings.yml"}
+        return filename in sensitive_files
+
     def _validate_config_filename(self, filename: str) -> Path:
         """Validate filename and return safe path to prevent path traversal attacks."""
 
@@ -1393,6 +1391,10 @@ class WebAPI:
         # Enforce filename pattern (alphanumeric, underscore, hyphen, dot only)
         if not re.match(r"^[A-Za-z0-9_.-]{1,64}$", filename):
             raise HTTPException(status_code=400, detail="Invalid filename: contains invalid characters")
+
+        # Check if this is a sensitive file that should be blocked
+        if self._is_sensitive_config_file(filename):
+            raise HTTPException(status_code=403, detail=f"Access denied to sensitive configuration file '{filename}'")
 
         # Resolve the path and ensure it stays within config directory
         config_file_path = self.config_path / filename
@@ -1667,7 +1669,11 @@ class WebAPI:
 
             # Don't return sensitive information for security
             settings.password_hash = "***" if settings.password_hash else ""
-            settings.api_key = "***" if settings.api_key else ""
+            # Show only last 4 characters of API key for verification
+            if settings.api_key:
+                settings.api_key = f"***{settings.api_key[-4:]}" if len(settings.api_key) > 4 else "***"
+            else:
+                settings.api_key = ""
 
             return settings
         except Exception as e:
@@ -1685,6 +1691,7 @@ class WebAPI:
                 "enabled": current_settings.enabled,
                 "method": current_settings.method,
                 "bypass_auth_for_local": current_settings.bypass_auth_for_local,
+                "trusted_proxies": current_settings.trusted_proxies,
                 "username": current_settings.username,
                 "api_key": current_settings.api_key,
             }
@@ -1701,8 +1708,13 @@ class WebAPI:
                 f"has_username={bool(current_settings.username)}"
             )
 
-            # Verify current credentials for reauthentication
-            auth_verified = False
+            # Check if client is local and bypass_auth_for_local is enabled
+            if current_settings.bypass_auth_for_local and is_local_ip(req, current_settings.trusted_proxies):
+                logger.trace("Local client with bypass_auth_for_local enabled, skipping credential verification")
+                auth_verified = True
+            else:
+                # Verify current credentials for reauthentication
+                auth_verified = False
 
             # First, try credentials provided in the request body
             # Try API key verification first
@@ -1766,6 +1778,7 @@ class WebAPI:
             current_settings.enabled = request.enabled
             current_settings.method = request.method
             current_settings.bypass_auth_for_local = request.bypass_auth_for_local
+            current_settings.trusted_proxies = request.trusted_proxies
             current_settings.username = request.username
 
             # Handle password
@@ -1795,6 +1808,10 @@ class WebAPI:
                     changes.append(
                         f"bypass_auth_for_local: {original_settings['bypass_auth_for_local']} -> "
                         f"{current_settings.bypass_auth_for_local}"
+                    )
+                if original_settings["trusted_proxies"] != current_settings.trusted_proxies:
+                    changes.append(
+                        f"trusted_proxies: {original_settings['trusted_proxies']} -> {current_settings.trusted_proxies}"
                     )
                 if original_settings["username"] != current_settings.username:
                     changes.append(f"username: {original_settings['username']} -> {current_settings.username}")
