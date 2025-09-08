@@ -184,7 +184,7 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
 
 async def watch_settings_file(web_api: WebAPI) -> None:
     """Monitor the settings file for changes and reload authentication settings."""
-    settings_path = web_api.default_dir / "qbm_settings.yml"
+    settings_path = Path(web_api.default_dir) / "qbm_settings.yml"
     last_hash = None
 
     try:
