@@ -110,7 +110,7 @@ class ShareLimits:
             t_msg = self.qbt.torrentinfo[t_name]["msg"]
             t_status = self.qbt.torrentinfo[t_name]["status"]
             # Double check that the content path is the same before we delete anything
-            if torrent["content_path"].replace(self.root_dir, self.remote_dir) == torrent_dict["content_path"]:
+            if util.path_replace(torrent["content_path"], self.root_dir, self.remote_dir) == torrent_dict["content_path"]:
                 tracker = self.qbt.get_tags(self.qbt.get_tracker_urls(torrent.trackers))
                 body = []
                 body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
@@ -130,7 +130,7 @@ class ShareLimits:
                     "torrent_tracker": tracker["url"],
                     "notifiarr_indexer": tracker["notifiarr"],
                 }
-                if os.path.exists(torrent["content_path"].replace(self.root_dir, self.remote_dir)):
+                if os.path.exists(util.path_replace(torrent["content_path"], self.root_dir, self.remote_dir)):
                     # Checks if any of the original torrents are working
                     if self.qbt.has_cross_seed(torrent) and ("" in t_msg or 2 in t_status):
                         self.stats_deleted += 1
@@ -160,7 +160,7 @@ class ShareLimits:
                     body += logger.print_line(
                         logger.insert_space(
                             "Deleted .torrent but NOT content files. Reason: path does not exist [path="
-                            + torrent["content_path"].replace(self.root_dir, self.remote_dir)
+                            + util.path_replace(torrent["content_path"], self.root_dir, self.remote_dir)
                             + "].",
                             8,
                         ),
@@ -338,7 +338,9 @@ class ShareLimits:
                     if t_hash not in self.tdel_dict:
                         self.tdel_dict[t_hash] = {}
                     self.tdel_dict[t_hash]["torrent"] = torrent
-                    self.tdel_dict[t_hash]["content_path"] = torrent["content_path"].replace(self.root_dir, self.remote_dir)
+                    self.tdel_dict[t_hash]["content_path"] = util.path_replace(
+                        torrent["content_path"], self.root_dir, self.remote_dir
+                    )
                     self.tdel_dict[t_hash]["body"] = tor_reached_seed_limit
                 else:
                     # New behavior: throttle upload speed instead of pausing/removing

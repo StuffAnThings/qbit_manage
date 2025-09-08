@@ -152,6 +152,31 @@
     overflow: visible; /* Allow content to overflow */
 }
 
+/* Clickable links in log messages */
+.log-link {
+    color: var(--link-color, #007bff);
+    text-decoration: underline;
+    text-decoration-color: var(--link-color, #007bff);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.log-link:hover {
+    color: var(--link-hover-color, #0056b3);
+    text-decoration-color: var(--link-hover-color, #0056b3);
+}
+
+.log-link:visited {
+    color: var(--link-visited-color, #6c757d);
+    text-decoration-color: var(--link-visited-color, #6c757d);
+}
+
+.log-link:focus {
+    outline: 2px solid var(--focus-color, #007bff);
+    outline-offset: 2px;
+}
+
 .log-source {
     flex-shrink: 0;
     margin-left: var(--spacing-sm);

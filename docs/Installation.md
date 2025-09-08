@@ -146,6 +146,9 @@ qbit-manage --run
 
 # Run with web UI (default on desktop)
 qbit-manage --web-server
+
+# Run without web UI (force disable)
+qbit-manage --web-server=False
 ```
 
 ### Usage

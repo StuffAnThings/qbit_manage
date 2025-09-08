@@ -51,9 +51,12 @@ parser.add_argument(
     "-ws",
     "--web-server",
     dest="web_server",
-    action="store_true",
+    nargs="?",
+    const=True,
+    type=lambda x: str(x).lower() not in ("false", "0", "no", "off", "f", "n"),
     default=None,
     help="Start the webUI server to handle command requests via HTTP API. "
+    "Pass --web-server to enable, --web-server=False to disable. "
     "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
 )
 parser.add_argument(
@@ -857,14 +860,14 @@ def main():
                 # Start scheduler for subsequent runs
                 scheduler.start(callback=start_loop)
 
-            # Check if scheduler already has a schedule loaded from schedule.yml
+            # Check if scheduler already has a schedule loaded from settings file
             current_schedule = scheduler.get_current_schedule()
             if current_schedule:
                 # Scheduler already loaded a schedule - determine the actual source
                 schedule_info = scheduler.get_schedule_info()
                 schedule_type, schedule_value = current_schedule
                 source = schedule_info.get("source", "unknown")
-                source_text = "persistent file" if source == "schedule.yml" else "environment"
+                source_text = "persistent file" if source in ("qbm_settings.yml", "schedule.yml") else "environment"
 
                 # Use helper; already_configured=True because Scheduler loaded it
                 run_scheduled_mode(schedule_type, schedule_value, source_text, already_configured=True)

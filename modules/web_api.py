@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -35,8 +36,21 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from humanize import precisedelta
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from modules import util
+from modules.auth import AuthenticationMiddleware
+from modules.auth import AuthSettings
+from modules.auth import SecuritySettingsRequest
+from modules.auth import authenticate_user
+from modules.auth import generate_api_key
+from modules.auth import hash_password
+from modules.auth import is_local_ip
+from modules.auth import load_auth_settings
+from modules.auth import save_auth_settings
+from modules.auth import verify_api_key
 from modules.config import Config
 from modules.scheduler import Scheduler
 from modules.util import YAML
@@ -168,11 +182,42 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
         raise
 
 
+async def watch_settings_file(web_api: WebAPI) -> None:
+    """Monitor the settings file for changes and reload authentication settings."""
+    settings_path = web_api.default_dir / "qbm_settings.yml"
+    last_hash = None
+
+    try:
+        while True:
+            try:
+                if settings_path.exists():
+                    # Calculate current file hash
+                    with open(settings_path, "rb") as f:
+                        current_hash = hashlib.sha256(f.read()).hexdigest()
+
+                    # If hash has changed, reload authentication settings
+                    if last_hash is not None and current_hash != last_hash:
+                        logger.info("Settings file changed, reloading authentication settings")
+                        AuthenticationMiddleware.force_reload_all_settings()
+
+                    last_hash = current_hash
+                else:
+                    last_hash = None
+            except Exception as e:
+                logger.error(f"Error monitoring settings file: {e}")
+                last_hash = None
+
+            await asyncio.sleep(0.5)  # Check every 500ms for changes
+    except asyncio.CancelledError:
+        logger.info("Settings file watching task cancelled")
+        raise
+
+
 @dataclass(frozen=True)
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
 
-    default_dir: str = field(default_factory=lambda: util.ensure_config_dir_initialized(util.get_default_config_dir()))
+    default_dir: str
     args: dict = field(default_factory=dict)
     app: FastAPI = field(default=None)
     is_running: Synchronized[bool] = field(default=None)
@@ -193,47 +238,64 @@ class WebAPI:
         @asynccontextmanager
         async def lifespan(app: FastAPI):
             """Handle application startup and shutdown events."""
-            # Startup: Start background task for queue processing
+            # Startup: Start background tasks
             app.state.web_api = self
-            app.state.background_task = asyncio.create_task(process_queue_periodically(self))
+            app.state.queue_task = asyncio.create_task(process_queue_periodically(self))
+            app.state.settings_watcher_task = asyncio.create_task(watch_settings_file(self))
             yield
-            # Shutdown: Clean up background task
-            if hasattr(app.state, "background_task"):
-                app.state.background_task.cancel()
-                try:
-                    await app.state.background_task
-                except asyncio.CancelledError:
-                    pass
+            # Shutdown: Clean up background tasks
+            for task_name in ["queue_task", "settings_watcher_task"]:
+                if hasattr(app.state, task_name):
+                    task = getattr(app.state, task_name)
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
 
         # Create app with lifespan context manager
         app = FastAPI(lifespan=lifespan)
         object.__setattr__(self, "app", app)
 
-        # If caller provided a config_dir (e.g., computed in qbit_manage), prefer it
+        # Ensure default dir is initialized
         try:
-            provided_dir = self.args.get("config_dir")
-            if provided_dir:
-                resolved_dir = util.ensure_config_dir_initialized(provided_dir)
-                object.__setattr__(self, "default_dir", resolved_dir)
-            else:
-                # Ensure default dir is initialized
-                object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
+            object.__setattr__(self, "default_dir", util.ensure_config_dir_initialized(self.default_dir))
         except Exception as e:
-            logger.error(f"Failed to apply provided config_dir '{self.args.get('config_dir')}': {e}")
+            logger.error(f"Failed to initialize default_dir '{self.default_dir}': {e}")
 
         # Initialize paths during startup
         object.__setattr__(self, "config_path", Path(self.default_dir))
         object.__setattr__(self, "logs_path", Path(self.default_dir) / "logs")
         object.__setattr__(self, "backup_path", Path(self.default_dir) / ".backups")
 
-        # Configure CORS
+        # Configure CORS - restrict to prevent unauthorized cross-origin access
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_origins=[],  # No cross-origin requests allowed by default
+            allow_credentials=False,  # Disable credentials to prevent CSRF via CORS
+            allow_methods=["GET", "POST", "PUT", "DELETE"],  # Explicit allowed methods
+            allow_headers=["Authorization", "Content-Type", "X-API-Key"],  # Explicit allowed headers
         )
+
+        # Configure Rate Limiting
+        limiter = Limiter(key_func=get_remote_address)
+        self.app.state.limiter = limiter
+        self.app.add_middleware(SlowAPIMiddleware)
+
+        # Add Security Headers Middleware
+        @self.app.middleware("http")
+        async def add_security_headers(request: Request, call_next):
+            response = await call_next(request)
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            return response
+
+        # Configure Authentication Middleware
+        settings_path = Path(self.default_dir) / "qbm_settings.yml"
+        self.app.add_middleware(AuthenticationMiddleware, settings_path=settings_path, base_url=base_url)
+        logger.info(f"Authentication middleware configured with settings path: {settings_path}")
 
         # Create API router with clean route definitions
         api_router = APIRouter()
@@ -263,6 +325,11 @@ class WebAPI:
         api_router.get("/version")(self.get_version)
         api_router.get("/health")(self.health_check)
         api_router.get("/get_base_url")(self.get_base_url)
+
+        # Authentication routes
+        api_router.get("/security")(self.get_security_settings)
+        api_router.get("/security/status")(self.get_security_status)
+        api_router.put("/security")(self.update_security_settings)
 
         # System management routes
         api_router.post("/system/force-reset")(self.force_reset_running_state)
@@ -658,12 +725,18 @@ class WebAPI:
             for pattern in ["*.yml", "*.yaml"]:
                 config_files.extend([f.name for f in self.config_path.glob(pattern)])
 
+            # Define sensitive files to filter out
+            sensitive_files = {"qbm_settings.yml", "secrets.yml", "credentials.yml", "auth.yml", "keys.yml", "passwords.yml"}
+
+            # Filter out sensitive configuration files
+            filtered_configs = [f for f in config_files if f not in sensitive_files]
+
             # Determine default config
             default_config = "config.yml"
-            if "config.yml" not in config_files and config_files:
-                default_config = config_files[0]
+            if "config.yml" not in filtered_configs and filtered_configs:
+                default_config = filtered_configs[0]
 
-            return ConfigListResponse(configs=sorted(config_files), default_config=default_config)
+            return ConfigListResponse(configs=sorted(filtered_configs), default_config=default_config)
         except Exception as e:
             logger.error(f"Error listing configs: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -671,7 +744,12 @@ class WebAPI:
     async def get_config(self, filename: str) -> ConfigResponse:
         """Get a specific configuration file."""
         try:
-            config_file_path = self.config_path / filename
+            # Validate filename to prevent path traversal and block sensitive files
+            config_file_path = self._validate_config_filename(filename)
+
+            # Explicitly block access to sensitive settings file
+            if filename == "qbm_settings.yml":
+                raise HTTPException(status_code=403, detail="Access to settings file is forbidden")
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
@@ -701,7 +779,8 @@ class WebAPI:
     async def create_config(self, filename: str, request: ConfigRequest) -> dict:
         """Create a new configuration file."""
         try:
-            config_file_path = self.config_path / filename
+            # Validate filename to prevent path traversal
+            config_file_path = self._validate_config_filename(filename)
 
             if config_file_path.exists():
                 raise HTTPException(status_code=409, detail=f"Configuration file '{filename}' already exists")
@@ -722,7 +801,8 @@ class WebAPI:
     async def update_config(self, filename: str, request: ConfigRequest) -> dict:
         """Update an existing configuration file."""
         try:
-            config_file_path = self.config_path / filename
+            # Validate filename to prevent path traversal
+            config_file_path = self._validate_config_filename(filename)
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
@@ -730,13 +810,16 @@ class WebAPI:
             # Create backup
             await self._create_backup(config_file_path)
 
-            # Debug: Log what we received from frontend
+            # Register sensitive fields as secrets for automatic redaction in logs
+            self._register_sensitive_fields_as_secrets(request.data)
+
+            # Debug: Log what we received from frontend (secrets will be automatically redacted)
             logger.trace(f"[DEBUG] Raw data received from frontend: {json.dumps(request.data, indent=2, default=str)}")
 
             # Convert !ENV syntax back to EnvStr objects for proper YAML serialization
             config_data_for_save = self._restore_env_objects(request.data)
 
-            # Debug: Log what we have after restoration
+            # Debug: Log what we have after restoration (secrets will be automatically redacted)
             logger.trace(f"[DEBUG] Data after _restore_env_objects: {json.dumps(config_data_for_save, indent=2, default=str)}")
 
             # Write updated YAML file
@@ -752,7 +835,8 @@ class WebAPI:
     async def delete_config(self, filename: str) -> dict:
         """Delete a configuration file."""
         try:
-            config_file_path = self.config_path / filename
+            # Validate filename to prevent path traversal
+            config_file_path = self._validate_config_filename(filename)
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
@@ -1293,6 +1377,55 @@ class WebAPI:
                 elif isinstance(item, (dict, list)):
                     self._log_env_str_values(item, current_path)
 
+    def _is_sensitive_config_file(self, filename: str) -> bool:
+        """Check if a config file is sensitive and should be protected from API operations."""
+        sensitive_files = {"qbm_settings.yml"}
+        return filename in sensitive_files
+
+    def _validate_config_filename(self, filename: str) -> Path:
+        """Validate filename and return safe path to prevent path traversal attacks."""
+
+        # Reject empty or None filenames
+        if not filename or not isinstance(filename, str):
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
+        # Reject filenames with path separators or starting with dot
+        if "/" in filename or "\\" in filename or filename.startswith("."):
+            raise HTTPException(status_code=400, detail="Invalid filename: path traversal detected")
+
+        # Enforce filename pattern (alphanumeric, underscore, hyphen, dot only)
+        if not re.match(r"^[A-Za-z0-9_.-]{1,64}$", filename):
+            raise HTTPException(status_code=400, detail="Invalid filename: contains invalid characters")
+
+        # Check if this is a sensitive file that should be blocked
+        if self._is_sensitive_config_file(filename):
+            raise HTTPException(status_code=403, detail=f"Access denied to sensitive configuration file '{filename}'")
+
+        # Resolve the path and ensure it stays within config directory
+        config_file_path = self.config_path / filename
+        try:
+            # Use resolve() to get absolute path and check if it's within config_path
+            resolved_path = config_file_path.resolve()
+            if not resolved_path.is_relative_to(self.config_path):
+                raise HTTPException(status_code=403, detail="Access denied: path outside config directory")
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid filename")
+
+        return config_file_path
+
+    def _register_sensitive_fields_as_secrets(self, data):
+        """Register sensitive fields as secrets for automatic redaction in logs."""
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key.lower() in ["password", "password_hash", "api_key", "secret", "token", "key"]:
+                    if isinstance(value, str) and value:
+                        logger.secret(value)
+                else:
+                    self._register_sensitive_fields_as_secrets(value)
+        elif isinstance(data, list):
+            for item in data:
+                self._register_sensitive_fields_as_secrets(item)
+
     async def get_scheduler_status(self) -> dict:
         """Get complete scheduler status including schedule configuration and persistence information."""
         try:
@@ -1391,20 +1524,20 @@ class WebAPI:
                     parsed_value = schedule_value  # cron
 
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
-            existed_before = scheduler.schedule_file.exists()
+            existed_before = scheduler.settings_file.exists()
             prev_contents = None
             if existed_before:
                 try:
-                    with open(scheduler.schedule_file, encoding="utf-8", errors="ignore") as f:
+                    with open(scheduler.settings_file, encoding="utf-8", errors="ignore") as f:
                         prev_contents = f.read().strip()
                 except Exception:
                     prev_contents = "<read_error>"
 
             success = scheduler.save_schedule(schedule_type, str(parsed_value))
             new_size = None
-            if scheduler.schedule_file.exists():
+            if scheduler.settings_file.exists():
                 try:
-                    new_size = scheduler.schedule_file.stat().st_size
+                    new_size = scheduler.settings_file.stat().st_size
                 except Exception:
                     pass
 
@@ -1413,8 +1546,8 @@ class WebAPI:
                 raise HTTPException(status_code=500, detail="Failed to save schedule")
 
             logger.debug(
-                f"UPDATE /schedule cid={correlation_id} persisted path={scheduler.schedule_file} "
-                f"existed_before={existed_before} new_exists={scheduler.schedule_file.exists()} "
+                f"UPDATE /schedule cid={correlation_id} persisted path={scheduler.settings_file} "
+                f"existed_before={existed_before} new_exists={scheduler.settings_file.exists()} "
                 f"new_size={new_size} prev_hash={hash(prev_contents) if prev_contents else None}"
             )
 
@@ -1452,7 +1585,7 @@ class WebAPI:
         try:
             correlation_id = uuid.uuid4().hex[:12]
             scheduler = Scheduler(self.default_dir, suppress_logging=True, read_only=True)
-            file_exists_before = scheduler.schedule_file.exists()
+            file_exists_before = scheduler.settings_file.exists()
 
             # Execute toggle (scheduler emits single summary line internally)
             success = scheduler.toggle_persistence()
@@ -1531,6 +1664,197 @@ class WebAPI:
         except Exception as e:
             logger.error(f"Error updating next run info: {str(e)}")
 
+    # Authentication methods
+
+    async def get_security_settings(self) -> AuthSettings:
+        """Get current security settings."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            settings = load_auth_settings(settings_path)
+
+            # Don't return sensitive information for security
+            settings.password_hash = "***" if settings.password_hash else ""
+            # Don't return API key for security - it should only be shown once when generated
+            settings.api_key = ""
+
+            return settings
+        except Exception as e:
+            logger.error(f"Error getting security settings: {str(e)}")
+            return AuthSettings()
+
+    async def get_security_status(self) -> dict:
+        """Get security status information without sensitive data."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            settings = load_auth_settings(settings_path)
+
+            return {
+                "has_api_key": bool(settings.api_key and settings.api_key.strip()),
+                "method": settings.method,
+                "enabled": settings.enabled,
+            }
+        except Exception as e:
+            logger.error(f"Error getting security status: {str(e)}")
+            return {"has_api_key": False, "method": "none", "enabled": False}
+
+    async def update_security_settings(self, request: SecuritySettingsRequest, req: Request) -> dict[str, Any]:
+        """Update security settings."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            current_settings = load_auth_settings(settings_path)
+
+            # Capture original values before any modifications for audit logging
+            original_settings = {
+                "enabled": current_settings.enabled,
+                "method": current_settings.method,
+                "bypass_auth_for_local": current_settings.bypass_auth_for_local,
+                "trusted_proxies": current_settings.trusted_proxies,
+                "username": current_settings.username,
+                "api_key": current_settings.api_key,
+            }
+
+            # DEBUG: Log the request data to understand what's being sent
+            logger.trace(
+                f"Security settings update request: current_api_key={bool(request.current_api_key)}, "
+                f"current_username={bool(request.current_username)}, "
+                f"current_password={bool(request.current_password)}"
+            )
+            logger.trace(
+                f"Current settings: method={current_settings.method}, "
+                f"has_api_key={bool(current_settings.api_key)}, "
+                f"has_username={bool(current_settings.username)}"
+            )
+
+            # Check if client is local and bypass_auth_for_local is enabled
+            if current_settings.bypass_auth_for_local and is_local_ip(req, current_settings.trusted_proxies):
+                logger.trace("Local client with bypass_auth_for_local enabled, skipping credential verification")
+                auth_verified = True
+            else:
+                # Verify current credentials for reauthentication
+                auth_verified = False
+
+            # First, try credentials provided in the request body
+            # Try API key verification first
+            if request.current_api_key and current_settings.api_key:
+                logger.trace("Attempting API key verification from request body")
+                if verify_api_key(request.current_api_key, current_settings.api_key):
+                    auth_verified = True
+                    logger.trace("API key verification successful")
+                else:
+                    logger.trace("API key verification failed")
+                    return {"success": False, "message": "Invalid current API key"}
+
+            # If API key not provided or invalid, try username/password
+            if not auth_verified and request.current_username and request.current_password:
+                logger.trace("Attempting username/password verification from request body")
+                if authenticate_user(request.current_username, request.current_password, current_settings):
+                    auth_verified = True
+                    logger.trace("Username/password verification successful")
+                else:
+                    logger.trace("Username/password verification failed")
+                    return {"success": False, "message": "Invalid current username or password"}
+
+            # If no credentials in request body, try to extract from request headers
+            if not auth_verified:
+                logger.trace("No credentials in request body, attempting to extract from headers")
+
+                # Try API key from header
+                api_key_header = req.headers.get("X-API-Key")
+                if api_key_header and current_settings.api_key:
+                    logger.trace("Attempting API key verification from X-API-Key header")
+                    if verify_api_key(api_key_header, current_settings.api_key):
+                        auth_verified = True
+                        logger.trace("API key verification from header successful")
+
+                # If API key header didn't work, try Basic auth from Authorization header
+                if not auth_verified:
+                    auth_header = req.headers.get("Authorization")
+                    if auth_header and auth_header.startswith("Basic "):
+                        logger.trace("Attempting Basic auth verification from Authorization header")
+                        try:
+                            import base64
+
+                            encoded_credentials = auth_header.split(" ")[1]
+                            decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
+                            username, password = decoded_credentials.split(":", 1)
+
+                            if authenticate_user(username, password, current_settings):
+                                auth_verified = True
+                                logger.trace("Basic auth verification from header successful")
+                            else:
+                                logger.trace("Basic auth verification from header failed")
+                        except Exception as e:
+                            logger.warning(f"Error parsing Basic auth header: {e}")
+
+            # If neither method worked, require authentication
+            if not auth_verified:
+                logger.warning("No valid current credentials provided for security settings update")
+                return {"success": False, "message": "Current credentials required to update security settings"}
+
+            # Update settings
+            current_settings.enabled = request.enabled
+            current_settings.method = request.method
+            current_settings.bypass_auth_for_local = request.bypass_auth_for_local
+            current_settings.trusted_proxies = request.trusted_proxies
+            current_settings.username = request.username
+
+            # Handle password
+            if request.password:
+                current_settings.password_hash = hash_password(request.password)
+
+            # Handle API key generation
+            if request.generate_api_key:
+                current_settings.api_key = generate_api_key()
+
+            # Handle API key clearing
+            if hasattr(request, "clear_api_key") and request.clear_api_key:
+                current_settings.api_key = ""
+
+            # Save settings
+            if save_auth_settings(settings_path, current_settings):
+                # Force reload authentication settings to ensure immediate effect
+                AuthenticationMiddleware.force_reload_all_settings()
+
+                # Audit log the security changes by comparing original with updated values
+                changes = []
+                if original_settings["enabled"] != current_settings.enabled:
+                    changes.append(f"enabled: {original_settings['enabled']} -> {current_settings.enabled}")
+                if original_settings["method"] != current_settings.method:
+                    changes.append(f"method: {original_settings['method']} -> {current_settings.method}")
+                if original_settings["bypass_auth_for_local"] != current_settings.bypass_auth_for_local:
+                    changes.append(
+                        f"bypass_auth_for_local: {original_settings['bypass_auth_for_local']} -> "
+                        f"{current_settings.bypass_auth_for_local}"
+                    )
+                if original_settings["trusted_proxies"] != current_settings.trusted_proxies:
+                    changes.append(
+                        f"trusted_proxies: {original_settings['trusted_proxies']} -> {current_settings.trusted_proxies}"
+                    )
+                if original_settings["username"] != current_settings.username:
+                    changes.append(f"username: {original_settings['username']} -> {current_settings.username}")
+                if request.password:
+                    changes.append("password: [CHANGED]")
+                if request.generate_api_key:
+                    changes.append("api_key: [GENERATED]")
+                if request.clear_api_key:
+                    changes.append("api_key: [CLEARED]")
+
+                if changes:
+                    logger.info(f"Security settings updated: {', '.join(changes)}")
+
+                logger.info("Authentication settings reloaded after update")
+                return {
+                    "success": True,
+                    "message": "Security settings updated successfully",
+                    "api_key": current_settings.api_key if request.generate_api_key else None,
+                }
+            else:
+                return {"success": False, "message": "Failed to save security settings"}
+
+        except Exception as e:
+            logger.error(f"Error updating security settings: {str(e)}")
+            return {"success": False, "message": f"Error updating security settings: {str(e)}"}
+
 
 def create_app(
     args: dict,
@@ -1542,7 +1866,18 @@ def create_app(
     scheduler: object = None,
 ) -> FastAPI:
     """Create and return the FastAPI application."""
+    # Get default_dir from args, which should be set by qbit_manage.py
+    default_dir = args.get("config_dir")
+    if not default_dir:
+        # Fallback if not provided
+        default_dir = util.ensure_config_dir_initialized(
+            util.get_default_config_dir(
+                args.config_files,
+            )
+        )
+
     return WebAPI(
+        default_dir=default_dir,
         args=args,
         is_running=is_running,
         is_running_lock=is_running_lock,

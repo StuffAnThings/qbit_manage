@@ -1,5 +1,5 @@
 # Use a multi-stage build to minimize final image size
-FROM python:3.13-alpine as builder
+FROM python:3.13-alpine AS builder
 
 ARG BRANCH_NAME=master
 ENV BRANCH_NAME=${BRANCH_NAME}
@@ -12,6 +12,7 @@ RUN apk add --no-cache \
     libxml2-dev \
     libxslt-dev \
     zlib-dev \
+    libffi-dev \
     curl \
     bash
 
