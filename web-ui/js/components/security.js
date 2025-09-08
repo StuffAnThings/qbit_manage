@@ -5,6 +5,7 @@
 
 import { API } from '../api.js';
 import { showToast } from '../utils/toast.js';
+import { showModal } from '../utils/modal.js';
 import { EYE_ICON_SVG, EYE_SLASH_ICON_SVG } from '../utils/icons.js';
 
 export class SecurityComponent {
@@ -12,6 +13,7 @@ export class SecurityComponent {
         this.container = document.getElementById(containerId);
         this.api = apiInstance || new API();
         this.currentSettings = null;
+        this.hasApiKey = false; // Track whether we have an API key without storing the key itself
     }
 
     async init() {
@@ -28,6 +30,13 @@ export class SecurityComponent {
         try {
             const response = await this.api.makeRequest('/security', 'GET');
             this.currentSettings = response;
+
+            // Also fetch security status to determine if API key exists
+            const statusResponse = await this.api.makeRequest('/security/status', 'GET');
+            this.hasApiKey = statusResponse.has_api_key;
+
+            // Initialize actualApiKey for copy functionality (empty for security)
+            this.actualApiKey = '';
         } catch (error) {
             // Use default settings if loading fails
             this.currentSettings = {
@@ -39,7 +48,17 @@ export class SecurityComponent {
                 password_hash: '',
                 api_key: ''
             };
+            this.hasApiKey = false;
+            this.actualApiKey = '';
         }
+    }
+
+    maskApiKey(apiKey) {
+        // Completely mask the API key for display - show only dots
+        if (!apiKey) {
+            return '';
+        }
+        return '•'.repeat(Math.max(32, apiKey.length));
     }
 
     render() {
@@ -132,32 +151,18 @@ export class SecurityComponent {
                     <div id="api-key-section">
                         <h3>API Key</h3>
                         <div class="form-group">
-                            <label for="api-key-display" class="form-label">API Key</label>
                             <div class="api-key-input-group">
-                                <div class="password-input-group">
-                                    <input type="password" id="api-key-display" class="form-input" readonly value="${this.currentSettings.api_key || ''}" placeholder="No API key generated">
-                                    ${this.currentSettings.api_key ? `
-                                    <button type="button" class="btn btn-icon password-toggle" data-target="api-key-display" title="Show full API key">
-                                        ${EYE_ICON_SVG}
-                                    </button>
-                                    ` : ''}
-                                </div>
                                 <button type="button" class="btn btn-secondary" id="generate-api-key">
-                                    ${this.currentSettings.api_key ? 'Generate New Key' : 'Generate Key'}
+                                    ${this.hasApiKey ? 'Generate New Key' : 'Generate Key'}
                                 </button>
-                                ${this.currentSettings.api_key ? `
+                                ${this.hasApiKey ? `
                                 <button type="button" class="btn btn-outline" id="clear-api-key">
                                     Clear Key
                                 </button>
                                 ` : ''}
-                                <button type="button" class="btn btn-icon" id="copy-api-key" title="Copy to clipboard" ${!this.currentSettings.api_key ? 'disabled' : ''}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                                    </svg>
-                                </button>
                             </div>
                             <div class="field-description">
-                                API key for programmatic access. Click "Generate New Key" to create a new one.
+                                API key for programmatic access. Click "Generate Key" to create a new key. The key will be displayed in a popup and won't be shown again.
                             </div>
                         </div>
                     </div>
@@ -182,7 +187,6 @@ export class SecurityComponent {
         this.credentialsSection = document.getElementById('credentials-section');
         this.generateApiKeyBtn = document.getElementById('generate-api-key');
         this.clearApiKeyBtn = document.getElementById('clear-api-key');
-        this.copyApiKeyBtn = document.getElementById('copy-api-key');
         this.saveBtn = document.getElementById('save-security-settings');
 
         // Handle authentication method change
@@ -212,13 +216,6 @@ export class SecurityComponent {
         if (this.clearApiKeyBtn) {
             this.clearApiKeyBtn.addEventListener('click', () => {
                 this.clearApiKey();
-            });
-        }
-
-        // Handle copy API key
-        if (this.copyApiKeyBtn) {
-            this.copyApiKeyBtn.addEventListener('click', () => {
-                this.copyApiKey();
             });
         }
 
@@ -254,6 +251,7 @@ export class SecurityComponent {
             return;
         }
 
+        // Standard password field behavior (no special handling for API key anymore)
         const isPassword = input.type === 'password';
         input.type = isPassword ? 'text' : 'password';
         button.innerHTML = isPassword ? EYE_SLASH_ICON_SVG : EYE_ICON_SVG;
@@ -289,14 +287,53 @@ export class SecurityComponent {
             const response = await this.api.makeRequest('/security', 'PUT', requestData);
 
             if (response.success) {
-                this.currentSettings.api_key = response.api_key;
-                const input = document.getElementById('api-key-display');
-                if (input) {
-                    input.value = response.api_key;
-                }
-                // Re-render to update button visibility
+                // Store the newly generated API key temporarily for the modal
+                const newApiKey = response.api_key;
+
+                // Show modal with the API key
+                const modalContent = `
+                    <div class="api-key-modal">
+                        <p><strong>Important:</strong> Copy this API key now. It will not be shown again.</p>
+                        <div class="api-key-display-modal">
+                            <input type="text" id="modal-api-key" class="form-input" readonly value="${newApiKey}">
+                            <button type="button" class="btn btn-icon" id="modal-copy-api-key" title="Copy to clipboard">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="modal-warning">This key provides full access to the qBit Manage API. Keep it secure!</p>
+                    </div>
+                `;
+
+                // Add copy functionality using event delegation before showing modal
+                const handleCopyClick = (event) => {
+                    if (event.target && event.target.id === 'modal-copy-api-key') {
+                        navigator.clipboard.writeText(newApiKey)
+                            .then(() => showToast('API key copied to clipboard', 'success'))
+                            .catch(() => showToast('Failed to copy API key', 'error'));
+                    }
+                };
+
+                // Attach event listener to document for the copy button
+                document.addEventListener('click', handleCopyClick);
+
+                // Show the modal
+                const modalResult = await showModal('New API Key Generated', modalContent, {
+                    confirmText: 'Close',
+                    showCancel: false
+                });
+
+                // Clean up event listener after modal is closed
+                document.removeEventListener('click', handleCopyClick);
+
+                // Update the component state to reflect that we now have a key
+                this.hasApiKey = true;
+
+                // Re-render to update button states
                 this.render();
                 this.bindEvents();
+
                 showToast('New API key generated successfully', 'success');
             } else {
                 showToast(response.message || 'Failed to generate API key', 'error');
@@ -335,14 +372,13 @@ export class SecurityComponent {
             const response = await this.api.makeRequest('/security', 'PUT', requestData);
 
             if (response.success) {
-                this.currentSettings.api_key = '';
-                const input = document.getElementById('api-key-display');
-                if (input) {
-                    input.value = '';
-                }
-                // Re-render to update button visibility
+                // Clear the API key state
+                this.hasApiKey = false;
+
+                // Re-render to update button states
                 this.render();
                 this.bindEvents();
+
                 showToast('API key cleared successfully', 'success');
             } else {
                 showToast(response.message || 'Failed to clear API key', 'error');
@@ -353,14 +389,6 @@ export class SecurityComponent {
         }
     }
 
-    copyApiKey() {
-        const input = document.getElementById('api-key-display');
-        if (!input) return;
-
-        navigator.clipboard.writeText(input.value)
-            .then(() => showToast('API key copied to clipboard', 'success'))
-            .catch(() => showToast('Failed to copy API key', 'error'));
-    }
 
     validatePasswordComplexity(password) {
         const minLength = 8;

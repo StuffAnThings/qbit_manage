@@ -66,3 +66,43 @@
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
 }
+
+/* API Key Modal Styles */
+.api-key-modal {
+  text-align: center;
+}
+
+.api-key-modal p:first-child {
+  color: var(--warning-color, #d97706);
+  font-weight: 500;
+  margin-bottom: var(--spacing-md);
+}
+
+.api-key-display-modal {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.api-key-display-modal .form-input {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.5px;
+}
+
+.api-key-display-modal .btn {
+  flex-shrink: 0;
+}
+
+.modal-warning {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-md) !important;
+  font-style: italic;
+}

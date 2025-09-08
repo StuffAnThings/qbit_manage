@@ -328,6 +328,7 @@ class WebAPI:
 
         # Authentication routes
         api_router.get("/security")(self.get_security_settings)
+        api_router.get("/security/status")(self.get_security_status)
         api_router.put("/security")(self.update_security_settings)
 
         # System management routes
@@ -1673,11 +1674,28 @@ class WebAPI:
 
             # Don't return sensitive information for security
             settings.password_hash = "***" if settings.password_hash else ""
+            # Don't return API key for security - it should only be shown once when generated
+            settings.api_key = ""
 
             return settings
         except Exception as e:
             logger.error(f"Error getting security settings: {str(e)}")
             return AuthSettings()
+
+    async def get_security_status(self) -> dict:
+        """Get security status information without sensitive data."""
+        try:
+            settings_path = Path(self.default_dir) / "qbm_settings.yml"
+            settings = load_auth_settings(settings_path)
+
+            return {
+                "has_api_key": bool(settings.api_key and settings.api_key.strip()),
+                "method": settings.method,
+                "enabled": settings.enabled,
+            }
+        except Exception as e:
+            logger.error(f"Error getting security status: {str(e)}")
+            return {"has_api_key": False, "method": "none", "enabled": False}
 
     async def update_security_settings(self, request: SecuritySettingsRequest, req: Request) -> dict[str, Any]:
         """Update security settings."""
@@ -1828,7 +1846,7 @@ class WebAPI:
                 return {
                     "success": True,
                     "message": "Security settings updated successfully",
-                    "api_key": current_settings.api_key if (request.generate_api_key or request.clear_api_key) else None,
+                    "api_key": current_settings.api_key if request.generate_api_key else None,
                 }
             else:
                 return {"success": False, "message": "Failed to save security settings"}
