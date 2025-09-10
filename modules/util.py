@@ -10,6 +10,7 @@ import shutil
 import signal
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 from pathlib import Path
 
@@ -252,7 +253,7 @@ def get_default_config_dir(config_hint: str = None, config_dir: str = None) -> s
     2) If config_hint is an absolute path or contains a directory component, use its parent directory
     3) Otherwise, if config_hint is a name/pattern (e.g. 'config.yml'), search common bases for:
           - A direct match to that filename/pattern
-          - OR a persisted scheduler file 'schedule.yml' (so we don't lose an existing schedule when config.yml is absent)
+          - OR a persisted scheduler file 'qbm_settings.yml' or legacy 'schedule.yml' (so we don't lose an existing schedule)
         Common bases (in order):
           - /config (container volume)
           - repository ./config
@@ -287,8 +288,8 @@ def get_default_config_dir(config_hint: str = None, config_dir: str = None) -> s
 
             for base in candidates:
                 try:
-                    # Match the primary pattern OR detect existing schedule.yml (persistence)
-                    if list(base.glob(primary)) or (base / "schedule.yml").exists():
+                    # Match the primary pattern OR detect existing settings files (persistence)
+                    if list(base.glob(primary)) or (base / "qbm_settings.yml").exists() or (base / "schedule.yml").exists():
                         return str(base.resolve())
                 except Exception:
                     # ignore and continue to next base
@@ -888,48 +889,80 @@ def trunc_val(stg, delm, num=3):
 
 def move_files(src, dest, mod=False):
     """Move files from source to destination, mod variable is to change the date modified of the file being moved"""
+
     dest_path = os.path.dirname(dest)
     to_delete = False
     if os.path.isdir(dest_path) is False:
         os.makedirs(dest_path, exist_ok=True)
-    try:
-        if mod is True:
-            mod_time = time.time()
-            os.utime(src, (mod_time, mod_time))
-        shutil.move(src, dest)
-    except PermissionError as perm:
-        logger.warning(f"{perm} : Copying files instead.")
+
+    # Use ThreadPoolExecutor for timeout protection without thread exhaustion
+    with ThreadPoolExecutor(max_workers=1) as executor:
         try:
-            shutil.copyfile(src, dest)
+            # Submit move operation with timeout
+            future = executor.submit(_move_file_operation, src, dest, mod)
+            result = future.result(timeout=300.0)  # 5 minute timeout for file operations
+            to_delete = result
+
+        except TimeoutError:
+            logger.warning(f"Timeout moving file (permission issue?): {src} -> {dest}")
+            return to_delete
+
+        except PermissionError as perm:
+            logger.warning(f"{perm} : Copying files instead.")
+
+            try:
+                # Use the existing copy_files function
+                copy_files(src, dest)
+
+            except Exception as ex:
+                logger.stacktrace()
+                logger.error(ex)
+                return to_delete
+
+            if os.path.isfile(src):
+                logger.warning(f"Removing original file: {src}")
+
+                try:
+                    # Submit remove operation with timeout
+                    future = executor.submit(_remove_file_operation, src)
+                    future.result(timeout=300.0)
+
+                except TimeoutError:
+                    logger.warning(f"Timeout removing original file (permission issue?): {src}")
+                except OSError as e:
+                    logger.warning(f"Error: {e.filename} - {e.strerror}.")
+
+            to_delete = True
+
+        except FileNotFoundError as file:
+            logger.warning(f"{file} : source: {src} -> destination: {dest}")
         except Exception as ex:
             logger.stacktrace()
             logger.error(ex)
-            return to_delete
-        if os.path.isfile(src):
-            logger.warning(f"Removing original file: {src}")
-            try:
-                os.remove(src)
-            except OSError as e:
-                logger.warning(f"Error: {e.filename} - {e.strerror}.")
-        to_delete = True
-    except FileNotFoundError as file:
-        logger.warning(f"{file} : source: {src} -> destination: {dest}")
-    except Exception as ex:
-        logger.stacktrace()
-        logger.error(ex)
+
     return to_delete
 
 
 def delete_files(file_path):
-    """Try to delete the file directly."""
-    try:
-        os.remove(file_path)
-    except FileNotFoundError as e:
-        logger.warning(f"File not found: {e.filename} - {e.strerror}.")
-    except PermissionError as e:
-        logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
-    except OSError as e:
-        logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
+    """Try to delete the file directly with timeout protection."""
+
+    # Use ThreadPoolExecutor for timeout protection without thread exhaustion
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        try:
+            # Submit delete operation with timeout
+            future = executor.submit(_remove_file_operation, file_path)
+            future.result(timeout=300.0)  # 5 minute timeout for file operations
+
+        except TimeoutError:
+            logger.warning(f"Timeout deleting file (permission issue?): {file_path}")
+            return
+
+        except FileNotFoundError as e:
+            logger.warning(f"File not found: {e.filename} - {e.strerror}.")
+        except PermissionError as e:
+            logger.warning(f"Permission denied: {e.filename} - {e.strerror}.")
+        except OSError as e:
+            logger.error(f"Error deleting file: {e.filename} - {e.strerror}.")
 
 
 def copy_files(src, dest):
@@ -942,6 +975,20 @@ def copy_files(src, dest):
     except Exception as ex:
         logger.stacktrace()
         logger.error(ex)
+
+
+def _move_file_operation(src, dest, mod):
+    """Internal function for move operation."""
+    if mod is True:
+        mod_time = time.time()
+        os.utime(src, (mod_time, mod_time))
+    shutil.move(src, dest)
+    return True
+
+
+def _remove_file_operation(src):
+    """Internal function for remove operation."""
+    os.remove(src)
 
 
 def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patterns=[]):
@@ -961,7 +1008,6 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patt
     compiled_patterns = []
     for pattern in exclude_patterns:
         # Convert to regex for faster matching
-        import re
 
         regex_pattern = fnmatch.translate(pattern)
         compiled_patterns.append(re.compile(regex_pattern))
@@ -1034,7 +1080,7 @@ class CheckHardLinks:
                 continue
             else:
                 try:
-                    inode_no = os.stat(file.replace(self.root_dir, self.remote_dir)).st_ino
+                    inode_no = os.stat(path_replace(file, self.root_dir, self.remote_dir)).st_ino
                 except PermissionError as perm:
                     logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
                     continue
@@ -1169,7 +1215,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
         else:
             # Convert an exclude in remote namespace to root namespace for comparison after replacement
             try:
-                local_exclude_dir = exclude_dir.replace(remote_dir, root_dir, 1)
+                local_exclude_dir = path_replace(exclude_dir, remote_dir, root_dir)
             except Exception:
                 local_exclude_dir = None
 
@@ -1185,7 +1231,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
     else:
         # Walk the accessible remote_dir and convert to root_dir representation once per directory
         for path, subdirs, files in os.walk(base_to_walk):
-            replaced_path = path.replace(remote_dir, root_dir, 1)
+            replaced_path = path_replace(path, remote_dir, root_dir)
             if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(replaced_path):
                 continue
             for name in files:
@@ -1323,6 +1369,41 @@ def parse_size_to_bytes(value):
     if mul is None:
         return None
     return int(num * mul)
+
+
+def path_replace(path, old_path, new_path):
+    """
+    Cross-platform safe path replacement that handles different path separators.
+
+    This function replaces old_path with new_path in the given path, accounting for
+    differences in path separators between Windows (\\) and Unix-like systems (/).
+
+    Args:
+        path (str): The path to modify
+        old_path (str): The path segment to replace
+        new_path (str): The replacement path segment
+
+    Returns:
+        str: The modified path with cross-platform compatibility
+    """
+    if not path or not old_path:
+        return path
+
+    # Normalize all paths to use forward slashes for comparison
+    path_norm = path.replace("\\", "/")
+    old_norm = old_path.replace("\\", "/")
+    new_norm = new_path.replace("\\", "/") if new_path else ""
+
+    # Perform the replacement on normalized paths
+    if path_norm.startswith(old_norm):
+        result = new_norm + path_norm[len(old_norm) :]
+    elif old_norm in path_norm:
+        result = path_norm.replace(old_norm, new_norm, 1)
+    else:
+        return path
+
+    # Convert back to the platform's preferred separator
+    return os.path.normpath(result)
 
 
 class YAML:
@@ -1505,7 +1586,7 @@ def get_matching_config_files(config_pattern: str, default_dir: str, use_config_
             for config_file in glob_configs:
                 filename = os.path.basename(config_file)
                 # Exclude reserved files
-                if filename != "schedule.yml":
+                if filename not in ("schedule.yml", "qbm_settings.yml"):
                     config_files.append(filename)
 
         if config_files:

@@ -294,10 +294,10 @@ class LogViewer {
 
         let html = '';
         this.filteredLogs.forEach((log, index) => {
-            // Logs are now raw strings, display them directly
+            // Logs are now raw strings, display them directly with clickable links
             html += `
                 <div class="log-entry">
-                    <span class="log-message">${this.escapeHtml(log)}</span>
+                    <span class="log-message">${this.makeLinksClickable(log)}</span>
                 </div>
             `;
         });
@@ -310,6 +310,31 @@ class LogViewer {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Converts URLs in text to clickable links while escaping the rest
+     * @param {string} text - The text to process
+     * @returns {string} - HTML with clickable links
+     */
+    makeLinksClickable(text) {
+        // URL regex patterns for both HTTP and HTTPS - handled identically
+        const httpRegex = /(http:\/\/[^\s]+)/g;
+        const httpsRegex = /(https:\/\/[^\s]+)/g;
+
+        // Escape the entire text first for security
+        const escapedText = this.escapeHtml(text);
+
+        // Replace both HTTP and HTTPS URLs with identical clickable links
+        let result = escapedText.replace(httpRegex, (url) => {
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="log-link">${url}</a>`;
+        });
+
+        result = result.replace(httpsRegex, (url) => {
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="log-link">${url}</a>`;
+        });
+
+        return result;
     }
 
     scrollToTop() {

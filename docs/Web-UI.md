@@ -15,6 +15,49 @@ The qBit Manage Web UI offers a range of features designed to simplify your conf
 - **Responsive Design**: Access and manage your qBit Manage instance seamlessly from both desktop and mobile devices.
 - **YAML Preview**: See a real-time preview of the YAML configuration as you make changes, ensuring accuracy before saving.
 
+## Security Features
+The Web UI includes built-in security options to protect your qBit Manage instance:
+
+### Authentication Methods
+- **None**: No authentication required (default for personal use)
+- **Basic Authentication**: Username and password login with browser popup
+- **API Only**: No web UI authentication, but API key required for API requests
+
+### API Key Usage
+When authentication is enabled, you can generate an API key for programmatic access:
+1. Access the Security section in the Web UI
+2. Generate a new API key
+3. Use the key in API requests with the `X-API-Key` header
+
+Example API call with key:
+```bash
+curl -H "X-API-Key: your_api_key_here" http://localhost:8080/api/run-command
+```
+
+### Security Best Practices
+- Use strong passwords with at least 8 characters
+- Enable authentication when running on public networks
+- Keep API keys secure and regenerate them periodically
+- Use HTTPS in production environments
+
+### Troubleshooting Authentication Issues
+
+#### Can't Access Web UI After Enabling Authentication
+
+If you get locked out after enabling authentication:
+
+1. Edit the settings file directly (`config/qbm_settings.yml`)
+2. Set `authentication.enabled: false` or `authentication.method: none`
+3. Restart qBit Manage
+4. Reconfigure authentication through the web UI
+
+#### Basic Authentication Not Working
+
+- Ensure your browser supports HTTP Basic Authentication
+- Check that your credentials are correct
+- Try clearing browser cache/cookies
+- If rate limited, wait 1 minute before trying again (maximum 10 attempts per minute)
+
 ## Configuration Sections
 The Web UI organizes all configuration options into logical sections for easy navigation and management:
 1. **Commands**: Define and manage the various script execution workflows.

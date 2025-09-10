@@ -78,7 +78,7 @@ The Web API and Web UI are enabled by default in this Docker setup.
 2. Access the Web UI at `http://your-host:8080`
 3. Access the Web API at `http://your-host:8080/api/run-command`
 
-See the [Web API Documentation](Web-API) for detailed usage instructions and examples.
+See the [Web API Documentation](Web-API) and [Web UI Documentation](Web-UI) for detailed usage instructions, security features, and examples.
 
 You will also need to define not just the config volume but the volume to your torrents, this is in order to use the recycling bin, remove orphans and the no hard link options
 

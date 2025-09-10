@@ -17,6 +17,7 @@ authors = [
     {name = "bobokun"},
 ]
 dependencies = [
+    "argon2-cffi==25.1.0",
     "bencodepy==0.9.5",
     "croniter==6.0.0",
     "fastapi==0.116.1",
@@ -27,6 +28,7 @@ dependencies = [
     "requests==2.32.5",
     "retrying==1.4.2",
     "ruamel.yaml==0.18.15",
+    "slowapi==0.1.9",
     "uvicorn==0.35.0",
 ]
 
@@ -40,7 +42,7 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.3.0",
-    "ruff==0.12.11",
+    "ruff==0.12.12",
 ]
 
 [tool.ruff]

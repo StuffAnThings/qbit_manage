@@ -21,7 +21,7 @@ services:
     image: bobokun/qbit_manage:latest
     container_name: qbit_manage
     environment:
-      - QBT_WEB_SERVER=true # Enable web server
+      - QBT_WEB_SERVER=true # Enable web server (set to false to disable)
       - QBT_HOST=0.0.0.0 # Set web server host
       - QBT_PORT=8080 # Set web server port
     ports:
@@ -222,6 +222,40 @@ curl -X POST http://localhost:8080/api/run-command \
   }'
 ```
 
+If authentication is enabled, include your API key:
+
+```bash
+curl -X POST http://localhost:8080/api/run-command \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
+  -d '{
+    "config_file": "config.yml",
+    "commands": ["cat_update", "tag_update"],
+    "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
+    "dry_run": false,
+    "skip_cleanup": false,
+    "skip_qb_version_check": false,
+    "log_level": "info"
+  }'
+```
+
+Alternatively, if Basic Authentication is enabled and you don't have an API key:
+
+```bash
+curl -X POST http://localhost:8080/api/run-command \
+  -u "username:password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "config_file": "config.yml",
+    "commands": ["cat_update", "tag_update"],
+    "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
+    "dry_run": false,
+    "skip_cleanup": false,
+    "skip_qb_version_check": false,
+    "log_level": "info"
+  }'
+```
+
 Using Python requests:
 
 ```python
@@ -229,6 +263,51 @@ import requests
 
 response = requests.post(
     "http://localhost:8080/api/run-command",
+    json={
+        "config_file": "config.yml",
+        "commands": ["cat_update", "tag_update"],
+        "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
+        "dry_run": False,
+        "skip_cleanup": False,
+        "skip_qb_version_check": False,
+        "log_level": "info"
+    }
+)
+print(response.json())
+```
+
+If authentication is enabled, include your API key:
+
+```python
+import requests
+
+headers = {"X-API-Key": "your_api_key_here"}
+
+response = requests.post(
+    "http://localhost:8080/api/run-command",
+    headers=headers,
+    json={
+        "config_file": "config.yml",
+        "commands": ["cat_update", "tag_update"],
+        "hashes": ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"],
+        "dry_run": False,
+        "skip_cleanup": False,
+        "skip_qb_version_check": False,
+        "log_level": "info"
+    }
+)
+print(response.json())
+```
+
+Alternatively, if Basic Authentication is enabled:
+
+```python
+import requests
+from requests.auth import HTTPBasicAuth
+
+response = requests.post(
+    "http://localhost:8080/api/run-command",
+    auth=HTTPBasicAuth("username", "password"),
     json={
         "config_file": "config.yml",
         "commands": ["cat_update", "tag_update"],
