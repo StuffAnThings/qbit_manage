@@ -18,7 +18,7 @@ This wiki should tell you everything you need to know about the script to get it
 3. **Start using qbit_manage:**
    - Review the [Commands](Commands) documentation to understand available features
    - Try the [Web UI](Web-UI) for an intuitive configuration experience
-   - Use the [Web API](Web-API) for automation and integration
+   - Use the [Web API](Web-API) for automation and integration with API key authentication
 
 ## Support
 
