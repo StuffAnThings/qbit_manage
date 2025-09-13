@@ -300,6 +300,7 @@ prep-release:
 	patch=$$(echo "$$new_version" | cut -d. -f3); \
 	prev_patch=$$((patch - 1)); \
 	prev_version="$$major.$$minor.$$prev_patch"; \
+	git fetch origin master:master \
 	updated_deps=$$(git diff master..HEAD -- pyproject.toml | grep '^+' | grep '==' | sed 's/^+//' | sed 's/^ *//' | sed 's/,$$//' | sed 's/^/- /'); \
 	echo "# Requirements Updated" > CHANGELOG; \
 	if [ -n "$$updated_deps" ]; then \
