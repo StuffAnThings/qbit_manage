@@ -4,6 +4,7 @@ import base64
 import hashlib
 import ipaddress
 import os
+import platform
 import re
 import secrets
 from collections import defaultdict
@@ -338,22 +339,25 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         try:
             if self.settings_path.exists():
-                # Check file permissions for security
-                try:
-                    stat_info = self.settings_path.stat()
-                    # Check if file is readable/writable by group or others (should be 600 or similar)
-                    if stat_info.st_mode & 0o077:  # Check if group/other has any permissions
-                        logger.warning(
-                            f"Settings file {self.settings_path} has overly permissive permissions. "
-                            f"Fixing to 600 (owner read/write only)."
-                        )
-                        try:
-                            os.chmod(str(self.settings_path), 0o600)
-                            logger.info(f"Fixed permissions for settings file {self.settings_path} to 600.")
-                        except OSError as e:
-                            logger.error(f"Could not fix permissions for settings file: {e}")
-                except (OSError, AttributeError) as e:
-                    logger.warning(f"Could not check permissions for settings file: {e}")
+                # Check file permissions for security (skip on Windows as it uses different permission model)
+                if platform.system() != "Windows":
+                    try:
+                        stat_info = self.settings_path.stat()
+                        # Check if file is readable/writable by group or others (should be 600 or similar)
+                        if stat_info.st_mode & 0o077:  # Check if group/other has any permissions
+                            logger.warning(
+                                f"Settings file {self.settings_path} has overly permissive permissions. "
+                                f"Fixing to 600 (owner read/write only)."
+                            )
+                            try:
+                                os.chmod(str(self.settings_path), 0o600)
+                                logger.info(f"Fixed permissions for settings file {self.settings_path} to 600.")
+                            except OSError as e:
+                                logger.error(f"Could not fix permissions for settings file: {e}")
+                    except (OSError, AttributeError) as e:
+                        logger.warning(f"Could not check permissions for settings file: {e}")
+                else:
+                    logger.debug("Skipping file permission check on Windows (uses different permission model)")
 
                 with open(self.settings_path, encoding="utf-8") as f:
                     yaml_loader = ruamel.yaml.YAML(typ="safe")
@@ -574,11 +578,14 @@ def save_auth_settings(settings_path: Path, settings: AuthSettings) -> bool:
         with open(settings_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f)
 
-        # Set restrictive permissions (600 - owner read/write only)
-        try:
-            os.chmod(str(settings_path), 0o600)
-        except OSError as e:
-            logger.error(f"Could not set permissions for settings file: {e}")
+        # Set restrictive permissions (600 - owner read/write only) - skip on Windows
+        if platform.system() != "Windows":
+            try:
+                os.chmod(str(settings_path), 0o600)
+            except OSError as e:
+                logger.error(f"Could not set permissions for settings file: {e}")
+        else:
+            logger.debug("Skipping file permission setting on Windows (uses different permission model)")
 
         return True
     except Exception as e:

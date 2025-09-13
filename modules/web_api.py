@@ -1725,9 +1725,18 @@ class WebAPI:
                 f"has_username={bool(current_settings.username)}"
             )
 
+            # Check if this is initial setup (no authentication currently configured)
+            is_initial_setup = not current_settings.enabled or (
+                current_settings.method == "none" and not current_settings.username and not current_settings.api_key
+            )
+
             # Check if client is local and bypass_auth_for_local is enabled
             if current_settings.bypass_auth_for_local and is_local_ip(req, current_settings.trusted_proxies):
                 logger.trace("Local client with bypass_auth_for_local enabled, skipping credential verification")
+                auth_verified = True
+            elif is_initial_setup:
+                # Allow initial setup without credentials when no authentication is configured
+                logger.trace("Initial authentication setup detected, skipping credential verification")
                 auth_verified = True
             else:
                 # Verify current credentials for reauthentication
@@ -1735,7 +1744,7 @@ class WebAPI:
 
             # First, try credentials provided in the request body
             # Try API key verification first
-            if request.current_api_key and current_settings.api_key:
+            if not auth_verified and request.current_api_key and current_settings.api_key:
                 logger.trace("Attempting API key verification from request body")
                 if verify_api_key(request.current_api_key, current_settings.api_key):
                     auth_verified = True
@@ -1786,8 +1795,8 @@ class WebAPI:
                         except Exception as e:
                             logger.warning(f"Error parsing Basic auth header: {e}")
 
-            # If neither method worked, require authentication
-            if not auth_verified:
+            # If neither method worked and it's not initial setup, require authentication
+            if not auth_verified and not is_initial_setup:
                 logger.warning("No valid current credentials provided for security settings update")
                 return {"success": False, "message": "Current credentials required to update security settings"}
 

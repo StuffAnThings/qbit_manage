@@ -1,20 +1,9 @@
-# Requirements Updated
-- "argon2-cffi==25.1.0"
-- "slowapi==0.1.9"
-- "ruff==0.12.12"
-
-# New Features
-- Adds authentication support for the webUI and webAPI (Fixes #867)
-
 # Improvements
-- Enhanced `--web-server` option to support disabling with `--web-server=False` while maintaining backward compatibility
-- The `schedule.yml` is now renamed to `qbm_settings.yml` in order to support security features (Automatic migration)
-- Makes hyperlinks clickable in the webUI (Fixes #938)
+- Adds better validation for security passwords
 
 # Bug Fixes
-- Better support for windows paths when using remote_dir
-- Fix `QBT_CONFIG_DIR` not supporting folders with subdirectories (Fixes #934)
-- Fixes webUI not being packaged with PyPi builds
-- Fix bug in remove_orphaned where it's not able to start a new thread in concurrent runs
+- Conditionally skip permission validation and setting on Windows systems
+- Improve cross-platform compatibility for authentication settings handling
+- Fixes bug where users cannot set up initial security through the webUI
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.0...v4.6.1
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.1...v4.6.2

@@ -144,7 +144,7 @@ This section defines the tags used based upon the tracker's URL.
 | `cat`       | Set the category based on tracker URL. This category option takes priority over the category defined in [cat](#cat) | None           | <center>❌</center> |
 | `notifiarr` | Set this to the notifiarr react name. This is used to add indexer reactions to the notifications sent by Notifiarr  | None           | <center>❌</center> |
 
-If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this key word is unique enough that the script will not get confused with any other tracker.
+If you are unsure what key word to use. Simply select a torrent within qB and down at the bottom you should see a tab that says `Trackers` within the list that is populated there are ea list of trackers that are associated with this torrent, select a keyword from there and add it to the config file. Make sure this keyword is unique enough that the script will not get confused with any other tracker.
 
 >[!TIP]
 > The `other` key is a special keyword and if defined will tag any other trackers that don't match the above trackers into this tag.
@@ -167,6 +167,9 @@ If you're needing information regarding hardlinks here are some excellent resour
 > [!NOTE]
 > Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
 Beyond this you'll need to use one of the [categories](#cat) above as the key.
+
+This functionality will tag any torrent's whose file (or largest file if multi-file) does not have any hardlinks outside the qbm root_dir.
+Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected in the same root_dir.
 
 | Configuration | Definition                                                | Required           |
 | :------------ | :-------------------------------------------------------- | :----------------- |

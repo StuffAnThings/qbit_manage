@@ -512,6 +512,17 @@ export class SecurityComponent {
                     return;
                 }
 
+                // For basic authentication, password is required
+                if (method === 'basic') {
+                    const hasExistingPassword = this.currentSettings.password_hash && this.currentSettings.password_hash !== '';
+                    const hasNewPassword = password && password.trim() !== '';
+
+                    if (!hasExistingPassword && !hasNewPassword) {
+                        showToast('Password is required for basic authentication', 'error');
+                        return;
+                    }
+                }
+
                 if (password && password !== confirmPassword) {
                     showToast('Passwords do not match', 'error');
                     return;
