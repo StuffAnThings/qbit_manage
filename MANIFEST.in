@@ -2,4 +2,5 @@ include README.md
 include LICENSE
 include VERSION
 include SUPPORTED_VERSIONS.json
+include qbit_manage.py
 recursive-include web-ui *
