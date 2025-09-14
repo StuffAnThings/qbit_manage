@@ -577,6 +577,9 @@ def start():
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
         finished_run(next_scheduled_run_info_shared)
+        # Release flag when config validation fails
+        with is_running_lock:
+            is_running.value = False
         return None
 
     if qbit_manager:
