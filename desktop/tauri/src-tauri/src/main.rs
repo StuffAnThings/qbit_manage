@@ -11,15 +11,20 @@ use tauri::{
   Manager,
   WindowEvent,
   Emitter,
-  menu::{MenuBuilder, MenuItemBuilder},
-  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
+  menu::{MenuBuilder, MenuItemBuilder, CheckMenuItemBuilder},
+  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState, TrayIcon},
   RunEvent,
 };
 use tauri_plugin_single_instance::init as single_instance;
 use tokio::time::sleep;
+#[cfg(target_os = "windows")]
+use windows::Win32::System::Registry::*;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<ServerProcess>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+static MINIMIZE_TO_TRAY: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+static STARTUP_ENABLED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
+static TRAY_HANDLE: Lazy<Arc<Mutex<Option<TrayIcon>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 struct ServerProcess {
   child: Child,
@@ -45,6 +50,140 @@ fn app_config(app: &AppHandle) -> AppConfig {
   let _ = app.emit("app-config", format!("port={port}, base_url={base_url:?}"));
 
   AppConfig { port, base_url }
+}
+
+fn load_minimize_setting(app: &AppHandle) -> bool {
+  if let Ok(data_dir) = app.path().app_data_dir() {
+    let file = data_dir.join("minimize_to_tray.txt");
+    if file.exists() {
+      std::fs::read_to_string(&file).map(|s| s.trim() == "true").unwrap_or(false)
+    } else {
+      false
+    }
+  } else {
+    false
+  }
+}
+
+fn save_minimize_setting(app: &AppHandle, value: bool) {
+  if let Ok(data_dir) = app.path().app_data_dir() {
+    let file = data_dir.join("minimize_to_tray.txt");
+    let _ = std::fs::write(&file, if value { "true" } else { "false" });
+  }
+}
+
+#[cfg(target_os = "windows")]
+fn is_startup_enabled() -> bool {
+  unsafe {
+    use windows::Win32::System::Registry::*;
+    let mut hkey = HKEY::default();
+    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_READ, &mut hkey).is_ok() {
+      let mut buffer = [0u16; 260];
+      let mut size = (buffer.len() * 2) as u32;
+      let result = RegQueryValueExW(hkey, w!("qbit-manage-desktop"), None, None, Some(buffer.as_mut_ptr() as *mut _), Some(&mut size));
+      let _ = RegCloseKey(hkey);
+      result.is_ok()
+    } else {
+      false
+    }
+  }
+}
+
+#[cfg(target_os = "windows")]
+fn set_startup_enabled(enabled: bool) {
+  unsafe {
+    use windows::Win32::System::Registry::*;
+    let mut hkey = HKEY::default();
+    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_SET_VALUE, &mut hkey).is_ok() {
+      if enabled {
+        if let Ok(exe_path) = std::env::current_exe() {
+          if let Some(path_str) = exe_path.to_str() {
+            let wide_path: Vec<u16> = path_str.encode_utf16().chain(std::iter::once(0)).collect();
+            let _ = RegSetValueExW(hkey, w!("qbit-manage-desktop"), 0, REG_SZ, Some(&wide_path));
+          }
+        }
+      } else {
+        let _ = RegDeleteValueW(hkey, w!("qbit-manage-desktop"));
+      }
+      let _ = RegCloseKey(hkey);
+    }
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn is_startup_enabled() -> bool {
+  if let Ok(home) = std::env::var("HOME") {
+    let plist_path = format!("{}/Library/LaunchAgents/com.qbit-manage.desktop.plist", home);
+    std::path::Path::new(&plist_path).exists()
+  } else {
+    false
+  }
+}
+
+#[cfg(target_os = "macos")]
+fn set_startup_enabled(enabled: bool) {
+  if let Ok(home) = std::env::var("HOME") {
+    let plist_path = format!("{}/Library/LaunchAgents/com.qbit-manage.desktop.plist", home);
+    if enabled {
+      if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(path_str) = exe_path.to_str() {
+          let plist_content = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.qbit-manage.desktop</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>"#, path_str);
+          let _ = std::fs::write(&plist_path, plist_content);
+        }
+      }
+    } else {
+      let _ = std::fs::remove_file(&plist_path);
+    }
+  }
+}
+
+#[cfg(target_os = "linux")]
+fn is_startup_enabled() -> bool {
+  if let Ok(home) = std::env::var("HOME") {
+    let desktop_path = format!("{}/.config/autostart/qbit-manage.desktop", home);
+    std::path::Path::new(&desktop_path).exists()
+  } else {
+    false
+  }
+}
+
+#[cfg(target_os = "linux")]
+fn set_startup_enabled(enabled: bool) {
+  if let Ok(home) = std::env::var("HOME") {
+    let desktop_path = format!("{}/.config/autostart/qbit-manage.desktop", home);
+    if enabled {
+      if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(path_str) = exe_path.to_str() {
+          let desktop_content = format!(r#"[Desktop Entry]
+Type=Application
+Exec={}
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=qbit-manage
+Comment=Start qbit-manage on login"#, path_str);
+          let dir = format!("{}/.config/autostart", home);
+          let _ = std::fs::create_dir_all(&dir);
+          let _ = std::fs::write(&desktop_path, desktop_content);
+        }
+      }
+    } else {
+      let _ = std::fs::remove_file(&desktop_path);
+    }
+  }
 }
 
 fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
@@ -375,12 +514,24 @@ pub fn run() {
     .setup(|app| {
       let app_handle = app.handle().clone();
 
+      let minimize_to_tray = load_minimize_setting(&app_handle);
+      *MINIMIZE_TO_TRAY.lock().unwrap() = minimize_to_tray;
+
+      let startup_enabled = is_startup_enabled();
+      *STARTUP_ENABLED.lock().unwrap() = startup_enabled;
+
       // Build tray menu (v2 API)
       let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
       let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
+      let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
+        .checked(minimize_to_tray)
+        .build(app)?;
+      let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
+        .checked(startup_enabled)
+        .build(app)?;
       let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
       let tray_menu = MenuBuilder::new(app)
-        .items(&[&open_item, &restart_item, &quit_item])
+        .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
         .build()?;
 
       // Create tray icon with explicit icon
@@ -425,6 +576,56 @@ pub fn run() {
                 }
               });
             }
+            "minimize_startup" => {
+              let mut current = MINIMIZE_TO_TRAY.lock().unwrap();
+              *current = !*current;
+              save_minimize_setting(app, *current);
+
+              // Rebuild menu with updated checked state
+              let minimize_to_tray = *current;
+              let startup_enabled = *STARTUP_ENABLED.lock().unwrap();
+              let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
+              let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
+                .checked(minimize_to_tray)
+                .build(app)?;
+              let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
+                .checked(startup_enabled)
+                .build(app)?;
+              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+              let tray_menu = MenuBuilder::new(app)
+                .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
+                .build()?;
+
+              if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
+                tray.set_menu(Some(tray_menu))?;
+              }
+            }
+            "startup" => {
+              let mut current = STARTUP_ENABLED.lock().unwrap();
+              *current = !*current;
+              set_startup_enabled(*current);
+
+              // Rebuild menu with updated checked state
+              let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap();
+              let startup_enabled = *current;
+              let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
+              let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
+                .checked(minimize_to_tray)
+                .build(app)?;
+              let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
+                .checked(startup_enabled)
+                .build(app)?;
+              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+              let tray_menu = MenuBuilder::new(app)
+                .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
+                .build()?;
+
+              if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
+                tray.set_menu(Some(tray_menu))?;
+              }
+            }
             "quit" => {
               cleanup_and_exit_with_app(app);
             }
@@ -432,6 +633,8 @@ pub fn run() {
           }
         })
         .build(app)?;
+
+      *TRAY_HANDLE.lock().unwrap() = Some(_tray_icon);
 
       // Intercept window close to hide instead (minimize to tray)
       if let Some(win) = app.get_webview_window("main") {
@@ -446,8 +649,10 @@ pub fn run() {
         });
       }
 
-      // Show the window immediately with loading page
-      open_app_window(&app_handle);
+      // Show the window immediately with loading page (unless minimize to tray is enabled)
+      if !minimize_to_tray {
+        open_app_window(&app_handle);
+      }
 
       // Start server automatically and redirect when ready
       let cfg = app_config(&app_handle);
