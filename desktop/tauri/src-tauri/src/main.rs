@@ -219,7 +219,7 @@ fn build_server_url(port: u16, base_url: &Option<String>) -> String {
   }
 }
 
-fn build_tray_menu(app: &AppHandle, minimize_to_tray: bool, startup_enabled: bool) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
+fn build_tray_menu<R: tauri::Runtime>(app: &tauri::App<R>, minimize_to_tray: bool, startup_enabled: bool) -> Result<tauri::menu::Menu<R>, tauri::Error> {
   let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
   let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
   let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
@@ -597,7 +597,7 @@ pub fn run() {
               let minimize_to_tray = *current;
               let startup_enabled = *STARTUP_ENABLED.lock().unwrap();
 
-              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
+              if let Ok(tray_menu) = build_tray_menu(&app.handle(), minimize_to_tray, startup_enabled) {
                 if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
                   let _ = tray.set_menu(Some(tray_menu));
                 }
@@ -612,7 +612,7 @@ pub fn run() {
               let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap();
               let startup_enabled = *current;
 
-              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
+              if let Ok(tray_menu) = build_tray_menu(&app.handle(), minimize_to_tray, startup_enabled) {
                 if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
                   let _ = tray.set_menu(Some(tray_menu));
                 }
