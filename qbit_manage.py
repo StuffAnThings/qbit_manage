@@ -455,166 +455,167 @@ def start():
     # Acquire lock only briefly to set the flag, then release immediately
     with is_running_lock:
         is_running.value = True  # Set flag to indicate a run is in progress
-    start_time = datetime.now()
-    args["time"] = start_time.strftime("%H:%M")
-    args["time_obj"] = start_time
-    stats_summary = []
-    logger.separator("Starting Run")
-    cfg = None
-    body = ""
-    run_time = ""
-    end_time = None
-    global stats
-    stats = {
-        "added": 0,
-        "deleted": 0,
-        "deleted_contents": 0,
-        "resumed": 0,
-        "rechecked": 0,
-        "orphaned": 0,
-        "recycle_emptied": 0,
-        "orphaned_emptied": 0,
-        "tagged": 0,
-        "categorized": 0,
-        "rem_unreg": 0,
-        "tagged_tracker_error": 0,
-        "untagged_tracker_error": 0,
-        "tagged_noHL": 0,
-        "untagged_noHL": 0,
-        "updated_share_limits": 0,
-        "cleaned_share_limits": 0,
-    }
-
-    def finished_run(next_scheduled_run_info_shared):
-        """Handle the end of a run"""
-        nonlocal end_time, start_time, stats_summary, run_time, body
-        end_time = datetime.now()
-        run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
-
-        def next_run_from_scheduler():
-            """Best-effort retrieval of scheduler's authoritative next_run."""
-            try:
-                if scheduler and scheduler.is_running():
-                    return scheduler.get_next_run()
-            except Exception:
-                pass
-            return None
-
-        def next_run_from_config():
-            """Compute next run strictly in the future based on current schedule config."""
-            now_local = datetime.now()
-            try:
-                if scheduler and getattr(scheduler, "current_schedule", None):
-                    stype, sval = scheduler.current_schedule
-                    if stype == "cron":
-                        cron = croniter(sval, now_local)
-                        nxt = cron.get_next(datetime)
-                        while nxt <= now_local:
-                            nxt = cron.get_next(datetime)
-                        return nxt
-                    if stype == "interval":
-                        # For interval schedules, we should use the scheduler's authoritative next_run
-                        # rather than calculating from current time, to avoid drift from manual runs
-                        scheduler_next = scheduler.get_next_run()
-                        if scheduler_next and scheduler_next > now_local:
-                            return scheduler_next
-                        # Fallback: if scheduler's next_run is not available or in the past,
-                        # calculate from current time
-                        return now_local + timedelta(minutes=int(sval))
-            except Exception:
-                pass
-            return now_local
-
-        # Decide next run time
-        if run is False:
-            # Prefer scheduler's next_run first
-            nxt_time = next_run_from_scheduler()
-            if not nxt_time:
-                nxt_time = next_run_from_config()
-
-            # Guard: if cron and computed time isn't strictly in the future, advance
-            try:
-                if scheduler and getattr(scheduler, "current_schedule", None):
-                    stype_chk, sval_chk = scheduler.current_schedule
-                    if stype_chk == "cron":
-                        now_guard = datetime.now()
-                        if nxt_time <= now_guard:
-                            cron = croniter(sval_chk, now_guard)
-                            nxt_time = cron.get_next(datetime)
-                            while nxt_time <= now_guard:
-                                nxt_time = cron.get_next(datetime)
-            except Exception:
-                pass
-
-            # If within 30s of "now", prefer authoritative scheduler time to avoid "0 minutes"
-            sched_next = next_run_from_scheduler()
-            if sched_next:
-                if (nxt_time - datetime.now()).total_seconds() <= 30:
-                    nxt_time = sched_next
-        else:
-            # Single-run mode (explicit run) - show nothing imminent
-            nxt_time = datetime.now()
-
-        # Publish resolved next run
-        nxt_run = calc_next_run(nxt_time, run)
-        next_scheduled_run_info_shared.update(nxt_run)
-
-        summary = os.linesep.join(stats_summary) if stats_summary else ""
-        next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
-        msg = (
-            (f"Finished Run\n{summary}\nRun Time: {run_time}\n{next_run_str if next_run_str else ''}")
-            .replace("\n\n", "\n")
-            .rstrip()
-        )
-        body = logger.separator(msg)[0]
-        return body
 
     try:
+        start_time = datetime.now()
+        args["time"] = start_time.strftime("%H:%M")
+        args["time_obj"] = start_time
+        stats_summary = []
+        logger.separator("Starting Run")
+        cfg = None
+        body = ""
+        run_time = ""
+        end_time = None
+        global stats
+        stats = {
+            "added": 0,
+            "deleted": 0,
+            "deleted_contents": 0,
+            "resumed": 0,
+            "rechecked": 0,
+            "orphaned": 0,
+            "recycle_emptied": 0,
+            "orphaned_emptied": 0,
+            "tagged": 0,
+            "categorized": 0,
+            "rem_unreg": 0,
+            "tagged_tracker_error": 0,
+            "untagged_tracker_error": 0,
+            "tagged_noHL": 0,
+            "untagged_noHL": 0,
+            "updated_share_limits": 0,
+            "cleaned_share_limits": 0,
+        }
+
+        def finished_run(next_scheduled_run_info_shared):
+            """Handle the end of a run"""
+            nonlocal end_time, start_time, stats_summary, run_time, body
+            end_time = datetime.now()
+            run_time = str(end_time - start_time).split(".", maxsplit=1)[0]
+
+            def next_run_from_scheduler():
+                """Best-effort retrieval of scheduler's authoritative next_run."""
+                try:
+                    if scheduler and scheduler.is_running():
+                        return scheduler.get_next_run()
+                except Exception:
+                    pass
+                return None
+
+            def next_run_from_config():
+                """Compute next run strictly in the future based on current schedule config."""
+                now_local = datetime.now()
+                try:
+                    if scheduler and getattr(scheduler, "current_schedule", None):
+                        stype, sval = scheduler.current_schedule
+                        if stype == "cron":
+                            cron = croniter(sval, now_local)
+                            nxt = cron.get_next(datetime)
+                            while nxt <= now_local:
+                                nxt = cron.get_next(datetime)
+                            return nxt
+                        if stype == "interval":
+                            # For interval schedules, we should use the scheduler's authoritative next_run
+                            # rather than calculating from current time, to avoid drift from manual runs
+                            scheduler_next = scheduler.get_next_run()
+                            if scheduler_next and scheduler_next > now_local:
+                                return scheduler_next
+                            # Fallback: if scheduler's next_run is not available or in the past,
+                            # calculate from current time
+                            return now_local + timedelta(minutes=int(sval))
+                except Exception:
+                    pass
+                return now_local
+
+            # Decide next run time
+            if run is False:
+                # Prefer scheduler's next_run first
+                nxt_time = next_run_from_scheduler()
+                if not nxt_time:
+                    nxt_time = next_run_from_config()
+
+                # Guard: if cron and computed time isn't strictly in the future, advance
+                try:
+                    if scheduler and getattr(scheduler, "current_schedule", None):
+                        stype_chk, sval_chk = scheduler.current_schedule
+                        if stype_chk == "cron":
+                            now_guard = datetime.now()
+                            if nxt_time <= now_guard:
+                                cron = croniter(sval_chk, now_guard)
+                                nxt_time = cron.get_next(datetime)
+                                while nxt_time <= now_guard:
+                                    nxt_time = cron.get_next(datetime)
+                except Exception:
+                    pass
+
+                # If within 30s of "now", prefer authoritative scheduler time to avoid "0 minutes"
+                sched_next = next_run_from_scheduler()
+                if sched_next:
+                    if (nxt_time - datetime.now()).total_seconds() <= 30:
+                        nxt_time = sched_next
+            else:
+                # Single-run mode (explicit run) - show nothing imminent
+                nxt_time = datetime.now()
+
+            # Publish resolved next run
+            nxt_run = calc_next_run(nxt_time, run)
+            next_scheduled_run_info_shared.update(nxt_run)
+
+            summary = os.linesep.join(stats_summary) if stats_summary else ""
+            next_run_str = next_scheduled_run_info_shared.get("next_run_str", "")
+            msg = (
+                (f"Finished Run\n{summary}\nRun Time: {run_time}\n{next_run_str if next_run_str else ''}")
+                .replace("\n\n", "\n")
+                .rstrip()
+            )
+            body = logger.separator(msg)[0]
+            return body
+
         cfg = Config(default_dir, args)
         qbit_manager = cfg.qbt
-    except Exception as ex:
+
+        if qbit_manager:
+            # Execute qBittorrent commands using shared function with error handling
+            try:
+                execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
+            except Exception as ex:
+                logger.error(f"Error executing qBittorrent commands: {str(ex)}")
+                logger.stacktrace()
+                if cfg:
+                    cfg.notify(f"qBittorrent command execution failed: {str(ex)}", "Execution Error", False)
+
+            # Empty RecycleBin
+            stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
+
+            # Empty Orphaned Directory
+            stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
+
+        stats_summary = format_stats_summary(stats, cfg)
+
+        finished_run(next_scheduled_run_info_shared)
+        if cfg:
+            try:
+                next_run = next_scheduled_run_info_shared.get("next_run")
+                cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
+                # Release flag after all cleanup is complete
+                with is_running_lock:
+                    is_running.value = False
+            except Failed as err:
+                logger.stacktrace()
+                logger.error(f"Webhooks Error: {err}")
+                # Release flag even if webhooks fail
+                with is_running_lock:
+                    is_running.value = False
+                logger.info("Released lock for web API requests despite webhook error")
+    except Failed as ex:
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
         finished_run(next_scheduled_run_info_shared)
-        # Release flag when config validation fails
+        # Release flag when any Failed exception occurs during the run
         with is_running_lock:
             is_running.value = False
         return None
-
-    if qbit_manager:
-        # Execute qBittorrent commands using shared function with error handling
-        try:
-            execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
-        except Exception as ex:
-            logger.error(f"Error executing qBittorrent commands: {str(ex)}")
-            logger.stacktrace()
-            if cfg:
-                cfg.notify(f"qBittorrent command execution failed: {str(ex)}", "Execution Error", False)
-
-        # Empty RecycleBin
-        stats["recycle_emptied"] += cfg.cleanup_dirs("Recycle Bin")
-
-        # Empty Orphaned Directory
-        stats["orphaned_emptied"] += cfg.cleanup_dirs("Orphaned Data")
-
-    stats_summary = format_stats_summary(stats, cfg)
-
-    finished_run(next_scheduled_run_info_shared)
-    if cfg:
-        try:
-            next_run = next_scheduled_run_info_shared.get("next_run")
-            cfg.webhooks_factory.end_time_hooks(start_time, end_time, run_time, next_run, stats, body)
-            # Release flag after all cleanup is complete
-            with is_running_lock:
-                is_running.value = False
-        except Failed as err:
-            logger.stacktrace()
-            logger.error(f"Webhooks Error: {err}")
-            # Release flag even if webhooks fail
-            with is_running_lock:
-                is_running.value = False
-            logger.info("Released lock for web API requests despite webhook error")
 
 
 def end():
