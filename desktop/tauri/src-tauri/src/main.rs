@@ -18,7 +18,19 @@ use tauri::{
 use tauri_plugin_single_instance::init as single_instance;
 use tokio::time::sleep;
 #[cfg(target_os = "windows")]
-use windows::Win32::System::Registry::*;
+use windows::{core::w, Win32::System::Registry::*};
+
+// Constants
+const DEFAULT_PORT: u16 = 8080;
+const SERVER_READY_TIMEOUT_SECS: u64 = 20;
+const SERVER_RESTART_TIMEOUT_SECS: u64 = 15;
+const PROCESS_WAIT_TIMEOUT_MS: u64 = 200;
+const GRACEFUL_SHUTDOWN_WAIT_MS: u64 = 50;
+const POLL_INTERVAL_MS: u64 = 10;
+const HTTP_POLL_INTERVAL_MS: u64 = 250;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 static SERVER_STATE: Lazy<Arc<Mutex<Option<ServerProcess>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
@@ -38,9 +50,13 @@ struct AppConfig {
   base_url: Option<String>,
 }
 
+fn get_fallback_binary_name() -> &'static str {
+  if cfg!(target_os = "windows") { "qbit-manage.exe" } else { "qbit-manage" }
+}
+
 fn app_config(app: &AppHandle) -> AppConfig {
   // simple env-based configuration; could be read from a file later
-  let port = std::env::var("QBT_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(8080);
+  let port = std::env::var("QBT_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(DEFAULT_PORT);
   let base_url = std::env::var("QBT_BASE_URL").ok().and_then(|v| {
     let s = v.trim().to_string();
     if s.is_empty() { None } else { Some(s) }
@@ -53,16 +69,13 @@ fn app_config(app: &AppHandle) -> AppConfig {
 }
 
 fn load_minimize_setting(app: &AppHandle) -> bool {
-  if let Ok(data_dir) = app.path().app_data_dir() {
-    let file = data_dir.join("minimize_to_tray.txt");
-    if file.exists() {
-      std::fs::read_to_string(&file).map(|s| s.trim() == "true").unwrap_or(false)
-    } else {
-      false
-    }
-  } else {
-    false
-  }
+  app.path().app_data_dir()
+    .ok()
+    .map(|data_dir| {
+      let file = data_dir.join("minimize_to_tray.txt");
+      file.exists() && std::fs::read_to_string(&file).map_or(false, |s| s.trim() == "true")
+    })
+    .unwrap_or(false)
 }
 
 fn save_minimize_setting(app: &AppHandle, value: bool) {
@@ -75,7 +88,6 @@ fn save_minimize_setting(app: &AppHandle, value: bool) {
 #[cfg(target_os = "windows")]
 fn is_startup_enabled() -> bool {
   unsafe {
-    use windows::Win32::System::Registry::*;
     let mut hkey = HKEY::default();
     if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_READ, &mut hkey).is_ok() {
       let mut buffer = [0u16; 260];
@@ -92,14 +104,14 @@ fn is_startup_enabled() -> bool {
 #[cfg(target_os = "windows")]
 fn set_startup_enabled(enabled: bool) {
   unsafe {
-    use windows::Win32::System::Registry::*;
     let mut hkey = HKEY::default();
     if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_SET_VALUE, &mut hkey).is_ok() {
       if enabled {
         if let Ok(exe_path) = std::env::current_exe() {
           if let Some(path_str) = exe_path.to_str() {
             let wide_path: Vec<u16> = path_str.encode_utf16().chain(std::iter::once(0)).collect();
-            let _ = RegSetValueExW(hkey, w!("qbit-manage-desktop"), 0, REG_SZ, Some(&wide_path));
+            let data_bytes = std::slice::from_raw_parts(wide_path.as_ptr() as *const u8, wide_path.len() * 2);
+            let _ = RegSetValueExW(hkey, w!("qbit-manage-desktop"), 0, REG_SZ, Some(data_bytes));
           }
         }
       } else {
@@ -110,20 +122,25 @@ fn set_startup_enabled(enabled: bool) {
   }
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn get_startup_file_path() -> Option<std::path::PathBuf> {
+  std::env::var("HOME").ok().map(|home| {
+    #[cfg(target_os = "macos")]
+    return std::path::PathBuf::from(format!("{}/Library/LaunchAgents/com.qbit-manage.desktop.plist", home));
+
+    #[cfg(target_os = "linux")]
+    return std::path::PathBuf::from(format!("{}/.config/autostart/qbit-manage.desktop", home));
+  })
+}
+
 #[cfg(target_os = "macos")]
 fn is_startup_enabled() -> bool {
-  if let Ok(home) = std::env::var("HOME") {
-    let plist_path = format!("{}/Library/LaunchAgents/com.qbit-manage.desktop.plist", home);
-    std::path::Path::new(&plist_path).exists()
-  } else {
-    false
-  }
+  get_startup_file_path().map_or(false, |path| path.exists())
 }
 
 #[cfg(target_os = "macos")]
 fn set_startup_enabled(enabled: bool) {
-  if let Ok(home) = std::env::var("HOME") {
-    let plist_path = format!("{}/Library/LaunchAgents/com.qbit-manage.desktop.plist", home);
+  if let Some(plist_path) = get_startup_file_path() {
     if enabled {
       if let Ok(exe_path) = std::env::current_exe() {
         if let Some(path_str) = exe_path.to_str() {
@@ -152,18 +169,12 @@ fn set_startup_enabled(enabled: bool) {
 
 #[cfg(target_os = "linux")]
 fn is_startup_enabled() -> bool {
-  if let Ok(home) = std::env::var("HOME") {
-    let desktop_path = format!("{}/.config/autostart/qbit-manage.desktop", home);
-    std::path::Path::new(&desktop_path).exists()
-  } else {
-    false
-  }
+  get_startup_file_path().map_or(false, |path| path.exists())
 }
 
 #[cfg(target_os = "linux")]
 fn set_startup_enabled(enabled: bool) {
-  if let Ok(home) = std::env::var("HOME") {
-    let desktop_path = format!("{}/.config/autostart/qbit-manage.desktop", home);
+  if let Some(desktop_path) = get_startup_file_path() {
     if enabled {
       if let Ok(exe_path) = std::env::current_exe() {
         if let Some(path_str) = exe_path.to_str() {
@@ -175,8 +186,9 @@ NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=qbit-manage
 Comment=Start qbit-manage on login"#, path_str);
-          let dir = format!("{}/.config/autostart", home);
-          let _ = std::fs::create_dir_all(&dir);
+          if let Some(dir) = desktop_path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+          }
           let _ = std::fs::write(&desktop_path, desktop_content);
         }
       }
@@ -186,20 +198,45 @@ Comment=Start qbit-manage on login"#, path_str);
   }
 }
 
-fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
-  // Priority:
-  // 1) QBM_SERVER_PATH env override
-  if let Ok(p) = std::env::var("QBM_SERVER_PATH") {
-    let candidate = std::path::PathBuf::from(p);
-    if candidate.exists() {
-      return Some(candidate);
+fn wait_for_process_exit(child: &mut Child, timeout: Duration) {
+  let start = std::time::Instant::now();
+  while start.elapsed() < timeout {
+    match child.try_wait() {
+      Ok(Some(_)) => break, // Process has exited
+      Ok(None) => {
+        // Process still running, wait a bit more
+        std::thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
+      }
+      Err(_) => break, // Error occurred, assume process is gone
     }
   }
+}
 
-  // 2) resources/bin/{platform}/qbit-manage*
-  // 3) resources/ (same dir) qbit-manage*
-  // 4) current executable dir siblings
-  let bin_names = if cfg!(target_os = "windows") {
+fn build_server_url(port: u16, base_url: &Option<String>) -> String {
+  match base_url {
+    Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", port, b.trim().trim_start_matches('/')),
+    _ => format!("http://127.0.0.1:{}", port),
+  }
+}
+
+fn build_tray_menu(app: &AppHandle, minimize_to_tray: bool, startup_enabled: bool) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
+  let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
+  let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
+  let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
+    .checked(minimize_to_tray)
+    .build(app)?;
+  let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
+    .checked(startup_enabled)
+    .build(app)?;
+  let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+
+  MenuBuilder::new(app)
+    .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
+    .build()
+}
+
+fn get_binary_names() -> Vec<&'static str> {
+  if cfg!(target_os = "windows") {
     vec!["qbit-manage.exe", "qbit-manage-windows-amd64.exe"]
   } else {
     vec![
@@ -208,45 +245,48 @@ fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
       "qbit-manage-macos-x86_64",
       "qbit-manage-macos-arm64"
     ]
-  };
+  }
+}
 
-  // resource dir (Tauri 2 path resolver)
-  if let Ok(resource_dir) = app.path().resource_dir() {
-    for name in &bin_names {
-      let p = resource_dir.join("bin").join(name);
-      if p.exists() {
-        return Some(p);
-      }
-    }
-    for name in &bin_names {
-      let p = resource_dir.join(name);
-      if p.exists() {
-        return Some(p);
+fn find_binary_in_paths(paths: &[std::path::PathBuf], bin_names: &[&str]) -> Option<std::path::PathBuf> {
+  for path in paths {
+    for name in bin_names {
+      let candidate = path.join(name);
+      if candidate.exists() {
+        return Some(candidate);
       }
     }
   }
-
-  // executable dir
-  if let Ok(exe) = std::env::current_exe() {
-    if let Some(mut exe_dir) = exe.parent().map(|p| p.to_path_buf()) {
-      for name in &bin_names {
-        let p = exe_dir.join(name);
-        if p.exists() {
-          return Some(p);
-        }
-      }
-      // try ../Resources
-      exe_dir = exe_dir.join("..");
-      for name in &bin_names {
-        let p = exe_dir.join(name);
-        if p.exists() {
-          return Some(p);
-        }
-      }
-    }
-  }
-
   None
+}
+
+fn resolve_server_binary(app: &AppHandle) -> Option<std::path::PathBuf> {
+  // Priority: 1) QBM_SERVER_PATH env override
+  if let Ok(p) = std::env::var("QBM_SERVER_PATH") {
+    let candidate = std::path::PathBuf::from(p);
+    if candidate.exists() {
+      return Some(candidate);
+    }
+  }
+
+  let bin_names = get_binary_names();
+  let mut search_paths = Vec::new();
+
+  // Priority: 2) resource dir paths
+  if let Ok(resource_dir) = app.path().resource_dir() {
+    search_paths.push(resource_dir.join("bin"));
+    search_paths.push(resource_dir);
+  }
+
+  // Priority: 3) executable dir and parent paths
+  if let Ok(exe) = std::env::current_exe() {
+    if let Some(exe_dir) = exe.parent() {
+      search_paths.push(exe_dir.to_path_buf());
+      search_paths.push(exe_dir.join(".."));
+    }
+  }
+
+  find_binary_in_paths(&search_paths, &bin_names)
 }
 
 fn stop_server() {
@@ -277,24 +317,14 @@ fn stop_server() {
     {
       unsafe { libc::kill(pid as i32, libc::SIGTERM); }
       // Very brief wait for graceful shutdown
-      std::thread::sleep(Duration::from_millis(50));
+      std::thread::sleep(Duration::from_millis(GRACEFUL_SHUTDOWN_WAIT_MS));
       if child.try_wait().ok().flatten().is_none() {
         let _ = child.kill();
       }
     }
 
     // Brief wait to ensure process termination, but don't wait too long
-    let start = std::time::Instant::now();
-    while start.elapsed() < Duration::from_millis(200) {
-      match child.try_wait() {
-        Ok(Some(_)) => break, // Process has exited
-        Ok(None) => {
-          // Process still running, wait a bit more
-          std::thread::sleep(Duration::from_millis(10));
-        }
-        Err(_) => break, // Error occurred, assume process is gone
-      }
-    }
+    wait_for_process_exit(&mut child, Duration::from_millis(PROCESS_WAIT_TIMEOUT_MS));
 
     // Force kill if still running
     let _ = child.kill();
@@ -306,22 +336,26 @@ fn stop_server() {
 fn terminate_process_tree_windows(pid: u32) {
   use std::os::windows::process::CommandExt;
 
+  let null_stdio = || (std::process::Stdio::null(), std::process::Stdio::null(), std::process::Stdio::null());
+
   // Kill the process tree on Windows using taskkill with hidden window
+  let (stdin, stdout, stderr) = null_stdio();
   let _ = std::process::Command::new("taskkill")
     .args(&["/F", "/T", "/PID", &pid.to_string()])
-    .creation_flags(0x08000000) // CREATE_NO_WINDOW
-    .stdin(std::process::Stdio::null())
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
+    .creation_flags(CREATE_NO_WINDOW)
+    .stdin(stdin)
+    .stdout(stdout)
+    .stderr(stderr)
     .output();
 
   // Also try direct process termination as backup with hidden window
+  let (stdin, stdout, stderr) = null_stdio();
   let _ = std::process::Command::new("taskkill")
     .args(&["/F", "/IM", "qbit-manage-windows-amd64.exe"])
-    .creation_flags(0x08000000) // CREATE_NO_WINDOW
-    .stdin(std::process::Stdio::null())
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
+    .creation_flags(CREATE_NO_WINDOW)
+    .stdin(stdin)
+    .stdout(stdout)
+    .stderr(stderr)
     .output();
 }
 
@@ -346,16 +380,12 @@ fn cleanup_and_exit_with_app(app: &AppHandle) {
 
 
 async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duration) -> bool {
-  let client = reqwest::Client::builder().danger_accept_invalid_certs(true).build().ok();
-  if client.is_none() {
-    return false;
-  }
-  let client = client.unwrap();
-
-  let url = match base_url {
-    Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", port, b.trim().trim_start_matches('/')),
-    _ => format!("http://127.0.0.1:{}", port),
+  let client = match reqwest::Client::builder().danger_accept_invalid_certs(true).build() {
+    Ok(client) => client,
+    Err(_) => return false,
   };
+
+  let url = build_server_url(port, base_url);
 
   let start = std::time::Instant::now();
   while start.elapsed() < timeout {
@@ -364,7 +394,7 @@ async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duratio
         return true;
       }
     }
-    sleep(Duration::from_millis(250)).await;
+    sleep(Duration::from_millis(HTTP_POLL_INTERVAL_MS)).await;
   }
   false
 }
@@ -379,10 +409,7 @@ fn open_app_window(app: &AppHandle) {
 
 
 fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
-  let url = match &cfg.base_url {
-    Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", cfg.port, b.trim().trim_start_matches('/')),
-    _ => format!("http://127.0.0.1:{}", cfg.port),
-  };
+  let url = build_server_url(cfg.port, &cfg.base_url);
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.eval(&format!("window.location.replace('{}')", url));
   }
@@ -411,11 +438,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
 
   let server_path = resolve_server_binary(app).unwrap_or_else(|| {
     // fall back to expecting binary on PATH
-    if cfg!(target_os = "windows") {
-      std::path::PathBuf::from("qbit-manage.exe")
-    } else {
-      std::path::PathBuf::from("qbit-manage")
-    }
+    std::path::PathBuf::from(get_fallback_binary_name())
   });
 
   // Create Windows Job Object if feature is enabled
@@ -462,7 +485,7 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
   #[cfg(target_os = "windows")]
   {
     use std::os::windows::process::CommandExt;
-    cmd.creation_flags(0x08000000);
+    cmd.creation_flags(CREATE_NO_WINDOW);
   }
 
   let child = cmd.spawn()?;
@@ -521,18 +544,7 @@ pub fn run() {
       *STARTUP_ENABLED.lock().unwrap() = startup_enabled;
 
       // Build tray menu (v2 API)
-      let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
-      let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
-      let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
-        .checked(minimize_to_tray)
-        .build(app)?;
-      let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
-        .checked(startup_enabled)
-        .build(app)?;
-      let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-      let tray_menu = MenuBuilder::new(app)
-        .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
-        .build()?;
+      let tray_menu = build_tray_menu(app, minimize_to_tray, startup_enabled)?;
 
       // Create tray icon with explicit icon
       let _tray_icon = TrayIconBuilder::new()
@@ -566,10 +578,10 @@ pub fn run() {
               // Start server in a separate thread to avoid blocking the UI
               std::thread::spawn(move || {
                 // Brief delay to ensure process cleanup
-                std::thread::sleep(Duration::from_millis(200));
+                std::thread::sleep(Duration::from_millis(PROCESS_WAIT_TIMEOUT_MS));
                 if start_server(&app_handle_restart, &cfg).is_ok() {
                   tauri::async_runtime::spawn(async move {
-                    if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(15)).await {
+                    if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(SERVER_RESTART_TIMEOUT_SECS)).await {
                       redirect_to_server(&app_handle_restart, &cfg);
                     }
                   });
@@ -584,21 +596,11 @@ pub fn run() {
               // Rebuild menu with updated checked state
               let minimize_to_tray = *current;
               let startup_enabled = *STARTUP_ENABLED.lock().unwrap();
-              let open_item = MenuItemBuilder::with_id("open", "Open").build(app).unwrap();
-              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app).unwrap();
-              let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
-                .checked(minimize_to_tray)
-                .build(app).unwrap();
-              let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
-                .checked(startup_enabled)
-                .build(app).unwrap();
-              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).unwrap();
-              let tray_menu = MenuBuilder::new(app)
-                .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
-                .build().unwrap();
 
-              if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
-                tray.set_menu(Some(tray_menu)).unwrap();
+              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
+                if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
+                  let _ = tray.set_menu(Some(tray_menu));
+                }
               }
             }
             "startup" => {
@@ -609,21 +611,11 @@ pub fn run() {
               // Rebuild menu with updated checked state
               let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap();
               let startup_enabled = *current;
-              let open_item = MenuItemBuilder::with_id("open", "Open").build(app).unwrap();
-              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app).unwrap();
-              let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
-                .checked(minimize_to_tray)
-                .build(app).unwrap();
-              let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
-                .checked(startup_enabled)
-                .build(app).unwrap();
-              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).unwrap();
-              let tray_menu = MenuBuilder::new(app)
-                .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
-                .build().unwrap();
 
-              if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
-                tray.set_menu(Some(tray_menu)).unwrap();
+              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
+                if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
+                  let _ = tray.set_menu(Some(tray_menu));
+                }
               }
             }
             "quit" => {
@@ -659,7 +651,7 @@ pub fn run() {
       let app_handle3 = app_handle.clone();
       tauri::async_runtime::spawn(async move {
         let _ = start_server(&app_handle3, &cfg);
-        if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(20)).await {
+        if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(SERVER_READY_TIMEOUT_SECS)).await {
           redirect_to_server(&app_handle3, &cfg);
         }
       });
