@@ -551,7 +551,7 @@ pub fn run() {
             }
           }
         })
-        .on_menu_event(move |app, event| {
+        .on_menu_event(|app, event| {
           match event.id().as_ref() {
             "open" => {
               open_app_window(app);
@@ -584,21 +584,21 @@ pub fn run() {
               // Rebuild menu with updated checked state
               let minimize_to_tray = *current;
               let startup_enabled = *STARTUP_ENABLED.lock().unwrap();
-              let open_item = MenuItemBuilder::with_id("open", "Open").build(app)?;
-              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app)?;
+              let open_item = MenuItemBuilder::with_id("open", "Open").build(app).unwrap();
+              let restart_item = MenuItemBuilder::with_id("restart", "Restart Server").build(app).unwrap();
               let minimize_item = CheckMenuItemBuilder::with_id("minimize_startup", "Minimize to Tray on Startup")
                 .checked(minimize_to_tray)
-                .build(app)?;
+                .build(app).unwrap();
               let startup_item = CheckMenuItemBuilder::with_id("startup", "Start on System Startup")
                 .checked(startup_enabled)
-                .build(app)?;
-              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+                .build(app).unwrap();
+              let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app).unwrap();
               let tray_menu = MenuBuilder::new(app)
                 .items(&[&open_item, &restart_item, &minimize_item, &startup_item, &quit_item])
-                .build()?;
+                .build().unwrap();
 
               if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
-                tray.set_menu(Some(tray_menu))?;
+                tray.set_menu(Some(tray_menu)).unwrap();
               }
             }
             "startup" => {
