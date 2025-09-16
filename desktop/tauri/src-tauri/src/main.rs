@@ -401,10 +401,13 @@ async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duratio
 
 fn open_app_window(app: &AppHandle) {
   // Check if minimize to tray is enabled and respect it
-  let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap_or_else(|_| {
-    // If lock fails, load setting directly
-    std::sync::Mutex::new(load_minimize_setting(app))
-  });
+  let minimize_to_tray = match MINIMIZE_TO_TRAY.lock() {
+    Ok(guard) => *guard,
+    Err(_) => {
+      // If lock fails, load setting directly
+      load_minimize_setting(app)
+    }
+  };
 
   // Only show window if minimize to tray is disabled, or if explicitly requested
   if !minimize_to_tray {
