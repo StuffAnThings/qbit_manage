@@ -400,6 +400,23 @@ async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duratio
 }
 
 fn open_app_window(app: &AppHandle) {
+  // Check if minimize to tray is enabled and respect it
+  let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap_or_else(|_| {
+    // If lock fails, load setting directly
+    std::sync::Mutex::new(load_minimize_setting(app))
+  });
+
+  // Only show window if minimize to tray is disabled, or if explicitly requested
+  if !minimize_to_tray {
+    if let Some(win) = app.get_webview_window("main") {
+      let _ = win.show();
+      let _ = win.set_focus();
+    }
+  }
+}
+
+fn force_open_app_window(app: &AppHandle) {
+  // Force open window regardless of minimize to tray setting (for user-initiated actions)
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.show();
     let _ = win.set_focus();
@@ -527,9 +544,13 @@ pub fn run() {
   tauri::Builder::default()
     // Single instance should be first (per docs)
     .plugin(single_instance(|app, _argv, _cwd| {
-      if let Some(win) = app.get_webview_window("main") {
-        let _ = win.show();
-        let _ = win.set_focus();
+      // Load the minimize setting directly in case it hasn't been loaded yet
+      let minimize_to_tray = load_minimize_setting(app);
+      if !minimize_to_tray {
+        if let Some(win) = app.get_webview_window("main") {
+          let _ = win.show();
+          let _ = win.set_focus();
+        }
       }
     }))
     .plugin(tauri_plugin_shell::init())
@@ -537,6 +558,7 @@ pub fn run() {
     .setup(|app| {
       let app_handle = app.handle().clone();
 
+      // Load settings first before any window operations
       let minimize_to_tray = load_minimize_setting(&app_handle);
       *MINIMIZE_TO_TRAY.lock().unwrap() = minimize_to_tray;
 
@@ -557,16 +579,13 @@ pub fn run() {
             ..
           } = event {
             let app = tray.app_handle();
-            if let Some(win) = app.get_webview_window("main") {
-              let _ = win.show();
-              let _ = win.set_focus();
-            }
+            force_open_app_window(app);
           }
         })
         .on_menu_event(|app, event| {
           match event.id().as_ref() {
             "open" => {
-              open_app_window(app);
+              force_open_app_window(app);
             }
             "restart" => {
               // Stop server first, then start it again with minimal delay
