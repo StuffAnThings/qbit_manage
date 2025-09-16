@@ -12,7 +12,7 @@ use tauri::{
   WindowEvent,
   Emitter,
   menu::{MenuBuilder, MenuItemBuilder, CheckMenuItemBuilder},
-  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState, TrayIcon},
+  tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState},
   RunEvent,
 };
 use tauri_plugin_single_instance::init as single_instance;
@@ -36,7 +36,6 @@ static SERVER_STATE: Lazy<Arc<Mutex<Option<ServerProcess>>>> = Lazy::new(|| Arc:
 static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 static MINIMIZE_TO_TRAY: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 static STARTUP_ENABLED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
-static TRAY_HANDLE: Lazy<Arc<Mutex<Option<TrayIcon>>>> = Lazy::new(|| Arc::new(Mutex::new(None)));
 
 struct ServerProcess {
   child: Child,
@@ -69,19 +68,51 @@ fn app_config(app: &AppHandle) -> AppConfig {
 }
 
 fn load_minimize_setting(app: &AppHandle) -> bool {
-  app.path().app_data_dir()
-    .ok()
-    .map(|data_dir| {
+  match app.path().app_data_dir() {
+    Ok(data_dir) => {
       let file = data_dir.join("minimize_to_tray.txt");
-      file.exists() && std::fs::read_to_string(&file).map_or(false, |s| s.trim() == "true")
-    })
-    .unwrap_or(false)
+      println!("Loading minimize setting from: {:?}", file);
+
+      if file.exists() {
+        match std::fs::read_to_string(&file) {
+          Ok(content) => {
+            let value = content.trim() == "true";
+            println!("Loaded minimize setting: {} (content: '{}')", value, content.trim());
+            value
+          }
+          Err(e) => {
+            eprintln!("Failed to read minimize setting file: {}", e);
+            false
+          }
+        }
+      } else {
+        println!("Minimize setting file does not exist, defaulting to false");
+        false
+      }
+    }
+    Err(e) => {
+      eprintln!("Failed to get app data directory: {}", e);
+      false
+    }
+  }
 }
 
 fn save_minimize_setting(app: &AppHandle, value: bool) {
   if let Ok(data_dir) = app.path().app_data_dir() {
+    // Ensure the directory exists
+    if let Err(e) = std::fs::create_dir_all(&data_dir) {
+      eprintln!("Failed to create app data directory: {}", e);
+      return;
+    }
+
     let file = data_dir.join("minimize_to_tray.txt");
-    let _ = std::fs::write(&file, if value { "true" } else { "false" });
+    if let Err(e) = std::fs::write(&file, if value { "true" } else { "false" }) {
+      eprintln!("Failed to save minimize setting to {:?}: {}", file, e);
+    } else {
+      println!("Successfully saved minimize setting: {} to {:?}", value, file);
+    }
+  } else {
+    eprintln!("Failed to get app data directory");
   }
 }
 
@@ -571,8 +602,8 @@ pub fn run() {
       // Build tray menu (v2 API)
       let tray_menu = build_tray_menu(app, minimize_to_tray, startup_enabled)?;
 
-      // Create tray icon with explicit icon
-      let _tray_icon = TrayIconBuilder::new()
+      // Create tray icon with explicit icon and ID
+      let _tray_icon = TrayIconBuilder::with_id("main")
         .menu(&tray_menu)
         .icon(app.default_window_icon().unwrap().clone())
         .on_tray_icon_event(|tray, event| {
@@ -613,31 +644,57 @@ pub fn run() {
             "minimize_startup" => {
               let mut current = MINIMIZE_TO_TRAY.lock().unwrap();
               *current = !*current;
-              save_minimize_setting(app, *current);
+              let new_value = *current;
+              drop(current); // Release the lock early
+
+              save_minimize_setting(app, new_value);
+              println!("Toggled minimize to tray setting to: {}", new_value);
 
               // Rebuild menu with updated checked state
-              let minimize_to_tray = *current;
               let startup_enabled = *STARTUP_ENABLED.lock().unwrap();
 
-              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
-                if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
-                  let _ = tray.set_menu(Some(tray_menu));
+              if let Ok(tray_menu) = build_tray_menu(app, new_value, startup_enabled) {
+                // Get all tray icons and update them
+                let tray_icons = app.tray_by_id("main");
+                if let Some(tray_icon) = tray_icons {
+                  if let Err(e) = tray_icon.set_menu(Some(tray_menu)) {
+                    eprintln!("Failed to update tray menu: {}", e);
+                  } else {
+                    println!("Successfully updated tray menu");
+                  }
+                } else {
+                  eprintln!("Could not find tray icon to update menu");
                 }
+              } else {
+                eprintln!("Failed to build tray menu");
               }
             }
             "startup" => {
               let mut current = STARTUP_ENABLED.lock().unwrap();
               *current = !*current;
-              set_startup_enabled(*current);
+              let new_value = *current;
+              drop(current); // Release the lock early
+
+              set_startup_enabled(new_value);
+              println!("Toggled startup setting to: {}", new_value);
 
               // Rebuild menu with updated checked state
               let minimize_to_tray = *MINIMIZE_TO_TRAY.lock().unwrap();
-              let startup_enabled = *current;
 
-              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, startup_enabled) {
-                if let Some(tray) = TRAY_HANDLE.lock().unwrap().as_ref() {
-                  let _ = tray.set_menu(Some(tray_menu));
+              if let Ok(tray_menu) = build_tray_menu(app, minimize_to_tray, new_value) {
+                // Get all tray icons and update them
+                let tray_icons = app.tray_by_id("main");
+                if let Some(tray_icon) = tray_icons {
+                  if let Err(e) = tray_icon.set_menu(Some(tray_menu)) {
+                    eprintln!("Failed to update tray menu: {}", e);
+                  } else {
+                    println!("Successfully updated tray menu");
+                  }
+                } else {
+                  eprintln!("Could not find tray icon to update menu");
                 }
+              } else {
+                eprintln!("Failed to build tray menu");
               }
             }
             "quit" => {
@@ -648,7 +705,8 @@ pub fn run() {
         })
         .build(app)?;
 
-      *TRAY_HANDLE.lock().unwrap() = Some(_tray_icon);
+      // Store the tray icon (no longer needed since we use ID-based lookup)
+      // *TRAY_HANDLE.lock().unwrap() = Some(_tray_icon);
 
       // Intercept window close to hide instead (minimize to tray)
       if let Some(win) = app.get_webview_window("main") {
