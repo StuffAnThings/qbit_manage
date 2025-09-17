@@ -100,12 +100,35 @@ class Webhooks:
 
     def start_time_hooks(self, start_time):
         """Send a webhook to notify that the run has started."""
-        if self.run_start_webhooks:
+        # Skip sending start notifications during config validation
+        if self.run_start_webhooks and not self.config.args.get("validation_mode", False):
             dry_run = self.config.commands["dry_run"]
             if dry_run:
                 start_type = "Dry-"
             else:
                 start_type = ""
+
+            # Get enabled commands
+            enabled_commands = [
+                cmd
+                for cmd in [
+                    "recheck",
+                    "cat_update",
+                    "tag_update",
+                    "rem_unregistered",
+                    "tag_tracker_error",
+                    "rem_orphaned",
+                    "tag_nohardlinks",
+                    "share_limits",
+                ]
+                if self.config.commands.get(cmd, False)
+            ]
+
+            # Get execution options
+            execution_options = [
+                opt for opt in ["skip_cleanup", "dry_run", "skip_qb_version_check"] if self.config.commands.get(opt, False)
+            ]
+
             self._request(
                 self.run_start_webhooks,
                 {
@@ -115,6 +138,8 @@ class Webhooks:
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dry_run": self.config.commands["dry_run"],
                     "web_api_used": self.web_api_used,
+                    "commands": enabled_commands,
+                    "execution_options": execution_options,
                 },
             )
 
