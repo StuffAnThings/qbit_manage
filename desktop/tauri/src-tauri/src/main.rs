@@ -45,8 +45,7 @@ struct ServerProcess {
 
 #[derive(Debug, Clone)]
 struct AppConfig {
-  port: u16,
-  base_url: Option<String>,
+  args: Vec<String>,
 }
 
 fn get_fallback_binary_name() -> &'static str {
@@ -54,17 +53,13 @@ fn get_fallback_binary_name() -> &'static str {
 }
 
 fn app_config(app: &AppHandle) -> AppConfig {
-  // simple env-based configuration; could be read from a file later
-  let port = std::env::var("QBT_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(DEFAULT_PORT);
-  let base_url = std::env::var("QBT_BASE_URL").ok().and_then(|v| {
-    let s = v.trim().to_string();
-    if s.is_empty() { None } else { Some(s) }
-  });
+  // Collect command-line arguments (skip the first one which is the executable path)
+  let args: Vec<String> = std::env::args().skip(1).collect();
 
   // log for debug
-  let _ = app.emit("app-config", format!("port={port}, base_url={base_url:?}"));
+  let _ = app.emit("app-config", format!("args={args:?}"));
 
-  AppConfig { port, base_url }
+  AppConfig { args }
 }
 
 fn load_minimize_setting(app: &AppHandle) -> bool {
@@ -243,10 +238,107 @@ fn wait_for_process_exit(child: &mut Child, timeout: Duration) {
   }
 }
 
-fn build_server_url(port: u16, base_url: &Option<String>) -> String {
-  match base_url {
-    Some(b) if !b.trim().is_empty() => format!("http://127.0.0.1:{}/{}", port, b.trim().trim_start_matches('/')),
-    _ => format!("http://127.0.0.1:{}", port),
+fn parse_port_from_args(args: &[String]) -> u16 {
+  // CLI args take precedence
+  let mut i = 0;
+  while i < args.len() {
+    let arg = &args[i];
+    if arg == "--port" || arg == "-p" {
+      if i + 1 < args.len() {
+        if let Ok(p) = args[i + 1].parse::<u16>() {
+          return p;
+        }
+      }
+    } else if let Some(rest) = arg.strip_prefix("--port=") {
+      if let Ok(p) = rest.parse::<u16>() {
+        return p;
+      }
+    }
+    i += 1;
+  }
+  // Fallback to environment variable
+  if let Ok(val) = std::env::var("QBT_PORT") {
+    if let Ok(p) = val.trim().parse::<u16>() {
+      return p;
+    }
+  }
+  // Default
+  DEFAULT_PORT
+}
+
+fn parse_base_url_from_args(args: &[String]) -> Option<String> {
+  // CLI args take precedence
+  let mut i = 0;
+  while i < args.len() {
+    let arg = &args[i];
+    if arg == "--base-url" || arg == "--base_url" || arg == "-b" {
+      if i + 1 < args.len() {
+        let s = args[i + 1].trim().trim_start_matches('/').to_string();
+        if !s.is_empty() {
+          return Some(s);
+        } else {
+          return None;
+        }
+      }
+    } else if let Some(rest) = arg.strip_prefix("--base-url=")
+      .or_else(|| arg.strip_prefix("--base_url="))
+    {
+      let s = rest.trim().trim_start_matches('/').to_string();
+      if !s.is_empty() {
+        return Some(s);
+      } else {
+        return None;
+      }
+    }
+    i += 1;
+  }
+  // Fallback to environment variable
+  if let Ok(val) = std::env::var("QBT_BASE_URL") {
+    let s = val.trim().trim_start_matches('/').to_string();
+    if !s.is_empty() {
+      return Some(s);
+    }
+  }
+  None
+}
+
+fn parse_host_from_args(args: &[String]) -> String {
+  // CLI args take precedence
+  let mut i = 0;
+  while i < args.len() {
+    let arg = &args[i];
+    if arg == "--host" || arg == "-H" {
+      if i + 1 < args.len() {
+        let s = args[i + 1].trim().to_string();
+        if !s.is_empty() {
+          return s;
+        }
+      }
+    } else if let Some(rest) = arg.strip_prefix("--host=") {
+      let s = rest.trim().to_string();
+      if !s.is_empty() {
+        return s;
+      }
+    }
+    i += 1;
+  }
+  // Fallback to environment variable
+  if let Ok(val) = std::env::var("QBT_HOST") {
+    let s = val.trim().to_string();
+    if !s.is_empty() {
+      return s;
+    }
+  }
+  // Default host for desktop client to connect to local server
+  "127.0.0.1".to_string()
+}
+
+fn build_server_url_effective(args: &[String]) -> String {
+  let host = parse_host_from_args(args);
+  let port = parse_port_from_args(args);
+  match parse_base_url_from_args(args) {
+    Some(b) => format!("http://{}:{}/{}", host, port, b),
+    None => format!("http://{}:{}", host, port),
   }
 }
 
@@ -410,13 +502,13 @@ fn cleanup_and_exit_with_app(app: &AppHandle) {
 }
 
 
-async fn wait_until_ready(port: u16, base_url: &Option<String>, timeout: Duration) -> bool {
+async fn wait_until_ready(args: &[String], timeout: Duration) -> bool {
   let client = match reqwest::Client::builder().danger_accept_invalid_certs(true).build() {
     Ok(client) => client,
     Err(_) => return false,
   };
 
-  let url = build_server_url(port, base_url);
+  let url = build_server_url_effective(args);
 
   let start = std::time::Instant::now();
   while start.elapsed() < timeout {
@@ -460,7 +552,7 @@ fn force_open_app_window(app: &AppHandle) {
 
 
 fn redirect_to_server(app: &AppHandle, cfg: &AppConfig) {
-  let url = build_server_url(cfg.port, &cfg.base_url);
+  let url = build_server_url_effective(&cfg.args);
   if let Some(win) = app.get_webview_window("main") {
     let _ = win.eval(&format!("window.location.replace('{}')", url));
   }
@@ -521,16 +613,52 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
 
   // build command
   let mut cmd = Command::new(server_path);
+
+  // Forward documented QBT_* environment variables to the server process if present.
+  // The child process inherits the parent's environment by default, but we set these explicitly
+  // to ensure they are available in packaged contexts as well.
+  let qbt_env_keys = [
+    "QBT_HOST",
+    "QBT_PORT",
+    "QBT_BASE_URL",
+    "QBT_RUN",
+    "QBT_SCHEDULE",
+    "QBT_STARTUP_DELAY",
+    "QBT_CONFIG_DIR",
+    "QBT_LOGFILE",
+    "QBT_RECHECK",
+    "QBT_CAT_UPDATE",
+    "QBT_TAG_UPDATE",
+    "QBT_REM_UNREGISTERED",
+    "QBT_TAG_TRACKER_ERROR",
+    "QBT_REM_ORPHANED",
+    "QBT_TAG_NOHARDLINKS",
+    "QBT_SHARE_LIMITS",
+    "QBT_SKIP_CLEANUP",
+    "QBT_DRY_RUN",
+    "QBT_LOG_LEVEL",
+    "QBT_LOG_SIZE",
+    "QBT_LOG_COUNT",
+    "QBT_DEBUG",
+    "QBT_TRACE",
+    "QBT_DIVIDER",
+    "QBT_WIDTH",
+    "QBT_SKIP_QB_VERSION_CHECK",
+  ];
+  for key in qbt_env_keys {
+    if let Ok(val) = std::env::var(key) {
+      cmd.env(key, val);
+    }
+  }
+
+  // Desktop defaults:
+  // - Force web server enabled for the Tauri app, regardless of inherited environment.
   cmd.env("QBT_WEB_SERVER", "true")
-    .env("QBT_PORT", cfg.port.to_string())
     .env("QBT_DESKTOP_APP", "true")  // Indicate running in desktop app to prevent browser opening
+    .args(&cfg.args)  // Pass command-line arguments to the binary
     .stdin(Stdio::null())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
-
-  if let Some(base) = &cfg.base_url {
-    cmd.env("QBT_BASE_URL", base);
-  }
 
   // On Windows, make sure process does not open a console window
   #[cfg(target_os = "windows")]
@@ -634,7 +762,7 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(PROCESS_WAIT_TIMEOUT_MS));
                 if start_server(&app_handle_restart, &cfg).is_ok() {
                   tauri::async_runtime::spawn(async move {
-                    if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(SERVER_RESTART_TIMEOUT_SECS)).await {
+                    if wait_until_ready(&cfg.args, Duration::from_secs(SERVER_RESTART_TIMEOUT_SECS)).await {
                       redirect_to_server(&app_handle_restart, &cfg);
                     }
                   });
@@ -731,7 +859,7 @@ pub fn run() {
       let app_handle3 = app_handle.clone();
       tauri::async_runtime::spawn(async move {
         let _ = start_server(&app_handle3, &cfg);
-        if wait_until_ready(cfg.port, &cfg.base_url, Duration::from_secs(SERVER_READY_TIMEOUT_SECS)).await {
+        if wait_until_ready(&cfg.args, Duration::from_secs(SERVER_READY_TIMEOUT_SECS)).await {
           redirect_to_server(&app_handle3, &cfg);
         }
       });
