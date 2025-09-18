@@ -277,6 +277,31 @@ uninstall:
 reinstall: uninstall install
 	@echo "✓ Reinstall complete!"
 
+.PHONY: tauri-deps
+tauri-deps:
+	@echo "Installing Tauri Linux build dependencies (apt)..."
+	@export DEBIAN_FRONTEND=noninteractive; \
+	apt-get update; \
+	WEBKIT_PKG=libwebkit2gtk-4.1-dev; \
+	if ! apt-cache show $${WEBKIT_PKG} >/dev/null 2>&1; then WEBKIT_PKG=libwebkit2gtk-4.0-dev; fi; \
+	apt-get install -y \
+	  build-essential \
+	  curl \
+	  pkg-config \
+	  patchelf \
+	  libgtk-3-dev \
+	  $${WEBKIT_PKG} \
+	  libayatana-appindicator3-dev \
+	  librsvg2-dev \
+	  libglib2.0-dev \
+	  libpango1.0-dev \
+	  libcairo2-dev \
+	  libgdk-pixbuf-2.0-dev \
+	  libatk1.0-dev \
+	  xdg-desktop-portal \
+	  xdg-desktop-portal-gtk; \
+	true
+
 .PHONY: prep-release
 prep-release:
 	@echo "Preparing release..."
@@ -291,6 +316,8 @@ prep-release:
 	echo "$$clean_version" > VERSION; \
 	echo "✓ VERSION updated to $$clean_version"
 	@# Step 3: Check Tauri Rust project builds
+	@echo "Ensuring desktop build dependencies are installed (apt)..."
+	@$(MAKE) tauri-deps
 	@echo "Running cargo check in desktop/tauri/src-tauri..."
 	@cd desktop/tauri/src-tauri && cargo check
 	@# Step 4: Prepare CHANGELOG skeleton and bump Full Changelog link
@@ -300,7 +327,7 @@ prep-release:
 	patch=$$(echo "$$new_version" | cut -d. -f3); \
 	prev_patch=$$((patch - 1)); \
 	prev_version="$$major.$$minor.$$prev_patch"; \
-	git fetch origin master:master \
+	git fetch origin master:master; \
 	updated_deps=$$(git diff master..HEAD -- pyproject.toml | grep '^+' | grep '==' | sed 's/^+//' | sed 's/^ *//' | sed 's/,$$//' | sed 's/^/- /'); \
 	echo "# Requirements Updated" > CHANGELOG; \
 	if [ -n "$$updated_deps" ]; then \

@@ -127,11 +127,26 @@ class QbitManageApp {
             if (versionEl) {
                 versionEl.textContent = `qBit Manage v${versionText}`;
                 if (response.update_available) {
-                    const badge = document.createElement('span');
+                    const badge = document.createElement('a');
                     badge.className = 'badge badge-warning';
                     const latest = response.latest_version || 'latest';
                     badge.textContent = `Update available: ${latest}`;
                     badge.style.marginLeft = '0.5rem';
+                    badge.style.cursor = 'pointer';
+                    badge.style.textDecoration = 'underline';
+                    badge.target = '_blank';
+                    badge.rel = 'noopener noreferrer';
+
+                    // Determine the correct URL based on branch
+                    let updateUrl;
+                    if (response.branch === 'develop') {
+                        updateUrl = 'https://github.com/StuffAnThings/qbit_manage/actions/workflows/develop.yml';
+                    } else {
+                        // For stable releases, link to the release page
+                        updateUrl = `https://github.com/StuffAnThings/qbit_manage/releases/tag/v${latest}`;
+                    }
+                    badge.href = updateUrl;
+
                     if (versionEl.parentElement) {
                         versionEl.parentElement.appendChild(badge);
                     }

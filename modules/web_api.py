@@ -901,6 +901,7 @@ class WebAPI:
             temp_args = self.args.copy()
             temp_args["config_file"] = temp_config_path.name  # Use temp file name
             temp_args["_from_web_api"] = True
+            temp_args["validation_mode"] = True  # Flag to indicate this is validation, not a real run
             temp_args["time"] = now.strftime("%H:%M")
             temp_args["time_obj"] = now
             temp_args["run"] = True
