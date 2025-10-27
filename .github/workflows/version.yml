@@ -296,7 +296,7 @@ jobs:
       contents: read
     steps:
       - name: Download and collect all build outputs
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: build-outputs-*
           path: collected
@@ -509,7 +509,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
       - name: Download prepared release assets
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: qbit-manage-release-assets
           path: release-assets
