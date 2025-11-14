@@ -280,7 +280,7 @@ jobs:
           fi
 
       - name: Upload build outputs (binary + Tauri bundles)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: build-outputs-${{ runner.os }}-${{ env.BUILD_ARCH }}
           path: |
@@ -386,7 +386,7 @@ jobs:
           echo "Desktop installers: $(find release-assets -name "*desktop-installer*" | wc -l)"
 
       - name: Upload final release assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: qbit-manage-release-assets
           path: release-assets/*
