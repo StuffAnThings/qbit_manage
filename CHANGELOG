@@ -1,16 +1,8 @@
 # Requirements Updated
-- "fastapi==0.116.2"
+- "fastapi==0.121.2"
+- "qbittorrent-api==2025.11.0"
+- "ruamel.yaml==0.18.16"
+- "uvicorn==0.38.0"
+- "ruff==0.14.5"
 
-
-# Improvements
-- **Desktop App**: Adds minimize to tray and automatic startup on boot
-- **Desktop App**: Support for CLI args passthrough to desktop app
-- **Webhooks**: Adds additional information (commands and execution_options) to run_start webhook
-- **WebUI**: Adds direct link to latest release when updates are available
-
-# Bug Fixes
-- Fix broken pypi builds
-- **Web UI**: Fix config validation causing runs to be stuck in progress
-- **Web UI**: Fix config validation causing run start webhooks to trigger
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.2...v4.6.3
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.3...v4.6.4
