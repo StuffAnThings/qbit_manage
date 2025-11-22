@@ -317,6 +317,7 @@ class ShareLimits:
                 or check_limit_upload_speed
                 or share_limits_not_yet_tagged
                 or check_multiple_share_limits_tag
+                or tor_reached_seed_limit
             ) and hash_not_prev_checked:
                 if (
                     (
@@ -326,6 +327,7 @@ class ShareLimits:
                     )
                     or share_limits_not_yet_tagged
                     or check_multiple_share_limits_tag
+                    or tor_reached_seed_limit
                 ):
                     logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
