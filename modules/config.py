@@ -871,15 +871,16 @@ class Config:
         """
         # Assign directories
         if "directory" in self.data:
-            self.root_dir = os.path.join(
-                self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True), ""
+            root_dir = self.util.check_for_attribute(self.data, "root_dir", parent="directory", default_is_none=True)
+            if isinstance(root_dir, list):
+                root_dir = root_dir[0]
+            self.root_dir = os.path.join(root_dir, "")
+            remote_dir = self.util.check_for_attribute(
+                self.data, "remote_dir", parent="directory", default=self.root_dir, do_print=False, save=False
             )
-            self.remote_dir = os.path.join(
-                self.util.check_for_attribute(
-                    self.data, "remote_dir", parent="directory", default=self.root_dir, do_print=False, save=False
-                ),
-                "",
-            )
+            if isinstance(remote_dir, list):
+                remote_dir = remote_dir[0]
+            self.remote_dir = os.path.join(remote_dir, "")
             if self.commands["tag_nohardlinks"] or self.commands["rem_orphaned"]:
                 self.remote_dir = self.util.check_for_attribute(
                     self.data,
