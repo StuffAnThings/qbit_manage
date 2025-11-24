@@ -372,9 +372,25 @@ class ShareLimits:
             else:
                 # New behavior: throttle upload speed instead of pausing/removing
                 throttle_kib = group_config.get("upload_speed_on_limit_reached", 0)
-                # Apply per-torrent upload throttle (KiB/s) or unlimited if -1/0
+
+                # Skip if throttle not configured (0 means not set)
+                if throttle_kib == 0:
+                    logger.debug(f"Skipping throttle for {torrent.name}: upload_speed_on_limit_reached not configured")
+                    return
+
+                # Validate throttle value (must be -1 for unlimited or positive)
+                if throttle_kib < -1:
+                    logger.warning(
+                        f"Invalid upload_speed_on_limit_reached value: {throttle_kib}. Must be >= -1. "
+                        f"Skipping throttle for {torrent.name}"
+                    )
+                    return
+
+                # Apply per-torrent upload throttle (KiB/s) or unlimited if -1
                 limit_val = -1 if throttle_kib == -1 else throttle_kib * 1024
-                if limit_val and throttle_kib != torrent_upload_limit:
+
+                # Check if throttle needs to be applied (compare in KiB/s)
+                if throttle_kib != torrent_upload_limit:
                     logger.print_line(
                         logger.insert_space("Cleanup: False [Meets Share Limits]", 8),
                         self.config.loglevel,
