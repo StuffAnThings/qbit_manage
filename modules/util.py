@@ -1390,6 +1390,12 @@ def path_replace(path, old_path, new_path):
         return path
 
     # Normalize all paths to use forward slashes for comparison
+    if isinstance(path, list):
+        path = path[0]
+    if isinstance(old_path, list):
+        old_path = old_path[0]
+    if isinstance(new_path, list):
+        new_path = new_path[0]
     path_norm = path.replace("\\", "/")
     old_norm = old_path.replace("\\", "/")
     new_norm = new_path.replace("\\", "/") if new_path else ""
