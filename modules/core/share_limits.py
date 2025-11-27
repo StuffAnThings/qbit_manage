@@ -305,7 +305,7 @@ class ShareLimits:
                 tracker=tracker["url"],
                 reset_upload_speed_on_unmet_minimums=group_config["reset_upload_speed_on_unmet_minimums"],
             )
-
+            logger.trace(f"tor_reached_seed_limit: {tor_reached_seed_limit}")
             # Update share limits tag if needed
             self.update_share_limits_tag_for_torrent(torrent)
 
@@ -376,6 +376,12 @@ class ShareLimits:
                 # Skip if throttle not configured (0 means not set)
                 if throttle_kib == 0:
                     logger.debug(f"Skipping throttle for {torrent.name}: upload_speed_on_limit_reached not configured")
+                    self.set_limits(
+                        torrent=torrent,
+                        max_ratio=group_config["max_ratio"],
+                        max_seeding_time=group_config["max_seeding_time"],
+                        limit_upload_speed=group_config["limit_upload_speed"],
+                    )
                     return
 
                 # Validate throttle value (must be -1 for unlimited or positive)
