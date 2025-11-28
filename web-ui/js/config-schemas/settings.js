@@ -135,6 +135,14 @@ export const settingsSchema = {
             description: 'Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable.',
             default: 10,
             min: 0
+        },
+        {
+            name: 'rem_unregistered_max_torrents',
+            type: 'number',
+            label: 'Remove Unregistered Max Torrents',
+            description: 'Maximum number of torrents to remove per tracker per run. Set to 0 to disable.',
+            default: 10,
+            min: 0
         }
     ]
 };

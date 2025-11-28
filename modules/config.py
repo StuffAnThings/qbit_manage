@@ -344,6 +344,9 @@ class Config:
             "rem_unregistered_grace_minutes": self.util.check_for_attribute(
                 self.data, "rem_unregistered_grace_minutes", parent="settings", var_type="int", default=10, min_int=0
             ),
+            "rem_unregistered_max_torrents": self.util.check_for_attribute(
+                self.data, "rem_unregistered_max_torrents", parent="settings", var_type="int", default=10, min_int=0
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]

@@ -26,7 +26,9 @@ class RemoveUnregistered:
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
         self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
         self.rem_unregistered_grace_minutes = self.config.settings["rem_unregistered_grace_minutes"]
+        self.rem_unregistered_max_torrents = self.config.settings["rem_unregistered_max_torrents"]
         self.hashes = hashes
+        self.tracker_del_count = {}
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -176,7 +178,7 @@ class RemoveUnregistered:
                                         self.config.loglevel,
                                     )
                                 else:
-                                    self.del_unregistered(msg, tracker, torrent)
+                                    self.check_max_limit_and_delete(msg, tracker, torrent)
                         else:
                             if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
                                 skip, age = self.is_within_grace(torrent)
@@ -191,7 +193,7 @@ class RemoveUnregistered:
                                         self.config.loglevel,
                                     )
                                 else:
-                                    self.del_unregistered(msg, tracker, torrent)
+                                    self.check_max_limit_and_delete(msg, tracker, torrent)
                     # Tag any error torrents
                     if self.cfg_tag_error and self.tag_error not in check_tags:
                         self.tag_tracker_error(msg, tracker, torrent)
@@ -202,6 +204,25 @@ class RemoveUnregistered:
                 logger.stacktrace()
                 self.config.notify(ex, "Remove Unregistered Torrents", False)
                 logger.error(f"Remove Unregistered Torrents Error: {ex}")
+
+    def check_max_limit_and_delete(self, msg, tracker, torrent):
+        """Checks if the max limit of torrents to remove has been reached for the tracker."""
+        tracker_url = tracker["url"]
+        if self.rem_unregistered_max_torrents > 0:
+            if tracker_url not in self.tracker_del_count:
+                self.tracker_del_count[tracker_url] = 0
+            if self.tracker_del_count[tracker_url] >= self.rem_unregistered_max_torrents:
+                logger.print_line(
+                    logger.insert_space(
+                        f"Skipping removal (max limit of {self.rem_unregistered_max_torrents} reached for tracker {tracker_url}):"
+                        f" {self.t_name}",
+                        3,
+                    ),
+                    self.config.loglevel,
+                )
+                return
+            self.tracker_del_count[tracker_url] += 1
+        self.del_unregistered(msg, tracker, torrent)
 
     def rem_unregistered(self):
         """Remove torrents with unregistered trackers."""

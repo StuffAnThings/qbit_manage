@@ -48,6 +48,7 @@ settings:
     - example placeholder words
     - ignore if found
   rem_unregistered_grace_minutes: 10 # Grace period (minutes) to skip removing newly added torrents when unregistered with the tracker (Default is 10)
+  rem_unregistered_max_torrents: 10 # Maximum number of torrents to remove per tracker per run. (Default is 10)
 
 directory:
   # Do not remove these
