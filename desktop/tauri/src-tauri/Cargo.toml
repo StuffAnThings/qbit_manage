@@ -43,7 +43,7 @@ license = "MIT"
 name = "qbit-manage-desktop"
 repository = ""
 rust-version = "1.70"
-version = "4.6.4"
+version = "4.6.5"
 
 [target."cfg(unix)".dependencies]
 glib = "0.20.0"

@@ -3003,7 +3003,7 @@ dependencies = [
 
 [[package]]
 name = "qbit-manage-desktop"
-version = "4.6.3"
+version = "4.6.4"
 dependencies = [
  "glib 0.20.12",
  "libc",
