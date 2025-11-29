@@ -17,6 +17,7 @@ class Tags:
         self.torrents_updated = []  # List of torrents updated
         self.notify_attr = []  # List of single torrent attributes to send to notifiarr
         self.stalled_tag = qbit_manager.config.stalled_tag
+        self.private_tag = qbit_manager.config.private_tag
         self.tag_stalled_torrents = self.config.settings["tag_stalled_torrents"]
 
         self.tags()
@@ -53,23 +54,29 @@ class Tags:
                     and torrent.state == "stalledDL"
                     and not util.is_tag_in_torrent(self.stalled_tag, torrent.tags)
                 )
+                or (
+                    self.private_tag
+                    and not util.is_tag_in_torrent(self.private_tag, torrent.tags)
+                    and self.qbt.is_torrent_private(torrent)
+                )
             ):
-                stalled = False
+                tags_to_add = tracker["tag"].copy()
                 if self.tag_stalled_torrents and torrent.state == "stalledDL":
-                    stalled = True
-                    tracker["tag"].append(self.stalled_tag)
-                if tracker["tag"] or stalled:
+                    tags_to_add.append(self.stalled_tag)
+                if self.private_tag and self.qbt.is_torrent_private(torrent):
+                    tags_to_add.append(self.private_tag)
+                if tags_to_add:
                     t_name = torrent.name
-                    self.stats += len(tracker["tag"])
+                    self.stats += len(tags_to_add)
                     body = []
                     body += logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
                     body += logger.print_line(
-                        logger.insert_space(f"New Tag{'s' if len(tracker['tag']) > 1 else ''}: {', '.join(tracker['tag'])}", 8),
+                        logger.insert_space(f"New Tag{'s' if len(tags_to_add) > 1 else ''}: {', '.join(tags_to_add)}", 8),
                         self.config.loglevel,
                     )
                     body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                     if not self.config.dry_run:
-                        torrent.add_tags(tracker["tag"])
+                        torrent.add_tags(tags_to_add)
                     category = self.qbt.get_category(torrent.save_path)[0] if torrent.category == "" else torrent.category
                     attr = {
                         "function": "tag_update",
@@ -77,7 +84,7 @@ class Tags:
                         "body": "\n".join(body),
                         "torrents": [t_name],
                         "torrent_category": category,
-                        "torrent_tag": ", ".join(tracker["tag"]),
+                        "torrent_tag": ", ".join(tags_to_add),
                         "torrent_tracker": tracker["url"],
                         "notifiarr_indexer": tracker["notifiarr"],
                     }

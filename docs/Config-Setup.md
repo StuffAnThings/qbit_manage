@@ -65,6 +65,7 @@ This section defines any settings defined in the configuration.
 | `force_auto_tmm_ignore_tags`        | Torrents with these tags will be ignored when force_auto_tmm is enabled.                                                                                                                                                                                                                                                                        |                           | <center>❌</center> |
 | `tracker_error_tag`                 | Define the tag of any torrents that do not have a working tracker. (Used in `--tag-tracker-error`)                                                                                                                                                                                                                                              | issue                     | <center>❌</center> |
 | `nohardlinks_tag`                   | Define the tag of any torrents that don't have hardlinks (Used in `--tag-nohardlinks`)                                                                                                                                                                                                                                                          | noHL                      | <center>❌</center> |
+| `private_tag`                       | Define the tag of any torrents that are private.                                                                                                                                                                                                                                                                                                | None                      | <center>❌</center> |
 | `share_limits_tag`                  | Will add this tag when applying share limits to provide an easy way to filter torrents by share limit group/priority for each torrent. For example, if you have a share-limit group `cross-seed` with a priority of 2 and the default share_limits_tag `~share_limits` would add the tag `~share_limit_2.cross-seed` (Used in `--share-limits`) | ~share_limit              | <center>❌</center> |
 | `share_limits_min_seeding_time_tag` | Will add this tag when applying share limits to torrents that have not yet reached the minimum seeding time (Used in `--share-limits`)                                                                                                                                                                                                          | MinSeedTimeNotReached     | <center>❌</center> |
 | `share_limits_min_num_seeds_tag`    | Will add this tag when applying share limits to torrents that have not yet reached the minimum number of seeds (Used in `--share-limits`)                                                                                                                                                                                                       | MinSeedsNotMet            | <center>❌</center> |
@@ -306,13 +307,15 @@ Provide webhook notifications based on event triggers
 Payload will be sent on any errors
 
 ```yaml
-{
-  "function": "run_error",     // Webhook Trigger keyword
-  "title": str,                // Title of the Payload
-  "body": str,                 // Error Message of the Payload
-  "critical": bool,            // Critical Error
-  "type": str                  // severity of error
-}
+{ "function": "run_error", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Error Message of the Payload
+    "critical"
+  : bool, ? // Critical Error
+    "type"
+  : str                  // severity of error }
 ```
 
 ### **Run Start Notifications**
@@ -320,16 +323,21 @@ Payload will be sent on any errors
 Payload will be sent at the start of the run
 
 ```yaml
-{
-  "function": "run_start",     // Webhook Trigger keyword
-  "title": str,                // Title of the Payload
-  "body": str,                 // Message of the Payload
-  "start_time": str,           // Time Run is started Format "YYYY-mm-dd HH:MM:SS"
-  "dry_run": bool,             // Dry-Run
-  "web_api_used": bool,        // Indicates whether the run was initiated via the Web API (true) or not (false).
-  "commands": list,            // List of commands that that will be ran
-  "execution_options": list    // List of eecution options selected
-}
+{ "function": "run_start", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "start_time"
+  : str, ? // Time Run is started Format "YYYY-mm-dd HH:MM:SS"
+    "dry_run"
+  : bool, ? // Dry-Run
+    "web_api_used"
+  : bool, ? // Indicates whether the run was initiated via the Web API (true) or not (false).
+    "commands"
+  : list, ? // List of commands that that will be ran
+    "execution_options"
+  : list    // List of eecution options selected }
 ```
 
 ### **Run End Notifications**
@@ -370,16 +378,21 @@ Payload will be sent at the end of the run
 Payload will be sent when rechecking/resuming a torrent that is paused
 
 ```yaml
-{
-  "function": "recheck",             // Webhook Trigger keyword
-  "title": str,                      // Title of the Payload
-  "body": str,                       // Message of the Payload
-  "torrents": [str],                 // List of Torrent Names
-  "torrent_tag": str,                // Torrent Tags
-  "torrent_category": str,           // Torrent Category
-  "torrent_tracker": str,            // Torrent Tracker URL
-  "notifiarr_indexer": str,          // Notifiarr React name/id for indexer
-}
+{ "function": "recheck", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_tag"
+  : str, ? // Torrent Tags
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ### **Category Update Notifications**
@@ -387,16 +400,21 @@ Payload will be sent when rechecking/resuming a torrent that is paused
 Payload will be sent when updating torrents with missing category
 
 ```yaml
-{
-  "function": "cat_update",          // Webhook Trigger keyword
-  "title": str,                      // Title of the Payload
-  "body": str,                       // Message of the Payload
-  "torrents": [str],                 // List of Torrent Names
-  "torrent_category": str,           // New Torrent Category
-  "torrent_tag": str,                // Torrent Tags
-  "torrent_tracker": str,            // Torrent Tracker URL
-  "notifiarr_indexer": str,          // Notifiarr React name/id for indexer
-}
+{ "function": "cat_update", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // New Torrent Category
+    "torrent_tag"
+  : str, ? // Torrent Tags
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ### **Tag Update Notifications**
@@ -404,16 +422,21 @@ Payload will be sent when updating torrents with missing category
 Payload will be sent when updating torrents with missing tag
 
 ```yaml
-{
-  "function": "tag_update",                 // Webhook Trigger keyword
-  "title": str,                             // Title of the Payload
-  "body": str,                              // Message of the Payload
-  "torrents": [str],                        // List of Torrent Names
-  "torrent_category": str,                  // Torrent Category
-  "torrent_tag": str,                       // New Torrent Tag
-  "torrent_tracker": str,                   // Torrent Tracker URL
-  "notifiarr_indexer": str,                 // Notifiarr React name/id for indexer
-}
+{ "function": "tag_update", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tag"
+  : str, ? // New Torrent Tag
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ### **Remove Unregistered Torrents Notifications**
@@ -421,18 +444,25 @@ Payload will be sent when updating torrents with missing tag
 Payload will be sent when Unregistered Torrents are found
 
 ```yaml
-{
-  "function": "rem_unregistered",          // Webhook Trigger keyword
-  "title": str,                            // Title of the Payload
-  "body": str,                             // Message of the Payload
-  "torrents": [str],                       // List of Torrent Names
-  "torrent_category": str,                 // Torrent Category
-  "torrent_status": str,                   // Torrent Tracker Status message
-  "torrent_tag": str,                      // Torrent Tags
-  "torrent_tracker": str,                  // Torrent Tracker URL
-  "notifiarr_indexer": str,                // Notifiarr React name/id for indexer
-  "torrents_deleted_and_contents": bool,   // Deleted Torrents and contents or Deleted just the torrent
-}
+{ "function": "rem_unregistered", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_status"
+  : str, ? // Torrent Tracker Status message
+    "torrent_tag"
+  : str, ? // Torrent Tags
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, ? // Notifiarr React name/id for indexer
+    "torrents_deleted_and_contents"
+  : bool, // Deleted Torrents and contents or Deleted just the torrent }
 ```
 
 ### **Tag Tracker Error Notifications**
@@ -440,30 +470,41 @@ Payload will be sent when Unregistered Torrents are found
 Payload will be sent when trackers with errors are tagged/untagged
 
 ```yaml
-{
-  "function": "tag_tracker_error",                   // Webhook Trigger keyword
-  "title": str,                                      // Title of the Payload
-  "body": str,                                       // Message of the Payload
-  "torrents": [str],                                 // List of Torrent Names
-  "torrent_category": str,                           // Torrent Category
-  "torrent_tag": "issue",                            // Tag Added
-  "torrent_status": str,                             // Torrent Tracker Status message
-  "torrent_tracker": str,                            // Torrent Tracker URL
-  "notifiarr_indexer": str,                          // Notifiarr React name/id for indexer
-}
+{ "function": "tag_tracker_error", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tag"
+  : "issue", ? // Tag Added
+    "torrent_status"
+  : str, ? // Torrent Tracker Status message
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ```yaml
-{
-  "function": "untag_tracker_error",                 // Webhook Trigger keyword
-  "title": str,                                      // Title of the Payload
-  "body": str,                                       // Message of the Payload
-  "torrents": [str],                                 // List of Torrent Names
-  "torrent_category": str,                           // Torrent Category
-  "torrent_tag": str,                                // Tag Added
-  "torrent_tracker": str,                            // Torrent Tracker URL
-  "notifiarr_indexer": str,                          // Notifiarr React name/id for indexer
-}
+{ "function": "untag_tracker_error", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tag"
+  : str, ? // Tag Added
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ### **Remove Orphaned Files Notifications**
@@ -471,14 +512,17 @@ Payload will be sent when trackers with errors are tagged/untagged
 Payload will be sent when Orphaned Files are found and moved into the orphaned folder
 
 ```yaml
-{
-  "function": "rem_orphaned",          // Webhook Trigger keyword
-  "title": str,                        // Title of the Payload
-  "body": str,                         // Message of the Payload
-  "orphaned_files": list,              // List of orphaned files
-  "orphaned_directory": str,           // Folder path where orphaned files will be moved to
-  "total_orphaned_files": int,         // Total number of orphaned files found
-}
+{ "function": "rem_orphaned", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "orphaned_files"
+  : list, ? // List of orphaned files
+    "orphaned_directory"
+  : str, ? // Folder path where orphaned files will be moved to
+    "total_orphaned_files"
+  : int, // Total number of orphaned files found }
 ```
 
 ### **Tag No Hardlinks Notifications**
@@ -486,31 +530,41 @@ Payload will be sent when Orphaned Files are found and moved into the orphaned f
 Payload will be sent when no hard links are found for any files in a particular torrent
 
 ```yaml
-{
-  "function": "tag_nohardlinks",            // Webhook Trigger keyword
-  "title": str,                             // Title of the Payload
-  "body": str,                              // Message of the Payload
-  "torrents": [str],                        // List of Torrent Names
-  "torrent_category": str,                  // Torrent Category
-  "torrent_tag": 'noHL',                    // Add `noHL` to Torrent Tags
-  "torrent_tracker": str,                   // Torrent Tracker URL
-  "notifiarr_indexer": str,                 // Notifiarr React name/id for indexer
-}
+{ "function": "tag_nohardlinks", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tag"
+  : "noHL", ? // Add `noHL` to Torrent Tags
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 Payload will be sent when hard links are found for any torrents that were previously tagged with `noHL`
 
 ```yaml
-{
-  "function": "untag_nohardlinks",          // Webhook Trigger keyword
-  "title": str,                             // Title of the Payload
-  "body": str,                              // Message of the Payload
-  "torrents": [str],                        // List of Torrent Names
-  "torrent_category": str,                  // Torrent Category
-  "torrent_tag": 'noHL',                    // Remove `noHL` from Torrent Tags
-  "torrent_tracker": str,                   // Torrent Tracker URL
-  "notifiarr_indexer": str,                 // Notifiarr React name/id for indexer
-}
+{ "function": "untag_nohardlinks", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "torrent_tag"
+  : "noHL", ? // Remove `noHL` from Torrent Tags
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, // Notifiarr React name/id for indexer }
 ```
 
 ### **Share Limits Notifications**
@@ -518,35 +572,49 @@ Payload will be sent when hard links are found for any torrents that were previo
 Payload will be sent when Share Limits are updated for a specific group
 
 ```yaml
-{
-  "function": "share_limits",               // Webhook Trigger keyword
-  "title": str,                             // Title of the Payload
-  "body": str,                              // Message of the Payload
-  "grouping": str,                          // Share Limit group name
-  "torrents": [str],                        // List of Torrent Names
-  "torrent_tag": str,                       // Torrent Tags
-  "torrent_max_ratio": float,               // Set the Max Ratio Share Limit
-  "torrent_max_seeding_time": int,          // Set the Max Seeding Time (minutes) Share Limit
-  "torrent_min_seeding_time": int,          // Set the Min Seeding Time (minutes) Share Limit
-  "torrent_limit_upload_speed": int         // Set the the torrent upload speed limit (kB/s)
-}
+{ "function": "share_limits", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "grouping"
+  : str, ? // Share Limit group name
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_tag"
+  : str, ? // Torrent Tags
+    "torrent_max_ratio"
+  : float, ? // Set the Max Ratio Share Limit
+    "torrent_max_seeding_time"
+  : int, ? // Set the Max Seeding Time (minutes) Share Limit
+    "torrent_min_seeding_time"
+  : int, ? // Set the Min Seeding Time (minutes) Share Limit
+    "torrent_limit_upload_speed"
+  : int         // Set the the torrent upload speed limit (kB/s) }
 ```
 
 Payload will be sent when `cleanup` flag is set to true and torrent meets share limit criteria.
 
 ```yaml
-{
-  "function": "cleanup_share_limits",       // Webhook Trigger keyword
-  "title": str,                             // Title of the Payload
-  "body": str,                              // Message of the Payload
-  "grouping": str,                          // Share Limit group name
-  "torrents": [str],                        // List of Torrent Names
-  "torrent_category": str,                  // Torrent Category
-  "cleanup": True,                          // Cleanup flag
-  "torrent_tracker": str,                   // Torrent Tracker URL
-  "notifiarr_indexer": str,                 // Notifiarr React name/id for indexer
-  "torrents_deleted_and_contents": bool,    // Deleted Torrents and contents or Deleted just the torrent
-}
+{ "function": "cleanup_share_limits", ? // Webhook Trigger keyword
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "grouping"
+  : str, ? // Share Limit group name
+    "torrents"
+  : [str], ? // List of Torrent Names
+    "torrent_category"
+  : str, ? // Torrent Category
+    "cleanup"
+  : True, ? // Cleanup flag
+    "torrent_tracker"
+  : str, ? // Torrent Tracker URL
+    "notifiarr_indexer"
+  : str, ? // Notifiarr React name/id for indexer
+    "torrents_deleted_and_contents"
+  : bool, // Deleted Torrents and contents or Deleted just the torrent }
 ```
 
 ### **Cleanup directories Notifications**
@@ -554,13 +622,17 @@ Payload will be sent when `cleanup` flag is set to true and torrent meets share 
 Payload will be sent when files are deleted/cleaned up from the various folders
 
 ```yaml
-{
-  "function": "cleanup_dirs",             // Webhook Trigger keyword
-  "location": str,                        // Location of the folder that is being cleaned
-  "title": str,                           // Title of the Payload
-  "body": str,                            // Message of the Payload
-  "files": list,                          // List of files that were deleted from the location
-  "empty_after_x_days": int,              // Number of days that the files will be kept in the location
-  "size_in_bytes": int,                   // Total number of bytes deleted from the location
-}
+{ "function": "cleanup_dirs", ? // Webhook Trigger keyword
+    "location"
+  : str, ? // Location of the folder that is being cleaned
+    "title"
+  : str, ? // Title of the Payload
+    "body"
+  : str, ? // Message of the Payload
+    "files"
+  : list, ? // List of files that were deleted from the location
+    "empty_after_x_days"
+  : int, ? // Number of days that the files will be kept in the location
+    "size_in_bytes"
+  : int, // Total number of bytes deleted from the location }
 ```

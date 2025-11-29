@@ -299,6 +299,23 @@ class Qbt:
         """Get tracker urls from torrent"""
         return tuple(x.url for x in trackers if x.url.startswith(("http", "udp", "ws")))
 
+    def is_torrent_private(self, torrent):
+        """Checks if torrent is private"""
+        if hasattr(torrent, "private") and torrent.private:
+            return True
+        if hasattr(torrent, "private") and not torrent.private:
+            return False
+
+        if isinstance(torrent, str):
+            torrent_hash = torrent
+        else:
+            torrent_hash = torrent.hash
+        torrent_trackers = self.client.torrents_trackers(torrent_hash)
+        for tracker in torrent_trackers:
+            if "private" in tracker["msg"].lower() or "private" in tracker["url"].lower():
+                return True
+        return False
+
     def get_tags(self, urls):
         """Get tags from config file based on keyword"""
         urls = list(urls)

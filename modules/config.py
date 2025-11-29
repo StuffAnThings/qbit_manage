@@ -302,6 +302,7 @@ class Config:
             ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
             "stalled_tag": self.util.check_for_attribute(self.data, "stalled_tag", parent="settings", default="stalledDL"),
+            "private_tag": self.util.check_for_attribute(self.data, "private_tag", parent="settings", default_is_none=True),
             "share_limits_tag": self.util.check_for_attribute(
                 self.data, "share_limits_tag", parent="settings", default=share_limits_tag
             ),
@@ -352,6 +353,7 @@ class Config:
         self.tracker_error_tag = self.settings["tracker_error_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.stalled_tag = self.settings["stalled_tag"]
+        self.private_tag = self.settings["private_tag"]
         self.share_limits_tag = self.settings["share_limits_tag"]
         self.share_limits_custom_tags = []
         self.share_limits_min_seeding_time_tag = self.settings["share_limits_min_seeding_time_tag"]
@@ -365,6 +367,7 @@ class Config:
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
             self.share_limits_tag,
+            self.private_tag,
         ]
         # "Migrate settings from v4.0.0 to v4.0.1 and beyond. Convert 'share_limits_suffix_tag' to 'share_limits_tag'"
         if "share_limits_suffix_tag" in self.data["settings"]:

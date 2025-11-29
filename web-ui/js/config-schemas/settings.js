@@ -45,6 +45,13 @@ export const settingsSchema = {
             default: 'stalledDL'
         },
         {
+            name: 'private_tag',
+            type: 'text',
+            label: 'Private Tag',
+            description: 'The tag to apply to private torrents.',
+            default: null
+        },
+        {
             name: 'share_limits_tag',
             type: 'text',
             label: 'Share Limits Tag',
