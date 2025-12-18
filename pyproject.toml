@@ -27,7 +27,7 @@ dependencies = [
     "qbittorrent-api==2025.11.1",
     "requests==2.32.5",
     "retrying==1.4.2",
-    "ruamel.yaml==0.18.16",
+    "ruamel.yaml==0.18.17",
     "slowapi==0.1.9",
     "uvicorn==0.38.0",
 ]
