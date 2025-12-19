@@ -18,19 +18,10 @@ export const fileExtTagsSchema = {
             type: 'object',
             properties: {
                 tag: {
-                    oneOf: [
-                        {
-                            type: 'string',
-                            label: 'Tag',
-                            description: 'Single tag to apply when this file extension is found.'
-                        },
-                        {
-                            type: 'array',
-                            label: 'Tags',
-                            description: 'List of tags to apply when this file extension is found.',
-                            items: { type: 'string' }
-                        }
-                    ]
+                    label: 'Tag(s)',
+                    description: 'The tag or tags to apply when this file extension is found.',
+                    type: 'array',
+                    items: { type: 'string' }
                 }
             },
             required: ['tag'],
@@ -41,19 +32,10 @@ export const fileExtTagsSchema = {
         type: 'object',
         properties: {
             tag: {
-                oneOf: [
-                    {
-                        type: 'string',
-                        label: 'Tag',
-                        description: 'Single tag to apply when this file extension is found.'
-                    },
-                    {
-                        type: 'array',
-                        label: 'Tags',
-                        description: 'List of tags to apply when this file extension is found.',
-                        items: { type: 'string' }
-                    }
-                ]
+                label: 'Tag(s)',
+                description: 'The tag or tags to apply when this file extension is found.',
+                type: 'array',
+                items: { type: 'string' }
             }
         },
         required: ['tag'],
