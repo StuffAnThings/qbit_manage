@@ -4,6 +4,7 @@
 import argparse
 import logging
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -34,7 +35,7 @@ parser.add_argument(
 parser.add_argument("--days-to", "--days_to", help="Set Number of Days to stop torrents between two offsets", type=int, default=2)
 parser.add_argument(
     "--mover-old",
-    help="Use mover.old instead of mover. Useful if you're using the Mover Tuning Plugin",
+    help="Use the native mover. Useful if you're using the Mover Tuning Plugin (On Unraid 7.2.1+, this forces the native mover)",
     action="store_true",
     default=False,
 )
@@ -119,6 +120,71 @@ def stop_start_torrents(torrent_list, pause=True):
             torrent.resume()
 
 
+def get_unraid_version_tuple():
+    """Reads /etc/unraid-version and returns a tuple (major, minor, patch)."""
+    try:
+        if os.path.exists("/etc/unraid-version"):
+            with open("/etc/unraid-version") as f:
+                content = f.read().strip()
+                # format: version="6.12.4"
+                match = re.search(r'version="(\d+)\.(\d+)\.(\d+)', content)
+                if match:
+                    return tuple(map(int, match.groups()))
+    except Exception as e:
+        logging.warning(f"Could not determine Unraid version: {e}")
+    return (0, 0, 0)
+
+
+def run_mover_logic(use_mover_old):
+    """Determines and runs the correct mover command based on OS version and binary existence."""
+
+    # Check Environment
+    version = get_unraid_version_tuple()
+    age_mover_path = "/usr/local/sbin/age_mover"
+    age_mover_exists = os.path.exists(age_mover_path)
+
+    cmd = ""
+
+    # Logic for Unraid 7.2.1+ (where Mover Tuning is separated)
+    if version >= (7, 2, 1):
+        logging.info(f"Detected Unraid Version {version[0]}.{version[1]}.{version[2]} (>= 7.2.1)")
+
+        if use_mover_old:
+            # User explicitly requested "old" mover behavior (Stock Mover)
+            # In 7.2.1+, 'mover' IS the stock mover.
+            logging.info("Argument '--mover-old' passed: Forcing stock Unraid mover.")
+            cmd = "/usr/local/sbin/mover start"
+
+        elif age_mover_exists:
+            # User wants standard move behavior, and has Mover Tuning (age_mover) installed.
+            logging.info("Mover Tuning detected: Running 'age_mover'.")
+            cmd = f"{age_mover_path} start"
+
+        else:
+            # User wants standard move, but no Mover Tuning binary found. Fallback to stock.
+            logging.info("No Mover Tuning binary found: Running stock Unraid mover.")
+            cmd = "/usr/local/sbin/mover start"
+
+    # Logic for Older Unraid Versions
+    else:
+        if version != (0, 0, 0):
+            logging.info(f"Detected Unraid Version {version[0]}.{version[1]}.{version[2]} (< 7.2.1)")
+
+        if use_mover_old:
+            logging.info("Argument '--mover-old' passed: Running 'mover.old'.")
+            cmd = "/usr/local/sbin/mover.old start"
+        else:
+            logging.info("Running standard 'mover'.")
+            cmd = "/usr/local/sbin/mover start"
+
+    # Execute
+    if cmd:
+        logging.info(f"Executing: {cmd}")
+        os.system(cmd)
+    else:
+        logging.error("Could not determine mover command.")
+
+
 if __name__ == "__main__":
     current = datetime.now()
     args = parser.parse_args()
@@ -160,14 +226,7 @@ if __name__ == "__main__":
 
     # Run mover
     if args.move:
-        if args.mover_old:
-            # Start mover
-            logging.info("Starting mover.old to move files in to array disks.")
-            os.system("/usr/local/sbin/mover.old start")
-        else:
-            # Start mover
-            logging.info("Starting mover to move files in to array disks based on mover tuning preferences.")
-            os.system("/usr/local/sbin/mover start")
+        run_mover_logic(args.mover_old)
 
     # Resume Torrents
     if args.resume:
