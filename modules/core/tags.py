@@ -114,30 +114,16 @@ class Tags:
         logger.debug(f"Tags command completed in {duration:.2f} seconds")
 
     def get_file_extension(self, torrent):
-        """
-        Check torrent files for configured file extensions and return matching tags.
-
-        Args:
-            torrent: The torrent object to check
-
-        Returns:
-            list: List of tags to apply based on file extensions found
-        """
+        """Check torrent files for configured file extensions and return matching tags."""
         if not self.file_extension:
             return []
 
         tags_to_add = []
         extensions_found = set()
 
-        # Iterate through all files in the torrent
         for file in torrent.files:
-            # Normalize filename to lowercase for case-insensitive matching
-            filename_lower = file.name.lower()
-
-            # Check each configured extension
             for ext, ext_tags in self.file_extension.items():
-                # Check if filename ends with this extension pattern
-                if filename_lower.endswith(f".{ext}") and ext not in extensions_found:
+                if file.name.lower().endswith(f".{ext}") and ext not in extensions_found:
                     extensions_found.add(ext)
                     # Add the configured tags for this extension
                     for tag in ext_tags:
