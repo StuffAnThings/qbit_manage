@@ -42,4 +42,3 @@ export const fileExtTagsSchema = {
         additionalProperties: false
     }
 };
-
