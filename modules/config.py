@@ -1009,11 +1009,17 @@ class Config:
         if "file_extension" in self.data and self.data["file_extension"] is not None:
             for ext_key, tag_data in self.data["file_extension"].items():
                 if not isinstance(tag_data, dict):
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Must be a dict with 'tag' key. Skipping.")
+                    logger.warning(
+                        f"Invalid file_extension configuration for extension '{ext_key}'. "
+                        f"Must be a dict with 'tag' key. Skipping."
+                    )
                     continue
 
                 if "tag" not in tag_data:
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Missing 'tag' key. Skipping.")
+                    logger.warning(
+                        f"Invalid file_extension configuration for extension '{ext_key}'. "
+                        f"Missing 'tag' key. Skipping."
+                    )
                     continue
 
                 tags_list = []
@@ -1022,7 +1028,10 @@ class Config:
                 elif isinstance(tag_data["tag"], list):
                     tags_list = tag_data["tag"]
                 else:
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Tag value must be a string or list. Skipping.")
+                    logger.warning(
+                        f"Invalid file_extension configuration for extension '{ext_key}'. "
+                        f"Tag value must be a string or list. Skipping."
+                    )
                     continue
 
                 extensions = [e.strip().lower().lstrip(".") for e in ext_key.split("|") if e]

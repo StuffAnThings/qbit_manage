@@ -129,6 +129,9 @@ class Tags:
                     for tag in ext_tags:
                         if tag not in tags_to_add:
                             tags_to_add.append(tag)
-                    logger.trace(f"Found extension '.{ext}' in file '{file.name}' from torrent '{torrent.name}', adding tags: {ext_tags}")
+                    logger.trace(
+                        f"Found extension '.{ext}' in file '{file.name}' "
+                        f"from torrent '{torrent.name}', adding tags: {ext_tags}"
+                    )
 
         return tags_to_add
