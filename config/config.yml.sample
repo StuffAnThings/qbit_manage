@@ -143,9 +143,11 @@ tracker:
 file_extension:
   # Tag torrents based on file extensions found in the torrent
   # This will check all files in the torrent and apply tags if any file matches the specified extension
-  # <Extension>:    # <MANDATORY> This is the extension to match. You can define multiple extnesions by splitting with `|` delimiter
+  # Supports compound extensions like "tar.gz" - the extension is matched at the end of the filename
+  # <Extension>:    # <MANDATORY> This is the extension to match. You can define multiple extensions by splitting with `|` delimiter
   # <MANDATORY> Set tag name. Can be a list of tags or a single tag
   #   tag: <Tag Name>
+  # Extensions are case-insensitive and should NOT include the leading dot
   iso:
     tag: ISO
   rar:
@@ -154,6 +156,8 @@ file_extension:
       - Archived
   zip:
     tag: Archived
+  # tar.gz:
+  #   tag: TarGz
   # mkv:
   #   tag: MKV
   # mp4:

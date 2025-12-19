@@ -1,4 +1,3 @@
-import os
 import time
 
 from modules import util
@@ -132,17 +131,18 @@ class Tags:
 
         # Iterate through all files in the torrent
         for file in torrent.files:
-            # Get the file extension (without the dot, lowercase)
-            _, ext = os.path.splitext(file.name)
-            ext = ext.lower().lstrip(".")
+            # Normalize filename to lowercase for case-insensitive matching
+            filename_lower = file.name.lower()
 
-            # Check if this extension is configured for tagging
-            if ext in self.file_extension and ext not in extensions_found:
-                extensions_found.add(ext)
-                # Add the configured tags for this extension
-                for tag in self.file_extension[ext]:
-                    if tag not in tags_to_add:
-                        tags_to_add.append(tag)
-                logger.trace(f"Found extension '.{ext}' in torrent '{torrent.name}', adding tags: {self.file_extension[ext]}")
+            # Check each configured extension
+            for ext, ext_tags in self.file_extension.items():
+                # Check if filename ends with this extension pattern
+                if filename_lower.endswith(f".{ext}") and ext not in extensions_found:
+                    extensions_found.add(ext)
+                    # Add the configured tags for this extension
+                    for tag in ext_tags:
+                        if tag not in tags_to_add:
+                            tags_to_add.append(tag)
+                    logger.trace(f"Found extension '.{ext}' in file '{file.name}' from torrent '{torrent.name}', adding tags: {ext_tags}")
 
         return tags_to_add
