@@ -1003,33 +1003,32 @@ class Config:
         """
         Process the file extension tags configuration data.
         This method processes the file_extension section which maps file extensions to tags.
-        Only dict format is supported: extension: {tag: tag_name} or {tag: [tag1, tag2]}
+        Multiple extensions can be grouped using | delimiter: ext1|ext2|ext3: {tag: tag_name}
         """
         self.file_extension = {}
         if "file_extension" in self.data and self.data["file_extension"] is not None:
-            for ext, tag_data in self.data["file_extension"].items():
-                # Normalize extension to lowercase and ensure it doesn't have a leading dot
-                normalized_ext = ext.lower().lstrip(".")
-
-                # Only dict format is supported
+            for ext_key, tag_data in self.data["file_extension"].items():
                 if not isinstance(tag_data, dict):
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Must be a dict with 'tag' key. Skipping.")
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Must be a dict with 'tag' key. Skipping.")
                     continue
 
                 if "tag" not in tag_data:
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Missing 'tag' key. Skipping.")
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Missing 'tag' key. Skipping.")
                     continue
 
-                # Dict format: extension: {tag: tag_name} or {tag: [tag1, tag2]}
+                tags_list = []
                 if isinstance(tag_data["tag"], str):
-                    self.file_extension[normalized_ext] = [tag_data["tag"]]
+                    tags_list = [tag_data["tag"]]
                 elif isinstance(tag_data["tag"], list):
-                    self.file_extension[normalized_ext] = tag_data["tag"]
+                    tags_list = tag_data["tag"]
                 else:
-                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Tag value must be a string or list. Skipping.")
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext_key}'. Tag value must be a string or list. Skipping.")
                     continue
 
-                logger.trace(f"File extension tag mapping: .{normalized_ext} -> {self.file_extension[normalized_ext]}")
+                extensions = [e.strip().lower().lstrip(".") for e in ext_key.split("|") if e]
+                for ext in extensions:
+                    self.file_extension[ext] = tags_list
+                    logger.trace(f"File extension tag mapping: .{ext} -> {tags_list}")
 
     def __retry_on_connect(exception):
         return isinstance(exception.__cause__, ConnectionError)
