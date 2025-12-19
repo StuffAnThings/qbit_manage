@@ -80,6 +80,7 @@ class Config:
         self.processs_config_recyclebin()
         self.process_config_directories()
         self.process_config_orphaned()
+        self.process_config_file_extension()
 
     def configure_qbt(self):
         """
@@ -997,6 +998,38 @@ class Config:
                 if exclude_recycle not in self.orphaned["exclude_patterns"]
                 else self.orphaned["exclude_patterns"]
             )
+
+    def process_config_file_extension(self):
+        """
+        Process the file extension tags configuration data.
+        This method processes the file_extension section which maps file extensions to tags.
+        Only dict format is supported: extension: {tag: tag_name} or {tag: [tag1, tag2]}
+        """
+        self.file_extension = {}
+        if "file_extension" in self.data and self.data["file_extension"] is not None:
+            for ext, tag_data in self.data["file_extension"].items():
+                # Normalize extension to lowercase and ensure it doesn't have a leading dot
+                normalized_ext = ext.lower().lstrip(".")
+
+                # Only dict format is supported
+                if not isinstance(tag_data, dict):
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Must be a dict with 'tag' key. Skipping.")
+                    continue
+
+                if "tag" not in tag_data:
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Missing 'tag' key. Skipping.")
+                    continue
+
+                # Dict format: extension: {tag: tag_name} or {tag: [tag1, tag2]}
+                if isinstance(tag_data["tag"], str):
+                    self.file_extension[normalized_ext] = [tag_data["tag"]]
+                elif isinstance(tag_data["tag"], list):
+                    self.file_extension[normalized_ext] = tag_data["tag"]
+                else:
+                    logger.warning(f"Invalid file_extension configuration for extension '{ext}'. Tag value must be a string or list. Skipping.")
+                    continue
+
+                logger.trace(f"File extension tag mapping: .{normalized_ext} -> {self.file_extension[normalized_ext]}")
 
     def __retry_on_connect(exception):
         return isinstance(exception.__cause__, ConnectionError)

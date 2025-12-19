@@ -140,6 +140,27 @@ tracker:
   other:
     tag: other
 
+file_extension:
+  # Tag torrents based on file extensions found in the torrent
+  # This will check all files in the torrent and apply tags if any file matches the specified extension
+  # <Extension>:    # <MANDATORY> This is the extension to match. You can define multiple extnesions by splitting with `|` delimiter
+  # <MANDATORY> Set tag name. Can be a list of tags or a single tag
+  #   tag: <Tag Name>
+  iso:
+    tag: ISO
+  rar:
+    tag:
+      - RAR
+      - Archived
+  zip:
+    tag: Archived
+  # mkv:
+  #   tag: MKV
+  # mp4:
+  #   tag: MP4
+  # avi:
+  #   tag: AVI
+
 nohardlinks:
   # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)

@@ -1,3 +1,4 @@
+import os
 import time
 
 from modules import util
@@ -19,6 +20,7 @@ class Tags:
         self.stalled_tag = qbit_manager.config.stalled_tag
         self.private_tag = qbit_manager.config.private_tag
         self.tag_stalled_torrents = self.config.settings["tag_stalled_torrents"]
+        self.file_extension = qbit_manager.config.file_extension
 
         self.tags()
         self.config.webhooks_factory.notify(self.torrents_updated, self.notify_attr, group_by="tag")
@@ -46,6 +48,10 @@ class Tags:
                 body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
                 if not self.config.dry_run:
                     torrent.remove_tags(self.stalled_tag)
+
+            # Get file extension tags for this torrent
+            file_extension = self.get_file_extension(torrent)
+
             if (
                 torrent.tags == ""
                 or not util.is_tag_in_torrent(tracker["tag"], torrent.tags)
@@ -59,12 +65,19 @@ class Tags:
                     and not util.is_tag_in_torrent(self.private_tag, torrent.tags)
                     and self.qbt.is_torrent_private(torrent)
                 )
+                or (
+                    file_extension
+                    and not all(util.is_tag_in_torrent(tag, torrent.tags) for tag in file_extension)
+                )
             ):
                 tags_to_add = tracker["tag"].copy()
                 if self.tag_stalled_torrents and torrent.state == "stalledDL":
                     tags_to_add.append(self.stalled_tag)
                 if self.private_tag and self.qbt.is_torrent_private(torrent):
                     tags_to_add.append(self.private_tag)
+                for tag in file_extension:
+                    if tag not in tags_to_add:
+                        tags_to_add.append(tag)
                 if tags_to_add:
                     t_name = torrent.name
                     self.stats += len(tags_to_add)
@@ -100,3 +113,36 @@ class Tags:
         end_time = time.time()
         duration = end_time - start_time
         logger.debug(f"Tags command completed in {duration:.2f} seconds")
+
+    def get_file_extension(self, torrent):
+        """
+        Check torrent files for configured file extensions and return matching tags.
+
+        Args:
+            torrent: The torrent object to check
+
+        Returns:
+            list: List of tags to apply based on file extensions found
+        """
+        if not self.file_extension:
+            return []
+
+        tags_to_add = []
+        extensions_found = set()
+
+        # Iterate through all files in the torrent
+        for file in torrent.files:
+            # Get the file extension (without the dot, lowercase)
+            _, ext = os.path.splitext(file.name)
+            ext = ext.lower().lstrip(".")
+
+            # Check if this extension is configured for tagging
+            if ext in self.file_extension and ext not in extensions_found:
+                extensions_found.add(ext)
+                # Add the configured tags for this extension
+                for tag in self.file_extension[ext]:
+                    if tag not in tags_to_add:
+                        tags_to_add.append(tag)
+                logger.trace(f"Found extension '.{ext}' in torrent '{torrent.name}', adding tags: {self.file_extension[ext]}")
+
+        return tags_to_add
