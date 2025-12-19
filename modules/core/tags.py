@@ -64,10 +64,7 @@ class Tags:
                     and not util.is_tag_in_torrent(self.private_tag, torrent.tags)
                     and self.qbt.is_torrent_private(torrent)
                 )
-                or (
-                    file_extension
-                    and not all(util.is_tag_in_torrent(tag, torrent.tags) for tag in file_extension)
-                )
+                or (file_extension and not all(util.is_tag_in_torrent(tag, torrent.tags) for tag in file_extension))
             ):
                 tags_to_add = tracker["tag"].copy()
                 if self.tag_stalled_torrents and torrent.state == "stalledDL":
@@ -130,8 +127,7 @@ class Tags:
                         if tag not in tags_to_add:
                             tags_to_add.append(tag)
                     logger.trace(
-                        f"Found extension '.{ext}' in file '{file.name}' "
-                        f"from torrent '{torrent.name}', adding tags: {ext_tags}"
+                        f"Found extension '.{ext}' in file '{file.name}' from torrent '{torrent.name}', adding tags: {ext_tags}"
                     )
 
         return tags_to_add

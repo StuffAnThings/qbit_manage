@@ -1017,8 +1017,7 @@ class Config:
 
                 if "tag" not in tag_data:
                     logger.warning(
-                        f"Invalid file_extension configuration for extension '{ext_key}'. "
-                        f"Missing 'tag' key. Skipping."
+                        f"Invalid file_extension configuration for extension '{ext_key}'. Missing 'tag' key. Skipping."
                     )
                     continue
 
