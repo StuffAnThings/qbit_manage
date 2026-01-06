@@ -11,14 +11,14 @@ name = "qbit_manage"
 dynamic = ["version"]
 description = "This tool will help manage tedious tasks in qBittorrent and automate them. Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 authors = [
     {name = "bobokun"},
 ]
 dependencies = [
     "argon2-cffi==25.1.0",
-    "bencodepy==0.9.5",
+    "bencode.py==4.0.0",
     "croniter==6.0.0",
     "fastapi==0.128.0",
     "GitPython==3.1.46",
