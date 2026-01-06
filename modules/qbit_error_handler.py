@@ -4,8 +4,8 @@ Centralized error handling for qBittorrent API exceptions
 
 import functools
 import time
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
 
 from qbittorrentapi import APIConnectionError
 from qbittorrentapi import APIError
