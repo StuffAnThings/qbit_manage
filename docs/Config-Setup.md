@@ -181,6 +181,9 @@ If you're needing information regarding hardlinks here are some excellent resour
 This functionality will tag any torrent's whose file (or largest file if multi-file) does not have any hardlinks outside the qbm root_dir.
 Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected in the same root_dir.
 
+> [!TIP]
+> Use `No Hardlinks` with [sharelimits](#sharelimits) to remove torrents whose largest file is no longer hardlinked based on seedtime and/or seed ratio.
+
 | Configuration | Definition                                                | Required            |
 | :------------ | :-------------------------------------------------------- | :------------------ |
 | `key`         | Category name to check for nohardlinked torrents in qbit. | <center>✅</center> |
