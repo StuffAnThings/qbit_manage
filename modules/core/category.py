@@ -106,11 +106,10 @@ class Category:
                         and not any(tag in torrent.tags for tag in self.config.settings.get("force_auto_tmm_ignore_tags", []))
                     ):
                         torrent.set_auto_management(True)
-                except Conflict409Error as e:
+                except Conflict409Error:
                     # Conflict409Error with "Incorrect category name" means category doesn't exist
                     ex = logger.print_line(
-                        f'Existing category "{new_cat}" not found for save path '
-                        f"{torrent.save_path}, category will be created.",
+                        f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.',
                         self.config.loglevel,
                     )
                     self.config.notify(ex, "Update Category", False)
