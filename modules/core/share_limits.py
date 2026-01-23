@@ -273,7 +273,7 @@ class ShareLimits:
                 share_limits_not_yet_tagged,
             )
 
-            tor_reached_seed_limit = self.has_reached_seed_limit(
+            tor_reached_seed_limit, exclusion_tag_added = self.has_reached_seed_limit(
                 torrent=torrent,
                 max_ratio=group_config["max_ratio"],
                 max_seeding_time=group_config["max_seeding_time"],
@@ -290,7 +290,8 @@ class ShareLimits:
             tags_changed = self.update_share_limits_tag_for_torrent(torrent)
 
             # Get updated torrent after checking if the torrent has reached seed limits
-            if tags_changed:
+            # or if an exclusion tag was added (min_seeding_time, min_num_seeds, last_active)
+            if tags_changed or exclusion_tag_added:
                 torrent = self.qbt.get_torrents({"torrent_hashes": t_hash})[0]
 
             if self._should_update_torrent(
@@ -660,9 +661,15 @@ class ShareLimits:
         tracker,
         reset_upload_speed_on_unmet_minimums,
     ):
-        """Check if torrent has reached seed limit"""
+        """Check if torrent has reached seed limit.
+
+        Returns:
+            tuple: (body, exclusion_tag_added) where body is the status message (or False if no limit reached)
+                   and exclusion_tag_added is True if an exclusion tag was added to the torrent.
+        """
         body = ""
         torrent_tags = torrent.tags
+        exclusion_tag_added = False
 
         def _remove_tag(tag):
             nonlocal torrent_tags
@@ -671,8 +678,9 @@ class ShareLimits:
                     torrent.remove_tags(tags=tag)
 
         def _add_tag_and_reset_limits(tag, reason_msg):
-            nonlocal torrent_tags
+            nonlocal torrent_tags, exclusion_tag_added
             if not is_tag_in_torrent(tag, torrent_tags):
+                exclusion_tag_added = True
                 logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
                 logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
                 logger.print_line(logger.insert_space(reason_msg, 8), self.config.loglevel)
@@ -763,26 +771,26 @@ class ShareLimits:
 
         if min_num_seeds is not None:
             if _is_less_than_min_num_seeds():
-                return body
+                return body, exclusion_tag_added
         if min_last_active is not None:
             if not _has_reached_min_last_active_time_limit():
-                return body
+                return body, exclusion_tag_added
         if max_ratio is not None and max_ratio != -1:
             if max_ratio >= 0:
                 if torrent.ratio >= max_ratio and _has_reached_min_seeding_time_limit():
                     body += logger.insert_space(f"Ratio vs Max Ratio: {torrent.ratio:.2f} >= {max_ratio:.2f}", 8)
-                    return body
+                    return body, exclusion_tag_added
             elif max_ratio == -2 and self.qbt.global_max_ratio_enabled and _has_reached_min_seeding_time_limit():
                 if torrent.ratio >= self.qbt.global_max_ratio:
                     body += logger.insert_space(
                         f"Ratio vs Global Max Ratio: {torrent.ratio:.2f} >= {self.qbt.global_max_ratio:.2f}", 8
                     )
-                    return body
+                    return body, exclusion_tag_added
         if _has_reached_seeding_time_limit():
-            return body
+            return body, exclusion_tag_added
         if _has_reached_max_last_active_time_limit():
-            return body
-        return False
+            return body, exclusion_tag_added
+        return False, exclusion_tag_added
 
     def delete_share_limits_suffix_tag(self):
         """ "Delete Share Limits Suffix Tag from version 4.0.0"""
