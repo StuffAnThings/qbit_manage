@@ -184,6 +184,9 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 > [!TIP]
 > Use `No Hardlinks` with [sharelimits](#sharelimits) to remove torrents whose largest file is no longer hardlinked based on seedtime and/or seed ratio.
 
+> [!TIP]
+> For Linux/Mac users you can use [TRaSH Guide's Method 3](https://trash-guides.info/File-and-Folder-Structure/Check-if-hardlinks-are-working/#mac-or-linux-method-3-using-inode-copies) to locate the other hardlinked files.
+
 | Configuration | Definition                                                | Required            |
 | :------------ | :-------------------------------------------------------- | :------------------ |
 | `key`         | Category name to check for nohardlinked torrents in qbit. | <center>✅</center> |
