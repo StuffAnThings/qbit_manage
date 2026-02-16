@@ -1,5 +1,6 @@
 """Utility functions for qBit Manage."""
 
+import fnmatch as fnmatch_module
 import glob
 import json
 import logging
@@ -12,9 +13,6 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-
-import fnmatch as fnmatch_module
-from fnmatch import fnmatch
 
 import requests
 import ruamel.yaml
