@@ -213,6 +213,8 @@ class RemoveOrphaned:
 
                 # Process directories (parallel if executor available, synchronous otherwise)
                 if self.executor:
+                    # Enclosing the map result in a list so the code iterates
+                    # through it and properly handles exceptions.
                     list(self.executor.map(
                         lambda directory: util.remove_empty_directories(
                             directory,
