@@ -11,8 +11,10 @@ import signal
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from fnmatch import fnmatch
 from pathlib import Path
+
+import fnmatch as fnmatch_module
+from fnmatch import fnmatch
 
 import requests
 import ruamel.yaml
@@ -1009,7 +1011,7 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patt
     for pattern in exclude_patterns:
         # Convert to regex for faster matching
 
-        regex_pattern = fnmatch.translate(pattern)
+        regex_pattern = fnmatch_module.translate(pattern)
         compiled_patterns.append(re.compile(regex_pattern))
 
     # Cache directory checks to avoid redundant operations
