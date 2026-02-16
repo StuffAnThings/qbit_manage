@@ -1,6 +1,6 @@
 """Utility functions for qBit Manage."""
 
-import fnmatch as fnmatch_module
+import fnmatch
 import glob
 import json
 import logging
@@ -1009,7 +1009,7 @@ def remove_empty_directories(pathlib_root_dir, excluded_paths=None, exclude_patt
     for pattern in exclude_patterns:
         # Convert to regex for faster matching
 
-        regex_pattern = fnmatch_module.translate(pattern)
+        regex_pattern = fnmatch.translate(pattern)
         compiled_patterns.append(re.compile(regex_pattern))
 
     # Cache directory checks to avoid redundant operations
