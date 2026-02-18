@@ -14,7 +14,7 @@ The desktop app provides a graphical interface and automatically handles configu
 ### 2. Standalone Binary (Command-line)
 - **Windows**: `qbit-manage-windows-amd64.exe`
 - **macOS**: `qbit-manage-macos-arm64` (Apple Silicon) or `qbit-manage-macos-x86_64` (Intel)
-- **Linux**: `qbit-manage-linux-amd64`
+- **Linux**: `qbit-manage-linux-amd64` (x86_64) or `qbit-manage-linux-arm64` (ARM64/Raspberry Pi)
 
 Perfect for server environments, automation, or users who prefer command-line tools.
 
@@ -49,10 +49,12 @@ Perfect for server environments, automation, or users who prefer command-line to
 4. The app will automatically create the configuration directory and files
 
 ### Linux
-1. Download `qbit-manage-*-desktop-installer.deb` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
+1. Download the appropriate `.deb` installer from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
+   - `qBit.Manage_<version>_amd64-desktop-installer.deb` for x86_64 systems
+   - `qBit.Manage_<version>_arm64-desktop-installer.deb` for ARM64 systems (Raspberry Pi, etc.)
 2. Install using your package manager:
    ```bash
-   sudo dpkg -i qbit-manage-*-desktop-installer.deb
+   sudo dpkg -i qBit.Manage_*-desktop-installer.deb
    sudo apt-get install -f  # Fix any dependency issues
    ```
 3. Launch qbit_manage from your applications menu or run `qbit-manage` in terminal
@@ -87,8 +89,10 @@ Perfect for server environments, automation, or users who prefer command-line to
    ```
 
 ### Linux
-1. Download `qbit-manage-linux-amd64` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
-2. Make the binary executable:
+1. Download the appropriate binary from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
+   - `qbit-manage-linux-amd64` for x86_64 systems
+   - `qbit-manage-linux-arm64` for ARM64 systems (Raspberry Pi, etc.)
+2. Make the binary executable (substitute `arm64` for ARM64 systems):
    ```bash
    chmod +x qbit-manage-linux-amd64
    ```
