@@ -29,20 +29,20 @@ make install-hooks
 
 The `make venv` target handles everything: installs uv if needed, creates a `.venv`, installs the project in editable mode, and adds dev dependencies (pre-commit, ruff).
 
-## Available Make Targets
+## Common Make Targets
 
 | Target | Description |
 |--------|-------------|
 | `make venv` | Create virtual environment and install all dependencies |
+| `make install-hooks` | Install pre-commit hooks into your local repo |
 | `make test` | Run the test suite |
 | `make lint` | Run ruff linter with auto-fix |
 | `make format` | Run ruff code formatter |
 | `make pre-commit` | Run all pre-commit hooks on all files |
-| `make install-hooks` | Install pre-commit hooks into your local repo |
-| `make clean` | Remove all generated files (venv, dist, build, cache) |
-| `make install` | Install qbit-manage as a `uv tool` (system-wide CLI) |
 | `make build` | Build Python package for distribution |
-| `make help` | Show all available targets |
+| `make install` | Install qbit-manage as a `uv tool` (system-wide CLI) |
+| `make clean` | Remove all generated files (venv, dist, build, cache) |
+| `make help` | Show all available targets (including release/publishing targets) |
 
 ## Code Style
 
