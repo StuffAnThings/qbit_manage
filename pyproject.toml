@@ -29,7 +29,7 @@ dependencies = [
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.9",
-    "uvicorn==0.40.0",
+    "uvicorn==0.41.0",
 ]
 
 [project.scripts]
@@ -42,7 +42,7 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.5.1",
-    "ruff==0.15.1",
+    "ruff==0.15.2",
 ]
 
 [tool.ruff]
