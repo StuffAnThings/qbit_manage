@@ -258,9 +258,18 @@ class RemoveOrphaned:
 
     def get_full_path_of_torrent_files(self, torrent):
         """Get full paths for torrent files with improved path handling"""
-        save_path = torrent.save_path
+        # Use content_path to determine the actual base directory
+        # where files currently reside. Unlike save_path (which
+        # always points to the final destination), content_path
+        # reflects the real storage location — the download path
+        # during active downloads, or save_path after completion.
+        base_path = os.path.dirname(torrent.content_path)
 
-        # Use list comprehension for better performance with cross-platform path normalization
-        fullpath_torrent_files = [os.path.normpath(os.path.join(save_path, file.name)) for file in torrent.files]
+        fullpath_torrent_files = [
+            os.path.normpath(
+                os.path.join(base_path, file.name)
+            )
+            for file in torrent.files
+        ]
 
         return fullpath_torrent_files
