@@ -258,9 +258,9 @@ class RemoveOrphaned:
 
     def get_full_path_of_torrent_files(self, torrent):
         """Get full paths for torrent files with improved path handling"""
-        # Use download_path for incomplete torrents so that
-        # files actively downloading to a separate directory
-        # are not incorrectly flagged as orphans.
+        # Use download_path for incomplete torrents so that files actively
+        # downloading to a separate directory are not incorrectly flagged as
+        # orphans.
         if (
             not torrent.state_enum.is_complete
             and torrent.get("download_path", "")
