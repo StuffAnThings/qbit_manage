@@ -21,8 +21,13 @@ jobs:
         include:
           - os: ubuntu-latest
             python-version: "3.12"
+            arch: amd64
+          - os: ubuntu-24.04-arm # for Arm based Linux (Raspberry Pi, etc.)
+            python-version: "3.12"
+            arch: arm64
           - os: windows-latest
             python-version: "3.12"
+            arch: amd64
           - os: "macos-latest" # for Arm based macs (M1 and above).
             python-version: "3.12"
             arch: arm64
@@ -98,16 +103,11 @@ jobs:
         run: |
           mkdir -p out
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            mv "dist/${APP_NAME}.exe" "out/${APP_NAME}-windows-amd64.exe"
+            mv "dist/${APP_NAME}.exe" "out/${APP_NAME}-windows-${{ matrix.arch }}.exe"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            ARCH=$(uname -m)
-            if [[ "$ARCH" == "arm64" ]]; then
-              mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-arm64"
-            else
-              mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-x86_64"
-            fi
+            mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-${{ matrix.arch }}"
           else
-            mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-amd64"
+            mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-${{ matrix.arch }}"
           fi
 
       # Build Tauri desktop shell after binaries are ready
@@ -163,19 +163,13 @@ jobs:
 
           # Copy the actual binary for this platform as a resource
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp "out/${APP_NAME}-windows-amd64.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-amd64.exe"
+            cp "out/${APP_NAME}-windows-${{ matrix.arch }}.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-${{ matrix.arch }}.exe"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            ARCH=$(uname -m)
-            if [[ "$ARCH" == "arm64" ]]; then
-              cp "out/${APP_NAME}-macos-arm64" "desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64"
-              chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64"
-            else
-              cp "out/${APP_NAME}-macos-x86_64" "desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64"
-              chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64"
-            fi
+            cp "out/${APP_NAME}-macos-${{ matrix.arch }}" "desktop/tauri/src-tauri/bin/qbit-manage-macos-${{ matrix.arch }}"
+            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-${{ matrix.arch }}"
           else
-            cp "out/${APP_NAME}-linux-amd64" "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
-            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64"
+            cp "out/${APP_NAME}-linux-${{ matrix.arch }}" "desktop/tauri/src-tauri/bin/qbit-manage-linux-${{ matrix.arch }}"
+            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-linux-${{ matrix.arch }}"
           fi
 
       - name: Update Tauri version files
@@ -262,18 +256,7 @@ jobs:
       - name: Set BUILD_ARCH for artifact naming
         shell: bash
         run: |
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-            ARCH=$(uname -m)
-            if [[ "$ARCH" == "arm64" ]]; then
-              echo "BUILD_ARCH=arm64" >> $GITHUB_ENV
-            else
-              echo "BUILD_ARCH=x86_64" >> $GITHUB_ENV
-            fi
-          elif [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "BUILD_ARCH=amd64" >> $GITHUB_ENV
-          else
-            echo "BUILD_ARCH=amd64" >> $GITHUB_ENV
-          fi
+          echo "BUILD_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
 
       - name: Upload build outputs (binary + Tauri bundles)
         uses: actions/upload-artifact@v7
@@ -310,6 +293,7 @@ jobs:
           # Copy server binaries with error checking
           server_files=(
             "qbit-manage-linux-amd64"
+            "qbit-manage-linux-arm64"
             "qbit-manage-macos-arm64"
             "qbit-manage-macos-x86_64"
             "qbit-manage-windows-amd64.exe"
