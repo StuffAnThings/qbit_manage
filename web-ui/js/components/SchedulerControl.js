@@ -13,7 +13,7 @@ class SchedulerControl {
         this.container = options.container;
         this.onScheduleChange = options.onScheduleChange || (() => {});
 
-        this.api = new API();
+        this.api = window.app.api || new API();
         this.currentStatus = {
             current_schedule: null,
             next_run: null,

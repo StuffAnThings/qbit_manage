@@ -11,7 +11,7 @@ import { EYE_ICON_SVG, EYE_SLASH_ICON_SVG } from '../utils/icons.js';
 export class SecurityComponent {
     constructor(containerId, apiInstance = null) {
         this.container = document.getElementById(containerId);
-        this.api = apiInstance || new API();
+        this.api = apiInstance || window.app.api || new API();
         this.currentSettings = null;
         this.hasApiKey = false; // Track whether we have an API key without storing the key itself
     }

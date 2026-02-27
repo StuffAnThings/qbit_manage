@@ -34,7 +34,7 @@ class ConfigForm {
         this.onDataChange = options.onDataChange || (() => {});
         this.onValidationChange = options.onValidationChange || (() => {});
 
-        this.api = new API();
+        this.api = window.app.api || new API();
         this.currentSection = null;
         this.currentData = {};
         this.originalData = {}; // Store original data for reset
