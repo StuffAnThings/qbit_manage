@@ -1,4 +1,5 @@
 import time
+import requests
 from json import JSONDecodeError
 
 from modules import util
@@ -21,7 +22,11 @@ class Notifiarr:
         self.instance = params["instance"]
         self.url = f"{self.BASE_URL}/{self.API_VERSION}/"
         logger.secret(self.apikey)
-        response = self.config.get(f"{self.url}user/qbitManage/", headers=self.header, params={"fetch": "settings"})
+        try:
+            response = self.config.get(f"{self.url}user/qbitManage/", headers=self.header, params={"fetch": "settings"})
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise Failed(f"Notifiarr error: Unable to connect to Notifiarr ({e})")
         response_json = None
         try:
             response_json = response.json()
@@ -37,6 +42,10 @@ class Notifiarr:
     def notification(self, json):
         """Send notification to Notifiarr"""
         params = {"qbit_client": self.config.data["qbt"]["host"], "instance": self.instance}
-        response = self.config.get(f"{self.url}notification/qbitManage/", json=json, headers=self.header, params=params)
+        try:
+            response = self.config.get(f"{self.url}notification/qbitManage/", json=json, headers=self.header, params=params)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise Failed(f"Notifarr error: Unable to send notification ({e})")
         time.sleep(1)  # Pause for 1 second before sending the next request
         return response
