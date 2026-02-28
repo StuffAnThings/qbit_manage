@@ -1,6 +1,7 @@
 import time
-import requests
 from json import JSONDecodeError
+
+import requests
 
 from modules import util
 from modules.util import Failed

@@ -1,6 +1,7 @@
 """Apprise notification class"""
 
 import time
+
 import requests
 
 from modules import util
@@ -30,5 +31,5 @@ class Apprise:
             response = self.config.get(status_endpoint, headers={"Accept": "application/json"})
             response.raise_for_status()
             return response
-        except requests.exceptions.RequestException as e: 
+        except requests.exceptions.RequestException as e:
             raise Failed(f"Apprise Error: Unexpected error connecting to {status_endpoint} ({e})")
