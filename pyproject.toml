@@ -20,7 +20,7 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "bencode.py==4.0.0",
     "croniter==6.0.0",
-    "fastapi==0.129.0",
+    "fastapi==0.135.1",
     "GitPython==3.1.46",
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
@@ -42,7 +42,7 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 [project.optional-dependencies]
 dev = [
     "pre-commit==4.5.1",
-    "ruff==0.15.2",
+    "ruff==0.15.5",
 ]
 
 [tool.ruff]

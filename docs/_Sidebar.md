@@ -25,6 +25,7 @@
     - [Commands](Commands)
     - [Web API](Web-API)
     - [Web UI](Web-UI)
+    - [Contributing & Building](Contributing)
     - Extras
        - [Standalone Scripts](Standalone-Scripts)
        - [V4 Migration Guide](v4-Migration-Guide)

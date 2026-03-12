@@ -14,7 +14,7 @@ The desktop app provides a graphical interface and automatically handles configu
 ### 2. Standalone Binary (Command-line)
 - **Windows**: `qbit-manage-windows-amd64.exe`
 - **macOS**: `qbit-manage-macos-arm64` (Apple Silicon) or `qbit-manage-macos-x86_64` (Intel)
-- **Linux**: `qbit-manage-linux-amd64`
+- **Linux**: `qbit-manage-linux-amd64` (x86_64) or `qbit-manage-linux-arm64` (ARM64/Raspberry Pi)
 
 Perfect for server environments, automation, or users who prefer command-line tools.
 
@@ -37,25 +37,33 @@ Perfect for server environments, automation, or users who prefer command-line to
 ## Desktop App Installation
 
 ### Windows
-1. Download `qbit-manage-*-desktop-installer-setup.exe` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
+1. Download `qBit.Manage_<version>_x64-desktop-installer-setup.exe` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
 2. Run the installer and follow the setup wizard
-3. Launch qbit_manage from the Start Menu or desktop shortcut
+3. Launch qBit Manage from the Start Menu or desktop shortcut
 4. The app will automatically create the configuration directory and files
 
 ### macOS
-1. Download `qbit-manage-*-desktop-installer.dmg` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
-2. Open the DMG file and drag qbit_manage to your Applications folder
-3. Launch qbit_manage from Applications (you may need to allow it in System Preferences > Security & Privacy)
-4. The app will automatically create the configuration directory and files
+1. Download the appropriate `.dmg` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
+   - `qBit.Manage_<version>_aarch64-desktop-installer.dmg` for Apple Silicon (M1+)
+   - `qBit.Manage_<version>_x64-desktop-installer.dmg` for Intel Macs
+2. Open the DMG file and drag qBit Manage to your Applications folder
+3. The app is not code-signed. To open it, remove the quarantine attribute:
+   ```bash
+   xattr -cr /Applications/qBit\ Manage.app
+   ```
+4. Launch qBit Manage from Applications
+5. The app will automatically create the configuration directory and files
 
 ### Linux
-1. Download `qbit-manage-*-desktop-installer.deb` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
+1. Download the appropriate `.deb` installer from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
+   - `qBit.Manage_<version>_amd64-desktop-installer.deb` for x86_64 systems
+   - `qBit.Manage_<version>_arm64-desktop-installer.deb` for ARM64 systems (Raspberry Pi, etc.)
 2. Install using your package manager:
    ```bash
-   sudo dpkg -i qbit-manage-*-desktop-installer.deb
+   sudo dpkg -i qBit.Manage_*-desktop-installer.deb
    sudo apt-get install -f  # Fix any dependency issues
    ```
-3. Launch qbit_manage from your applications menu or run `qbit-manage` in terminal
+3. Launch qBit Manage from your applications menu or run `qbit-manage` in terminal
 4. The app will automatically create the configuration directory and files
 
 ## Standalone Binary Installation
@@ -73,8 +81,9 @@ Perfect for server environments, automation, or users who prefer command-line to
 1. Download the appropriate binary from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
    - `qbit-manage-macos-arm64` for Apple Silicon Macs (M1, M2, M3, etc.)
    - `qbit-manage-macos-x86_64` for Intel Macs
-2. Make the binary executable:
+2. Remove the quarantine attribute and make executable:
    ```bash
+   xattr -cr qbit-manage-macos-*
    chmod +x qbit-manage-macos-*
    ```
 3. Move to a directory in your PATH (optional):
@@ -87,8 +96,10 @@ Perfect for server environments, automation, or users who prefer command-line to
    ```
 
 ### Linux
-1. Download `qbit-manage-linux-amd64` from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases)
-2. Make the binary executable:
+1. Download the appropriate binary from the [releases page](https://github.com/StuffAnThings/qbit_manage/releases):
+   - `qbit-manage-linux-amd64` for x86_64 systems
+   - `qbit-manage-linux-arm64` for ARM64 systems (Raspberry Pi, etc.)
+2. Make the binary executable (substitute `arm64` for ARM64 systems):
    ```bash
    chmod +x qbit-manage-linux-amd64
    ```
