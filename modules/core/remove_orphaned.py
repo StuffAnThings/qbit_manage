@@ -273,6 +273,8 @@ class RemoveOrphaned:
         else:
             base_path = torrent.save_path
 
+        # Use list comprehension for better performance with cross-platform
+        # path normalization
         fullpath_torrent_files = [
             os.path.normpath(
                 os.path.join(base_path, file.name)
