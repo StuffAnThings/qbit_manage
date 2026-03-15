@@ -15,7 +15,7 @@ class LogViewer {
         this.currentLogFile = localStorage.getItem('qbm-selected-log-file') || 'qbit_manage.log'; // Default log file
         this.currentLogLimit = parseInt(localStorage.getItem('qbm-log-limit') || '50'); // Default to 50 lines
 
-        this.api = new API();
+        this.api = window.app.api || new API();
         this.logs = [];
         this.filteredLogs = [];
     }

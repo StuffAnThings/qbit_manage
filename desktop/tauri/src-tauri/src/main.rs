@@ -365,6 +365,7 @@ fn get_binary_names() -> Vec<&'static str> {
     vec![
       "qbit-manage",
       "qbit-manage-linux-amd64",
+      "qbit-manage-linux-arm64",
       "qbit-manage-macos-x86_64",
       "qbit-manage-macos-arm64"
     ]
