@@ -1,5 +1,7 @@
 import time
 
+from qbittorrentapi import Conflict409Error
+
 from modules import util
 from modules.qbit_error_handler import handle_qbit_api_errors
 
@@ -104,9 +106,18 @@ class Category:
                         and not any(tag in torrent.tags for tag in self.config.settings.get("force_auto_tmm_ignore_tags", []))
                     ):
                         torrent.set_auto_management(True)
+                except Conflict409Error:
+                    # Conflict409Error with "Incorrect category name" means category doesn't exist
+                    ex = logger.print_line(
+                        f'Existing category "{new_cat}" not found for save path {torrent.save_path}, category will be created.',
+                        self.config.loglevel,
+                    )
+                    self.config.notify(ex, "Update Category", False)
+                    self.client.torrent_categories.create_category(name=new_cat, save_path=torrent.save_path)
+                    torrent.set_category(category=new_cat)
                 except Exception as e:
-                    # Check if it's a category creation issue
-                    if "not found" in str(e).lower() or "409" in str(e):
+                    # Check if it's a category creation issue (fallback for other error types)
+                    if "not found" in str(e).lower():
                         ex = logger.print_line(
                             f'Existing category "{new_cat}" not found for save path '
                             f"{torrent.save_path}, category will be created.",

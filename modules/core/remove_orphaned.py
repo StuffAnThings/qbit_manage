@@ -213,12 +213,13 @@ class RemoveOrphaned:
 
                 # Process directories (parallel if executor available, synchronous otherwise)
                 if self.executor:
-                    self.executor.map(
+                    for _ in self.executor.map(
                         lambda directory: util.remove_empty_directories(
                             directory, self.qbt.get_category_save_paths(), exclude_patterns
                         ),
                         orphaned_parent_paths,
-                    )
+                    ):
+                        pass
                 else:
                     for directory in orphaned_parent_paths:
                         util.remove_empty_directories(directory, self.qbt.get_category_save_paths(), exclude_patterns)
@@ -258,9 +259,16 @@ class RemoveOrphaned:
 
     def get_full_path_of_torrent_files(self, torrent):
         """Get full paths for torrent files with improved path handling"""
-        save_path = torrent.save_path
+        # Use download_path for incomplete torrents so that files actively
+        # downloading to a separate directory are not incorrectly flagged as
+        # orphans.
+        if not torrent.state_enum.is_complete and torrent.get("download_path", ""):
+            base_path = torrent["download_path"]
+        else:
+            base_path = torrent.save_path
 
-        # Use list comprehension for better performance with cross-platform path normalization
-        fullpath_torrent_files = [os.path.normpath(os.path.join(save_path, file.name)) for file in torrent.files]
+        # Use list comprehension for better performance with cross-platform
+        # path normalization
+        fullpath_torrent_files = [os.path.normpath(os.path.join(base_path, file.name)) for file in torrent.files]
 
         return fullpath_torrent_files

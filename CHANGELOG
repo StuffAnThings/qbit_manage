@@ -1,13 +1,27 @@
 # Requirements Updated
-- "fastapi==0.122.0"
-- "qbittorrent-api==2025.11.1"
-- "ruff==0.14.6"
+- "bencode.py==4.0.0"
+- "croniter==6.2.2"
+- "fastapi==0.135.1"
+- "GitPython==3.1.46"
+- "humanize==4.15.0"
+- "ruamel.yaml==0.19.1"
+- "uvicorn==0.42.0"
+- "pre-commit==4.5.1"
+- "ruff==0.15.7"
 
-# New Features
-- Adds max limit for unregistered torrent removal (New config option: `rem_unregistered_max_torrents`) (Fixes #975)
-- Adds tagging all private trackers (New config option: `private_tag`) (Fixes #883)
+# Improvements
+- Adds unraid version detection in mover script
+- Add better logging for apprise/notifiarr connection errors
+- Adds new linux ARM64 standalone binary and desktop builds
+- Changed dependency to bencode.py instead of bencodepy for packing for nixos, updated minimum python version to 3.10
 
 # Bug Fixes
-- Fixes bug constantly updatingn share limits when using `upload_speed_on_limit_reached` (Fixes #959) (Thanks to @Seros)
+- Fixes active downloads marked orphaned when qbit uses incomplete dir (Fixes #1115)
+- Fixed an issue where the qbm was failing to remove directories that rem_orphaned emptied. (Fixes #1089)
+- Fixed: Share limits not removed when exclusion tag added (Fixes #1067)
+- Fixed: Conflict409Error not triggering category auto-create (Fixes #1063)
+- Fixed: BHD 'Season Pack:' message not detected as unregistered
+- Fixed a bug where QBT_BASE_URL configuration was being ignored by frontend components (Fixes #1041)
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.4...v4.6.5
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.5...v4.6.6
+Special thanks to @no-food-just-commits, @bakerboy448, @flyingpeakock, and @timrettop for their contributions!

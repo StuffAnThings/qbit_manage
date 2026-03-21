@@ -1,5 +1,6 @@
 """Utility functions for qBit Manage."""
 
+import fnmatch
 import glob
 import json
 import logging
@@ -11,7 +12,6 @@ import signal
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from fnmatch import fnmatch
 from pathlib import Path
 
 import requests
@@ -364,7 +364,7 @@ class TorrentMessages:
         "OTHER",
         "TORRENT HAS BEEN DELETED",
         "NUKED",
-        "SEASON PACK:",
+        "SEASON PACK",
         "SEASON PACK OUT",
         "SEASON PACK UPLOADED",
     ]

@@ -16,19 +16,19 @@ repos:
         args: [--autofix, --indent, '4', --no-sort-keys]
         exclude: ^desktop/tauri/src-tauri/tauri\.conf\.json$
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.37.1  # or higher tag
+    rev: v1.38.0  # or higher tag
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
         exclude: ^.github/
   - repo: https://github.com/lyz-code/yamlfix
-    rev: 1.19.0
+    rev: 1.19.1
     hooks:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.14.6
+    # Ruff version
+    rev: v0.15.7
     hooks:
       # Run the linter.
       - id: ruff-check
