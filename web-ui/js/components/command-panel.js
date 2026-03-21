@@ -13,7 +13,7 @@ class CommandPanel {
         this.drawerContainer = options.drawerContainer;
         this.onCommandExecute = options.onCommandExecute || (() => {});
 
-        this.api = new API();
+        this.api = window.app.api || new API();
         this.isVisible = false;
         this.runCommandsModal = null; // To store the reference to the run commands modal
 

@@ -27,7 +27,7 @@ repos:
       - id: yamlfix
         exclude: ^.github/
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
+    # Ruff version
     rev: v0.15.6
     hooks:
       # Run the linter.
