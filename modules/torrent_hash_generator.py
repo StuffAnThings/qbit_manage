@@ -1,6 +1,6 @@
 import hashlib
 
-import bencodepy
+import bencode
 
 from modules import util
 from modules.util import Failed
@@ -17,8 +17,8 @@ class TorrentHashGenerator:
             with open(self.torrent_file_path, "rb") as torrent_file:
                 torrent_data = torrent_file.read()
             try:
-                torrent_info = bencodepy.decode(torrent_data)
-                info_data = bencodepy.encode(torrent_info[b"info"])
+                torrent_info = bencode.decode(torrent_data)
+                info_data = bencode.encode(torrent_info[b"info"])
                 info_hash = hashlib.sha1(info_data).hexdigest()
                 logger.trace(f"info_hash: {info_hash}")
                 return info_hash
