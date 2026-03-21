@@ -213,16 +213,13 @@ class RemoveOrphaned:
 
                 # Process directories (parallel if executor available, synchronous otherwise)
                 if self.executor:
-                    # Enclosing the map result in a list so the code iterates
-                    # through it and properly handles exceptions.
-                    list(
-                        self.executor.map(
-                            lambda directory: util.remove_empty_directories(
-                                directory, self.qbt.get_category_save_paths(), exclude_patterns
-                            ),
-                            orphaned_parent_paths,
-                        )
-                    )
+                    for _ in self.executor.map(
+                        lambda directory: util.remove_empty_directories(
+                            directory, self.qbt.get_category_save_paths(), exclude_patterns
+                        ),
+                        orphaned_parent_paths,
+                    ):
+                        pass
                 else:
                     for directory in orphaned_parent_paths:
                         util.remove_empty_directories(directory, self.qbt.get_category_save_paths(), exclude_patterns)

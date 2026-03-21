@@ -4,7 +4,7 @@ Pull requests are welcome! Please submit them to the [develop branch](https://gi
 
 ## Prerequisites
 
-- **Python 3.9+**
+- **Python 3.10+**
 - **Git**
 - **[uv](https://docs.astral.sh/uv/)** (Python package manager)
 - **[Rust](https://rustup.rs/)** (only for desktop app builds)
