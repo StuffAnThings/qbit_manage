@@ -161,6 +161,57 @@ If you are unsure what key word to use. Simply select a torrent within qB and do
 > [!NOTE]
 > If `other` is not used then trackers will be auto added.
 
+## **file_extension:**
+
+---
+
+This section defines tags to apply based on file extensions found in torrents.
+
+| Configuration | Definition                                                                                       | Required            |
+| :------------ | :----------------------------------------------------------------------------------------------- | :------------------ |
+| `key`         | File extension to match. You can define multiple extensions by splitting with `|` delimiter      | <center>✅</center> |
+
+| Variable | Definition                                              | Default Values | Required            |
+| :------- | :------------------------------------------------------ | :------------- | :------------------ |
+| `tag`    | The tag or list of tags to apply when extension matches | None           | <center>✅</center> |
+
+This feature checks all files within a torrent and applies tags if any file matches the specified extension(s).
+
+**Key Features:**
+- **Case-insensitive matching**: Extensions like `ISO`, `iso`, and `.iso` are all treated the same
+- **Compound extension support**: Can match multi-part extensions like `tar.gz`, `tar.bz2`, etc.
+- **Multiple extensions per tag**: Use `|` delimiter to group extensions (e.g., `tar.gz|tar.bz2|tar.xz`)
+- **Multiple tags per extension**: Can apply multiple tags to a single extension or group
+
+**Examples:**
+
+```yaml
+file_extension:
+  # Single extension with single tag
+  iso:
+    tag: ISO
+
+  # Single extension with multiple tags
+  rar:
+    tag:
+      - RAR
+      - Archived
+
+  # Multiple extensions sharing the same tag(s)
+  tar.gz|tar.bz2|tar.xz:
+    tag: TarArchive
+
+  # Group common archive formats
+  zip|7z:
+    tag: Archived
+```
+
+> [!TIP]
+> Extensions should NOT include the leading dot. Use `iso` not `.iso`.
+
+> [!NOTE]
+> If a file matches multiple configured extensions, all corresponding tags will be applied. For example, a file named `backup.tar.gz` will match both `tar.gz` and `gz` if both are configured.
+
 ## **nohardlinks:**
 
 ---

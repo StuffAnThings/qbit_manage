@@ -19,6 +19,7 @@ import { directorySchema } from '../config-schemas/directory.js';
 import { catSchema } from '../config-schemas/cat.js';
 import { catChangeSchema } from '../config-schemas/cat_change.js';
 import { trackerSchema } from '../config-schemas/tracker.js';
+import { fileExtTagsSchema } from '../config-schemas/file_extension.js';
 import { nohardlinksSchema } from '../config-schemas/nohardlinks.js';
 import { shareLimitsSchema } from '../config-schemas/share_limits.js';
 import { recyclebinSchema } from '../config-schemas/recyclebin.js';
@@ -54,6 +55,7 @@ class ConfigForm {
             cat: catSchema,
             cat_change: catChangeSchema,
             tracker: trackerSchema,
+            file_extension: fileExtTagsSchema,
             nohardlinks: nohardlinksSchema,
             share_limits: shareLimitsSchema,
             recyclebin: recyclebinSchema,

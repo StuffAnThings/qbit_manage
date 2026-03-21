@@ -140,6 +140,37 @@ tracker:
   other:
     tag: other
 
+file_extension:
+  # Tag torrents based on file extensions found in the torrent
+  # This will check all files in the torrent and apply tags if any file matches the specified extension
+  # Supports compound extensions like "tar.gz" - the extension is matched at the end of the filename
+  # <Extension>:    # <MANDATORY> This is the extension to match. You can define multiple extensions by splitting with `|` delimiter
+  # <MANDATORY> Set tag name. Can be a list of tags or a single tag
+  #   tag: <Tag Name>
+  # Extensions are case-insensitive and should NOT include the leading dot
+
+  # Single extension with single tag
+  iso:
+    tag: ISO
+
+  # Single extension with multiple tags
+  rar:
+    tag:
+      - RAR
+      - Archived
+
+  # Multiple extensions sharing the same tag(s) using | delimiter
+  tar.gz|tar.bz2|tar.xz:
+    tag: TarArchive
+
+  # Another example with multiple extensions
+  zip|7z:
+    tag: Archived
+
+  # Video formats
+  # mkv|mp4|avi:
+  #   tag: Video
+
 nohardlinks:
   # Tag Movies/Series that are not hard linked outside the root directory
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
