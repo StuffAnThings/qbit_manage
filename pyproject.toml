@@ -20,7 +20,7 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "bencode.py==4.0.0",
     "croniter==6.2.2",
-    "fastapi==0.135.1",
+    "fastapi==0.135.2",
     "GitPython==3.1.46",
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
