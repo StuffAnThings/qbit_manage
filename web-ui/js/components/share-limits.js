@@ -1304,7 +1304,7 @@ export class ShareLimitsComponent {
         this.closeExistingModals();
 
         // Generate new HTML with current data
-        const newHTML = generateShareLimitsHTML({ type: 'share-limits-config' }, this.data);
+        const newHTML = generateShareLimitsHTML(shareLimitsSchema, this.data);
 
         // Update the container's innerHTML
         this.container.innerHTML = newHTML;
