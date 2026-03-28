@@ -34,11 +34,11 @@ services:
       - /mnt/user/data/torrents/:/data/torrents:rw
       - /mnt/user/appdata/qbittorrent/:/qbittorrent/:ro
     ports:
-      - "8080:8080"  # Web API port (when enabled)
+      - "8181:8181"  # Web API port (when enabled)
     environment:
       # Web API Configuration
       - QBT_WEB_SERVER=true     # Set to true to enable web API and web UI
-      - QBT_PORT=8080           # Web API port (default: 8080)
+      - QBT_PORT=8181           # Web API port (default: 8181)
 
       # Scheduler Configuration
       - QBT_RUN=false
@@ -74,9 +74,9 @@ services:
 ### Web API and Web UI Usage
 
 The Web API and Web UI are enabled by default in this Docker setup.
-1. Ensure port 8080 (or your chosen `QBT_PORT`) is mapped using the `ports` section.
-2. Access the Web UI at `http://your-host:8080`
-3. Access the Web API at `http://your-host:8080/api/run-command`
+1. Ensure port 8181 (or your chosen `QBT_PORT`) is mapped using the `ports` section.
+2. Access the Web UI at `http://your-host:8181`
+3. Access the Web API at `http://your-host:8181/api/run-command`
 
 See the [Web API Documentation](Web-API) and [Web UI Documentation](Web-UI) for detailed usage instructions, security features, and examples.
 

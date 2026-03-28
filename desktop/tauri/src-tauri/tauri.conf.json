@@ -22,7 +22,7 @@
   "build": {
     "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "devUrl": "http://localhost:8080",
+    "devUrl": "http://localhost:8181",
     "frontendDist": "../src"
   },
   "bundle": {

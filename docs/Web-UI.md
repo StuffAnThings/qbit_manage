@@ -18,6 +18,10 @@ The qBit Manage Web UI offers a range of features designed to simplify your conf
 ## Security Features
 The Web UI includes built-in security options to protect your qBit Manage instance:
 
+## Changing the Web Server Port
+
+The web server defaults to **port 8181**. If you need a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. To run qBit Manage on a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. See [Changing the Default Web Server Port](Installation#changing-the-default-web-server-port) in the Installation guide for step-by-step instructions for Windows, macOS, and Linux.
+
 ### Authentication Methods
 - **None**: No authentication required (default for personal use)
 - **Basic Authentication**: Username and password login with browser popup
@@ -31,7 +35,7 @@ When authentication is enabled, you can generate an API key for programmatic acc
 
 Example API call with key:
 ```bash
-curl -H "X-API-Key: your_api_key_here" http://localhost:8080/api/run-command
+curl -H "X-API-Key: your_api_key_here" http://localhost:8181/api/run-command
 ```
 
 ### Security Best Practices
@@ -76,8 +80,8 @@ The Web UI organizes all configuration options into logical sections for easy na
 
 ## Usage
 To get started with the qBit Manage Web UI:
-1. Ensure the qBit Manage backend is running and accessible. If running in Docker, ensure the web server is enabled and the port is mapped (e.g., `QBT_WEB_SERVER=true` and `ports: - "8080:8080"`).
-2. Access the Web UI through your web browser at the configured address (e.g., `http://localhost:8080` or `http://your-docker-host-ip:8080`).
+1. Ensure the qBit Manage backend is running and accessible. If running in Docker, ensure the web server is enabled and the port is mapped (e.g., `QBT_WEB_SERVER=true` and `ports: - "8181:8181"`).
+2. Access the Web UI through your web browser at the configured address (e.g., `http://localhost:8181` or `http://your-docker-host-ip:8181`).
 3. Select your desired configuration file from the dropdown menu.
 4. Navigate through the different configuration sections using the sidebar.
 5. Use the preview button to review the generated YAML before saving.

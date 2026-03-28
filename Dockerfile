@@ -70,8 +70,8 @@ WORKDIR /app
 RUN chmod +x /app/entrypoint.sh
 VOLUME /config
 
-# Expose port 8080
-EXPOSE 8080
+# Expose port 8181
+EXPOSE 8181
 
 ENTRYPOINT ["/sbin/tini", "-s", "/app/entrypoint.sh"]
 CMD ["python3", "qbit_manage.py"]
