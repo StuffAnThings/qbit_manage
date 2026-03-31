@@ -25,7 +25,7 @@ dependencies = [
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
     "qbittorrent-api==2025.11.1",
-    "requests==2.33.0",
+    "requests==2.33.1",
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.9",
