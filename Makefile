@@ -46,7 +46,7 @@ venv: install-uv
 	@echo "Removing conflicting console script to avoid PATH conflicts..."
 	@rm -f $(VENV)/bin/qbit-manage 2>/dev/null || true
 	@echo "Installing development dependencies..."
-	@$(UV_PATH) pip install --python $(VENV_PYTHON) pre-commit ruff
+	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e ".[dev]" --config-settings editable_mode=compat
 	@echo "Virtual environment created and dependencies installed."
 	@echo "✓ Virtual environment ready for development"
 	@echo "To activate the virtual environment, run: source $(VENV_ACTIVATE)"
@@ -59,7 +59,12 @@ sync: venv
 .PHONY: test
 test: venv
 	@echo "Running tests..."
-	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m pytest
+	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m pytest; status=$$?; \
+	if [ $$status -eq 5 ]; then \
+		echo "No tests were collected; treating as success for local setup validation."; \
+		exit 0; \
+	fi; \
+	exit $$status
 
 .PHONY: pre-commit
 pre-commit: venv
