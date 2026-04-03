@@ -2,7 +2,7 @@
 
 ## Overview
 
-qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8181, listening to all hostnames, by default and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
+qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8181, listening to all hostnames by default, and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
 
 ## Running the Web Server
 

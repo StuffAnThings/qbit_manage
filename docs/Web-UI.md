@@ -20,7 +20,7 @@ The Web UI includes built-in security options to protect your qBit Manage instan
 
 ## Changing the Web Server Port
 
-The web server defaults to **port 8181**. If you need a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. To run qBit Manage on a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. See [Changing the Default Web Server Port](Installation#changing-the-default-web-server-port) in the Installation guide for step-by-step instructions for Windows, macOS, and Linux.
+The web server defaults to **port 8181**. If you need a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. See [Changing the Default Web Server Port](Installation#changing-the-default-web-server-port) in the Installation guide for step-by-step instructions for Windows, macOS, and Linux.
 
 ### Authentication Methods
 - **None**: No authentication required (default for personal use)

@@ -1569,7 +1569,7 @@ class YAML:
             value = data[key]
             if isinstance(value, dict):
                 self._sanitize_empty_maps(value)
-                if len(value) == 0:
+                if isinstance(value, ruamel.yaml.comments.CommentedMap) and len(value) == 0:
                     data[key] = None
 
 

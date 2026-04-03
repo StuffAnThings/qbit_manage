@@ -59,12 +59,7 @@ sync: venv
 .PHONY: test
 test: venv
 	@echo "Running tests..."
-	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m pytest; status=$$?; \
-	if [ $$status -eq 5 ]; then \
-		echo "No tests were collected; treating as success for local setup validation."; \
-		exit 0; \
-	fi; \
-	exit $$status
+	@. $(VENV_ACTIVATE) && $(VENV_PYTHON) -m pytest
 
 .PHONY: pre-commit
 pre-commit: venv
