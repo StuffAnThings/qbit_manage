@@ -41,12 +41,10 @@ endif
 venv: install-uv
 	@echo "Creating virtual environment..."
 	@$(UV_PATH) venv $(VENV)
-	@echo "Installing project dependencies from pyproject.toml..."
-	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e . --config-settings editable_mode=compat
+	@echo "Installing project and development dependencies from pyproject.toml..."
+	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e ".[dev]" --config-settings editable_mode=compat
 	@echo "Removing conflicting console script to avoid PATH conflicts..."
 	@rm -f $(VENV)/bin/qbit-manage 2>/dev/null || true
-	@echo "Installing development dependencies..."
-	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e ".[dev]" --config-settings editable_mode=compat
 	@echo "Virtual environment created and dependencies installed."
 	@echo "✓ Virtual environment ready for development"
 	@echo "To activate the virtual environment, run: source $(VENV_ACTIVATE)"
