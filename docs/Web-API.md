@@ -2,14 +2,14 @@
 
 ## Overview
 
-qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8080, listening to all hostnames, by default and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
+qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8181, listening to all hostnames by default, and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
 
 ## Running the Web Server
 
 ### Command Line
 
 ```bash
-python qbit_manage.py --web-server --host 0.0.0.0 --port 8080
+python qbit_manage.py --web-server --host 0.0.0.0 --port 8181
 ```
 
 ### Docker
@@ -23,9 +23,9 @@ services:
     environment:
       - QBT_WEB_SERVER=true # Enable web server (set to false to disable)
       - QBT_HOST=0.0.0.0 # Set web server host
-      - QBT_PORT=8080 # Set web server port
+      - QBT_PORT=8181 # Set web server port
     ports:
-      - "8080:8080" # Map container port to host
+      - "8181:8181" # Map container port to host
     volumes:
       - /path/to/config:/config
 ```
@@ -143,7 +143,7 @@ Example command to run after torrent added/finished:
 
 set -euo pipefail
 
-API_URL="http://qbit_manage:8080/api/run-command"
+API_URL="http://qbit_manage:8181/api/run-command"
 COMMANDS='["tag_update", "share_limits"]'
 
 if [[ $# -lt 1 || -z "$1" ]]; then
@@ -209,7 +209,7 @@ To use this script:
 Using curl:
 
 ```bash
-curl -X POST http://localhost:8080/api/run-command \
+curl -X POST http://localhost:8181/api/run-command \
   -H "Content-Type: application/json" \
   -d '{
     "config_file": "config.yml",
@@ -225,7 +225,7 @@ curl -X POST http://localhost:8080/api/run-command \
 If authentication is enabled, include your API key:
 
 ```bash
-curl -X POST http://localhost:8080/api/run-command \
+curl -X POST http://localhost:8181/api/run-command \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{
@@ -242,7 +242,7 @@ curl -X POST http://localhost:8080/api/run-command \
 Alternatively, if Basic Authentication is enabled and you don't have an API key:
 
 ```bash
-curl -X POST http://localhost:8080/api/run-command \
+curl -X POST http://localhost:8181/api/run-command \
   -u "username:password" \
   -H "Content-Type: application/json" \
   -d '{
@@ -262,7 +262,7 @@ Using Python requests:
 import requests
 
 response = requests.post(
-    "http://localhost:8080/api/run-command",
+    "http://localhost:8181/api/run-command",
     json={
         "config_file": "config.yml",
         "commands": ["cat_update", "tag_update"],
@@ -284,7 +284,7 @@ import requests
 headers = {"X-API-Key": "your_api_key_here"}
 
 response = requests.post(
-    "http://localhost:8080/api/run-command",
+    "http://localhost:8181/api/run-command",
     headers=headers,
     json={
         "config_file": "config.yml",
@@ -306,7 +306,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 response = requests.post(
-    "http://localhost:8080/api/run-command",
+    "http://localhost:8181/api/run-command",
     auth=HTTPBasicAuth("username", "password"),
     json={
         "config_file": "config.yml",

@@ -303,6 +303,7 @@ class ShareLimits:
                 tor_reached_seed_limit,
                 group_config,
                 hash_not_prev_checked,
+                exclusion_tag_added,
                 torrent,
             ):
                 logger.print_line(logger.insert_space(f"Torrent Name: {t_name}", 3), self.config.loglevel)
@@ -372,10 +373,18 @@ class ShareLimits:
         tor_reached_seed_limit,
         group_config,
         hash_not_prev_checked,
+        exclusion_tag_added,
         torrent,
     ):
         """Determine if a torrent needs to be updated"""
         if not hash_not_prev_checked:
+            return False
+
+        # An exclusion tag was just added this run (e.g. MinSeedTimeNotReached).
+        # The share limits were already cleared inside _add_tag_and_reset_limits.
+        # Do NOT reinstate limits here — the re-fetched torrent may not yet reflect the
+        # newly added tag due to API timing, which would cause limits to be immediately restored.
+        if exclusion_tag_added:
             return False
 
         needs_update = (

@@ -224,3 +224,72 @@ You can override the default location using the `--config-dir` or `-cd` command 
 ```bash
 qbit-manage --config-dir /path/to/your/config/directory
 ```
+
+## Changing the Default Web Server Port
+
+The web server defaults to port **8181**, which avoids conflict with qBittorrent's own default WebUI port (8080). There are two ways to change it.
+
+### Option 1: Environment variable
+
+**Windows (Command Prompt)**
+```cmd
+set QBT_PORT=9090
+qbit-manage-windows-amd64.exe
+```
+
+**Windows (PowerShell)**
+```powershell
+$env:QBT_PORT = "9090"
+.\qbit-manage-windows-amd64.exe
+```
+
+**Windows — persistent (System Properties)**
+1. Open *Start → Search → "Edit the system environment variables"*
+2. Click **Environment Variables...**
+3. Under *User variables*, click **New** and add `QBT_PORT` = `9090`
+4. Restart qBit Manage
+
+**macOS / Linux**
+```bash
+QBT_PORT=9090 ./qbit-manage
+```
+
+**macOS / Linux — persistent**
+Add the following to your shell profile (`~/.bashrc`, `~/.zshrc`, or `~/.profile`):
+```bash
+export QBT_PORT=9090
+```
+Then restart your shell or run `source ~/.bashrc`.
+
+### Option 2: CLI flag
+
+Pass `--port` (or `-p`) directly when launching the binary:
+
+```bash
+# Linux / macOS
+./qbit-manage --port 9090
+
+# Windows Command Prompt
+qbit-manage-windows-amd64.exe --port 9090
+
+# Windows PowerShell
+.\qbit-manage-windows-amd64.exe --port 9090
+```
+
+You can also change the bind address with `--host` (default `0.0.0.0`) and add a URL path prefix with `--base-url`:
+
+```bash
+./qbit-manage --port 9090 --host 127.0.0.1 --base-url /qbm
+```
+
+> [!NOTE]
+> Environment variables take precedence over CLI flags. The full priority order is:
+> `QBT_PORT` / `QBT_HOST` / `QBT_BASE_URL` environment variables → `--port` / `--host` / `--base-url` CLI flags → built-in defaults (8181 / 0.0.0.0 / empty).
+
+### Desktop App
+
+The desktop app (`.exe` / `.dmg` installer) launches the built-in binary automatically. You can still customize the port:
+
+- **Environment variable** — set `QBT_PORT` in your system environment before launching the app (see above).
+- **CLI shortcut (Windows)** — edit the app shortcut's *Target* field and append `--port 9090`.
+- **CLI shortcut (macOS/Linux)** — launch from Terminal with `open -a "qBit Manage" --args --port 9090` or create a shell alias.

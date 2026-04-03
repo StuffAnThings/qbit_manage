@@ -382,6 +382,16 @@ class Qbt:
                         return tracker
             if tracker_other_tag:
                 tracker["tag"] = tracker_other_tag
+                tracker["cat"] = self.config.util.check_for_attribute(
+                    self.config.data,
+                    "cat",
+                    parent="tracker",
+                    subparent="other",
+                    default_is_none=True,
+                    var_type="str",
+                    save=False,
+                    do_print=False,
+                )
                 tracker["notifiarr"] = self.config.util.check_for_attribute(
                     self.config.data,
                     "notifiarr",

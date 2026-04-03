@@ -72,8 +72,8 @@ parser.add_argument(
     "--port",
     dest="port",
     type=int,
-    default=8080,
-    help="Port number for the web server (default: 8080).",
+    default=8181,
+    help="Port number for the web server (default: 8181).",
 )
 parser.add_argument(
     "-b",

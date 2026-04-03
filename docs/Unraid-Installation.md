@@ -50,7 +50,7 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
 
 If you enabled the web server, access the Web UI at:
 ```
-http://[UNRAID-IP]:8080
+http://[UNRAID-IP]:8181
 ```
 
 ## Alternative: User Scripts Installation

@@ -1503,6 +1503,12 @@ class YAML:
             # Recursively update the original data with new values while preserving structure
             self._deep_update_preserving_format(original_data, new_data)
 
+            # Sanitize empty CommentedMaps to prevent {} serialization issues.
+            # When all keys in a sub-mapping are removed, the empty CommentedMap with
+            # orphaned comments can cause ruamel.yaml to output '{}' on its own line,
+            # creating invalid YAML.
+            self._sanitize_empty_maps(original_data)
+
             # Save with preserved formatting
             with open(self.path, "w", encoding="utf-8") as filepath:
                 original_yaml.dump(original_data, filepath)
@@ -1547,6 +1553,24 @@ class YAML:
             del original[key]
 
         return original
+
+    def _sanitize_empty_maps(self, data):
+        """Replace empty CommentedMap objects with None to prevent {} serialization issues.
+
+        When all keys in a ruamel.yaml CommentedMap are removed by _deep_update_preserving_format,
+        the empty map may still have orphaned comment tokens attached. When dumped, ruamel.yaml
+        can serialize this as '{}' on its own line at column 1, which produces invalid YAML.
+        Converting these empty maps to None causes them to serialize as just 'key:' (null value),
+        which is valid YAML and preserves the section header.
+        """
+        if not isinstance(data, dict):
+            return
+        for key in list(data.keys()):
+            value = data[key]
+            if isinstance(value, dict):
+                self._sanitize_empty_maps(value)
+                if isinstance(value, ruamel.yaml.comments.CommentedMap) and len(value) == 0:
+                    data[key] = None
 
 
 class EnvStr(str):

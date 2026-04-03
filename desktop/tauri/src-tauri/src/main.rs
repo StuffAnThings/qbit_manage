@@ -21,7 +21,7 @@ use tokio::time::sleep;
 use windows::{core::w, Win32::System::Registry::*};
 
 // Constants
-const DEFAULT_PORT: u16 = 8080;
+const DEFAULT_PORT: u16 = 8181;
 const SERVER_READY_TIMEOUT_SECS: u64 = 20;
 const SERVER_RESTART_TIMEOUT_SECS: u64 = 15;
 const PROCESS_WAIT_TIMEOUT_MS: u64 = 200;

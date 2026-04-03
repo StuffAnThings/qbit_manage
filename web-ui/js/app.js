@@ -504,7 +504,16 @@ class QbitManageApp {
             delete fullConfigData.apply_to_all_value;
 
             // Clean up empty values before saving
-            const cleanedConfigData = this.configForm.cleanupEmptyValues(fullConfigData);
+            const cleanedConfigData = this.configForm.cleanupEmptyValues(fullConfigData) || {};
+
+            // Preserve top-level config sections that may have been stripped by cleanupEmptyValues.
+            // Sections like cat_change, nohardlinks may have null/empty values but need to be
+            // preserved so the backend doesn't remove them (and their YAML comments) from the file.
+            for (const key of Object.keys(fullConfigData)) {
+                if (!(key in cleanedConfigData)) {
+                    cleanedConfigData[key] = null;
+                }
+            }
 
             // Create history checkpoint with the NEW state after saving
             await this.historyManager.createCheckpoint(
