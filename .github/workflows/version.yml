@@ -374,7 +374,7 @@ jobs:
           compression-level: 6
 
       - name: Clean up temporary build artifacts
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             // Get all artifacts from this workflow run
