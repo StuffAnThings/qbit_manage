@@ -29,7 +29,7 @@ dependencies = [
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.9",
-    "uvicorn==0.42.0",
+    "uvicorn==0.44.0",
 ]
 
 [project.scripts]
