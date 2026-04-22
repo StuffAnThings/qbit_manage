@@ -69,8 +69,12 @@ class Category:
 
         logger.separator("Changing Categories", space=False, border=False)
         start_time = time.time()
+        now = int(time.time())
 
-        for torrent_category, updated_cat in self.config.cat_change.items():
+        for torrent_category, change_config in self.config.cat_change.items():
+            updated_cat = change_config["new_cat"]
+            delay_minutes = change_config["delay_minutes"]
+
             # Get torrents with the specific category to be changed
             torrent_list_filter = {"status_filter": self.status_filter, "category": torrent_category}
             if self.hashes:
@@ -79,6 +83,19 @@ class Category:
             torrent_list = self.qbt.get_torrents(torrent_list_filter)
 
             for torrent in torrent_list:
+                if delay_minutes > 0:
+                    completion_on = torrent.get("completion_on", 0)
+                    # completion_on is -1 or 0 if not yet completed
+                    if completion_on <= 0:
+                        logger.debug(f"Skipping category change for {torrent.name}: torrent has not completed yet")
+                        continue
+                    elapsed_minutes = (now - completion_on) / 60
+                    if elapsed_minutes < delay_minutes:
+                        logger.debug(
+                            f"Skipping category change for {torrent.name}: "
+                            f"completed {elapsed_minutes:.0f} min ago, delay is {delay_minutes} min"
+                        )
+                        continue
                 self.update_cat(torrent, updated_cat, True)
 
         end_time = time.time()

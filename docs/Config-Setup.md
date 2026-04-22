@@ -126,15 +126,30 @@ This moves all the torrents from one category to another category if the torrent
 > [!CAUTION]
 > If the paths are different and Default Torrent Management Mode is set to Automatic the files could be moved !!!
 
-| Configuration | Definition                    | Required            |
-| :------------ | :---------------------------- | :------------------ |
-| `key`         | Name of the original category | <center>✅</center> |
-| `value`       | Name of the new category      | <center>✅</center> |
+| Configuration | Definition                                                                                                       | Required            |
+| :------------ | :--------------------------------------------------------------------------------------------------------------- | :------------------ |
+| `key`         | Name of the original category                                                                                    | <center>✅</center> |
+| `value`       | Name of the new category (simple format) or an object with `new_cat` and optional `delay_minutes` (extended format) | <center>✅</center> |
 
-The syntax for the categories are as follows
+### Simple format
 
 ```yaml
 old_category_name: new_category_name
+```
+
+### Extended format with delay
+
+You can optionally delay the category change until a specified number of minutes after the torrent has completed downloading. Torrents that have not yet waited long enough will be skipped and picked up on the next run.
+
+| Variable         | Definition                                                                     | Default | Type | Required            |
+| :--------------- | :----------------------------------------------------------------------------- | :------ | :--- | :------------------ |
+| `new_cat`        | Name of the new category                                                       | N/A     | str  | <center>✅</center> |
+| `delay_minutes`  | Number of minutes after torrent completion to wait before changing the category | 0       | int  | <center>❌</center> |
+
+```yaml
+old_category_name:
+  new_cat: new_category_name
+  delay_minutes: 30
 ```
 
 ## **tracker:**
