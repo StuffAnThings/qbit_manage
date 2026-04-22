@@ -21,7 +21,7 @@ dependencies = [
     "bencode.py==4.0.0",
     "croniter==6.2.2",
     "fastapi==0.136.0",
-    "GitPython==3.1.46",
+    "GitPython==3.1.47",
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
     "qbittorrent-api==2025.11.1",
