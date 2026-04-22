@@ -505,12 +505,9 @@ class Config:
                     cat[cat_str] = {}
                 cat_exclude_tags = cat[cat_str].get("exclude_tags", None)
                 cat_ignore_root_dir = cat[cat_str].get("ignore_root_dir", None)
-                # Merge: category-level exclude_tags extend global, ignore_root_dir overrides global
-                merged_exclude_tags = list(global_exclude_tags)
-                if cat_exclude_tags:
-                    merged_exclude_tags = list(set(merged_exclude_tags + cat_exclude_tags))
+                # Per-category values override global when set, otherwise inherit global defaults
                 self.nohardlinks[cat_str] = {
-                    "exclude_tags": merged_exclude_tags,
+                    "exclude_tags": cat_exclude_tags if cat_exclude_tags is not None else list(global_exclude_tags),
                     "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
                 }
                 if self.nohardlinks[cat_str]["exclude_tags"] is None:

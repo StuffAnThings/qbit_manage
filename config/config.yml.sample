@@ -145,7 +145,7 @@ nohardlinks:
   # Mandatory to fill out directory parameter above to use this function (root_dir/remote_dir)
   # This variable should be set to your category name of your completed movies/completed series in qbit. Acceptable variable can be any category you would like to tag if there are no hardlinks found
   # <OPTIONAL> global_options: Set default exclude_tags and ignore_root_dir for all categories.
-  # Per-category exclude_tags are merged with global (union). Per-category ignore_root_dir overrides global.
+  # Per-category values override global when set. Categories without the option inherit the global default.
   global_options:
     exclude_tags:
       - AnimeBytes
@@ -154,13 +154,13 @@ nohardlinks:
   series-completed-4k:
   movies-completed:
     # <OPTIONAL> exclude_tags var: Will exclude torrents with any of the following tags when searching through the category.
-    # These are merged with global_options exclude_tags.
+    # Overrides global_options exclude_tags when set.
     exclude_tags:
       - Beyond-HD
       - AnimeBytes
       - MaM
     # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir.
-    # Overrides global_options ignore_root_dir if set.
+    # Overrides global_options ignore_root_dir when set.
     ignore_root_dir: true
   # Can have additional categories set with separate ratio/seeding times defined.
   series-completed:
