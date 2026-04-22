@@ -70,7 +70,7 @@ class Config:
         self.data = self.process_config_data()
         self.process_config_settings()
         self.process_config_webhooks()
-        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
+        self.cat_change = self._process_cat_change()
         self.process_config_apprise()
         self.process_config_notifiarr()
         self.process_config_all_webhooks()
@@ -282,6 +282,38 @@ class Config:
             )
             self.notify(err, "Config")
             raise Failed(err)
+
+    def _process_cat_change(self):
+        """
+        Process cat_change config, supporting both simple and extended formats.
+
+        Simple format: old_cat: new_cat
+        Extended format: old_cat: {new_cat: "name", delay_minutes: 30}
+
+        Returns dict mapping old_cat -> {"new_cat": str, "delay_minutes": int}
+        """
+        raw = self.data.get("cat_change")
+        if not raw:
+            return {}
+        result = {}
+        for old_cat, value in raw.items():
+            if isinstance(value, str):
+                result[old_cat] = {"new_cat": value, "delay_minutes": 0}
+            elif isinstance(value, dict):
+                new_cat = value.get("new_cat")
+                if not new_cat:
+                    err = f"Config Error: cat_change entry '{old_cat}' is missing required 'new_cat' key"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                delay = value.get("delay_minutes", 0)
+                if not isinstance(delay, (int, float)) or delay < 0:
+                    err = f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                result[old_cat] = {"new_cat": str(new_cat), "delay_minutes": int(delay)}
+            else:
+                result[old_cat] = {"new_cat": str(value), "delay_minutes": 0}
+        return result
 
     def process_config_settings(self):
         """
