@@ -480,20 +480,38 @@ class Config:
         self.nohardlinks = None
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
-            for cat in self.data["nohardlinks"]:
-                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
-                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+            nohardlinks_data = self.data["nohardlinks"]
+            # Extract global_options defaults if present
+            global_opts = {}
+            if isinstance(nohardlinks_data, dict):
+                global_opts = nohardlinks_data.get("global_options", {}) or {}
+            global_exclude_tags = global_opts.get("exclude_tags", []) or []
+            global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
+            for cat in nohardlinks_data:
+                if cat == "global_options":
+                    continue
+                if isinstance(nohardlinks_data, list) and isinstance(cat, str):
+                    self.nohardlinks[cat] = {
+                        "exclude_tags": list(global_exclude_tags),
+                        "ignore_root_dir": global_ignore_root_dir,
+                    }
                     continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
                 elif isinstance(cat, str):
                     cat_str = cat
-                    cat = self.data["nohardlinks"]
+                    cat = nohardlinks_data
                 if cat[cat_str] is None:
                     cat[cat_str] = {}
+                cat_exclude_tags = cat[cat_str].get("exclude_tags", None)
+                cat_ignore_root_dir = cat[cat_str].get("ignore_root_dir", None)
+                # Merge: category-level exclude_tags extend global, ignore_root_dir overrides global
+                merged_exclude_tags = list(global_exclude_tags)
+                if cat_exclude_tags:
+                    merged_exclude_tags = list(set(merged_exclude_tags + cat_exclude_tags))
                 self.nohardlinks[cat_str] = {
-                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
-                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                    "exclude_tags": merged_exclude_tags,
+                    "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
                 }
                 if self.nohardlinks[cat_str]["exclude_tags"] is None:
                     self.nohardlinks[cat_str]["exclude_tags"] = []
