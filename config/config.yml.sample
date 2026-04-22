@@ -78,9 +78,14 @@ cat:
 cat_change:
   # This moves all the torrents from one category to another category. This executes on --cat-update
   # WARNING: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
-  # <Old Category Name> : <New Category>
+  # Simple format: <Old Category Name> : <New Category>
   CatA.cross-seed: CatA
-  CatB.cross-seed: CatB
+  # Extended format with delay: wait N minutes after torrent completion before changing category
+  CatB.cross-seed:
+    new_cat: CatB
+    # <OPTIONAL> delay_minutes <int>: Number of minutes after torrent completion to wait before changing the category.
+    # Will default to 0 (no delay) if not specified.
+    delay_minutes: 30
 
 tracker:
   # Mandatory

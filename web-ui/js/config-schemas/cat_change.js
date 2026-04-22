@@ -22,6 +22,13 @@ export const catChangeSchema = {
                     label: 'New Category Name',
                     description: 'Name of the new category',
                     useCategoryDropdown: true // Flag to indicate this field should use category dropdown
+                },
+                delay_minutes: {
+                    type: 'number',
+                    label: 'Delay Minutes',
+                    description: 'Number of minutes after torrent completion to wait before changing category. Set to 0 for no delay.',
+                    default: 0,
+                    minimum: 0
                 }
             }
         }
