@@ -637,22 +637,24 @@ class ShareLimits:
                     body.append(msg)
         # Update Torrents
         if not self.config.dry_run:
-            torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
-            if limit_upload_speed is not None and limit_upload_speed != torrent_upload_limit:
-                if limit_upload_speed == -1:
-                    torrent.set_upload_limit(-1)
-                else:
-                    torrent.set_upload_limit(limit_upload_speed * 1024)
             if max_ratio is None:
                 max_ratio = torrent.ratio_limit
             if max_seeding_time is None:
                 max_seeding_time = torrent.seeding_time_limit
+            # Skip setting share limits and upload speed when exclusion tags are present.
+            # Upload speed is managed by _add_tag_and_reset_limits based on reset_upload_speed_on_unmet_minimums.
             if is_tag_in_torrent(self.min_seeding_time_tag, torrent.tags):
                 return []
             if is_tag_in_torrent(self.min_num_seeds_tag, torrent.tags):
                 return []
             if is_tag_in_torrent(self.last_active_tag, torrent.tags):
                 return []
+            torrent_upload_limit = -1 if round(torrent.up_limit / 1024) == 0 else round(torrent.up_limit / 1024)
+            if limit_upload_speed is not None and limit_upload_speed != torrent_upload_limit:
+                if limit_upload_speed == -1:
+                    torrent.set_upload_limit(-1)
+                else:
+                    torrent.set_upload_limit(limit_upload_speed * 1024)
             torrent.set_share_limits(ratio_limit=max_ratio, seeding_time_limit=max_seeding_time, inactive_seeding_time_limit=-2)
         [logger.print_line(msg, self.config.loglevel) for msg in body if do_print]
         return body
