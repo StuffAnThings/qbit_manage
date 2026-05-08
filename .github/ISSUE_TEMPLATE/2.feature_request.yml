@@ -1,6 +1,7 @@
 name: Feature Request
 description: Suggest a new feature for Qbit Manage
 title: '[FR]: '
+type: 'Feature'
 labels: ['feature request']
 assignees: 'bobokun'
 
