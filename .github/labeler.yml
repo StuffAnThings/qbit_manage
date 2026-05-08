@@ -1,0 +1,46 @@
+# Auto-labels PRs based on changed file paths.
+# Label names must match those in `gh label list` for this repo.
+
+python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.py"
+          - pyproject.toml
+
+"python:uv":
+  - changed-files:
+      - any-glob-to-any-file:
+          - uv.lock
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "**/*.md"
+          - README.md
+
+github_actions:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/labeler.yml"
+          - ".github/dependabot.yml"
+          - ".github/ISSUE_TEMPLATE/**"
+          - ".github/pull_request_template.md"
+
+rust:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "desktop/tauri/src-tauri/**/*.rs"
+          - "desktop/tauri/src-tauri/Cargo.toml"
+          - "desktop/tauri/src-tauri/Cargo.lock"
+          - "desktop/tauri/src-tauri/build.rs"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - pyproject.toml
+          - uv.lock
+          - "desktop/tauri/src-tauri/Cargo.toml"
+          - "desktop/tauri/src-tauri/Cargo.lock"
+          - .github/dependabot.yml
