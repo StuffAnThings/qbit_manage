@@ -249,6 +249,41 @@ share_limits:
     min_num_seeds: 0
     # <OPTIONAL> custom_tag <str>: Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qbt)**
     custom_tag: sharelimits_noHL
+    # <OPTIONAL> share_limit_action <str>: What qBittorrent should do to a torrent when its share limits (max_ratio / max_seeding_time / max_last_active) are reached.
+    #
+    #   Required by qBittorrent 5.2.0+. qbm always sends a value; if you don't set one here it defaults to "Default".
+    #
+    #   Valid values (case-sensitive — must match exactly):
+    #
+    #     Default            Use whatever action qBittorrent itself is configured to do globally.
+    #                        This is the SAFE choice and what most users want — qBittorrent's own settings stay in charge.
+    #
+    #     Stop               Stop the torrent (qBittorrent's normal "pause"). The torrent stays in qBittorrent's
+    #                        list, just stops seeding. Files on disk are untouched. Reversible.
+    #
+    #     Remove             Remove the torrent from qBittorrent BUT KEEP THE FILES on disk. The torrent will
+    #                        no longer appear in qBittorrent. You can re-add the .torrent file later.
+    #
+    #     RemoveWithContent  *** DESTRUCTIVE *** Remove the torrent AND DELETE THE FILES on disk.
+    #                        Files cannot be recovered unless you have a backup or qbm's recyclebin enabled.
+    #                        Only use this if you are sure you want qBittorrent itself doing the deletion.
+    #
+    #     EnableSuperSeeding Switch the torrent into super-seeding mode. This is an advanced setting for
+    #                        seeding to many peers from a small set of seeds — most users should not need this.
+    #
+    #   IMPORTANT: This is qBittorrent's own built-in action and is performed by qBittorrent, not qbm.
+    #     - It is NOT the same thing as qbm's `cleanup` option above.
+    #     - qBittorrent acts AS SOON AS a share-limit goal is met (in-process, real-time). qbm is batch
+    #       — it runs on a schedule. So qBittorrent ALWAYS gets there first; if you tell qBittorrent to
+    #       Remove (or RemoveWithContent), qbm's cleanup never sees the torrent and the recyclebin is
+    #       silently bypassed.
+    #     - For this reason `cleanup: true` together with `share_limit_action: Remove` or
+    #       `RemoveWithContent` is MUTUALLY EXCLUSIVE — qbm will REJECT the config at startup. Pick one:
+    #         (a) qbm-managed deletion (recyclebin-aware): `cleanup: true` + `share_limit_action: Default` (or Stop)
+    #         (b) qBittorrent-managed deletion (no recyclebin): `cleanup: false` + `share_limit_action: Remove` / `RemoveWithContent`
+    #
+    #   If unsure, leave this as "Default".
+    share_limit_action: Default
   cross-seed:
     priority: 2
     include_all_tags:

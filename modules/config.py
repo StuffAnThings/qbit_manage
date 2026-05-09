@@ -33,6 +33,16 @@ COMMANDS = [
     "dry_run",
 ]
 
+# Valid values for share_limit_action — see qBittorrent ShareLimitAction enum.
+# "Default" defers to qBittorrent's app-level default (typically Stop).
+SHARE_LIMIT_ACTIONS = {
+    "Default": "Use qBittorrent's app-level default action",
+    "Stop": "Stop the torrent",
+    "Remove": "Remove the torrent (keep files)",
+    "RemoveWithContent": "Remove the torrent and delete files",
+    "EnableSuperSeeding": "Switch the torrent to super-seeding mode",
+}
+
 
 class Config:
     """Config class for qBittorrent-Manage"""
@@ -717,6 +727,18 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                # share_limit_action: validate explicitly so missing → "Default" (silent) but a
+                # bogus value → hard fail. check_for_attribute's `throw=True` would also reject the
+                # missing case, which we explicitly want to allow.
+                raw_share_limit_action = self.data.get("share_limits", {}).get(group, {}).get("share_limit_action")
+                if raw_share_limit_action is not None and raw_share_limit_action not in SHARE_LIMIT_ACTIONS:
+                    err = (
+                        f"Config Error: invalid share_limit_action '{raw_share_limit_action}' for the grouping "
+                        f"'{group}'. Valid values are: {', '.join(SHARE_LIMIT_ACTIONS.keys())}."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                self.share_limits[group]["share_limit_action"] = raw_share_limit_action or "Default"
                 self.share_limits[group]["min_last_active"] = self.util.check_for_attribute(
                     self.data,
                     "last_active",
@@ -805,6 +827,27 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
+                # cleanup and a destructive share_limit_action are mutually exclusive — pick one or the other.
+                # qBittorrent acts the instant a share-limit goal is met (in-process); qbm runs on a schedule and
+                # sees torrents AFTER qBit has already acted. So if share_limit_action is Remove or RemoveWithContent,
+                # qBit will have already removed the torrent (and possibly its files, with NO recyclebin) by the time
+                # qbm's cleanup pass runs — qbm's recyclebin is silently bypassed. Both at once is a misconfiguration.
+                if self.share_limits[group]["cleanup"] and self.share_limits[group]["share_limit_action"] in (
+                    "Remove",
+                    "RemoveWithContent",
+                ):
+                    err = (
+                        f"Config Error: cleanup and share_limit_action are mutually exclusive for the grouping "
+                        f"'{group}'. Got cleanup=true and share_limit_action="
+                        f"'{self.share_limits[group]['share_limit_action']}'. qBittorrent acts the instant a share "
+                        f"limit is reached and runs BEFORE qbm's scheduled cleanup pass — so this share_limit_action "
+                        f"removes the torrent (and, with RemoveWithContent, deletes the files) before qbm gets a chance "
+                        f"to use the recyclebin. Choose one: either let qbm handle deletion (cleanup: true, "
+                        f"share_limit_action: Default or Stop) so the recyclebin is honored, or let qBittorrent handle "
+                        f"it (cleanup: false, share_limit_action: Remove/RemoveWithContent)."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
                 # Validate min/max torrent size (in bytes)
                 min_sz = self.share_limits[group]["min_torrent_size"]
                 max_sz = self.share_limits[group]["max_torrent_size"]
