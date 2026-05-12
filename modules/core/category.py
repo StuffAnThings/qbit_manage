@@ -36,8 +36,6 @@ class Category:
         torrent_list = self.qbt.get_torrents(torrent_list_filter)
         for torrent in torrent_list:
             torrent_category = torrent.category
-            new_cat = []
-            new_cat.extend(self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path))
             if not torrent.auto_tmm and torrent_category:
                 logger.print_line(
                     f"{torrent.name} has Automatic Torrent Management disabled and already has the category"
@@ -45,6 +43,8 @@ class Category:
                     "DEBUG",
                 )
                 continue
+            new_cat = []
+            new_cat.extend(self.get_tracker_cat(torrent) or self.qbt.get_category(torrent.save_path))
             if new_cat[0] == self.uncategorized_mapping:
                 logger.print_line(f"{torrent.name} remains uncategorized.", "DEBUG")
                 continue

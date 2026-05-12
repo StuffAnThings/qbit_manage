@@ -83,13 +83,7 @@ jobs:
           base: develop
           body: "This PR updates the SUPPORTED_VERSIONS.json to reflect new versions."
 
-      - name: Approve the Pull Request
-        if: ${{ steps.create-pr.outputs.pull-request-number }}
-        run: gh pr review ${{ steps.create-pr.outputs.pull-request-number }} --approve
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Merge the Pull Request
+      - name: Enable auto-merge for the Pull Request
         if: ${{ steps.create-pr.outputs.pull-request-number }}
         run: gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} --auto --squash
         env:

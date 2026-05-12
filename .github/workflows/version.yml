@@ -374,7 +374,7 @@ jobs:
           compression-level: 6
 
       - name: Clean up temporary build artifacts
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             // Get all artifacts from this workflow run
@@ -499,7 +499,7 @@ jobs:
 
       - name: Create release with individual assets
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: CHANGELOG
           token: ${{ secrets.PAT }}
