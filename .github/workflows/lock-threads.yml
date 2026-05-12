@@ -18,7 +18,7 @@ jobs:
   lock:
     runs-on: ubuntu-latest
     steps:
-      - uses: dessant/lock-threads@v5
+      - uses: dessant/lock-threads@v6
         with:
           # Lock closed issues / PRs / discussions after 365 days of inactivity.
           # Avoids necro-comments on long-resolved threads while still leaving
