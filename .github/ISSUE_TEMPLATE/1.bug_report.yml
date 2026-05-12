@@ -1,6 +1,7 @@
 name: Bug Report
 description: Please do not use bug reports for support issues.
 title: '[Bug]: '
+type: 'Bug'
 labels: ['bug']
 assignees: 'bobokun'
 
