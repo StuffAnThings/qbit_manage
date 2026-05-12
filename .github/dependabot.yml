@@ -5,7 +5,7 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "daily"
@@ -14,11 +14,9 @@ updates:
     target-branch: "develop"
     assignees:
       - "bobokun"
-    # Specify the file to check for dependencies
-    # Dependabot will now look at pyproject.toml instead of requirements.txt
+    # Reads pyproject.toml and keeps uv.lock in sync on every bump.
     allow:
       - dependency-type: "direct"
-    # Specify the file to update
     versioning-strategy: increase-if-necessary
   - package-ecosystem: github-actions
     directory: '/'
