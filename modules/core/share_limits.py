@@ -488,7 +488,12 @@ class ShareLimits:
                     # Clear share limits to prevent qBittorrent from pausing again, then apply throttle
                     if not self.config.dry_run:
                         # Allow continued seeding by removing share limits
-                        torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
+                        torrent.set_share_limits(
+                            ratio_limit=-1,
+                            seeding_time_limit=-1,
+                            inactive_seeding_time_limit=-1,
+                            share_limit_action="Default",
+                        )
                         torrent.set_upload_limit(limit_val)
         else:
             self.set_limits(
@@ -653,7 +658,12 @@ class ShareLimits:
                 return []
             if is_tag_in_torrent(self.last_active_tag, torrent.tags):
                 return []
-            torrent.set_share_limits(ratio_limit=max_ratio, seeding_time_limit=max_seeding_time, inactive_seeding_time_limit=-2)
+            torrent.set_share_limits(
+                ratio_limit=max_ratio,
+                seeding_time_limit=max_seeding_time,
+                inactive_seeding_time_limit=-2,
+                share_limit_action="Default",
+            )
         [logger.print_line(msg, self.config.loglevel) for msg in body if do_print]
         return body
 
@@ -697,7 +707,12 @@ class ShareLimits:
                 if not self.config.dry_run:
                     torrent.add_tags(tag)
                     torrent_tags += f", {tag}"
-                    torrent.set_share_limits(ratio_limit=-1, seeding_time_limit=-1, inactive_seeding_time_limit=-1)
+                    torrent.set_share_limits(
+                        ratio_limit=-1,
+                        seeding_time_limit=-1,
+                        inactive_seeding_time_limit=-1,
+                        share_limit_action="Default",
+                    )
                     if reset_upload_speed_on_unmet_minimums:
                         torrent.set_upload_limit(-1)
                     if resume_torrent:

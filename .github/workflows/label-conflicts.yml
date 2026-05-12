@@ -1,0 +1,32 @@
+name: Label Conflicting PRs
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  pull-requests: write
+  contents: read
+
+concurrency:
+  group: label-conflicts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  label-conflicts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PRs with merge conflicts
+        uses: eps1lon/actions-label-merge-conflict@v3
+        with:
+          dirtyLabel: "conflict"
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          commentOnDirty: "This pull request has merge conflicts that must be resolved before it can be merged."
+          commentOnClean: "Conflicts have been resolved. Thanks!"

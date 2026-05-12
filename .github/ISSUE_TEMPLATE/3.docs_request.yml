@@ -1,6 +1,7 @@
 name: 'Docs Request for an Update or Improvement'
 description: A request to update or improve Qbit Manage documentation
 title: '[Docs]: '
+type: 'Task'
 labels: ['documentation']
 assignees: 'bobokun'
 
