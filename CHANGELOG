@@ -1,20 +1,18 @@
 # Requirements Updated
-- "fastapi==0.135.3"
-- "requests==2.33.1"
-- "pytest==9.0.2"
-- "ruff==0.15.9"
-
-# BREAKING CHANGE
-- Changed default web server port from 8080 to 8181 to avoid conflicts with qBittorrent's default WebUI port. Users relying on the default port must update their configurations. (Fixes #1050)
-
+- "fastapi==0.136.1"
+- "GitPython==3.1.50"
+- "qbittorrent-api==2026.5.1"
+- "requests==2.34.2"
+- "uvicorn==0.47.0"
+- "pre-commit==4.6.0"
+- "ruff==0.15.13"
 
 # Improvements
-- **Web UI**: Refactored share limits component to use `shareLimitsSchema` for improved consistency (Fixes #1082)
+- Minor CI improvements
 
 # Bug Fixes
-- **Web UI**: Fixed invalid YAML serialization when saving config and preserve top-level config sections (Fixes #1096)
-- Fixed race condition when adding exclusion tags causing share limits to be incorrectly reinstated in the same run (Fixes #1114)
-- Fixes categorization for 'other' tracker when applying category to tracker config (Fixes #1066)
-- Fixes visual bug in webUI when saving changes to share limits. (Fixes #1082)
-
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.6.6...v4.7.0
+- Pass ShareLimitAction to ShareLimits for qbit 5.2.0+ support (Fixes #1174)
+- Fix bug causing new categories to be created in config when auto_tmm is disabled.
+- Respect reset_upload_speed_on_unmet_minimums for min_num_seeds (Fixes #1157)
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.7.0...v4.7.1
+Special thanks to @bakerboy448 for their contributions!
