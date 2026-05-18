@@ -20,16 +20,16 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "bencode.py==4.0.0",
     "croniter==6.2.2",
-    "fastapi==0.135.3",
-    "GitPython==3.1.46",
+    "fastapi==0.136.1",
+    "GitPython==3.1.50",
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
-    "qbittorrent-api==2025.11.1",
-    "requests==2.33.1",
+    "qbittorrent-api==2026.5.1",
+    "requests==2.34.2",
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.9",
-    "uvicorn==0.42.0",
+    "uvicorn==0.47.0",
 ]
 
 [project.scripts]
@@ -41,9 +41,9 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit==4.5.1",
+    "pre-commit==4.6.0",
     "pytest==9.0.3",
-    "ruff==0.15.9",
+    "ruff==0.15.13",
 ]
 
 [tool.ruff]

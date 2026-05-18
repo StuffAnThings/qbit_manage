@@ -1,0 +1,43 @@
+name: Lock Closed Threads
+
+on:
+  schedule:
+    # Daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+  discussions: write
+
+concurrency:
+  group: lock-threads
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dessant/lock-threads@v6
+        with:
+          # Lock closed issues / PRs / discussions after 365 days of inactivity.
+          # Avoids necro-comments on long-resolved threads while still leaving
+          # a comfortable window for follow-up questions on a recent merge.
+          issue-inactive-days: '365'
+          pr-inactive-days: '365'
+          discussion-inactive-days: '365'
+          process-only: 'issues, prs, discussions'
+          issue-comment: >
+            This issue has been automatically locked because it has been inactive
+            for 365 days since it was closed. If you are still encountering this
+            problem, please open a new issue.
+          pr-comment: >
+            This pull request has been automatically locked because it has been
+            inactive for 365 days since it was closed.
+          discussion-comment: >
+            This discussion has been automatically locked because it has been
+            inactive for 365 days since it was closed. Please open a new
+            discussion for related follow-ups.
+          # Lock as 'resolved' for issues/discussions; PRs default to no lock-reason.
+          issue-lock-reason: 'resolved'
+          discussion-lock-reason: 'resolved'

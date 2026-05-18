@@ -54,6 +54,12 @@ sync: venv
 	@echo "Syncing dependencies from pyproject.toml..."
 	@$(UV_PATH) pip sync pyproject.toml
 
+.PHONY: refresh-lock
+refresh-lock: install-uv
+	@echo "Refreshing uv lock file..."
+	@$(UV_PATH) lock --upgrade
+	@echo "✓ uv.lock updated"
+
 .PHONY: test
 test: venv
 	@echo "Running tests..."
@@ -189,7 +195,7 @@ upload-test: check-dist
 	@echo "Test installation with: pip install --index-url https://test.pypi.org/simple/ qbit-manage"
 
 .PHONY: upload-pypi
-upload-pypi: check-dist
+upload-pypi: refresh-lock check-dist
 	@echo "Uploading to PyPI..."
 	@echo "WARNING: This will upload to the LIVE PyPI repository!"
 	@if [ -z "$$TWINE_PASSWORD_PYPI" ] && ! grep -q "password = pypi-" ~/.pypirc 2>/dev/null; then \
@@ -305,8 +311,8 @@ prep-release:
 	@echo "Preparing release..."
 	@# Step 1: Update uv lock and sync dependencies
 	@echo "Updating uv lock and syncing dependencies..."
-	@uv lock --upgrade
-	@uv sync
+	@$(MAKE) refresh-lock
+	@$(UV_PATH) sync
 	@echo "✓ Dependencies updated"
 	@# Step 2: Strip '-develop*' suffix from VERSION
 	@current_version=$$(cat VERSION); \
@@ -362,6 +368,7 @@ help:
 	@echo "  check-dist    - Check distribution files"
 	@echo "  setup-pypi    - Set up PyPI configuration (~/.pypirc)"
 	@echo "  bump-version  - Bump patch version for testing uploads"
+	@echo "  refresh-lock  - Update uv.lock to latest resolvable versions"
 	@echo "  prep-release - Strip '-develop*' from VERSION, cargo check, and template CHANGELOG"
 	@echo "  debug-upload  - Debug PyPI upload configuration"
 	@echo "  upload-test   - Upload to Test PyPI (uses env vars or ~/.pypirc)"

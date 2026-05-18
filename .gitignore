@@ -18,3 +18,11 @@ dist/
 memory-bank
 **/src-tauri/gen
 **/src-tauri/target
+
+# MemPalace per-project memory artifacts
+mempalace.yaml
+entities.json
+
+# Local agent / IDE session artifacts
+.claude-session-name
+.claude/settings.local.json
