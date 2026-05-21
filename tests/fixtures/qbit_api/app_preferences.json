@@ -1,6 +1,6 @@
 {
-    "max_ratio_enabled": true,
-    "max_ratio": 2.0,
-    "max_seeding_time_enabled": true,
-    "max_seeding_time": 43200
+    "max_ratio": -1,
+    "max_ratio_enabled": false,
+    "max_seeding_time": -1,
+    "max_seeding_time_enabled": false
 }

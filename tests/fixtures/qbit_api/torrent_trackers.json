@@ -1,32 +1,42 @@
 [
     {
-        "url": "** [DHT] **",
-        "status": 2,
-        "tier": -1,
+        "msg": "This torrent is private",
+        "num_downloaded": 0,
+        "num_leeches": 0,
         "num_peers": 0,
         "num_seeds": 0,
-        "num_leeches": 0,
-        "num_downloaded": 0,
-        "msg": ""
+        "status": 0,
+        "tier": -1,
+        "url": "** [DHT] **"
     },
     {
-        "url": "** [PeX] **",
-        "status": 2,
-        "tier": -1,
+        "msg": "This torrent is private",
+        "num_downloaded": 0,
+        "num_leeches": 0,
         "num_peers": 0,
         "num_seeds": 0,
-        "num_leeches": 0,
-        "num_downloaded": 0,
-        "msg": ""
+        "status": 0,
+        "tier": -1,
+        "url": "** [PeX] **"
     },
     {
-        "url": "http://tracker1.example/announce",
+        "msg": "This torrent is private",
+        "num_downloaded": 0,
+        "num_leeches": 0,
+        "num_peers": 0,
+        "num_seeds": 0,
+        "status": 0,
+        "tier": -1,
+        "url": "** [LSD] **"
+    },
+    {
+        "msg": "",
+        "num_downloaded": -1,
+        "num_leeches": 0,
+        "num_peers": 0,
+        "num_seeds": 35,
         "status": 2,
         "tier": 0,
-        "num_peers": 1,
-        "num_seeds": 25,
-        "num_leeches": 3,
-        "num_downloaded": 100,
-        "msg": ""
+        "url": "https://tracker1.example/announce/cf0700a2968be4aec50d866dc2a30b76"
     }
 ]

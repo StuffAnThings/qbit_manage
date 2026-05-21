@@ -19,19 +19,26 @@ def _has_call(torrent, name):
 
 
 def _seed_limit(sl, torrent, **overrides):
-    """Invoke ShareLimits.has_reached_seed_limit with sensible defaults."""
+    """Invoke ShareLimits.has_reached_seed_limit with sensible defaults.
+
+    Unpacks the (body, exclusion_tag_added) tuple and returns body only,
+    so callers can assert on the body value directly.
+    """
     kwargs = {
         "torrent": torrent,
         "max_ratio": -1,
         "max_seeding_time": -1,
+        "max_last_active": -1,
         "min_seeding_time": 0,
         "min_num_seeds": 0,
-        "last_active": 0,
+        "min_last_active": 0,
         "resume_torrent": True,
         "tracker": "http://tracker1.example/announce",
+        "reset_upload_speed_on_unmet_minimums": True,
     }
     kwargs.update(overrides)
-    return sl.has_reached_seed_limit(**kwargs)
+    body, _exclusion_tag_added = sl.has_reached_seed_limit(**kwargs)
+    return body
 
 
 # ---- min_num_seeds ----------------------------------------------------------
@@ -93,7 +100,7 @@ def test_last_active_met_returns_false_after_gating(share_limits_factory, torren
     monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
     # 7200s inactive = 120 min, last_active threshold 60 → met
     t = torrent_factory(last_activity=1_000_000 - 7200, tags="")
-    result = _seed_limit(sl, t, last_active=60)
+    result = _seed_limit(sl, t, min_last_active=60)
     assert result is False
     assert _calls_of(t, "add_tags") == []
 
@@ -104,7 +111,7 @@ def test_last_active_met_clears_existing_tag(share_limits_factory, torrent_facto
     sl = share_limits_factory()
     monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
     t = torrent_factory(last_activity=1_000_000 - 7200, tags=sl.last_active_tag)
-    _seed_limit(sl, t, last_active=60)
+    _seed_limit(sl, t, min_last_active=60)
     removes = _calls_of(t, "remove_tags")
     assert removes and removes[0][1]["tags"] == sl.last_active_tag
 
@@ -126,7 +133,7 @@ def test_last_active_not_met_adds_warning_tag(share_limits_factory, torrent_fact
     monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
     # Only 1 min idle, threshold 60 → not met
     t = torrent_factory(last_activity=1_000_000 - 60, tags="")
-    result = _seed_limit(sl, t, last_active=60)
+    result = _seed_limit(sl, t, min_last_active=60)
     assert result == ""
     add = _calls_of(t, "add_tags")
     assert add and add[0][1]["tags"] == sl.last_active_tag

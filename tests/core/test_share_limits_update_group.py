@@ -40,8 +40,19 @@ def test_new_torrent_gets_tagged_and_limited(share_limits_factory, torrent_facto
 
 
 def test_torrent_already_correctly_tagged_is_skipped(share_limits_factory, torrent_factory, group_config_factory):
-    """A torrent whose max_ratio/max_seeding_time/up_limit/tag all match
-    the group config should not be touched."""
+    """A torrent whose ratio_limit/seeding_time_limit/up_limit/tag all match
+    the group config should not have its share limits updated.
+
+    Note: production code compares group_config["max_ratio"] against
+    torrent.ratio_limit (the per-torrent qBittorrent limit field), NOT against
+    torrent.max_ratio (which is the global max-ratio preference copy).
+
+    The group tag is always re-applied by update_share_limits_tag_for_torrent
+    (remove old + add new) even when limits are already correct — that is
+    expected behavior. What MUST NOT happen is set_share_limits being called
+    (i.e. the limits themselves do not get re-written) and the torrent must
+    not appear in torrents_updated.
+    """
     group_cfg = group_config_factory(
         priority=1.0,
         max_ratio=5.0,
@@ -52,8 +63,10 @@ def test_torrent_already_correctly_tagged_is_skipped(share_limits_factory, torre
     t = torrent_factory(
         hash="a" * 40,
         tags=expected_tag,
-        max_ratio=5.0,
-        max_seeding_time=43200,
+        # ratio_limit / seeding_time_limit are the per-torrent limit fields that
+        # production code uses to decide whether limits need updating.
+        ratio_limit=5.0,
+        seeding_time_limit=43200,
         up_limit=0,
         ratio=0.1,
         seeding_time=10,
@@ -66,8 +79,9 @@ def test_torrent_already_correctly_tagged_is_skipped(share_limits_factory, torre
 
     sl.update_share_limits_for_group("noHL", group_cfg, [t])
 
-    assert _calls_of(t, "add_tags") == []
+    # share limits must NOT be rewritten when already matching
     assert _calls_of(t, "set_share_limits") == []
+    # torrent must not be counted as "updated" (i.e. _should_update_torrent returned False)
     assert t.name not in sl.torrents_updated
 
 

@@ -81,30 +81,33 @@ def _build_priority_config(group_config_factory):
     )
 
 
-def test_get_share_limit_group_first_priority_wins(share_limits_factory, group_config_factory):
+def test_get_share_limit_group_first_priority_wins(share_limits_factory, group_config_factory, torrent_factory):
     cfg = _build_priority_config(group_config_factory)
     sl = share_limits_factory(share_limits_config=cfg)
     # Torrent has BOTH noHL and cross-seed tags. Highest priority (lowest number) wins.
-    assert sl.get_share_limit_group(["noHL", "cross-seed"], "") == "noHL"
+    t = torrent_factory(tags="noHL, cross-seed")
+    assert sl.get_share_limit_group(["noHL", "cross-seed"], "", t) == "noHL"
 
 
-def test_get_share_limit_group_falls_through_to_default(share_limits_factory, group_config_factory):
+def test_get_share_limit_group_falls_through_to_default(share_limits_factory, group_config_factory, torrent_factory):
     cfg = _build_priority_config(group_config_factory)
     sl = share_limits_factory(share_limits_config=cfg)
-    assert sl.get_share_limit_group(["something-else"], "") == "default"
+    t = torrent_factory(tags="something-else")
+    assert sl.get_share_limit_group(["something-else"], "", t) == "default"
 
 
-def test_get_share_limit_group_returns_none_when_no_default(share_limits_factory, group_config_factory):
+def test_get_share_limit_group_returns_none_when_no_default(share_limits_factory, group_config_factory, torrent_factory):
     cfg = OrderedDict(
         [
             ("noHL", group_config_factory(priority=1.0, include_all_tags=["noHL"])),
         ]
     )
     sl = share_limits_factory(share_limits_config=cfg)
-    assert sl.get_share_limit_group(["other"], "") is None
+    t = torrent_factory(tags="other")
+    assert sl.get_share_limit_group(["other"], "", t) is None
 
 
-def test_get_share_limit_group_respects_category(share_limits_factory, group_config_factory):
+def test_get_share_limit_group_respects_category(share_limits_factory, group_config_factory, torrent_factory):
     cfg = OrderedDict(
         [
             ("movies", group_config_factory(priority=1.0, categories=["RadarrComplete"])),
@@ -112,8 +115,10 @@ def test_get_share_limit_group_respects_category(share_limits_factory, group_con
         ]
     )
     sl = share_limits_factory(share_limits_config=cfg)
-    assert sl.get_share_limit_group([], "RadarrComplete") == "movies"
-    assert sl.get_share_limit_group([], "SonarrComplete") == "default"
+    t_movies = torrent_factory(category="RadarrComplete")
+    t_sonarr = torrent_factory(category="SonarrComplete")
+    assert sl.get_share_limit_group([], "RadarrComplete", t_movies) == "movies"
+    assert sl.get_share_limit_group([], "SonarrComplete", t_sonarr) == "default"
 
 
 # ---- assign_torrents_to_group -----------------------------------------------

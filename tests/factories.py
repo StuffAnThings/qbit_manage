@@ -192,7 +192,7 @@ class FakeTorrent:
         remove = tags if isinstance(tags, list) else [t.strip() for t in str(tags).split(",") if t.strip()]
         self.tags = ", ".join(t for t in existing if t not in remove)
 
-    def set_share_limits(self, ratio_limit, seeding_time_limit, inactive_seeding_time_limit=-2):
+    def set_share_limits(self, ratio_limit, seeding_time_limit, inactive_seeding_time_limit=-2, share_limit_action=None):
         self._record(
             "set_share_limits",
             ratio_limit=ratio_limit,
@@ -250,6 +250,7 @@ class FakeConfig:
     dry_run: bool = False
     loglevel: str = "INFO"
     commands: dict = field(default_factory=lambda: {"share_limits": True, "skip_qb_version_check": False})
+    share_limits_custom_tags: list = field(default_factory=list)
     notifications_sent: list = field(default_factory=list)
     notify_calls: list = field(default_factory=list)
 
@@ -353,6 +354,8 @@ def make_share_limits(qbt_manager):
     instance.min_seeding_time_tag = qbt_manager.config.share_limits_min_seeding_time_tag
     instance.min_num_seeds_tag = qbt_manager.config.share_limits_min_num_seeds_tag
     instance.last_active_tag = qbt_manager.config.share_limits_last_active_tag
+    instance.hashes = None
+    instance.share_limits_custom_tags = qbt_manager.config.share_limits_custom_tags
     instance.group_tag = None
     return instance
 
@@ -370,16 +373,22 @@ def make_group_config(**overrides):
         "exclude_all_tags": None,
         "exclude_any_tags": None,
         "categories": None,
+        "min_torrent_size": None,
+        "max_torrent_size": None,
         "cleanup": False,
         "max_ratio": -1.0,
         "max_seeding_time": -1,
+        "max_last_active": -1,
         "min_seeding_time": 0,
         "limit_upload_speed": 0,
+        "upload_speed_on_limit_reached": 0,
         "enable_group_upload_speed": False,
         "min_num_seeds": 0,
-        "last_active": 0,
+        "min_last_active": 0,
         "resume_torrent_after_change": True,
         "add_group_to_tag": True,
+        "custom_tag": None,
+        "reset_upload_speed_on_unmet_minimums": True,
         "torrents": [],
     }
     base.update(overrides)
