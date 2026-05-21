@@ -1,0 +1,32 @@
+[
+    {
+        "url": "** [DHT] **",
+        "status": 2,
+        "tier": -1,
+        "num_peers": 0,
+        "num_seeds": 0,
+        "num_leeches": 0,
+        "num_downloaded": 0,
+        "msg": ""
+    },
+    {
+        "url": "** [PeX] **",
+        "status": 2,
+        "tier": -1,
+        "num_peers": 0,
+        "num_seeds": 0,
+        "num_leeches": 0,
+        "num_downloaded": 0,
+        "msg": ""
+    },
+    {
+        "url": "http://tracker1.example/announce",
+        "status": 2,
+        "tier": 0,
+        "num_peers": 1,
+        "num_seeds": 25,
+        "num_leeches": 3,
+        "num_downloaded": 100,
+        "msg": ""
+    }
+]
