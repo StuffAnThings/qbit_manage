@@ -154,7 +154,11 @@ class RemoveUnregistered:
                 tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
                 msg_up = trk.msg.upper()
                 msg = trk.msg
-                if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING:
+                if TrackerStatus(trk.status) in (
+                    TrackerStatus.NOT_WORKING,
+                    TrackerStatus.TRACKER_ERROR,
+                    TrackerStatus.UNREACHABLE,
+                ):
                     # Check for unregistered torrents
                     if self.cfg_rem_unregistered:
                         if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(

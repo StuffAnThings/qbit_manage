@@ -195,9 +195,11 @@ class Qbt:
                         working_tracker = True
                         break
                     # Add any potential unregistered torrents to a list
-                    if TrackerStatus(trk.status) == TrackerStatus.NOT_WORKING and not list_in_text(
-                        msg, TorrentMessages.EXCEPTIONS_MSGS
-                    ):
+                    if TrackerStatus(trk.status) in (
+                        TrackerStatus.NOT_WORKING,
+                        TrackerStatus.TRACKER_ERROR,
+                        TrackerStatus.UNREACHABLE,
+                    ) and not list_in_text(msg, TorrentMessages.EXCEPTIONS_MSGS):
                         issue["potential"] = True
                         issue["msg"] = msg
                         issue["status"] = status
