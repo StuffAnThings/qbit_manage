@@ -32,7 +32,7 @@ services:
 
 ## API Endpoints
 
-> All endpoints require authentication via API key or basic auth when authentication is enabled.
+> Most endpoints require authentication via API key or basic auth when authentication is enabled. **Exceptions:** `GET /api/health`, `GET /api/version`, and `GET /api/get_base_url` are always public (unconditionally bypassed by `AuthenticationMiddleware` per `modules/auth.py:416-424`), even when authentication is enabled.
 
 ### Config Management
 
