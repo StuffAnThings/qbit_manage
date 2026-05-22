@@ -46,7 +46,8 @@ jobs:
 
       - name: Publish to Test PyPI
         if: ${{ github.event.inputs.test_pypi == 'true' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        # Pinned per supply-chain hygiene; bump SHA on next dependabot review
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
         with:
           repository-url: https://test.pypi.org/legacy/
           # Option 1: Use trusted publishing (recommended)
@@ -58,7 +59,8 @@ jobs:
 
       - name: Publish to PyPI
         if: ${{ github.event.inputs.test_pypi != 'true' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        # Pinned per supply-chain hygiene; bump SHA on next dependabot review
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b
         with:
           # Option 1: Use trusted publishing (recommended)
           # Repository must be configured in PyPI with GitHub as trusted publisher
