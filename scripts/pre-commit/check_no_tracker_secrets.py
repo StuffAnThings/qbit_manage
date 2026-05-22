@@ -32,10 +32,13 @@ ALLOWLIST_LINE_PATTERNS = [
 ]
 
 # File globs that are inherently allowed to contain hex hashes / passkey-like
-# strings (no fixtures here).
+# strings (no real secrets here — synthetic fixtures or pattern definitions).
 ALLOWLISTED_PATHS = [
     re.compile(r"^scripts/pre-commit/check_no_tracker_secrets\.py$"),
     re.compile(r"^scripts/capture_qbit_fixtures\.py$"),
+    # Unit tests for redact_passkey() necessarily contain synthetic passkey-
+    # shaped inputs (32-hex, 32-char base32) as positive test cases.
+    re.compile(r"^tests/test_redact_passkey\.py$"),
 ]
 
 
