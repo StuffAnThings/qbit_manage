@@ -11,7 +11,9 @@ on:
   gollum:
 
 concurrency:
-  group: docs-sync-${{ github.event_name }}
+  # Single group across push + gollum so the two sync directions don't race.
+  # cancel-in-progress: false — let an in-flight sync finish before the next runs.
+  group: docs-sync
   cancel-in-progress: false
 
 env:

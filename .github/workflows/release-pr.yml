@@ -61,8 +61,16 @@ jobs:
           raw=$(cat VERSION)
           echo "Raw VERSION: $raw"
 
+          # Validate the VERSION file matches the expected X.Y.Z(-developN)? shape
+          # before we strip + arithmetic. Without this, a malformed file (empty
+          # segments, extra text) would silently compute the wrong next version.
+          if ! [[ "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-develop[0-9]+)?$ ]]; then
+            echo "::error::VERSION file does not match X.Y.Z or X.Y.Z-developN: '$raw'"
+            exit 1
+          fi
+
           # Strip the -developN suffix to get the base version
-          base=$(echo "$raw" | sed 's/-develop[0-9]*//')
+          base="${raw%-develop*}"
           echo "Base version: $base"
 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$base"
