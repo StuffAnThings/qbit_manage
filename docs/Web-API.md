@@ -32,6 +32,84 @@ services:
 
 ## API Endpoints
 
+> All endpoints require authentication via API key or basic auth when authentication is enabled.
+
+### Config Management
+
+#### GET /api/configs
+List all available config files in the config directory.
+
+#### GET /api/configs/{filename}
+Fetch the contents of a specific config file.
+
+#### POST /api/configs/{filename}
+Create a new config file with the provided content.
+
+#### PUT /api/configs/{filename}
+Update an existing config file with new content.
+
+#### DELETE /api/configs/{filename}
+Delete a config file permanently.
+
+#### POST /api/configs/{filename}/validate
+Validate a config file for correctness without applying it.
+
+#### POST /api/configs/{filename}/backup
+Create a timestamped backup of the specified config file.
+
+#### GET /api/configs/{filename}/backups
+List all available backups for the specified config file.
+
+#### POST /api/configs/{filename}/restore
+Restore a config file from a previously created backup.
+
+### Scheduler
+
+#### GET /api/scheduler
+Return the current scheduler status, including schedule expression and next run time.
+
+#### PUT /api/schedule
+Set or update the scheduler's cron/interval expression.
+
+#### POST /api/schedule/persistence/toggle
+Toggle whether the scheduler's configuration persists across restarts.
+
+### Logs
+
+#### GET /api/logs
+Fetch recent log content. Accepts optional `limit` (number of lines) and `log_filename` query parameters.
+
+#### GET /api/log_files
+List all available log files.
+
+### System / Misc
+
+#### GET /api/docs
+Return documentation metadata for the API.
+
+#### GET /api/version
+Return version information for qBit Manage.
+
+#### GET /api/health
+Liveness probe — returns a simple OK response when the server is running.
+
+#### GET /api/get_base_url
+Return the resolved base URL the server is listening on.
+
+#### GET /api/security
+Return the current security configuration (API key and basic auth settings).
+
+#### GET /api/security/status
+Return a summary of whether authentication is enabled and which methods are active.
+
+#### PUT /api/security
+Update security settings (API key, basic auth credentials, etc.).
+
+#### POST /api/system/force-reset
+Force-reset the internal running state. Use when a stuck run has left the system in an inconsistent state.
+
+---
+
 ### POST /api/run-command
 
 Execute qBit Manage commands via the API.

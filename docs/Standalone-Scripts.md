@@ -110,6 +110,8 @@ Edit the variables directly within the script:
 - `LOG_LEVEL`: Set the logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
 
 ### [`update-readme-version.py`](scripts/update-readme-version.py)
+*Internal CI helper — not intended for direct user invocation.*
+
 This script updates the `SUPPORTED_VERSIONS.json` file with the latest supported qBittorrent version and the current `qbittorrent-api` version. It is typically run as part of a CI/CD pipeline or pre-commit hook to keep version information up-to-date.
 
 **Usage:**

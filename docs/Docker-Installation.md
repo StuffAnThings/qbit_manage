@@ -24,7 +24,6 @@ Please see [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands
 Here is an example of a docker compose
 
 ```yaml
-version: "3.7"
 services:
   qbit_manage:
     container_name: qbit_manage
@@ -37,7 +36,7 @@ services:
       - "8181:8181"  # Web API port (when enabled)
     environment:
       # Web API Configuration
-      - QBT_WEB_SERVER=true     # Set to true to enable web API and web UI
+      - QBT_WEB_SERVER=true     # disabled by default in Docker; set to true to enable
       - QBT_PORT=8181           # Web API port (default: 8181)
 
       # Scheduler Configuration
@@ -73,7 +72,7 @@ services:
 
 ### Web API and Web UI Usage
 
-The Web API and Web UI are enabled by default in this Docker setup.
+In this example compose, the web server is enabled via `QBT_WEB_SERVER=true`. By default in Docker, the web server is **disabled** (per `qbit_manage.py:280-281`: `if web_server is None and not is_docker: web_server = True`). Set `QBT_WEB_SERVER=true` to enable.
 1. Ensure port 8181 (or your chosen `QBT_PORT`) is mapped using the `ports` section.
 2. Access the Web UI at `http://your-host:8181`
 3. Access the Web API at `http://your-host:8181/api/run-command`

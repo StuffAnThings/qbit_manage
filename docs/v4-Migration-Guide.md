@@ -98,3 +98,16 @@ Torrents from tracker a and tracker b that are tagged as noHL and in the movie c
 Torrents from tracker c that are tagged as noHL and in the tv category will have a share limit of 50 minutes and a ratio of 3. These same torrents, when not tagged as noHL, will have no share limit applied and will seed indefinitely.
 
 There is now much greater flexibility to apply different share limits to torrents based on how you group them and which tags and categories are assigned to each group. When assigning priority it is best to determine what limits/restrictions you want based on your preferences and assign the more restrictive limits as higher priority groups since share limits will not transfer when a torrent is moved from one group to another. In the examples above, the settings are more restrictive for noHL torrents so those are listed as higher priority within the group.
+
+## Post-v4.0 Notable Additions
+
+The following settings were added after the v4.0 release. No migration is required — they are all optional with safe defaults. See [Config-Setup](Config-Setup.md) for full details.
+
+- **`upload_speed_on_limit_reached`** (int, default `0`) — throttle per-torrent upload speed (KiB/s) when share limits are reached and `cleanup` is `false`. `0` = disabled, `-1` = unlimited.
+- **`min_torrent_size`** / **`max_torrent_size`** (str) — filter torrents included in a share-limits group by size (e.g. `200MB`, `40GB`). Leave unset to disable.
+- **`reset_upload_speed_on_unmet_minimums`** (bool, default `true`) — when minimum seeding conditions are not yet met, reset upload speed limits to unlimited. Set to `false` to preserve existing limits.
+- **`rem_unregistered_grace_minutes`** (int, default `10`) — protect newly added torrents from `rem_unregistered` removal for this many minutes after they are added.
+- **`rem_unregistered_max_torrents`** (int, default `10`) — maximum number of torrents to remove per tracker per run when using `rem_unregistered`. Set to `0` to disable the cap.
+- **`rem_unregistered_filter_completed`** (bool, default `false`) — restrict `rem_unregistered` to completed torrents only.
+- **`stalled_tag`** (str, default `stalledDL`) — customizable tag name applied to stalled torrents when `tag_stalled_torrents: true`.
+- **Web API & Web UI** — a full REST API and web interface are now available. See [Web API](Web-API.md) and [Web UI](Web-UI.md).
