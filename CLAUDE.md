@@ -127,9 +127,9 @@ the commit in auto-generated release notes.
 
 ## Docs / Wiki
 
-- `docs/` is the source for the [GitHub Wiki](https://github.com/StuffAnThings/qbit_manage/wiki).
-- The `docs.yml` CI workflow syncs `docs/` to the wiki on every push to `develop`.
-- Edit docs in `docs/` — never edit the wiki directly.
+- `docs/` is the source of truth for the [GitHub Wiki](https://github.com/StuffAnThings/qbit_manage/wiki).
+- The `docs.yml` CI workflow auto-syncs `docs/` to the wiki on every push to `develop` — so editing a file in `docs/` *is* how you update the wiki.
+- Do not edit the wiki via the web UI; the next `docs.yml` run will overwrite manual wiki edits.
 - `docs/Contributing.md` is the contributor guide.
 - `DEVELOPER.md` documents the release flow and CI gates.
 
