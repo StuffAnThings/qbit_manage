@@ -328,7 +328,7 @@ class Qbt:
             self.config.data, "tag", parent="tracker", subparent="other", default_is_none=True, var_type="list", save=False
         )
         try:
-            tracker["url"] = util.trunc_val(urls[0], "/")
+            tracker["url"] = util.redact_passkey(util.trunc_val(urls[0], "/"))
         except IndexError as e:
             tracker["url"] = None
             if not urls:
@@ -348,7 +348,7 @@ class Qbt:
                             default_tag = tracker_other_tag
                         else:
                             try:
-                                tracker["url"] = util.trunc_val(url, "/")
+                                tracker["url"] = util.redact_passkey(util.trunc_val(url, "/"))
                                 default_tag = tracker["url"].split("/")[2].split(":")[0]
                             except IndexError as e:
                                 logger.debug(f"Tracker Url:{url}")
