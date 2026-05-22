@@ -19,6 +19,7 @@ concurrency:
 jobs:
   pypi-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write  # Required for trusted publishing to PyPI

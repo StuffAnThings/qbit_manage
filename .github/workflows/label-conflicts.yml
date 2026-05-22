@@ -22,6 +22,7 @@ concurrency:
 jobs:
   label-conflicts:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Label PRs with merge conflicts
         uses: eps1lon/actions-label-merge-conflict@v3
