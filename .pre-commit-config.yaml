@@ -38,3 +38,11 @@ repos:
       # VERSION bumping moved to .github/workflows/bump-version-develop.yml
       # (auto-increments on push to develop). PR commits no longer bump
       # VERSION, so rebases no longer conflict on it.
+  - repo: local
+    hooks:
+      - id: check-no-tracker-secrets
+        name: Refuse staged content matching tracker-passkey patterns
+        entry: python3 ./scripts/pre-commit/check_no_tracker_secrets.py
+        language: system
+        pass_filenames: true
+        stages: [pre-commit]
