@@ -95,6 +95,36 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
             return tags_to_remove
 
 
+def redact_passkey(url: str) -> str:
+    """Strip tracker passkey from a URL so it is safe to log.
+
+    Private-tracker announce URLs embed the user's passkey in the path
+    (BHD: ``/announce/<pk>``; Blutopia: ``/announce/<pk>``), the query
+    (HDBits: ``?passkey=<pk>``), or as a path prefix (BTN:
+    ``/<pk>/announce``). Logging the raw URL leaks the passkey to log
+    sinks and any downstream consumer (webhooks, notifications, etc.).
+
+    Returns ``<scheme>://<host>/announce[REDACTED]`` when any
+    suspect path or query is present; passes pristine ``/announce``-only
+    URLs and qBittorrent sentinels (``** [DHT] **`` etc.) through unchanged.
+    """
+    if not url or url.startswith("**"):
+        return url
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+    except (ValueError, AttributeError):
+        return "[REDACTED]"
+    if not parsed.scheme or not parsed.netloc:
+        return "[REDACTED]"
+    path = parsed.path.rstrip("/")
+    looks_clean = path in ("", "/announce")
+    if looks_clean and not parsed.query:
+        return url
+    return f"{parsed.scheme}://{parsed.netloc}/announce[REDACTED]"
+
+
 def format_stats_summary(stats: dict, config) -> list[str]:
     """
     Formats the statistics summary into a human-readable list of strings.
