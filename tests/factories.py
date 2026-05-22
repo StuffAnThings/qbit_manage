@@ -135,7 +135,9 @@ class FakeTorrent:
         "super_seeding": False,
         "seq_dl": False,
         "magnet_uri": "",
-        "isPrivate": False,
+        # production code reads `.private` (Qbt.is_torrent_private). qbittorrent-api
+        # fixtures also use `private`, not `isPrivate`. (Copilot review #1198:140.)
+        "private": False,
         "tracker": "http://tracker1.example/announce",
         "ratio_limit": -2.0,
         "seeding_time_limit": -2,
@@ -199,6 +201,15 @@ class FakeTorrent:
             seeding_time_limit=seeding_time_limit,
             inactive_seeding_time_limit=inactive_seeding_time_limit,
         )
+        # Production code + tests reason about per-torrent ratio_limit /
+        # seeding_time_limit (the qbittorrent-api field names), not the
+        # legacy max_ratio / max_seeding_time aliases. (Copilot review
+        # #1198:201.) Update the canonical fields so subsequent reads
+        # see the correct value.
+        self.ratio_limit = ratio_limit
+        self.seeding_time_limit = seeding_time_limit
+        self.inactive_seeding_time_limit = inactive_seeding_time_limit
+        # Keep legacy aliases populated for any test still reading them.
         self.max_ratio = ratio_limit
         self.max_seeding_time = seeding_time_limit
 
