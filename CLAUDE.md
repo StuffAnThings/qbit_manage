@@ -127,9 +127,10 @@ the commit in auto-generated release notes.
 
 ## Docs / Wiki
 
-- `docs/` is the source of truth for the [GitHub Wiki](https://github.com/StuffAnThings/qbit_manage/wiki).
-- The `docs.yml` CI workflow auto-syncs `docs/` to the wiki on every push to `develop` — so editing a file in `docs/` *is* how you update the wiki.
-- Do not edit the wiki via the web UI; the next `docs.yml` run will overwrite manual wiki edits.
+- `docs/` and the [GitHub Wiki](https://github.com/StuffAnThings/qbit_manage/wiki) are kept in sync **bidirectionally** by `.github/workflows/docs.yml`:
+  - Push to `develop` touching `docs/**` → CI syncs `docs/` → wiki.
+  - Wiki edit via the GitHub UI → `gollum` event → CI syncs wiki → `docs/` on `develop`.
+- Either side is a valid place to edit; the sync is not instant (each direction is a CI run), but neither side overwrites the other.
 - `docs/Contributing.md` is the contributor guide.
 - `DEVELOPER.md` documents the release flow and CI gates.
 
