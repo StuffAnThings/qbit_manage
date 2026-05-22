@@ -271,13 +271,23 @@ jobs:
 
           printf '%s' "$NOTES" > /tmp/draft_release_notes.md
 
-      - name: Create draft GitHub release
-        uses: softprops/action-gh-release@v2
+      - name: Create draft GitHub release (no tag yet)
+        # Switched from softprops/action-gh-release to ncipollo/release-action
+        # because softprops creates the tag ref immediately on `draft: true`,
+        # which triggers tag-watching workflows (pypi-publish.yml /
+        # version.yml) before the release PR is reviewed + merged.
+        # ncipollo records the tag in the release object but does NOT push
+        # the underlying tag ref while the release stays in draft. The
+        # tag is created post-merge by tag.yml when master advances.
+        # (Copilot review #1200 + operator pick 2026-05-22.)
+        uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
-          tag_name: "v${{ needs.prepare-release-branch.outputs.new_version }}"
+          tag: "v${{ needs.prepare-release-branch.outputs.new_version }}"
           name: "v${{ needs.prepare-release-branch.outputs.new_version }}"
-          body_path: /tmp/draft_release_notes.md
+          bodyFile: /tmp/draft_release_notes.md
           draft: true
           prerelease: false
-          target_commitish: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          allowUpdates: true
+          commit: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          skipIfReleaseExists: false
