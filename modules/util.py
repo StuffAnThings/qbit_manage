@@ -13,6 +13,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 import ruamel.yaml
@@ -111,8 +112,6 @@ def redact_passkey(url: str) -> str:
     if not url or url.startswith("**"):
         return url
     try:
-        from urllib.parse import urlparse
-
         parsed = urlparse(url)
     except (ValueError, AttributeError):
         return "[REDACTED]"
