@@ -57,7 +57,42 @@ This section defines your qBittorrent instance.
 
 ### Environment variable override
 
-The `host` key can be overridden at runtime via the `QBT_HOST` environment variable. The `user` and `pass` keys are **not** env-var-addressable — they must be set in YAML. (Verify: `qbit_manage.py` reads `QBT_HOST` via `get_arg("QBT_HOST", ...)`.)
+Every CLI flag (and a few internal settings) can be set via environment variable. The table below lists every `get_arg(...)` call found in `qbit_manage.py` on master as of v4.7.1.
+
+| Env var | Maps to CLI / config key | Override? | Notes |
+|---------|--------------------------|-----------|-------|
+| `QBT_HOST` | `qbt.host` in YAML / `-H`/`--host` web-server flag | YAML default | IP/hostname of qBittorrent instance |
+| `QBT_PORT` | `-p`/`--port` | CLI default | Web-server port (default: 8181) |
+| `QBT_BASE_URL` | `-b`/`--base-url` | CLI default | Base URL path for the web UI |
+| `QBT_WEB_SERVER` | `-ws`/`--web-server` | CLI default | Enable/disable the built-in web server |
+| `QBT_RUN` | `-r`/`--run` | CLI default | Run once and exit (no scheduler) |
+| `QBT_SCHEDULE` | `-sch`/`--schedule` | CLI default | Schedule interval in minutes (or cron string) |
+| `QBT_STARTUP_DELAY` | `-sd`/`--startup-delay` | CLI default | Delay in seconds before first scheduled run |
+| `QBT_CONFIG` | `-c`/`--config-file` | — | Path to `config.yml`; hidden from `--help` (argparse.SUPPRESS) |
+| `QBT_CONFIG_DIR` | `-cd`/`--config-dir` | CLI default | Directory containing `config.yml` |
+| `QBT_LOGFILE` | `-lf`/`--log-file` | CLI default | Log file name (default: `qbit_manage.log`) |
+| `QBT_RECHECK` | `-re`/`--recheck` | CLI default | Run the recheck command |
+| `QBT_CAT_UPDATE` | `-cu`/`--cat-update` | CLI default | Run the cat-update command |
+| `QBT_TAG_UPDATE` | `-tu`/`--tag-update` | CLI default | Run the tag-update command |
+| `QBT_REM_UNREGISTERED` | `-ru`/`--rem-unregistered` | CLI default | Run the rem-unregistered command |
+| `QBT_TAG_TRACKER_ERROR` | `-tte`/`--tag-tracker-error` | CLI default | Run the tag-tracker-error command |
+| `QBT_REM_ORPHANED` | `-ro`/`--rem-orphaned` | CLI default | Run the rem-orphaned command |
+| `QBT_TAG_NOHARDLINKS` | `-tnhl`/`--tag-nohardlinks` | CLI default | Run the tag-nohardlinks command |
+| `QBT_SHARE_LIMITS` | `-sl`/`--share-limits` | CLI default | Run the share-limits command |
+| `QBT_SKIP_CLEANUP` | `-sc`/`--skip-cleanup` | CLI default | Skip emptying RecycleBin and orphaned dirs |
+| `QBT_SKIP_QB_VERSION_CHECK` | `-svc`/`--skip-qb-version-check` | CLI default | Bypass qBittorrent version compatibility check |
+| `QBT_DRY_RUN` | `-dr`/`--dry-run` | CLI default | Preview actions without executing them |
+| `QBT_LOG_LEVEL` | `-ll`/`--log-level` | CLI default | Log verbosity (default: `INFO`) |
+| `QBT_LOG_SIZE` | `-ls`/`--log-size` | CLI default | Max log file size in MB (default: 10) |
+| `QBT_LOG_COUNT` | `-lc`/`--log-count` | CLI default | Max number of log files to keep (default: 5) |
+| `QBT_DIVIDER` | `-d`/`--divider` | CLI default | Section divider character (default: `=`) |
+| `QBT_WIDTH` | `-w`/`--width` | CLI default | Screen width for log formatting (default: 100) |
+| `QBT_DEBUG` | `--debug` | CLI default | Enable debug logging |
+| `QBT_TRACE` | `--trace` | CLI default | Enable trace logging |
+| `QBM_DOCKER` | Internal only | — | Detected automatically via `in_docker()`; set to force Docker mode |
+| `BRANCH_NAME` | Internal only | — | Used to select the correct version string at startup (default: `"master"`) |
+
+**Keys with NO env-var override:** `qbt.user` and `qbt.pass` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
 
 ## **settings:**
 
@@ -83,7 +118,13 @@ This section defines any settings defined in the configuration.
 | `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
 | `tag_stalled_torrents`              | Tags any downloading torrents that are stalled with the user defined `stalledDL` tag when running the tag_update command                                                                                                                                                                                                                        | True                      | <center>❌</center> |
 | `stalled_tag`                       | Tag applied to torrents in `stalledDL` state when `tag_stalled_torrents: true`. Customizable. Reference: `modules/config.py:304`.                                                                                                                                                                                                               | stalledDL                 | <center>❌</center> |
+
+`stalled_tag` only fires when `tag_stalled_torrents: true` is also set. The boolean toggle activates the feature; this string is the tag name applied.
+
 | `rem_unregistered_filter_completed` | Restrict the `rem_unregistered` command to completed torrents only. Reference: `modules/config.py:327-329`.                                                                                                                                                                                                                                     | false                     | <center>❌</center> |
+
+**Cross-seed interplay:** even with `rem_unregistered_filter_completed: true`, the rem_unregistered logic still checks for cross-seed siblings before deleting torrent data — a torrent registered as unregistered AND completed will still preserve its data files if a sibling cross-seed shares the save path. See [share_limits cleanup notes](#share_limits) for the full cross-seed safety model.
+
 | `rem_unregistered_ignore_list`      | Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched                                                                                                                                                                                                     |                           | <center>❌</center> |
 | `rem_unregistered_grace_minutes`    | Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable.                                                                                                                                                                                                                   | 10                        | <center>❌</center> |
 | `rem_unregistered_max_torrents`     | Maximum number of torrents to remove per tracker per run. Set to 0 to disable.                                                                                                                                                                                                                                                                  | 10                        | <center>❌</center> |
@@ -228,7 +269,24 @@ Control how torrent share limits are set depending on the priority of your group
 
 **Cleanup + recyclebin interaction:** when `cleanup: true` triggers a torrent removal, the data files are sent to the `recyclebin:` configured location if recyclebin is enabled (`recyclebin.enabled: true`). If recyclebin is disabled, data is hard-deleted. This is independent of cross-seed handling — see below.
 
+**Worked example — cleanup with recyclebin enabled:**
+
+```yaml
+recyclebin:
+  enabled: true
+  empty_after_x_days: 7
+  save_torrents: true
+share_limits:
+  archived-movies:
+    max_ratio: 2.0
+    cleanup: true
+```
+
+Walkthrough: torrent reaches `max_ratio >= 2.0` → marked cleanup-eligible → qBittorrent removes the torrent from its session → data files are moved to `recyclebin.recycle_bin_path` (or `<root_dir>/.RecycleBin` if not set) → kept for 7 days, then permanently deleted by the recyclebin sweep.
+
 **Cleanup + cross-seed safety:** if the torrent being cleaned up shares its save path with another active torrent (cross-seed), the torrent is removed from qBittorrent but the data files are preserved on disk. The sibling cross-seed continues seeding uninterrupted.
+
+**Cross-seed safety extends to `rem_unregistered` and `tag_nohardlinks` paths as well.** Both commands check for sibling torrents sharing the same save path before any destructive operation. `rem_unregistered` will preserve data when a cross-seed sibling exists; `tag_nohardlinks` is read-only and never deletes (only adds/removes tags), so no cross-seed gate is needed in that path.
 | `max_ratio`                            | Will set the torrent Maximum share ratio until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | -1                   | float     | <center>❌</center> |
 | `max_seeding_time`                     | Will set the torrent Maximum seeding time until torrent is stopped from seeding/uploading and may be cleaned up / removed if the minimums have been met. (`-2` : Global Limit , `-1` : No Limit) (Max value of 1 year (525600 minutes)) See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                                                  | -1                   | str       | <center>❌</center> |
 | `max_last_active`                      | Will delete the torrent if cleanup variable is set and if torrent has been inactive longer than x minutes. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                                                                                                                                                                               | -1                   | str       | <center>❌</center> |
@@ -236,6 +294,10 @@ Control how torrent share limits are set depending on the priority of your group
 | `min_last_active`                      | Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes. If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                          | 0                    | str       | <center>❌</center> |
 | `limit_upload_speed`                   | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -1                   | int       | <center>❌</center> |
 | `upload_speed_on_limit_reached`        | When cleanup is `false` and a torrent reaches its share limits, throttle per‑torrent upload to this value (KiB/s). Use `-1` for unlimited. QBM will also clear the share limits to prevent qBittorrent from pausing, allowing continued seeding at the throttled rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 0                    | int       | <center>❌</center> |
+
+
+**Behavior note:** the default `0` means **stop upload** (rate-limit to zero) once share limits are reached, when `cleanup: false`. Set to `-1` for unlimited upload after limits are reached, or any positive value (KiB/s) to throttle to a specific rate. QBM clears the share limits in qBittorrent to prevent the client from pausing the torrent, then applies this upload cap — so the torrent keeps seeding at the specified rate indefinitely.
+
 | `enable_group_upload_speed`            | Upload speed limits are applied at the group level. This will take `limit_upload_speed` defined and divide it equally among the number of torrents in the group.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | False                | bool      | <center>❌</center> |
 | `reset_upload_speed_on_unmet_minimums` | Controls whether upload speed limits are reset when minimum conditions are not met. When `true` (default), upload speed limits will be reset to unlimited if minimum seeding time, number of seeds, or last active time conditions are not satisfied. When `false`, existing upload speed limits will be preserved for bandwidth management purposes.                                                                                                                                                                                                                                                                                                                                                                         | True                 | bool      | <center>❌</center> |
 | `resume_torrent_after_change`          | Will resume your torrent after changing share limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | True                 | bool      | <center>❌</center> |

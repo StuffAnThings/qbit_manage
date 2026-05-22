@@ -1,5 +1,7 @@
 # Web API Documentation
 
+> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
+
 ## Overview
 
 qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8181, listening to all hostnames by default, and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
@@ -15,10 +17,9 @@ python qbit_manage.py --web-server --host 0.0.0.0 --port 8181
 ### Docker
 
 ```yaml
-version: "3"
 services:
   qbit_manage:
-    image: bobokun/qbit_manage:latest
+    image: ghcr.io/stuffanthings/qbit_manage:latest
     container_name: qbit_manage
     environment:
       - QBT_WEB_SERVER=true # Enable web server (set to false to disable)
@@ -32,69 +33,370 @@ services:
 
 ## API Endpoints
 
-> Most endpoints require authentication via API key or basic auth when authentication is enabled. **Exceptions:** `GET /api/health`, `GET /api/version`, and `GET /api/get_base_url` are always public (unconditionally bypassed by `AuthenticationMiddleware` per `modules/auth.py:416-424`), even when authentication is enabled.
+> Most endpoints require authentication via API key or basic auth when authentication is enabled. **Exceptions:** `GET /api/health`, `GET /api/version`, and `GET /api/get_base_url` are always public (unconditionally bypassed by `AuthenticationMiddleware` per `modules/auth.py` `skip_auth_paths`), even when authentication is enabled.
+
+### Endpoint Summary
+
+| Endpoint | Method | Auth required |
+|---|---|---|
+| `/api/run-command` | POST | Yes |
+| `/api/configs` | GET | Yes |
+| `/api/configs/{filename}` | GET | Yes |
+| `/api/configs/{filename}` | POST | Yes |
+| `/api/configs/{filename}` | PUT | Yes |
+| `/api/configs/{filename}` | DELETE | Yes |
+| `/api/configs/{filename}/validate` | POST | Yes |
+| `/api/configs/{filename}/backup` | POST | Yes |
+| `/api/configs/{filename}/backups` | GET | Yes |
+| `/api/configs/{filename}/restore` | POST | Yes |
+| `/api/scheduler` | GET | Yes |
+| `/api/schedule` | PUT | Yes |
+| `/api/schedule/persistence/toggle` | POST | Yes |
+| `/api/logs` | GET | Yes |
+| `/api/log_files` | GET | Yes |
+| `/api/docs` | GET | Yes |
+| `/api/version` | GET | No (always public) |
+| `/api/health` | GET | No (always public) |
+| `/api/get_base_url` | GET | No (always public) |
+| `/api/security` | GET | Yes |
+| `/api/security/status` | GET | Yes |
+| `/api/security` | PUT | Yes |
+| `/api/system/force-reset` | POST | Yes |
+
+---
 
 ### Config Management
 
 #### GET /api/configs
-List all available config files in the config directory.
+
+List all available config files in the config directory. Sensitive files (`qbm_settings.yml`, `secrets.yml`, etc.) are automatically filtered from results.
+
+**Response:**
+
+```json
+{
+  "configs": ["config.yml", "config2.yml"],
+  "default_config": "config.yml"
+}
+```
 
 #### GET /api/configs/{filename}
-Fetch the contents of a specific config file.
+
+Fetch the contents of a specific config file as a parsed object.
+
+**Response:**
+
+```json
+{
+  "filename": "config.yml",
+  "data": { "qbt": { "host": "localhost:8080" }, "settings": {} },
+  "last_modified": "2026-05-21T10:00:00",
+  "size": 4096
+}
+```
+
+`data` mirrors the YAML structure. `!ENV` variable references are preserved as strings in the form `!ENV <VAR>`.
 
 #### POST /api/configs/{filename}
-Create a new config file with the provided content.
+
+Create a new config file. Returns `409` if the file already exists.
+
+**Request body:**
+
+```json
+{
+  "data": {
+    "qbt": { "host": "localhost:8080", "user": "admin", "pass": "" },
+    "settings": { "run_now": false }
+  }
+}
+```
+
+**Response (201-equivalent):**
+
+```json
+{ "status": "success", "message": "Configuration 'config2.yml' created successfully" }
+```
 
 #### PUT /api/configs/{filename}
-Update an existing config file with new content.
+
+Update an existing config file. A timestamped backup is created automatically before writing. Returns `404` if file does not exist.
+
+**Request body** (same shape as POST — full config data object):
+
+```json
+{
+  "data": {
+    "qbt": { "host": "localhost:8080", "user": "admin", "pass": "" },
+    "settings": { "run_now": false, "schedule": 1440 },
+    "cat": { "movies": "/data/torrents/movies" }
+  }
+}
+```
+
+**Response:**
+
+```json
+{ "status": "success", "message": "Configuration 'config.yml' updated successfully" }
+```
 
 #### DELETE /api/configs/{filename}
-Delete a config file permanently.
+
+Delete a config file permanently. A backup is created before deletion.
+
+**Response:**
+
+```json
+{ "status": "success", "message": "Configuration 'config.yml' deleted successfully" }
+```
 
 #### POST /api/configs/{filename}/validate
-Validate a config file for correctness without applying it.
+
+Validate a config file for correctness by running it through qbit_manage's config parser without executing commands. If validation causes defaults to be written (e.g., missing keys are backfilled), those changes are applied to the **actual** config file.
+
+**Request body:**
+
+```json
+{
+  "data": {
+    "qbt": { "host": "localhost:8080" },
+    "settings": {},
+    "cat": {},
+    "tracker": {},
+    "share_limits": {}
+  }
+}
+```
+
+**Response (valid):**
+
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "config_modified": false
+}
+```
+
+**Response (invalid — with errors):**
+
+```json
+{
+  "valid": false,
+  "errors": ["Config Error: qbt.host is required"],
+  "warnings": [],
+  "config_modified": false
+}
+```
+
+`config_modified: true` means defaults were written back to the on-disk config during validation.
 
 #### POST /api/configs/{filename}/backup
-Create a timestamped backup of the specified config file.
+
+Create a timestamped backup of the specified config file. Backups are retained up to 30 per config.
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "message": "Manual backup created successfully",
+  "backup_file": "config_20260521_100000.yml"
+}
+```
 
 #### GET /api/configs/{filename}/backups
+
 List all available backups for the specified config file.
 
+**Response:**
+
+```json
+{
+  "backups": [
+    { "filename": "config_20260521_100000.yml", "created": "2026-05-21T10:00:00", "size": 4096 }
+  ]
+}
+```
+
 #### POST /api/configs/{filename}/restore
-Restore a config file from a previously created backup.
+
+Restore a config file from a previously created backup. Pass the backup filename as the request body.
+
+---
 
 ### Scheduler
 
 #### GET /api/scheduler
+
 Return the current scheduler status, including schedule expression and next run time.
 
+**Response:**
+
+```json
+{
+  "current_schedule": { "type": "interval", "value": "1440" },
+  "next_run": "2026-05-22T10:00:00.000000",
+  "next_run_str": "in 24 hours",
+  "is_running": false,
+  "source": "env",
+  "persistent": false,
+  "file_exists": false,
+  "disabled": false
+}
+```
+
+`type` is `"interval"` (minutes) or `"cron"` (cron expression). `source` is `"env"` (from `QBT_SCHEDULE`), `"file"` (persisted via API), or `null`.
+
 #### PUT /api/schedule
-Set or update the scheduler's cron/interval expression.
+
+Set or update the scheduler's cron/interval expression. The change takes effect immediately and can optionally be persisted across restarts.
+
+**Request body:**
+
+```json
+{ "schedule": "1440", "type": "interval" }
+```
+
+Or using a cron expression:
+
+```json
+{ "schedule": "0 4 * * *", "type": "cron" }
+```
+
+`type` is optional — qbit_manage will auto-detect `"interval"` vs `"cron"` if omitted. Interval values must be positive integers (minutes).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Schedule saved successfully: interval=1440",
+  "schedule": "1440",
+  "type": "interval",
+  "persistent": true
+}
+```
 
 #### POST /api/schedule/persistence/toggle
+
 Toggle whether the scheduler's configuration persists across restarts.
+
+---
 
 ### Logs
 
 #### GET /api/logs
-Fetch recent log content. Accepts optional `limit` (number of lines) and `log_filename` query parameters.
+
+Fetch recent log content from the log files directory.
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `limit` | int | none (all) | Maximum number of lines to return (most recent N lines) |
+| `log_filename` | str | `qbit_manage.log` | Name of the log file to read |
+
+**Response:**
+
+```json
+{
+  "logs": [
+    "2026-05-21 10:00:00,000 INFO     | Run started",
+    "2026-05-21 10:00:01,123 INFO     | Processing torrent: Example.Torrent"
+  ]
+}
+```
+
+Lines are returned in **chronological order** (oldest first). Use `limit` to cap output for large log files.
+
+**Example:**
+
+```bash
+curl -s "http://localhost:8181/api/logs?limit=50&log_filename=qbit_manage.log" \
+  -H "X-API-Key: your_api_key_here"
+```
 
 #### GET /api/log_files
-List all available log files.
+
+List all available log files in the logs directory.
+
+**Response:**
+
+```json
+{ "log_files": ["qbit_manage.log", "qbit_manage.log.1"] }
+```
+
+---
 
 ### System / Misc
 
 #### GET /api/docs
-Return documentation metadata for the API.
+Return documentation metadata for the API (markdown file content).
 
 #### GET /api/version
-Return version information for qBit Manage.
+
+Return version information for qBit Manage. **Always public — no auth required.**
+
+**Response:**
+
+```json
+{
+  "version": "4.7.1",
+  "branch": "master",
+  "build": 0,
+  "latest_version": "4.7.1",
+  "update_available": false
+}
+```
+
+`update_available: true` when a newer release is available on GitHub. `build` is the git commit count (integer).
 
 #### GET /api/health
-Liveness probe — returns a simple OK response when the server is running.
+
+Liveness and readiness probe. **Always public — no auth required.** Returns full application state.
+
+**Response:**
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-05-21T10:00:00.000000",
+  "version": "4.7.1",
+  "branch": "master",
+  "application": {
+    "web_api_responsive": true,
+    "can_accept_requests": true,
+    "queue_size": 0,
+    "has_queued_requests": false,
+    "next_scheduled_run": "2026-05-22T10:00:00.000000",
+    "next_scheduled_run_text": "in 24 hours"
+  },
+  "directories": {
+    "config_dir_exists": true,
+    "config_files_count": 1,
+    "logs_dir_exists": true,
+    "recent_log_entries": 150,
+    "last_activity": "Recent activity detected"
+  },
+  "issues": []
+}
+```
+
+`status` values: `"healthy"` | `"degraded"` (config/log dir missing) | `"busy"` (run in progress) | `"unhealthy"` (health check itself failed).
 
 #### GET /api/get_base_url
-Return the resolved base URL the server is listening on.
+
+Return the resolved base URL the server is listening on. **Always public — no auth required.**
+
+**Response:**
+
+```json
+{ "baseUrl": "" }
+```
+
+Returns empty string when no `--base-url` / `QBT_BASE_URL` is configured.
 
 #### GET /api/security
 Return the current security configuration (API key and basic auth settings).
