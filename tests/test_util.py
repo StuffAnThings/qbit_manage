@@ -140,6 +140,14 @@ class TestListInText:
         # Empty set — all() of empty iterable is vacuously True, short-circuits to True
         assert list_in_text("hello world", set(), match_all=True) is True
 
+    def test_match_all_missing_word(self):
+        # 'foo' does not contain 'hello' or 'world' — must return False (regression for vacuous-truth bug)
+        assert list_in_text("foo", {"hello", "world"}, match_all=True) is False
+
+    def test_match_all_partial_words_missing(self):
+        # Only one of the required words is present — must return False
+        assert list_in_text("hello foo", {"hello", "world"}, match_all=True) is False
+
     def test_list_input_converted(self):
         # accepts list too
         assert list_in_text("hello world", ["hello"]) is True
