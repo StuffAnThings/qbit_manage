@@ -58,7 +58,7 @@ The operator:
 
 ### Step 3 — Post-Merge Automation (CI, auto-triggered on master push)
 
-Three workflows fire in parallel after the master push:
+Four workflows fire in parallel after the master push:
 
 | Workflow | What it does |
 |----------|-------------|
@@ -106,19 +106,17 @@ Version strings live in a single file: `VERSION` at the repo root.
 
 **Auto-bump mechanics:**
 
-- The `increase-version` pre-commit hook (`scripts/pre-commit/increase_version.sh`)
-  increments the `developN` counter on every local commit when the version
-  contains the word `develop`.
-- In CI (pull request events), the hook checks whether `VERSION` differs from
-  the `develop` branch tip. If the contributor did not bump it manually, the
-  hook runs `update_develop_version.sh` to auto-increment.
+- The `bump-version-develop.yml` CI workflow (`scripts/pre-commit/increase_version.sh`
+  is still present locally for optional manual use) auto-increments the `developN`
+  counter on every push to `develop`. The pre-commit `increase-version` hook has been
+  removed from `.pre-commit-config.yaml`; bumping is now CI-driven.
 - After a master merge, `update-develop-branch.yml` sets the next version:
   it strips the release suffix, bumps the patch segment by 1, and appends
   `-develop1`. Example: `4.7.2` → `4.7.3-develop1`.
 
 **Major/minor bumps** are handled by the Release PR workflow's `version_bump_type`
-input — the workflow computes the new base version before opening the PR, so
-`VERSION` on `develop` is updated before the PR is opened.
+input — the workflow computes the new base version, writes it to the `release/v<NEW>`
+branch, and opens the PR from that branch. `develop` is not modified during this step.
 
 ---
 
@@ -190,7 +188,7 @@ A release with the same version was already uploaded. Increment the version
 (patch bump) and issue a corrective release. PyPI does not allow re-uploading
 the same version.
 
-**Pre-commit hook `increase-version` loops:**
-If the hook keeps bumping `VERSION` on every commit, ensure `VERSION` is not
-already staged before committing. Stage all other changes first, let the hook
-bump `VERSION`, then the hook will detect it is already staged and skip.
+**`bump-version-develop.yml` triggers unexpectedly:**
+This workflow runs on every push to `develop`. If you need to prevent it from
+bumping `VERSION` on a specific push, include `[skip ci]` in the commit message
+or use the `paths-ignore` exemptions already in the workflow.
