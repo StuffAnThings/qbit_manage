@@ -235,6 +235,16 @@ class FakeTorrent:
         self._record("remove_trackers", urls=urls)
 
 
+class _FakeWebhooksFactory:
+    """Minimal stand-in for webhooks_factory used by Category and TagNoHardLinks."""
+
+    def __init__(self):
+        self.notify_calls = []
+
+    def notify(self, torrents_updated, notify_attr, group_by=None):
+        self.notify_calls.append((list(torrents_updated), list(notify_attr), group_by))
+
+
 @dataclass
 class FakeConfig:
     """Stand-in for modules.config.Config — only the attributes ShareLimits reads."""
@@ -244,7 +254,16 @@ class FakeConfig:
     share_limits_min_seeding_time_tag: str = "MinSeedTimeNotReached"
     share_limits_min_num_seeds_tag: str = "MinSeedsNotMet"
     share_limits_last_active_tag: str = "LastActiveLimitNotReached"
-    settings: dict = field(default_factory=lambda: {"share_limits_filter_completed": True})
+    settings: dict = field(
+        default_factory=lambda: {
+            "share_limits_filter_completed": True,
+            "cat_filter_completed": True,
+            "cat_update_all": False,
+            "force_auto_tmm": False,
+            "force_auto_tmm_ignore_tags": [],
+            "tag_nohardlinks_filter_completed": True,
+        }
+    )
     root_dir: str = "/data/torrents/"
     remote_dir: str = "/data/torrents/"
     dry_run: bool = False
@@ -253,11 +272,18 @@ class FakeConfig:
     share_limits_custom_tags: list = field(default_factory=list)
     notifications_sent: list = field(default_factory=list)
     notify_calls: list = field(default_factory=list)
+    # Category-specific
+    cat_change: dict = field(default_factory=dict)
+    # TagNoHardLinks-specific
+    nohardlinks: dict = field(default_factory=dict)
+    nohardlinks_tag: str = "noHL"
+    # webhooks_factory stand-in
+    webhooks_factory: Any = field(default_factory=_FakeWebhooksFactory)
 
     def send_notifications(self, attr):
         self.notifications_sent.append(copy.deepcopy(attr))
 
-    def notify(self, err, function):
+    def notify(self, err, function, *args, **kwargs):
         self.notify_calls.append((err, function))
 
 
@@ -302,6 +328,9 @@ class FakeQbtManager:
         if hashes:
             wanted = hashes.split("|") if isinstance(hashes, str) else list(hashes)
             result = [t for t in result if t.hash in wanted]
+        category = params.get("category")
+        if category is not None:
+            result = [t for t in result if t.category == category]
         return result
 
     def get_tracker_urls(self, trackers):
@@ -320,6 +349,10 @@ class FakeQbtManager:
 
     def tor_delete_recycle(self, torrent, attr):
         self.tor_delete_recycle_calls.append((torrent, copy.deepcopy(attr)))
+
+    def get_category(self, path):
+        """Return 'Uncategorized' for all save paths (overridable via subclassing or monkeypatching)."""
+        return "Uncategorized"
 
 
 # ---- ShareLimits constructor bypass ---------------------------------------
@@ -357,6 +390,57 @@ def make_share_limits(qbt_manager):
     instance.hashes = None
     instance.share_limits_custom_tags = qbt_manager.config.share_limits_custom_tags
     instance.group_tag = None
+    return instance
+
+
+def make_category(qbt_manager):
+    """Construct a Category instance with __init__'s eager work skipped.
+
+    Production ``Category.__init__`` immediately runs ``category()`` and
+    ``change_categories()`` — awkward for unit tests. This bypass wires up the
+    same attributes so tests can call individual methods directly.
+    """
+    from modules.core.category import Category
+
+    instance = object.__new__(Category)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.hashes = None
+    instance.stats = 0
+    instance.torrents_updated = []
+    instance.notify_attr = []
+    instance.uncategorized_mapping = "Uncategorized"
+    instance.status_filter = "completed" if qbt_manager.config.settings["cat_filter_completed"] else "all"
+    instance.cat_update_all = qbt_manager.config.settings["cat_update_all"]
+    return instance
+
+
+def make_tag_nohardlinks(qbt_manager):
+    """Construct a TagNoHardLinks instance with __init__'s eager work skipped.
+
+    Production ``TagNoHardLinks.__init__`` immediately runs ``tag_nohardlinks()``
+    and calls ``webhooks_factory.notify``. This bypass wires up the same
+    attributes so tests can call individual methods directly.
+    """
+    from modules.core.tag_nohardlinks import TagNoHardLinks
+
+    instance = object.__new__(TagNoHardLinks)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.hashes = None
+    instance.stats_tagged = 0
+    instance.stats_untagged = 0
+    instance.root_dir = qbt_manager.config.root_dir
+    instance.remote_dir = qbt_manager.config.remote_dir
+    instance.nohardlinks = qbt_manager.config.nohardlinks
+    instance.nohardlinks_tag = qbt_manager.config.nohardlinks_tag
+    instance.torrents_updated_tagged = []
+    instance.notify_attr_tagged = []
+    instance.torrents_updated_untagged = []
+    instance.notify_attr_untagged = []
+    instance.status_filter = "completed" if qbt_manager.config.settings["tag_nohardlinks_filter_completed"] else "all"
     return instance
 
 

@@ -246,3 +246,223 @@ def test_dry_run_suppresses_all_qbit_mutations_in_seed_limit_path(share_limits_f
     t = torrent_factory(num_complete=0, tags="")
     _seed_limit(sl, t, min_num_seeds=5)
     assert t.calls == []
+
+
+# ---- max_last_active --------------------------------------------------------
+
+
+def test_max_last_active_met_returns_body(share_limits_factory, torrent_factory, monkeypatch):
+    """inactive_time >= max_last_active AND min_last_active met → deletion eligible."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    # 7200s idle = 120 min, max_last_active=60, min_last_active=0 (always met)
+    t = torrent_factory(last_activity=1_000_000 - 7200, tags="")
+    result = _seed_limit(sl, t, max_last_active=60, min_last_active=0)
+    assert result, "expected a non-empty body indicating deletion eligibility"
+    assert "Inactive Time vs Max Last Active Time" in result
+
+
+def test_max_last_active_not_met_does_not_return_body(share_limits_factory, torrent_factory, monkeypatch):
+    """inactive_time < max_last_active → NOT eligible for deletion."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    # only 5 min idle, max_last_active=60
+    t = torrent_factory(last_activity=1_000_000 - 300, tags="")
+    result = _seed_limit(sl, t, max_last_active=60, min_last_active=0)
+    assert result is False
+
+
+def test_max_last_active_minus_one_skips_check(share_limits_factory, torrent_factory, monkeypatch):
+    """max_last_active=-1 (disabled) → gate is never applied."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    t = torrent_factory(last_activity=0, tags="")  # maximally old
+    result = _seed_limit(sl, t, max_last_active=-1, min_last_active=0)
+    assert result is False
+
+
+def test_max_last_active_met_clears_last_active_tag(share_limits_factory, torrent_factory, monkeypatch):
+    """When max_last_active is met and a warning tag exists, it is removed."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    t = torrent_factory(last_activity=1_000_000 - 7200, tags=sl.last_active_tag)
+    _seed_limit(sl, t, max_last_active=60, min_last_active=0)
+    removes = _calls_of(t, "remove_tags")
+    # last_active_tag should be cleared because min_last_active is also met
+    assert removes
+
+
+# ---- reset_upload_speed_on_unmet_minimums -----------------------------------
+
+
+def test_reset_upload_speed_on_unmet_minimums_true_resets_speed(share_limits_factory, torrent_factory):
+    """When flag is True and min_num_seeds not met, upload speed is reset."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=1024)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=True)
+    set_ul = _calls_of(t, "set_upload_limit")
+    assert set_ul, "set_upload_limit should be called when flag is True"
+    assert set_ul[0][1]["limit"] == -1
+
+
+def test_reset_upload_speed_on_unmet_minimums_false_does_not_reset(share_limits_factory, torrent_factory):
+    """When flag is False and min_num_seeds not met, upload speed is NOT reset."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=1024)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False)
+    assert _calls_of(t, "set_upload_limit") == []
+
+
+def test_reset_upload_speed_false_still_adds_tag(share_limits_factory, torrent_factory):
+    """Even with reset_upload_speed_on_unmet_minimums=False the warning tag is added."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="")
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False)
+    add_tag = _calls_of(t, "add_tags")
+    assert add_tag and add_tag[0][1]["tags"] == sl.min_num_seeds_tag
+
+
+# ---- empty tracker URL short-circuit ----------------------------------------
+
+
+def test_empty_tracker_url_does_not_crash(share_limits_factory, torrent_factory):
+    """Passing tracker='' should not raise — the method accepts any string."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=10, ratio=5.0, seeding_time=99999, tags="")
+    # Provide a concrete max_ratio so the deletion body is hit with no tracker needed
+    result = _seed_limit(sl, t, max_ratio=2.0, tracker="")
+    assert result  # still reaches the ratio gate
+
+
+# ---- multiple gating tags simultaneously ------------------------------------
+
+
+def test_both_min_tags_present_both_removed_when_met(share_limits_factory, torrent_factory):
+    """Torrent had both MinSeedTimeNotReached and MinSeedsNotMet; when both gates
+    are now satisfied both tags are removed before the deletion body is returned."""
+    sl = share_limits_factory()
+    combined_tags = f"{sl.min_seeding_time_tag}, {sl.min_num_seeds_tag}"
+    t = torrent_factory(
+        ratio=3.0,
+        seeding_time=7200,  # 120 min >= 60 min threshold
+        num_complete=10,
+        tags=combined_tags,
+    )
+    result = _seed_limit(sl, t, max_ratio=2.0, min_seeding_time=60, min_num_seeds=5)
+    assert result  # deletion-eligible
+    removed_tags = [c[1]["tags"] for c in _calls_of(t, "remove_tags")]
+    # min_seeding_time_tag is removed inside _has_reached_min_seeding_time_limit
+    # min_num_seeds_tag is removed inside _is_less_than_min_num_seeds
+    assert sl.min_seeding_time_tag in removed_tags
+
+
+def test_min_num_seeds_and_min_seeding_time_not_met_only_seeds_tag_added(share_limits_factory, torrent_factory):
+    """When min_num_seeds is not met, the method short-circuits before touching
+    min_seeding_time — only the seeds tag is added, not the seeding-time tag."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, seeding_time=100, ratio=5.0, tags="")
+    _seed_limit(sl, t, min_num_seeds=5, min_seeding_time=60, max_ratio=2.0)
+    added = [c[1]["tags"] for c in _calls_of(t, "add_tags")]
+    assert sl.min_num_seeds_tag in added
+    assert sl.min_seeding_time_tag not in added
+
+
+# ---- exclusion_tag_added tuple element ----------------------------------------
+
+
+def test_exclusion_tag_added_true_when_tag_applied(share_limits_factory, torrent_factory):
+    """When a gating tag is newly added, the second tuple element is True."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="")
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=-1,
+        max_seeding_time=-1,
+        max_last_active=-1,
+        min_seeding_time=0,
+        min_num_seeds=5,
+        min_last_active=0,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is True
+
+
+def test_exclusion_tag_added_false_when_no_gate_fires(share_limits_factory, torrent_factory):
+    """When no gating tag is applied, the second tuple element is False."""
+    sl = share_limits_factory()
+    t = torrent_factory(ratio=1.0, seeding_time=99999, tags="")
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=2.0,
+        max_seeding_time=-1,
+        max_last_active=-1,
+        min_seeding_time=0,
+        min_num_seeds=0,
+        min_last_active=0,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is False
+
+
+def test_exclusion_tag_added_false_when_deletion_eligible(share_limits_factory, torrent_factory):
+    """When deletion criteria are met (no gating tag added), exclusion_tag_added is False."""
+    sl = share_limits_factory()
+    t = torrent_factory(ratio=3.0, seeding_time=7200, tags="")
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=2.0,
+        max_seeding_time=-1,
+        max_last_active=-1,
+        min_seeding_time=60,
+        min_num_seeds=0,
+        min_last_active=0,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is False
+
+
+def test_exclusion_tag_added_false_when_tag_already_present(share_limits_factory, torrent_factory):
+    """When the gating tag is ALREADY on the torrent, _add_tag_and_reset_limits
+    does not set exclusion_tag_added=True (the tag was not newly added)."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags=sl.min_num_seeds_tag)
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=-1,
+        max_seeding_time=-1,
+        max_last_active=-1,
+        min_seeding_time=0,
+        min_num_seeds=5,
+        min_last_active=0,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is False
+
+
+def test_exclusion_tag_added_true_for_last_active_gate(share_limits_factory, torrent_factory, monkeypatch):
+    """exclusion_tag_added is True when the last_active warning tag is newly applied."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    # 1 min idle, threshold 60 → not met
+    t = torrent_factory(last_activity=1_000_000 - 60, tags="")
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=-1,
+        max_seeding_time=-1,
+        max_last_active=-1,
+        min_seeding_time=0,
+        min_num_seeds=0,
+        min_last_active=60,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is True
