@@ -5,8 +5,8 @@ name: Bump develop VERSION
 # contributor PRs no longer carry VERSION bumps and stop hitting rebase
 # conflicts on VERSION.
 #
-# Skips itself: the bump commit is authored as github-actions[bot] with
-# `[skip ci]` in the message, so it does not re-trigger this workflow.
+# Skips itself: bump commits include `[skip-version-bump]` in the message,
+# so the job condition below will not re-run another bump.
 
 on:
   push:
@@ -21,9 +21,7 @@ permissions:
 
 jobs:
   bump:
-    # Skip when the head commit is the bot's own bump (defensive — `[skip ci]`
-    # already suppresses workflow re-triggering, but this guards against any
-    # path that might bypass that).
+    # Skip when a commit explicitly opts out of another version bump.
     if: >-
       github.actor != 'github-actions[bot]' &&
       !contains(github.event.head_commit.message, '[skip-version-bump]')
@@ -34,14 +32,22 @@ jobs:
         with:
           ref: develop
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Ensure BOT_TOKEN is configured
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ secrets.BOT_TOKEN }}" ]]; then
+            echo "BOT_TOKEN is not configured. Add a repo secret named BOT_TOKEN for the trusted bypass actor."
+            exit 1
+          fi
 
       - name: Bump develop suffix in VERSION
         id: bump
         run: |
           set -euo pipefail
           before=$(cat VERSION)
-          output=$(bash scripts/pre-commit/update_develop_version.sh)
+          bash scripts/pre-commit/update_develop_version.sh
           after=$(cat VERSION)
           printf 'before=%s\nafter=%s\n' "$before" "$after" >> "$GITHUB_OUTPUT"
           if [[ "$before" == "$after" ]]; then
@@ -56,8 +62,8 @@ jobs:
         if: steps.bump.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'qbit-manage-bot'
+          git config user.email 'qbit-manage-bot@users.noreply.github.com'
           git add VERSION
-          git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip ci]"
+          git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip-version-bump]"
           git push origin develop
