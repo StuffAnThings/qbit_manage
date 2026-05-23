@@ -169,13 +169,15 @@ class TestGetTags:
         qbt.config = MagicMock()
         qbt.config.data = {"tracker": {"tracker1.example": {"tag": ["t1tag"], "cat": "T1Cat"}}}
         qbt.config.util = MagicMock()
+        # Discriminate by the 2nd positional arg (the attribute key name).
         qbt.config.util.check_for_attribute = MagicMock(
-            side_effect=lambda *args, **kwargs: ["t1tag"] if "tag" in str(args) else "T1Cat"
+            side_effect=lambda *args, **kwargs: ["t1tag"] if args[1] == "tag" else "T1Cat"
         )
 
         result = Qbt.get_tags(qbt, ["http://tracker1.example/announce"])
-        # URL is processed and matched
-        assert result["tag"] is not None or result["cat"] is not None
+        # URL matched config key → specific tag/cat returned
+        assert result["tag"] == ["t1tag"]
+        assert result["cat"] == "T1Cat"
 
     def test_converts_string_tag_to_list(self):
         """If tag is a string, convert to list."""
@@ -186,8 +188,8 @@ class TestGetTags:
         qbt.config.util.check_for_attribute = MagicMock(return_value="singletag")
 
         result = Qbt.get_tags(qbt, ["http://tracker1.example/announce"])
-        # Result should have tag as list
-        assert isinstance(result["tag"], list) or result["tag"] is not None
+        # String tag input must be converted to a one-element list
+        assert result["tag"] == ["singletag"]
 
 
 # ---- get_torrent_info tests --------------------------------------------------

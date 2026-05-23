@@ -252,8 +252,9 @@ def test_remove_previous_errors_dry_run_suppresses_remove_tags():
 def test_remove_previous_errors_untagged_even_with_broken_tracker():
     """Torrent with error tag gets untagged regardless of tracker status.
 
-    The code removes the error tag whenever it's present, assuming the
-    torrent made it to torrentvalid (working torrents). This is by design.
+    remove_previous_errors() iterates torrentvalid only.  We explicitly place
+    the torrent there (via the torrentvalid kwarg) to show that belonging to
+    torrentvalid — not tracker health — is what drives un-tagging.
     """
     cfg = FakeConfig(settings={**FakeConfig().settings})
     t = FakeTorrent(
@@ -262,12 +263,15 @@ def test_remove_previous_errors_untagged_even_with_broken_tracker():
         tags="TrackerError",
         trackers=[_Tracker(url="http://tracker1.example/announce", status=4)],  # NOT_WORKING
     )
+    # Explicitly place t in torrentvalid so the test doesn't rely on the
+    # "everything is in everything" default that issue #4 fixed.
     qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentvalid_override = [t]
     ru = make_remove_unregistered(qbt)
 
     ru.remove_previous_errors()
 
-    # Torrent in torrentvalid gets untagged if tag is present
+    # Torrent in torrentvalid gets untagged regardless of tracker status
     assert any(c[0] == "remove_tags" for c in t.calls)
     assert ru.stats_untagged == 1
 

@@ -345,6 +345,8 @@ class FakeQbtManager:
         global_max_ratio_enabled=False,
         global_max_seeding_time=43200,  # 30 days in minutes
         global_max_seeding_time_enabled=False,
+        torrentissue=None,
+        torrentvalid=None,
     ):
         self.config = config or FakeConfig()
         self.client = client or FakeClient()
@@ -360,6 +362,10 @@ class FakeQbtManager:
         # Mirror Qbt.torrentfiles — populated by add_torrent_files in production,
         # exposed here so cross-seed-aware tests can pre-seed it directly.
         self.torrentfiles = {}
+        # Optional overrides for torrentissue/torrentvalid subsets.
+        # None means "return all _torrents" (original behaviour).
+        self._torrentissue_override = list(torrentissue) if torrentissue is not None else None
+        self._torrentvalid_override = list(torrentvalid) if torrentvalid is not None else None
 
     def get_torrents(self, params):
         result = list(self._torrents)
@@ -410,12 +416,26 @@ class FakeQbtManager:
 
     @property
     def torrentissue(self):
-        """Return torrents with issues (those in torrentinfo with issues)."""
+        """Return torrents with issues.
+
+        When *torrentissue* was passed to __init__ that explicit list is returned;
+        otherwise falls back to all torrents (original behaviour so existing tests
+        that don't need the distinction are unaffected).
+        """
+        if self._torrentissue_override is not None:
+            return self._torrentissue_override
         return self._torrents
 
     @property
     def torrentvalid(self):
-        """Return valid torrents (those without issues)."""
+        """Return valid (non-issue) torrents.
+
+        When *torrentvalid* was passed to __init__ that explicit list is returned;
+        otherwise falls back to all torrents (original behaviour so existing tests
+        that don't need the distinction are unaffected).
+        """
+        if self._torrentvalid_override is not None:
+            return self._torrentvalid_override
         return self._torrents
 
 
