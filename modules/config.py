@@ -56,7 +56,10 @@ def validate_share_limit_action(raw, group):
     instead of mirroring it. Raises Failed for any non-None value that is not
     in ``SHARE_LIMIT_ACTIONS``; returns the resolved action string otherwise.
     """
-    if raw is not None and raw not in SHARE_LIMIT_ACTIONS:
+    # Type-guard before set membership: `in` on an unhashable (list/dict
+    # from malformed YAML) raises TypeError, crashing config load. Reject
+    # explicitly so the operator sees a clean Failed (Copilot review #1206).
+    if raw is not None and (not isinstance(raw, str) or raw not in SHARE_LIMIT_ACTIONS):
         raise Failed(
             f"Config Error: invalid share_limit_action '{raw}' for the grouping "
             f"'{group}'. Valid values are: {', '.join(SHARE_LIMIT_ACTIONS.keys())}."
