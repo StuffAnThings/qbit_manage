@@ -39,7 +39,7 @@ _TRACKER_HOST_PATTERN = re.compile(r"://[^/]+")
 # We keep <rest> intact (preserves format/group info for realistic tests) and
 # replace <title> with a generic placeholder.
 _TITLE_MARKER_PATTERN = re.compile(
-    r"^(?P<title>[A-Za-z0-9.]+?)"
+    r"^(?P<title>[A-Za-z0-9._-]+?)"
     r"(?P<rest>"
     r"\.(?:S\d{1,4}(?:E\d{1,4})?|\d{4}|\d{3,4}[pi]|"
     r"TVRip|BRRip|WEBRip|HDTV|BluRay|WEB[.-]?DL|"
@@ -71,10 +71,18 @@ def _sanitize_root_path(root_path: str) -> str:
     """Sanitize the LAST path segment of root_path with _sanitize_torrent_basename.
     Earlier segments (category dir, tracker subdir) are preserved since they
     convey structure and don't leak title PII."""
-    if not root_path or "/" not in root_path:
+    if not root_path:
         return root_path
-    prefix, _, basename = root_path.rpartition("/")
-    return f"{prefix}/{_sanitize_torrent_basename(basename)}"
+    # Detect both POSIX `/` and Windows `\\` separators; fixtures captured
+    # on Windows would otherwise bypass sanitization (Copilot review #1207).
+    if "/" in root_path:
+        sep = "/"
+    elif "\\" in root_path:
+        sep = "\\"
+    else:
+        return root_path
+    prefix, _, basename = root_path.rpartition(sep)
+    return f"{prefix}{sep}{_sanitize_torrent_basename(basename)}"
 
 
 def _build_tracker_map(rows: list[dict]) -> dict[str, str]:
