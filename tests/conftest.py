@@ -78,9 +78,11 @@ def fake_logger(monkeypatch):
     from modules import util
 
     monkeypatch.setattr(util, "logger", fake, raising=False)
+    from modules.core import remove_unregistered as remove_unregistered_mod
     from modules.core import share_limits as share_limits_mod
 
     monkeypatch.setattr(share_limits_mod, "logger", fake, raising=False)
+    monkeypatch.setattr(remove_unregistered_mod, "logger", fake, raising=False)
     return fake
 
 
@@ -164,5 +166,22 @@ def share_limits_factory(qbt_manager_factory, config_factory):
             **(qbt_overrides or {}),
         )
         return make_share_limits(qbt)
+
+    return _make
+
+
+@pytest.fixture
+def remove_unregistered_factory(qbt_manager_factory, config_factory):
+    """Return a callable that builds a RemoveUnregistered instance ready for unit testing."""
+    from tests.factories import make_remove_unregistered
+
+    def _make(*, torrents=None, config_overrides=None, qbt_overrides=None, hashes=None):
+        config = config_factory(**(config_overrides or {}))
+        qbt = qbt_manager_factory(
+            torrents=torrents or [],
+            config=config,
+            **(qbt_overrides or {}),
+        )
+        return make_remove_unregistered(qbt, hashes=hashes)
 
     return _make
