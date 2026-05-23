@@ -7,10 +7,10 @@ Covers:
 - Mutual exclusion: cleanup=true + destructive share_limit_action raises Failed
 - share_limit_action is passed through to torrent.set_share_limits()
 
-Validation tests import the same ``validate_share_limit_action`` and
-``validate_cleanup_share_limit_action_combo`` functions Config.__init__ calls,
-so any drift in the production validation rules will surface immediately in
-these tests rather than passing against a stale local mirror.
+Validation tests import the same ``validate_share_limit_action`` function
+Config.__init__ calls, so any drift in the production validation rules will
+surface immediately in these tests rather than passing against a stale local
+mirror.
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ from __future__ import annotations
 import pytest
 
 from modules.config import SHARE_LIMIT_ACTIONS
-from modules.config import validate_cleanup_share_limit_action_combo
 from modules.config import validate_share_limit_action
 from modules.util import Failed
 
@@ -47,7 +46,7 @@ class TestShareLimitActionDefaults:
 
     def test_validator_returns_default_for_empty_value(self):
         """Production validator resolves missing/falsy action to 'Default' without raising."""
-        result = validate_share_limit_action(None, "test_group")
+        result = validate_share_limit_action(None, cleanup=False, group="test_group")
         assert result == "Default"
 
 
@@ -61,24 +60,28 @@ class TestShareLimitActionValidation:
 
     @pytest.mark.parametrize("action", list(SHARE_LIMIT_ACTIONS.keys()))
     def test_valid_action_passes_validator(self, action):
-        """All values in SHARE_LIMIT_ACTIONS are accepted by the production validator."""
-        result = validate_share_limit_action(action, "test_group")
+        """All values in SHARE_LIMIT_ACTIONS are accepted by the production validator.
+
+        cleanup=False so the cleanup-combo branch in the merged validator never fires,
+        regardless of which action we're checking — keeps this parametrize focused on
+        the enum-membership check."""
+        result = validate_share_limit_action(action, cleanup=False, group="test_group")
         assert result == action
 
     def test_invalid_action_raises_failed(self):
         """An unrecognised share_limit_action raises Failed — mirroring the validator in Config's share-limits processing."""
         with pytest.raises(Failed, match="invalid share_limit_action"):
-            validate_share_limit_action("DeleteEverything", "test_group")
+            validate_share_limit_action("DeleteEverything", cleanup=False, group="test_group")
 
     def test_invalid_action_error_message_contains_value(self):
         """The Failed message includes the bad value so operators know what to fix."""
         with pytest.raises(Failed, match="BogusAction"):
-            validate_share_limit_action("BogusAction", "test_group")
+            validate_share_limit_action("BogusAction", cleanup=False, group="test_group")
 
     def test_invalid_action_error_message_lists_valid_options(self):
         """The Failed message lists the valid options so operators know what to use."""
         with pytest.raises(Failed) as exc_info:
-            validate_share_limit_action("BogusAction", "test_group")
+            validate_share_limit_action("BogusAction", cleanup=False, group="test_group")
         err = str(exc_info.value)
         for valid in SHARE_LIMIT_ACTIONS:
             assert valid in err
@@ -94,20 +97,22 @@ class TestCleanupMutualExclusion:
 
     @pytest.mark.parametrize("action", ["Remove", "RemoveWithContent"])
     def test_cleanup_true_with_destructive_action_raises_failed(self, action):
-        """cleanup=true + Remove/RemoveWithContent raises Failed — mirrors
-        validate_cleanup_share_limit_action_combo in Config's share-limits processing."""
+        """cleanup=true + Remove/RemoveWithContent raises Failed via the merged
+        validate_share_limit_action validator in Config's share-limits processing."""
         with pytest.raises(Failed, match="mutually exclusive"):
-            validate_cleanup_share_limit_action_combo(cleanup=True, share_limit_action=action, group="test_group")
+            validate_share_limit_action(action, cleanup=True, group="test_group")
 
     @pytest.mark.parametrize("action", ["Default", "Stop", "EnableSuperSeeding"])
     def test_cleanup_true_with_safe_action_does_not_raise(self, action):
-        """cleanup=true with a non-destructive action is allowed — no exception raised."""
-        validate_cleanup_share_limit_action_combo(cleanup=True, share_limit_action=action, group="test_group")  # must not raise
+        """cleanup=true with a non-destructive action is allowed — returns the resolved action."""
+        result = validate_share_limit_action(action, cleanup=True, group="test_group")
+        assert result == action
 
     @pytest.mark.parametrize("action", ["Remove", "RemoveWithContent"])
     def test_cleanup_false_with_destructive_action_does_not_raise(self, action):
         """cleanup=false with any action is allowed — the exclusion only fires when cleanup=True."""
-        validate_cleanup_share_limit_action_combo(cleanup=False, share_limit_action=action, group="test_group")  # must not raise
+        result = validate_share_limit_action(action, cleanup=False, group="test_group")
+        assert result == action
 
     def test_cleanup_with_default_action_allowed(self, group_config_factory):
         """cleanup=true with share_limit_action='Default' is allowed (Default is safe)."""

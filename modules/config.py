@@ -48,45 +48,41 @@ SHARE_LIMIT_ACTIONS = {
 DESTRUCTIVE_SHARE_LIMIT_ACTIONS = frozenset({"Remove", "RemoveWithContent"})
 
 
-def validate_share_limit_action(raw, group):
-    """Validate a share_limit_action value and resolve missing → "Default".
+def validate_share_limit_action(raw, cleanup, group):
+    """Validate a share_limit_action value AND the cleanup-combo constraint in
+    one pass. Returns the resolved action string or raises Failed.
 
-    Pure function. Callable both from Config.__init__ (the production path) and
-    from unit tests, so test assertions are tied to the production logic
-    instead of mirroring it. Raises Failed for any non-None value that is not
-    in ``SHARE_LIMIT_ACTIONS``; returns the resolved action string otherwise.
+    1. Type-guard the value (non-string from malformed YAML would crash the
+       set-membership check below with TypeError).
+    2. Check value is in SHARE_LIMIT_ACTIONS (with None resolving to "Default").
+    3. Reject the cleanup=true + destructive (Remove / RemoveWithContent)
+       combo: qBittorrent acts the instant a share-limit goal is met
+       (in-process); qbm runs on a schedule and sees torrents AFTER
+       qBittorrent has already acted. So a destructive action with cleanup
+       enabled means qBittorrent removes the torrent before qbm's cleanup
+       pass runs — qbm's recyclebin is silently bypassed.
+
+    Pure function — callable from both Config.__init__ and unit tests so test
+    assertions are tied to the production logic, not a stale local mirror.
     """
-    # Type-guard before set membership: `in` on an unhashable (list/dict
-    # from malformed YAML) raises TypeError, crashing config load. Reject
-    # explicitly so the operator sees a clean Failed (Copilot review #1206).
     if raw is not None and (not isinstance(raw, str) or raw not in SHARE_LIMIT_ACTIONS):
         raise Failed(
             f"Config Error: invalid share_limit_action '{raw}' for the grouping "
             f"'{group}'. Valid values are: {', '.join(SHARE_LIMIT_ACTIONS.keys())}."
         )
-    return raw or "Default"
-
-
-def validate_cleanup_share_limit_action_combo(cleanup, share_limit_action, group):
-    """Reject the cleanup=true + destructive share_limit_action combination.
-
-    qBittorrent acts the instant a share-limit goal is met (in-process); qbm
-    runs on a schedule and sees torrents AFTER qBittorrent has already acted.
-    If share_limit_action is Remove or RemoveWithContent, qBittorrent removes
-    the torrent (and possibly its files) before qbm's cleanup pass runs — so
-    qbm's recyclebin is silently bypassed. Both at once is a misconfiguration.
-    """
-    if cleanup and share_limit_action in DESTRUCTIVE_SHARE_LIMIT_ACTIONS:
+    resolved = raw or "Default"
+    if cleanup and resolved in DESTRUCTIVE_SHARE_LIMIT_ACTIONS:
         raise Failed(
             f"Config Error: cleanup and share_limit_action are mutually exclusive for the grouping "
             f"'{group}'. Got cleanup=true and share_limit_action="
-            f"'{share_limit_action}'. qBittorrent acts the instant a share "
+            f"'{resolved}'. qBittorrent acts the instant a share "
             f"limit is reached and runs BEFORE qbm's scheduled cleanup pass — so this share_limit_action "
             f"removes the torrent (and, with RemoveWithContent, deletes the files) before qbm gets a chance "
             f"to use the recyclebin. Choose one: either let qbm handle deletion (cleanup: true, "
             f"share_limit_action: Default or Stop) so the recyclebin is honored, or let qBittorrent handle "
             f"it (cleanup: false, share_limit_action: Remove/RemoveWithContent)."
         )
+    return resolved
 
 
 class Config:
@@ -772,12 +768,25 @@ class Config:
                     do_print=False,
                     save=False,
                 )
-                # share_limit_action: validate explicitly so missing → "Default" (silent) but a
-                # bogus value → hard fail. check_for_attribute's `throw=True` would also reject the
-                # missing case, which we explicitly want to allow.
-                raw_share_limit_action = self.data.get("share_limits", {}).get(group, {}).get("share_limit_action")
+                # share_limit_action: read via check_for_attribute for consistency with the
+                # rest of the share_limits block, then pass through validate_share_limit_action
+                # which checks the enum AND rejects the cleanup+destructive combo in one pass.
+                raw_share_limit_action = self.util.check_for_attribute(
+                    self.data,
+                    "share_limit_action",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="str",
+                    default="Default",
+                    do_print=False,
+                    save=False,
+                )
                 try:
-                    self.share_limits[group]["share_limit_action"] = validate_share_limit_action(raw_share_limit_action, group)
+                    self.share_limits[group]["share_limit_action"] = validate_share_limit_action(
+                        raw_share_limit_action,
+                        self.share_limits[group]["cleanup"],
+                        group,
+                    )
                 except Failed as e:
                     self.notify(str(e), "Config")
                     raise
@@ -869,16 +878,8 @@ class Config:
                     save=False,
                 )
                 self.share_limits[group]["torrents"] = []
-                # cleanup and a destructive share_limit_action are mutually exclusive — pick one or the other.
-                try:
-                    validate_cleanup_share_limit_action_combo(
-                        self.share_limits[group]["cleanup"],
-                        self.share_limits[group]["share_limit_action"],
-                        group,
-                    )
-                except Failed as e:
-                    self.notify(str(e), "Config")
-                    raise
+                # NOTE: the cleanup + share_limit_action mutual-exclusion check is folded into
+                # validate_share_limit_action above; no separate call needed.
                 # Validate min/max torrent size (in bytes)
                 min_sz = self.share_limits[group]["min_torrent_size"]
                 max_sz = self.share_limits[group]["max_torrent_size"]
