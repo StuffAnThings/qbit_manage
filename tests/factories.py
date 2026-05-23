@@ -174,6 +174,10 @@ class FakeTorrent:
     def __setitem__(self, key, value):
         setattr(self, key, value)
 
+    def get(self, key, default=None):
+        """Dict-like .get() method for optional keys."""
+        return getattr(self, key, default)
+
     # ---- mutating methods (recorded in self.calls) ----------------------------
 
     def _record(self, name, **kwargs):
@@ -266,6 +270,9 @@ class FakeConfig:
     share_limits_min_seeding_time_tag: str = "MinSeedTimeNotReached"
     share_limits_min_num_seeds_tag: str = "MinSeedsNotMet"
     share_limits_last_active_tag: str = "LastActiveLimitNotReached"
+    tracker_error_tag: str = "TrackerError"
+    stalled_tag: str = "Stalled"
+    private_tag: str = "Private"
     settings: dict = field(
         default_factory=lambda: {
             "share_limits_filter_completed": True,
@@ -274,13 +281,25 @@ class FakeConfig:
             "force_auto_tmm": False,
             "force_auto_tmm_ignore_tags": [],
             "tag_nohardlinks_filter_completed": True,
+            "rem_unregistered_filter_completed": True,
+            "rem_unregistered_grace_minutes": 0,
+            "rem_unregistered_max_torrents": 0,
+            "rem_unregistered_ignore_list": [],
         }
     )
     root_dir: str = "/data/torrents/"
     remote_dir: str = "/data/torrents/"
+    orphaned_dir: str = "/data/torrents/.orphaned/"
     dry_run: bool = False
     loglevel: str = "INFO"
-    commands: dict = field(default_factory=lambda: {"share_limits": True, "skip_qb_version_check": False})
+    commands: dict = field(
+        default_factory=lambda: {
+            "share_limits": True,
+            "skip_qb_version_check": False,
+            "rem_unregistered": True,
+            "tag_tracker_error": True,
+        }
+    )
     share_limits_custom_tags: list = field(default_factory=list)
     notifications_sent: list = field(default_factory=list)
     notify_calls: list = field(default_factory=list)
@@ -289,6 +308,15 @@ class FakeConfig:
     # TagNoHardLinks-specific
     nohardlinks: dict = field(default_factory=dict)
     nohardlinks_tag: str = "noHL"
+    # RemoveOrphaned-specific
+    orphaned: dict = field(
+        default_factory=lambda: {
+            "empty_after_x_days": 0,
+            "max_orphaned_files_to_delete": 100,
+            "exclude_patterns": [],
+            "min_file_age_minutes": 0,
+        }
+    )
     # webhooks_factory stand-in
     webhooks_factory: Any = field(default_factory=_FakeWebhooksFactory)
 
@@ -318,6 +346,8 @@ class FakeQbtManager:
         global_max_ratio_enabled=False,
         global_max_seeding_time=43200,  # 30 days in minutes
         global_max_seeding_time_enabled=False,
+        torrentissue=None,
+        torrentvalid=None,
     ):
         self.config = config or FakeConfig()
         self.client = client or FakeClient()
@@ -330,12 +360,22 @@ class FakeQbtManager:
         # Records of calls — used by tests to assert behavior
         self.tor_delete_recycle_calls = []
         self.cross_seed_map = {}
+        # Mirror Qbt.torrentfiles — populated by add_torrent_files in production,
+        # exposed here so cross-seed-aware tests can pre-seed it directly.
+        self.torrentfiles = {}
+        # Optional overrides for torrentissue/torrentvalid subsets.
+        # None means "return all _torrents" (original behaviour).
+        self._torrentissue_override = list(torrentissue) if torrentissue is not None else None
+        self._torrentvalid_override = list(torrentvalid) if torrentvalid is not None else None
 
     def get_torrents(self, params):
         result = list(self._torrents)
         status = params.get("status_filter")
         if status == "completed":
             result = [t for t in result if t.state in _COMPLETE_STATES]
+        elif status == "paused":
+            # Match qBittorrent states that start with "paused"
+            result = [t for t in result if t.state.startswith("paused")]
         hashes = params.get("torrent_hashes")
         if hashes:
             wanted = hashes.split("|") if isinstance(hashes, str) else list(hashes)
@@ -353,6 +393,10 @@ class FakeQbtManager:
         url = urls[0] if urls else ""
         return {"tag": [], "cat": "", "notifiarr": None, "url": url}
 
+    def is_torrent_private(self, torrent):
+        """Return whether a torrent is private (based on .private attribute)."""
+        return getattr(torrent, "private", False)
+
     def is_cross_seed(self, torrent):
         return False
 
@@ -365,6 +409,35 @@ class FakeQbtManager:
     def get_category(self, path):
         """Return 'Uncategorized' for all save paths (overridable via subclassing or monkeypatching)."""
         return "Uncategorized"
+
+    @property
+    def torrent_list(self):
+        """Return all torrents (shorthand for get_torrents with no filter)."""
+        return list(self._torrents)
+
+    @property
+    def torrentissue(self):
+        """Return torrents with issues.
+
+        When *torrentissue* was passed to __init__ that explicit list is returned;
+        otherwise falls back to all torrents (original behaviour so existing tests
+        that don't need the distinction are unaffected).
+        """
+        if self._torrentissue_override is not None:
+            return self._torrentissue_override
+        return self._torrents
+
+    @property
+    def torrentvalid(self):
+        """Return valid (non-issue) torrents.
+
+        When *torrentvalid* was passed to __init__ that explicit list is returned;
+        otherwise falls back to all torrents (original behaviour so existing tests
+        that don't need the distinction are unaffected).
+        """
+        if self._torrentvalid_override is not None:
+            return self._torrentvalid_override
+        return self._torrents
 
 
 # ---- ShareLimits constructor bypass ---------------------------------------
@@ -428,6 +501,53 @@ def make_category(qbt_manager):
     return instance
 
 
+def make_tags(qbt_manager):
+    """Construct a Tags instance with __init__'s eager work skipped.
+
+    Production ``Tags.__init__`` immediately runs ``tags()`` and calls
+    ``webhooks_factory.notify``. This bypass wires up the same attributes
+    so tests can call individual methods directly.
+    """
+    from modules.core.tags import Tags
+
+    instance = object.__new__(Tags)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.stats = 0
+    instance.share_limits_tag = qbt_manager.config.share_limits_tag
+    instance.stalled_tag = getattr(qbt_manager.config, "stalled_tag", "Stalled")
+    instance.private_tag = getattr(qbt_manager.config, "private_tag", "Private")
+    instance.tag_stalled_torrents = qbt_manager.config.settings.get("tag_stalled_torrents", False)
+    instance.torrents_updated = []
+    instance.notify_attr = []
+    instance.hashes = None
+    return instance
+
+
+def make_recheck(qbt_manager):
+    """Construct a ReCheck instance with __init__'s eager work skipped.
+
+    Production ``ReCheck.__init__`` immediately runs ``recheck()`` and calls
+    ``webhooks_factory.notify``. This bypass wires up the same attributes
+    so tests can call individual methods directly.
+    """
+    from modules.core.recheck import ReCheck
+
+    instance = object.__new__(ReCheck)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.hashes = None
+    instance.stats_resumed = 0
+    instance.stats_rechecked = 0
+    instance.torrents_updated_recheck = []
+    instance.notify_attr_recheck = []
+    instance.torrents_updated_resume = []
+    instance.notify_attr_resume = []
+    return instance
+
+
 def make_tag_nohardlinks(qbt_manager):
     """Construct a TagNoHardLinks instance with __init__'s eager work skipped.
 
@@ -453,6 +573,41 @@ def make_tag_nohardlinks(qbt_manager):
     instance.torrents_updated_untagged = []
     instance.notify_attr_untagged = []
     instance.status_filter = "completed" if qbt_manager.config.settings["tag_nohardlinks_filter_completed"] else "all"
+    return instance
+
+
+def make_remove_unregistered(qbt_manager, hashes=None):
+    """Construct a RemoveUnregistered instance with __init__'s eager work skipped.
+
+    Production ``RemoveUnregistered.__init__`` immediately runs ``rem_unregistered()``
+    which calls ``remove_previous_errors()`` and ``process_torrent_issues()``.
+    This bypass wires up the same attributes so tests can call individual methods
+    directly without triggering the eager work.
+    """
+    from modules.core.remove_unregistered import RemoveUnregistered
+
+    instance = object.__new__(RemoveUnregistered)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.stats_deleted = 0
+    instance.stats_deleted_contents = 0
+    instance.stats_tagged = 0
+    instance.stats_untagged = 0
+    instance.tor_error_summary = ""
+    instance.tag_error = qbt_manager.config.tracker_error_tag
+    instance.cfg_rem_unregistered = qbt_manager.config.commands.get("rem_unregistered", True)
+    instance.cfg_tag_error = qbt_manager.config.commands.get("tag_tracker_error", True)
+    instance.rem_unregistered_ignore_list = qbt_manager.config.settings.get("rem_unregistered_ignore_list", [])
+    instance.filter_completed = qbt_manager.config.settings.get("rem_unregistered_filter_completed", True)
+    instance.rem_unregistered_grace_minutes = qbt_manager.config.settings.get("rem_unregistered_grace_minutes", 0)
+    instance.rem_unregistered_max_torrents = qbt_manager.config.settings.get("rem_unregistered_max_torrents", 0)
+    instance.hashes = hashes
+    instance.tracker_del_count = {}
+    instance.torrents_updated_issue = []
+    instance.notify_attr_issue = []
+    instance.torrents_updated_unreg = []
+    instance.notify_attr_unreg = []
     return instance
 
 
@@ -490,3 +645,24 @@ def make_group_config(**overrides):
     }
     base.update(overrides)
     return base
+
+
+def make_remove_orphaned(qbt_manager):
+    """Construct a RemoveOrphaned instance with __init__'s eager work skipped.
+
+    Production ``RemoveOrphaned.__init__`` immediately runs ``rem_orphaned()``
+    with ThreadPoolExecutor — awkward for unit tests. This bypass wires up the
+    same attributes so tests can call individual methods directly.
+    """
+    from modules.core.remove_orphaned import RemoveOrphaned
+
+    instance = object.__new__(RemoveOrphaned)
+    instance.qbt = qbt_manager
+    instance.config = qbt_manager.config
+    instance.client = qbt_manager.client
+    instance.stats = 0
+    instance.remote_dir = qbt_manager.config.remote_dir
+    instance.root_dir = qbt_manager.config.root_dir
+    instance.orphaned_dir = qbt_manager.config.orphaned_dir
+    instance.executor = None  # Skip ThreadPoolExecutor for tests
+    return instance

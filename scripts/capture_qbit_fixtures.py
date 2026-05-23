@@ -34,6 +34,56 @@ except ImportError:
 
 _TRACKER_HOST_PATTERN = re.compile(r"://[^/]+")
 
+# Match a torrent basename and split it into <title>.<rest> where <rest> begins
+# at the first scene-naming marker (season, year, resolution, source, codec…).
+# We keep <rest> intact (preserves format/group info for realistic tests) and
+# replace <title> with a generic placeholder.
+_TITLE_MARKER_PATTERN = re.compile(
+    r"^(?P<title>[A-Za-z0-9._-]+?)"
+    r"(?P<rest>"
+    r"\.(?:S\d{1,4}(?:E\d{1,4})?|\d{4}|\d{3,4}[pi]|"
+    r"TVRip|BRRip|WEBRip|HDTV|BluRay|WEB[.-]?DL|"
+    r"REPACK|PROPER|INTERNAL|DV|HDR|HEVC|AVC|x26[45]|h26[45])"
+    r".*"
+    r")$",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_torrent_basename(basename: str) -> str:
+    """Replace the title slug of a torrent path basename with a generic
+    placeholder while keeping scene markers (season, quality, codec) and the
+    trailing release group. Examples:
+
+        Looney.Tunes.S1942.TVRip-NOGRP  ->  Tv.Series.S1942.TVRip-NOGRP
+        Some.Movie.2024.1080p.WEB-DL-X  ->  Tv.Series.2024.1080p.WEB-DL-X
+
+    Returns the input unchanged if no scene marker is detected (likely already
+    sanitized or non-release-named directory).
+    """
+    m = _TITLE_MARKER_PATTERN.match(basename)
+    if not m:
+        return basename
+    return f"Tv.Series{m.group('rest')}"
+
+
+def _sanitize_root_path(root_path: str) -> str:
+    """Sanitize the LAST path segment of root_path with _sanitize_torrent_basename.
+    Earlier segments (category dir, tracker subdir) are preserved since they
+    convey structure and don't leak title PII."""
+    if not root_path:
+        return root_path
+    # Detect both POSIX `/` and Windows `\\` separators; fixtures captured
+    # on Windows would otherwise bypass sanitization (Copilot review #1207).
+    if "/" in root_path:
+        sep = "/"
+    elif "\\" in root_path:
+        sep = "\\"
+    else:
+        return root_path
+    prefix, _, basename = root_path.rpartition(sep)
+    return f"{prefix}{sep}{_sanitize_torrent_basename(basename)}"
+
 
 def _build_tracker_map(rows: list[dict]) -> dict[str, str]:
     """Collect every distinct tracker host across all torrents and assign each
@@ -98,6 +148,10 @@ def _sanitize_torrents_info(rows: list[dict], sample_size: int = 5) -> list[dict
         # download_path can leak indexer setup ("/mnt/.../Blutopia (API)") — scrub
         if "download_path" in row and row["download_path"]:
             row["download_path"] = f"/data/torrents/{category}/"
+        # root_path's last segment is the original release name and leaks the
+        # title even though save_path / content_path / name are sanitized above.
+        if row.get("root_path"):
+            row["root_path"] = _sanitize_root_path(row["root_path"])
         if "tracker" in row:
             row["tracker"] = _sanitize_tracker_url(row["tracker"], tracker_map)
         # magnet_uri's tr= parameter is the full announce URL with passkey —
