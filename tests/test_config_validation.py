@@ -19,27 +19,25 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules import config as config_mod  # noqa: E402
 from modules.util import Failed  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Minimal Config stub — only the surface that validate_config_keys() needs
+# Minimal Config instance — bypasses __init__ but is a real Config so methods
+# work natively. Uses the same object.__new__ + attribute-injection pattern
+# as tests/factories.py::make_share_limits etc., so if validate_config_keys
+# ever reaches for another self.<attr>, the test fails meaningfully instead
+# of swallowing the AttributeError as a stub gap.
 # ---------------------------------------------------------------------------
 
 
-def _make_stub(data: dict) -> object:
-    """Return a minimal Config-like object that can run validate_config_keys()."""
-
-    class StubConfig:
-        pass
-
-    from modules import config as config_mod
-
-    stub = StubConfig()
-    stub.data = data
-    stub.notify = MagicMock()  # silence actual webhook calls
-    # Bind validate_config_keys as a bound method on stub
-    stub.validate_config_keys = config_mod.Config.validate_config_keys.__get__(stub, StubConfig)
-    return stub
+def _make_config(data: dict) -> config_mod.Config:
+    """Return a Config instance with __init__ bypassed and just enough state
+    wired up for validate_config_keys() to run."""
+    instance = object.__new__(config_mod.Config)
+    instance.data = data
+    instance.notify = MagicMock()  # silence webhook calls; the real Config method writes to webhooks_factory
+    return instance
 
 
 def _valid_base() -> dict:
@@ -56,15 +54,15 @@ def _valid_base() -> dict:
 
 
 def _raises_failed(data: dict) -> Failed:
-    stub = _make_stub(data)
+    cfg = _make_config(data)
     with pytest.raises(Failed) as exc_info:
-        stub.validate_config_keys()
+        cfg.validate_config_keys()
     return exc_info.value
 
 
 def _passes(data: dict) -> None:
-    stub = _make_stub(data)
-    stub.validate_config_keys()  # must not raise
+    cfg = _make_config(data)
+    cfg.validate_config_keys()  # must not raise
 
 
 # ===========================================================================
