@@ -484,7 +484,12 @@ class Config:
             # Extract global_options defaults if present
             global_opts = {}
             if isinstance(nohardlinks_data, dict):
-                global_opts = nohardlinks_data.get("global_options", {}) or {}
+                raw_global_opts = nohardlinks_data.get("global_options", {}) or {}
+                if not isinstance(raw_global_opts, dict):
+                    err = f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                global_opts = raw_global_opts
             global_exclude_tags = global_opts.get("exclude_tags", []) or []
             global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
             for cat in nohardlinks_data:
@@ -512,7 +517,11 @@ class Config:
                         err = f"Config Error: nohardlinks category {cat_str} attribute exclude_tags must be a list"
                         self.notify(err, "Config")
                         raise Failed(err)
-                    merged_exclude_tags = list(set(merged_exclude_tags) | set(cat_exclude_tags))
+                    seen: set[str] = set(merged_exclude_tags)
+                    for _tag in cat_exclude_tags:
+                        if _tag not in seen:
+                            seen.add(_tag)
+                            merged_exclude_tags.append(_tag)
                 self.nohardlinks[cat_str] = {
                     "exclude_tags": merged_exclude_tags,
                     "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
@@ -523,7 +532,7 @@ class Config:
                     raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks must be a dict with categories and optional global_options"
+                err = "Config Error: nohardlinks must be a dict (with optional global_options) or a list of category names/dicts"
                 self.notify(err, "Config")
                 raise Failed(err)
 
