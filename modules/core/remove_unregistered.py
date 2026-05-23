@@ -7,6 +7,11 @@ from modules.qbit_error_handler import handle_qbit_api_errors
 from modules.util import TorrentMessages
 from modules.util import list_in_text
 
+# Trackers whose unregistered-detection requires a tracker-specific codepath
+# get pulled out as named constants so tests can reference them by symbol
+# instead of repeating the literal domain string.
+BHD_TRACKER_DOMAIN = "tracker.beyond-hd.me"
+
 logger = util.logger
 
 
@@ -92,7 +97,7 @@ class RemoveUnregistered:
         # Some status's from BHD have a option message such as
         # "Trumped: Internal: https://beyond-hd.xxxxx", so removing the colon is needed to match the status
         status_filtered = msg_up.split(":")[0]
-        if "tracker.beyond-hd.me" in tracker["url"]:
+        if BHD_TRACKER_DOMAIN in tracker["url"]:
             # Checks if the tracker is BHD and the message is in the deletion reasons for BHD
             if list_in_text(status_filtered, TorrentMessages.UNREGISTERED_MSGS_BHD):
                 return True
