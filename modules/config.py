@@ -316,6 +316,16 @@ class Config:
                     err = f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}"
                     self.notify(err, "Config")
                     raise Failed(err)
+                # Reject floats with non-zero fractional part: int(0.9)=0 would
+                # silently disable the delay; int(30.9)=30 fires ~54s early. PR
+                # #1161 advertises integer minutes — be strict (Copilot review).
+                if isinstance(delay, float) and not delay.is_integer():
+                    err = (
+                        f"Config Error: cat_change entry '{old_cat}' has fractional "
+                        f"delay_minutes={delay}; must be a whole number of minutes."
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
                 result[old_cat] = {"new_cat": str(new_cat), "delay_minutes": int(delay)}
             else:
                 val_type = type(value).__name__
