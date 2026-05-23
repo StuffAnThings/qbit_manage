@@ -36,7 +36,14 @@ class TestValidateRequiredSections:
         cfg.validate_required_sections()
 
     def test_both_sections_present_and_non_empty_passes(self):
-        """Both non-empty sections together satisfy the validator."""
+        """Both non-empty sections together satisfy the validator.
+
+        Note: tests in this class target ``validate_required_sections()`` in
+        isolation, BEFORE ``process_config_data()`` injects default ``cat: {}``
+        and ``tracker: {}`` keys. Production flow always populates those
+        defaults first; these tests deliberately exercise the validator
+        without that injection (Copilot review #1207).
+        """
         cfg = _make_config(
             {
                 "cat": {"Movies": "/data/movies"},
