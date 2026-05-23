@@ -116,9 +116,20 @@ def test_cat_change_extended_format_invalid_delay():
         config._process_cat_change()
 
 
-def test_cat_change_extended_format_delay_float():
-    """cat_change entry with float delay_minutes is accepted and converted."""
+def test_cat_change_extended_format_fractional_delay_raises_failed():
+    """Fractional delay_minutes is rejected (added 513b7f9): silent truncation
+    via int() would disable small delays (int(0.9)==0) and fire ~54s early near
+    boundaries (int(30.9)==30). The PR documents integer minutes; enforce it."""
     config = make_config_with_cat_change({"old_cat": {"new_cat": "new_cat", "delay_minutes": 30.5}})
+    with pytest.raises(Failed, match="fractional delay_minutes"):
+        config._process_cat_change()
+
+
+def test_cat_change_extended_format_whole_float_delay_accepted():
+    """A float with no fractional part (e.g. 30.0) is accepted and stored as int 30.
+    YAML can surface integer-valued numbers as floats depending on quoting; the
+    user's intent is unambiguous and there's no truncation drift."""
+    config = make_config_with_cat_change({"old_cat": {"new_cat": "new_cat", "delay_minutes": 30.0}})
     result = config._process_cat_change()
     assert result == {"old_cat": {"new_cat": "new_cat", "delay_minutes": 30}}
 
