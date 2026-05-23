@@ -505,20 +505,25 @@ class Config:
                     cat[cat_str] = {}
                 cat_exclude_tags = cat[cat_str].get("exclude_tags", None)
                 cat_ignore_root_dir = cat[cat_str].get("ignore_root_dir", None)
-                # Per-category values override global when set, otherwise inherit global defaults
+                # Per-category exclude_tags merge (union) with global_options; ignore_root_dir overrides
+                merged_exclude_tags = list(global_exclude_tags)
+                if cat_exclude_tags is not None:
+                    if not isinstance(cat_exclude_tags, list):
+                        err = f"Config Error: nohardlinks category {cat_str} attribute exclude_tags must be a list"
+                        self.notify(err, "Config")
+                        raise Failed(err)
+                    merged_exclude_tags = list(set(merged_exclude_tags) | set(cat_exclude_tags))
                 self.nohardlinks[cat_str] = {
-                    "exclude_tags": cat_exclude_tags if cat_exclude_tags is not None else list(global_exclude_tags),
+                    "exclude_tags": merged_exclude_tags,
                     "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
                 }
-                if self.nohardlinks[cat_str]["exclude_tags"] is None:
-                    self.nohardlinks[cat_str]["exclude_tags"] = []
                 if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
                     err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
                     self.notify(err, "Config")
                     raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks must be a list of categories"
+                err = "Config Error: nohardlinks must be a dict with categories and optional global_options"
                 self.notify(err, "Config")
                 raise Failed(err)
 
