@@ -39,11 +39,11 @@ def test_cat_change_empty_dict_returns_empty_dict():
     assert result == {}
 
 
-def test_cat_change_empty_list_returns_empty_dict():
-    """cat_change: [] is falsy, treated as missing, returns {}."""
+def test_cat_change_empty_list_raises_failed():
+    """cat_change: [] is a non-dict type and must raise Failed, not silently return {}."""
     config = make_config_with_cat_change([])
-    result = config._process_cat_change()
-    assert result == {}
+    with pytest.raises(Failed, match="cat_change must be a mapping"):
+        config._process_cat_change()
 
 
 def test_cat_change_string_raises_failed():
@@ -121,6 +121,41 @@ def test_cat_change_extended_format_delay_float():
     config = make_config_with_cat_change({"old_cat": {"new_cat": "new_cat", "delay_minutes": 30.5}})
     result = config._process_cat_change()
     assert result == {"old_cat": {"new_cat": "new_cat", "delay_minutes": 30}}
+
+
+def test_cat_change_zero_raises_failed():
+    """cat_change: 0 is falsy but non-dict — must raise Failed, not silently return {}."""
+    config = make_config_with_cat_change(0)
+    with pytest.raises(Failed, match="cat_change must be a mapping"):
+        config._process_cat_change()
+
+
+def test_cat_change_false_raises_failed():
+    """cat_change: False is falsy but non-dict — must raise Failed, not silently return {}."""
+    config = make_config_with_cat_change(False)
+    with pytest.raises(Failed, match="cat_change must be a mapping"):
+        config._process_cat_change()
+
+
+def test_cat_change_empty_string_raises_failed():
+    """cat_change: "" is falsy but non-dict — must raise Failed, not silently return {}."""
+    config = make_config_with_cat_change("")
+    with pytest.raises(Failed, match="cat_change must be a mapping"):
+        config._process_cat_change()
+
+
+def test_cat_change_delay_minutes_true_raises_failed():
+    """delay_minutes: True must raise Failed — bool must not silently coerce to 1."""
+    config = make_config_with_cat_change({"OldCat": {"new_cat": "NewCat", "delay_minutes": True}})
+    with pytest.raises(Failed, match="invalid delay_minutes"):
+        config._process_cat_change()
+
+
+def test_cat_change_delay_minutes_false_raises_failed():
+    """delay_minutes: False must raise Failed — bool must not silently coerce to 0."""
+    config = make_config_with_cat_change({"OldCat": {"new_cat": "NewCat", "delay_minutes": False}})
+    with pytest.raises(Failed, match="invalid delay_minutes"):
+        config._process_cat_change()
 
 
 def test_cat_change_multiple_entries():
