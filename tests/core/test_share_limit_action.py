@@ -94,7 +94,8 @@ class TestCleanupMutualExclusion:
 
     @pytest.mark.parametrize("action", ["Remove", "RemoveWithContent"])
     def test_cleanup_true_with_destructive_action_raises_failed(self, action):
-        """cleanup=true + Remove or RemoveWithContent raises Failed — mirrors validate_cleanup_share_limit_action_combo in Config's share-limits processing."""
+        """cleanup=true + Remove/RemoveWithContent raises Failed — mirrors
+        validate_cleanup_share_limit_action_combo in Config's share-limits processing."""
         with pytest.raises(Failed, match="mutually exclusive"):
             validate_cleanup_share_limit_action_combo(cleanup=True, share_limit_action=action, group="test_group")
 
