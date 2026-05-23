@@ -295,6 +295,10 @@ class Config:
         raw = self.data.get("cat_change")
         if not raw:
             return {}
+        if not isinstance(raw, dict):
+            err = f"Config Error: cat_change must be a mapping (dict), got {type(raw).__name__}"
+            self.notify(err, "Config")
+            raise Failed(err)
         result = {}
         for old_cat, value in raw.items():
             if isinstance(value, str):
@@ -312,7 +316,10 @@ class Config:
                     raise Failed(err)
                 result[old_cat] = {"new_cat": str(new_cat), "delay_minutes": int(delay)}
             else:
-                result[old_cat] = {"new_cat": str(value), "delay_minutes": 0}
+                val_type = type(value).__name__
+                err = f"Config Error: cat_change entry '{old_cat}' has invalid type {val_type}; must be string or dict"
+                self.notify(err, "Config")
+                raise Failed(err)
         return result
 
     def process_config_settings(self):
