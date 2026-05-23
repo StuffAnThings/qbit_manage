@@ -4,6 +4,10 @@ on:
   push:
     branches: [ master ]
 
+concurrency:
+  group: update-develop
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -11,6 +15,7 @@ jobs:
 
   update-develop:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check Out Repo

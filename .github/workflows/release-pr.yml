@@ -1,0 +1,293 @@
+name: Release PR
+
+# Creates a release branch (copy of develop), opens a PR to master, and
+# creates a draft GitHub release. Operator reviews the PR, then merges
+# normally — existing tag.yml + pypi-publish.yml + version.yml +
+# update-develop-branch.yml workflows take over from there.
+#
+# IMPORTANT: enable "Automatically delete head branches" in the repo's
+# Settings → General → Pull Requests so the release/vX.Y.Z branch is
+# cleaned up on merge. (Falls back to manual cleanup if not enabled.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump_type:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release_notes_override:
+        description: 'Override release notes (leave blank to auto-generate from git log)'
+        required: false
+        type: string
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Snapshot develop into release/vX.Y.Z + write bumped VERSION
+  # ─────────────────────────────────────────────────────────────────────────────
+  prepare-release-branch:
+    name: Prepare release branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      new_version: ${{ steps.compute.outputs.new_version }}
+      current_version: ${{ steps.compute.outputs.current_version }}
+      release_branch: ${{ steps.compute.outputs.release_branch }}
+
+    steps:
+      - name: Check Out develop
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Compute new version + release branch name
+        id: compute
+        run: |
+          raw=$(cat VERSION)
+          echo "Raw VERSION: $raw"
+
+          # Validate the VERSION file matches the expected X.Y.Z(-developN)? shape
+          # before we strip + arithmetic. Without this, a malformed file (empty
+          # segments, extra text) would silently compute the wrong next version.
+          if ! [[ "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-develop[0-9]+)?$ ]]; then
+            echo "::error::VERSION file does not match X.Y.Z or X.Y.Z-developN: '$raw'"
+            exit 1
+          fi
+
+          # Strip the -developN suffix to get the base version
+          base="${raw%-develop*}"
+          echo "Base version: $base"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$base"
+
+          case "${{ inputs.version_bump_type }}" in
+            major)
+              NEW_VERSION="$((MAJOR + 1)).0.0"
+              ;;
+            minor)
+              NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+              ;;
+            patch|*)
+              NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+              ;;
+          esac
+
+          RELEASE_BRANCH="release/v${NEW_VERSION}"
+
+          echo "New version: $NEW_VERSION"
+          echo "Release branch: $RELEASE_BRANCH"
+
+          echo "new_version=$NEW_VERSION"     >> "$GITHUB_OUTPUT"
+          echo "current_version=$raw"          >> "$GITHUB_OUTPUT"
+          echo "release_branch=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+      - name: Create release branch as snapshot of develop
+        run: |
+          BRANCH="${{ steps.compute.outputs.release_branch }}"
+
+          # Refuse to clobber an existing release branch — surfaces stale state early
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::Release branch '$BRANCH' already exists on remote. Delete it first or pick a different version."
+            exit 1
+          fi
+
+          git checkout -b "$BRANCH"
+          echo "Snapshotted develop into $BRANCH at $(git rev-parse HEAD)"
+
+      - name: Write bumped VERSION on release branch
+        run: |
+          echo "${{ steps.compute.outputs.new_version }}" > VERSION
+          echo "VERSION written: $(cat VERSION)"
+
+      - name: Commit + push release branch
+        run: |
+          BRANCH="${{ steps.compute.outputs.release_branch }}"
+          git add VERSION
+          git diff --cached --quiet && echo "No VERSION change to commit" || \
+            git commit -m "chore(release): bump VERSION to ${{ steps.compute.outputs.new_version }} [skip ci]"
+          git push origin "$BRANCH"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Open PR release/vX.Y.Z → master
+  # ─────────────────────────────────────────────────────────────────────────────
+  open-release-pr:
+    name: Open release PR
+    needs: prepare-release-branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check Out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Fetch master for changelog range
+        run: git fetch origin master
+
+      - name: Generate release notes from git log
+        id: notes
+        run: |
+          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
+          OVERRIDE="${{ inputs.release_notes_override }}"
+
+          if [[ -n "$OVERRIDE" ]]; then
+            NOTES="$OVERRIDE"
+          else
+            # Commits on this release branch that are NOT yet on master
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+
+            if [[ -z "$LOG" ]]; then
+              NOTES="No new commits since last release."
+            else
+              FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
+              FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
+              REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
+              PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
+              DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
+              TEST=$(echo "$LOG"     | grep -E '^[a-f0-9]+ test(\(.*\))?:'     || true)
+              CI=$(echo "$LOG"       | grep -E '^[a-f0-9]+ ci(\(.*\))?:'       || true)
+              CHORE=$(echo "$LOG"    | grep -E '^[a-f0-9]+ chore(\(.*\))?:'    || true)
+              OTHER=$(echo "$LOG"    | grep -vE '^[a-f0-9]+ (feat|fix|refactor|perf|docs|test|ci|chore)(\(.*\))?:' || true)
+
+              NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
+
+              [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
+              [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'
+              [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
+              [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
+              [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
+              [[ -n "$TEST" ]]     && NOTES+="### Tests"$'\n'"$TEST"$'\n'$'\n'
+              [[ -n "$CI" ]]       && NOTES+="### CI"$'\n'"$CI"$'\n'$'\n'
+              [[ -n "$CHORE" ]]    && NOTES+="### Chores"$'\n'"$CHORE"$'\n'$'\n'
+              [[ -n "$OTHER" ]]    && NOTES+="### Other"$'\n'"$OTHER"$'\n'$'\n'
+            fi
+          fi
+
+          # Footer reminder about branch cleanup
+          NOTES+=$'\n'"---"$'\n'
+          NOTES+="_This PR was opened by the **Release PR** workflow. The \`${{ needs.prepare-release-branch.outputs.release_branch }}\` branch will auto-delete on merge (repo setting \"Automatically delete head branches\")._"$'\n'
+
+          printf '%s' "$NOTES" > /tmp/release_notes.md
+          echo "Notes written."
+
+      - name: Open PR ${{ needs.prepare-release-branch.outputs.release_branch }} → master
+        id: open-pr
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ needs.prepare-release-branch.outputs.release_branch }}"
+          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
+
+          PR_URL=$(gh pr create \
+            --base master \
+            --head "$BRANCH" \
+            --title "Release v${NEW_VERSION}" \
+            --body-file /tmp/release_notes.md \
+            --label release)
+
+          echo "Release PR: $PR_URL"
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 3: Create a draft GitHub release (tag not pushed yet)
+  # ─────────────────────────────────────────────────────────────────────────────
+  create-draft-release:
+    name: Create draft GitHub release
+    needs: [prepare-release-branch, open-release-pr]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check Out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Fetch master for changelog range
+        run: git fetch origin master
+
+      - name: Regenerate release notes for GitHub release
+        id: notes
+        run: |
+          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
+          OVERRIDE="${{ inputs.release_notes_override }}"
+
+          if [[ -n "$OVERRIDE" ]]; then
+            NOTES="$OVERRIDE"
+          else
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+
+            if [[ -z "$LOG" ]]; then
+              NOTES="No new commits since last release."
+            else
+              FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
+              FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
+              REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
+              PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
+              DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
+              TEST=$(echo "$LOG"     | grep -E '^[a-f0-9]+ test(\(.*\))?:'     || true)
+              CI=$(echo "$LOG"       | grep -E '^[a-f0-9]+ ci(\(.*\))?:'       || true)
+              CHORE=$(echo "$LOG"    | grep -E '^[a-f0-9]+ chore(\(.*\))?:'    || true)
+              OTHER=$(echo "$LOG"    | grep -vE '^[a-f0-9]+ (feat|fix|refactor|perf|docs|test|ci|chore)(\(.*\))?:' || true)
+
+              NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
+
+              [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
+              [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'
+              [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
+              [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
+              [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
+              [[ -n "$TEST" ]]     && NOTES+="### Tests"$'\n'"$TEST"$'\n'$'\n'
+              [[ -n "$CI" ]]       && NOTES+="### CI"$'\n'"$CI"$'\n'$'\n'
+              [[ -n "$CHORE" ]]    && NOTES+="### Chores"$'\n'"$CHORE"$'\n'$'\n'
+              [[ -n "$OTHER" ]]    && NOTES+="### Other"$'\n'"$OTHER"$'\n'$'\n'
+            fi
+          fi
+
+          printf '%s' "$NOTES" > /tmp/draft_release_notes.md
+
+      - name: Create draft GitHub release (no tag yet)
+        # Switched from softprops/action-gh-release to ncipollo/release-action
+        # because softprops creates the tag ref immediately on `draft: true`,
+        # which triggers tag-watching workflows (pypi-publish.yml /
+        # version.yml) before the release PR is reviewed + merged.
+        # ncipollo records the tag in the release object but does NOT push
+        # the underlying tag ref while the release stays in draft. The
+        # tag is created post-merge by tag.yml when master advances.
+        # (Copilot review #1200 + operator pick 2026-05-22.)
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          tag: "v${{ needs.prepare-release-branch.outputs.new_version }}"
+          name: "v${{ needs.prepare-release-branch.outputs.new_version }}"
+          bodyFile: /tmp/draft_release_notes.md
+          draft: true
+          prerelease: false
+          allowUpdates: true
+          commit: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          skipIfReleaseExists: false
