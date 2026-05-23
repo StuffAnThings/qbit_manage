@@ -211,3 +211,151 @@ class TestPerCatExcludeTagsTypeValidation:
         cfg = _make_config({"cat1": {"exclude_tags": "not-a-list"}})
         with pytest.raises(Failed, match="exclude_tags must be a list"):
             cfg.process_config_nohardlinks()
+
+
+# ---------------------------------------------------------------------------
+# Bug 1 — outer nohardlinks type validation
+# ---------------------------------------------------------------------------
+
+
+class TestOuterNohardlinksTypeValidation:
+    def test_nohardlinks_as_int_raises_failed(self):
+        """nohardlinks: 42 (int) must raise Failed before any iteration."""
+        cfg = _make_config(42)
+        with pytest.raises(Failed, match="nohardlinks must be a dict"):
+            cfg.process_config_nohardlinks()
+        # nohardlinks dict must NOT be populated with garbage
+        assert cfg.nohardlinks is None or cfg.nohardlinks == {}
+
+    def test_nohardlinks_as_string_raises_failed(self):
+        """nohardlinks: 'movies' (string) must raise Failed, not iterate characters."""
+        cfg = _make_config("movies-completed")
+        with pytest.raises(Failed, match="nohardlinks must be a dict"):
+            cfg.process_config_nohardlinks()
+
+    def test_nohardlinks_as_bool_raises_failed(self):
+        """nohardlinks: True (bool) must raise Failed."""
+        cfg = _make_config(True)
+        with pytest.raises(Failed, match="nohardlinks must be a dict"):
+            cfg.process_config_nohardlinks()
+
+    def test_nohardlinks_as_dict_is_valid(self):
+        """nohardlinks: {cat1: {}} (dict) must not raise."""
+        cfg = _make_config({"cat1": {}})
+        cfg.process_config_nohardlinks()
+        assert "cat1" in cfg.nohardlinks
+
+    def test_nohardlinks_as_list_is_valid(self):
+        """nohardlinks: [cat1] (list of strings) must not raise."""
+        cfg = _make_config(["movies-completed"])
+        cfg.process_config_nohardlinks()
+        assert "movies-completed" in cfg.nohardlinks
+
+
+# ---------------------------------------------------------------------------
+# Bug 2 — global_options.exclude_tags type validation
+# ---------------------------------------------------------------------------
+
+
+class TestGlobalExcludeTagsTypeValidation:
+    def test_global_exclude_tags_as_string_raises_failed(self):
+        """global_options: {exclude_tags: 'tag1'} (string) must raise Failed."""
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": "tag1"},
+                "cat1": {},
+            }
+        )
+        with pytest.raises(Failed, match="exclude_tags must be a list"):
+            cfg.process_config_nohardlinks()
+
+    def test_global_exclude_tags_as_int_raises_failed(self):
+        """global_options: {exclude_tags: 99} (int) must raise Failed."""
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": 99},
+                "cat1": {},
+            }
+        )
+        with pytest.raises(Failed, match="exclude_tags must be a list"):
+            cfg.process_config_nohardlinks()
+
+    def test_global_exclude_tags_as_list_is_valid(self):
+        """global_options: {exclude_tags: ['tag1']} (list) must not raise."""
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": ["tag1"]},
+                "cat1": {},
+            }
+        )
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["cat1"]["exclude_tags"] == ["tag1"]
+
+
+# ---------------------------------------------------------------------------
+# Bug 3 — legacy list-form inherits global_options
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyListInheritsGlobalOptions:
+    def test_list_of_strings_inherits_global_exclude_tags(self):
+        """Legacy list-of-strings entries must inherit global_options exclude_tags."""
+        cfg = _make_config(
+            [
+                {"global_options": {"exclude_tags": ["tracker1.example", "tracker2.example"]}},
+                "movies-completed",
+                "series-completed",
+            ]
+        )
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["movies-completed"]["exclude_tags"] == ["tracker1.example", "tracker2.example"]
+        assert cfg.nohardlinks["series-completed"]["exclude_tags"] == ["tracker1.example", "tracker2.example"]
+        # global_options itself must NOT become a category key
+        assert "global_options" not in cfg.nohardlinks
+
+    def test_list_of_strings_inherits_global_ignore_root_dir(self):
+        """Legacy list-of-strings entries must inherit global_options ignore_root_dir."""
+        cfg = _make_config(
+            [
+                {"global_options": {"ignore_root_dir": False}},
+                "tv-series",
+            ]
+        )
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["tv-series"]["ignore_root_dir"] is False
+
+    def test_list_of_strings_no_global_options_uses_defaults(self):
+        """Legacy list-of-strings without global_options gets default values."""
+        cfg = _make_config(["movies-completed"])
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["movies-completed"]["exclude_tags"] == []
+        assert cfg.nohardlinks["movies-completed"]["ignore_root_dir"] is True
+
+    def test_list_of_dicts_inherits_global_exclude_tags(self):
+        """Legacy list-of-dicts entries must inherit global_options exclude_tags."""
+        cfg = _make_config(
+            [
+                {"global_options": {"exclude_tags": ["global-tag"]}},
+                {"Tv.Series": {"exclude_tags": ["local-tag"]}},
+            ]
+        )
+        cfg.process_config_nohardlinks()
+        result = cfg.nohardlinks["Tv.Series"]["exclude_tags"]
+        # global-tag comes first, local-tag appended
+        assert result == ["global-tag", "local-tag"], f"Expected ['global-tag', 'local-tag'], got {result}"
+        assert "global_options" not in cfg.nohardlinks
+
+    def test_list_of_dicts_inherits_global_ignore_root_dir(self):
+        """Legacy list-of-dicts entries inherit global ignore_root_dir unless overridden."""
+        cfg = _make_config(
+            [
+                {"global_options": {"ignore_root_dir": False}},
+                {"Tv.Series": {}},
+                {"Movies": {"ignore_root_dir": True}},
+            ]
+        )
+        cfg.process_config_nohardlinks()
+        # Tv.Series has no override → inherits global False
+        assert cfg.nohardlinks["Tv.Series"]["ignore_root_dir"] is False
+        # Movies explicitly sets True → overrides global False
+        assert cfg.nohardlinks["Movies"]["ignore_root_dir"] is True

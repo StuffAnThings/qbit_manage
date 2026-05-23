@@ -481,7 +481,15 @@ class Config:
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
             nohardlinks_data = self.data["nohardlinks"]
-            # Extract global_options defaults if present
+            # Bug 1 fix: validate outer container type before iterating
+            if not isinstance(nohardlinks_data, (dict, list)):
+                err = (
+                    f"Config Error: nohardlinks must be a dict (with optional global_options) or a list of category "
+                    f"names/dicts (got {type(nohardlinks_data).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+            # Extract global_options defaults if present (dict form or list-with-global_options-entry form)
             global_opts = {}
             if isinstance(nohardlinks_data, dict):
                 raw_global_opts = nohardlinks_data.get("global_options", {}) or {}
@@ -490,10 +498,34 @@ class Config:
                     self.notify(err, "Config")
                     raise Failed(err)
                 global_opts = raw_global_opts
+            elif isinstance(nohardlinks_data, list):
+                # Bug 3 fix: extract global_options from list-form when present as a dict entry
+                for _entry in nohardlinks_data:
+                    if isinstance(_entry, dict) and "global_options" in _entry:
+                        raw_global_opts = _entry["global_options"] or {}
+                        if not isinstance(raw_global_opts, dict):
+                            err = (
+                                f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                        global_opts = raw_global_opts
+                        break
             global_exclude_tags = global_opts.get("exclude_tags", []) or []
+            # Bug 2 fix: validate global exclude_tags is a list
+            if not isinstance(global_exclude_tags, list):
+                err = (
+                    f"Config Error: nohardlinks global_options exclude_tags must be a list"
+                    f" (got {type(global_exclude_tags).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
             global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
             for cat in nohardlinks_data:
                 if cat == "global_options":
+                    continue
+                # Bug 3 fix: skip the global_options dict entry when iterating a list-form nohardlinks
+                if isinstance(nohardlinks_data, list) and isinstance(cat, dict) and "global_options" in cat:
                     continue
                 if isinstance(nohardlinks_data, list) and isinstance(cat, str):
                     self.nohardlinks[cat] = {
