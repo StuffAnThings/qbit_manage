@@ -257,7 +257,10 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 
 ### Global Options
 
-You can set default `exclude_tags` and `ignore_root_dir` for all categories using the optional `global_options` key. Per-category values **override** the global default when set. Categories without the option inherit the global default.
+You can set defaults for all categories using the optional `global_options` key, with these merge semantics:
+
+- **`exclude_tags`** — per-category list is **merged (union)** with the global list. A category-level `exclude_tags` adds to the global set, it does not replace it.
+- **`ignore_root_dir`** — per-category boolean **overrides** the global value when set. Categories without the key inherit the global default.
 
 ```yaml
 nohardlinks:
@@ -267,10 +270,10 @@ nohardlinks:
     ignore_root_dir: true
   movies-completed-4k:        # inherits: exclude_tags=[AnimeBytes], ignore_root_dir=true
   movies-completed:
-    exclude_tags:              # overrides global: only [Beyond-HD, MaM]
+    exclude_tags:              # merged with global → [AnimeBytes, Beyond-HD, MaM]
       - Beyond-HD
       - MaM
-    ignore_root_dir: false     # overrides global
+    ignore_root_dir: false     # overrides global → false
 ```
 
 ## **share_limits:**
