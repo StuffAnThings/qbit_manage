@@ -898,11 +898,12 @@ def list_in_text(text, search_list, match_all=False):
         search_list = set(search_list)
     contains = {x for x in search_list if " " in x}
     exception = search_list - contains
+    words = text.split(" ")
     if match_all:
-        if all(x == m for m in text.split(" ") for x in exception) or all(x in text for x in contains):
+        if all(x in words for x in exception) and all(x in text for x in contains):
             return True
     else:
-        if any(x == m for m in text.split(" ") for x in exception) or any(x in text for x in contains):
+        if any(x == m for m in words for x in exception) or any(x in text for x in contains):
             return True
     return False
 
