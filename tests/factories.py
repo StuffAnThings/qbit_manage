@@ -319,6 +319,21 @@ class FakeConfig:
     # webhooks_factory stand-in
     webhooks_factory: Any = field(default_factory=_FakeWebhooksFactory)
 
+    def __post_init__(self):
+        # Mirror modules.config.Config._process_cat_change: tests may pass the
+        # user-facing short form ({old: "new"}); Category consumes the normalized
+        # extended form ({old: {"new_cat": str, "delay_minutes": int}}).
+        normalized = {}
+        for old_cat, value in self.cat_change.items():
+            if isinstance(value, dict):
+                normalized[old_cat] = {
+                    "new_cat": str(value["new_cat"]),
+                    "delay_minutes": int(value.get("delay_minutes", 0)),
+                }
+            else:
+                normalized[old_cat] = {"new_cat": str(value), "delay_minutes": 0}
+        self.cat_change = normalized
+
     def send_notifications(self, attr):
         self.notifications_sent.append(copy.deepcopy(attr))
 
