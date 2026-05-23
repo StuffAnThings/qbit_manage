@@ -25,7 +25,7 @@ from modules.util import Failed
 # Ensure these symbols are not stripped as "unused" by auto-formatters — they
 # ARE used (lazily, via @parametrize-evaluated test bodies); the explicit
 # reference here guards against future imports being removed.
-_ = (validate_share_limit_action, validate_cleanup_share_limit_action_combo)
+_ = (validate_share_limit_action, validate_cleanup_share_limit_action_combo)  # noqa: F841  # kept-alive references for @parametrize bodies
 
 # ---------------------------------------------------------------------------
 # Helpers
