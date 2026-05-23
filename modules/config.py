@@ -293,12 +293,14 @@ class Config:
         Returns dict mapping old_cat -> {"new_cat": str, "delay_minutes": int}
         """
         raw = self.data.get("cat_change")
-        if not raw:
+        if raw is None:
             return {}
         if not isinstance(raw, dict):
             err = f"Config Error: cat_change must be a mapping (dict), got {type(raw).__name__}"
             self.notify(err, "Config")
             raise Failed(err)
+        if not raw:
+            return {}
         result = {}
         for old_cat, value in raw.items():
             if isinstance(value, str):
@@ -310,7 +312,7 @@ class Config:
                     self.notify(err, "Config")
                     raise Failed(err)
                 delay = value.get("delay_minutes", 0)
-                if not isinstance(delay, (int, float)) or delay < 0:
+                if isinstance(delay, bool) or not isinstance(delay, (int, float)) or delay < 0:
                     err = f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}"
                     self.notify(err, "Config")
                     raise Failed(err)
