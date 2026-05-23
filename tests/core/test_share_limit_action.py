@@ -22,11 +22,6 @@ from modules.config import validate_cleanup_share_limit_action_combo
 from modules.config import validate_share_limit_action
 from modules.util import Failed
 
-# Ensure these symbols are not stripped as "unused" by auto-formatters — they
-# ARE used (lazily, via @parametrize-evaluated test bodies); the explicit
-# reference here guards against future imports being removed.
-_ = (validate_share_limit_action, validate_cleanup_share_limit_action_combo)  # noqa: F841  # kept-alive references for @parametrize bodies
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -71,7 +66,7 @@ class TestShareLimitActionValidation:
         assert result == action
 
     def test_invalid_action_raises_failed(self):
-        """An unrecognised share_limit_action raises Failed — mirroring Config.__init__ line ~734."""
+        """An unrecognised share_limit_action raises Failed — mirroring the validator in Config's share-limits processing."""
         with pytest.raises(Failed, match="invalid share_limit_action"):
             validate_share_limit_action("DeleteEverything", "test_group")
 
@@ -99,7 +94,7 @@ class TestCleanupMutualExclusion:
 
     @pytest.mark.parametrize("action", ["Remove", "RemoveWithContent"])
     def test_cleanup_true_with_destructive_action_raises_failed(self, action):
-        """cleanup=true + Remove or RemoveWithContent raises Failed — mirrors Config.__init__ line ~835."""
+        """cleanup=true + Remove or RemoveWithContent raises Failed — mirrors validate_cleanup_share_limit_action_combo in Config's share-limits processing."""
         with pytest.raises(Failed, match="mutually exclusive"):
             validate_cleanup_share_limit_action_combo(cleanup=True, share_limit_action=action, group="test_group")
 
