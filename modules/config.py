@@ -195,6 +195,34 @@ KNOWN_WEBHOOKS_KEYS = {
     "function",
 }
 
+# Known command keys within webhooks.function (mirrors the function hooks sent by Webhooks)
+KNOWN_WEBHOOKS_FUNCTION_KEYS = {
+    "recheck",
+    "cat_update",
+    "tag_update",
+    "rem_unregistered",
+    "tag_tracker_error",
+    "rem_orphaned",
+    "tag_nohardlinks",
+    "share_limits",
+    "cleanup_dirs",
+}
+
+# Known keys within the apprise section
+KNOWN_APPRISE_KEYS = {
+    "api_url",
+    "notify_url",
+}
+
+# Known keys within the notifiarr section
+KNOWN_NOTIFIARR_KEYS = {
+    "apikey",
+    "instance",
+}
+
+# Known keys within the commands section (mirrors the COMMANDS list + allowed booleans)
+KNOWN_COMMANDS_KEYS = set(COMMANDS)
+
 # Known keys within the nohardlinks category sub-objects
 KNOWN_NOHARDLINKS_KEYS = {
     "exclude_tags",
@@ -236,6 +264,9 @@ class Config:
         """
         self.commands = self.process_config_commands()
         self.data = self.process_config_data()
+        # Validate keys early — after normalization but before any process_config_*
+        # so users get a clean error message rather than a cryptic mid-processing crash.
+        self.validate_config_keys()
         self.process_config_settings()
         self.process_config_webhooks()
         self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
@@ -248,7 +279,6 @@ class Config:
         self.processs_config_recyclebin()
         self.process_config_directories()
         self.process_config_orphaned()
-        self.validate_config_keys()
 
     def configure_qbt(self):
         """
@@ -491,9 +521,25 @@ class Config:
         if "orphaned" in self.data and isinstance(self.data["orphaned"], dict):
             _check_keys(self.data["orphaned"], KNOWN_ORPHANED_KEYS, "orphaned")
 
-        # Webhooks
+        # Apprise
+        if "apprise" in self.data and isinstance(self.data["apprise"], dict):
+            _check_keys(self.data["apprise"], KNOWN_APPRISE_KEYS, "apprise")
+
+        # Notifiarr
+        if "notifiarr" in self.data and isinstance(self.data["notifiarr"], dict):
+            _check_keys(self.data["notifiarr"], KNOWN_NOTIFIARR_KEYS, "notifiarr")
+
+        # Commands
+        if "commands" in self.data and isinstance(self.data["commands"], dict):
+            _check_keys(self.data["commands"], KNOWN_COMMANDS_KEYS, "commands")
+
+        # Webhooks (top-level keys)
         if "webhooks" in self.data and isinstance(self.data["webhooks"], dict):
             _check_keys(self.data["webhooks"], KNOWN_WEBHOOKS_KEYS, "webhooks")
+            # webhooks.function sub-keys
+            webhooks_function = self.data["webhooks"].get("function")
+            if isinstance(webhooks_function, dict):
+                _check_keys(webhooks_function, KNOWN_WEBHOOKS_FUNCTION_KEYS, "function", "webhooks")
 
         # Share limits groups
         if "share_limits" in self.data and isinstance(self.data["share_limits"], dict):
@@ -501,11 +547,21 @@ class Config:
                 if isinstance(group_data, dict):
                     _check_keys(group_data, KNOWN_SHARE_LIMITS_KEYS, group, "share_limits")
 
-        # Nohardlinks categories
-        if "nohardlinks" in self.data and isinstance(self.data["nohardlinks"], dict):
-            for cat, cat_data in self.data["nohardlinks"].items():
-                if isinstance(cat_data, dict):
-                    _check_keys(cat_data, KNOWN_NOHARDLINKS_KEYS, cat, "nohardlinks")
+        # Nohardlinks categories — supports both dict (cat: {options}) and list (legacy)
+        if "nohardlinks" in self.data:
+            nhl = self.data["nohardlinks"]
+            if isinstance(nhl, dict):
+                for cat, cat_data in nhl.items():
+                    if isinstance(cat_data, dict):
+                        _check_keys(cat_data, KNOWN_NOHARDLINKS_KEYS, cat, "nohardlinks")
+            elif isinstance(nhl, list):
+                # Legacy list form: each entry is a category name string or a
+                # single-key dict {cat_name: {options}}. Validate sub-dicts where present.
+                for entry in nhl:
+                    if isinstance(entry, dict):
+                        for cat, cat_data in entry.items():
+                            if isinstance(cat_data, dict):
+                                _check_keys(cat_data, KNOWN_NOHARDLINKS_KEYS, cat, "nohardlinks")
 
         if errors:
             for err in errors:
