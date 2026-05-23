@@ -139,7 +139,7 @@ export const shareLimitsSchema = {
                 share_limit_action: {
                     type: 'select',
                     label: 'Share Limit Action',
-                    description: 'What qBittorrent should do when this group\'s share limits (max_ratio / max_seeding_time / max_last_active) are reached. Required by qBittorrent 5.2.0+. NOT the same as qbm\'s `cleanup`: if `cleanup: true`, qbm deletes torrents BEFORE qBittorrent can apply this action. WARNING: `RemoveWithContent` deletes files on disk and bypasses qbm\'s recyclebin.',
+                    description: 'What qBittorrent should do when this group\'s share limits (max_ratio / max_seeding_time / max_last_active) are reached. Required by qBittorrent 5.2.0+. NOT the same as qbm\'s `cleanup`: if `cleanup: true`, qbm deletes torrents BEFORE qBittorrent can apply this action. WARNING: `RemoveWithContent` is destructive — qbm\'s recyclebin is bypassed. Files are recoverable only from a backup. When qBittorrent removes the torrent itself, qbm never runs cleanup on it, so the recyclebin path is not consulted.',
                     options: [
                         { value: 'Default', label: 'Default — use qBittorrent\'s global setting (recommended)' },
                         { value: 'Stop', label: 'Stop — pause the torrent, keep it listed, files untouched' },

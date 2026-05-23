@@ -264,9 +264,11 @@ share_limits:
     #     Remove             Remove the torrent from qBittorrent BUT KEEP THE FILES on disk. The torrent will
     #                        no longer appear in qBittorrent. You can re-add the .torrent file later.
     #
-    #     RemoveWithContent  *** DESTRUCTIVE *** Remove the torrent AND DELETE THE FILES on disk.
-    #                        Files cannot be recovered unless you have a backup or qbm's recyclebin enabled.
-    #                        Only use this if you are sure you want qBittorrent itself doing the deletion.
+    #     RemoveWithContent  *** DESTRUCTIVE — qbm's recyclebin is bypassed *** Remove the torrent AND DELETE
+    #                        THE FILES on disk. Files are recoverable only from a backup. When qBittorrent
+    #                        removes the torrent itself, qbm never runs cleanup on it, so the recyclebin
+    #                        path is not consulted. Only use this if you are sure you want qBittorrent
+    #                        itself doing the deletion.
     #
     #     EnableSuperSeeding Switch the torrent into super-seeding mode. This is an advanced setting for
     #                        seeding to many peers from a small set of seeds — most users should not need this.

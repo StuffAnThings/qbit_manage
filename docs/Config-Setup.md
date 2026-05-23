@@ -327,7 +327,7 @@ Walkthrough: torrent reaches `max_ratio >= 2.0` → marked cleanup-eligible → 
 | `Default`            | Use whatever action qBittorrent is globally configured to do. **Recommended for most users.**                      | Safe — qBittorrent's own settings apply.   |
 | `Stop`               | Stop the torrent (qBittorrent's normal "pause"). Torrent stays listed; just stops seeding. Files untouched.        | Safe and reversible.                       |
 | `Remove`             | Remove the torrent from qBittorrent **but keep the files on disk**. Torrent disappears from the list.              | Files are kept; you can re-add later.      |
-| `RemoveWithContent`  | Remove the torrent **and delete the files on disk**.                                                               | **DESTRUCTIVE.** Files are not recoverable unless you have a backup or qbm's recyclebin enabled. |
+| `RemoveWithContent`  | Remove the torrent **and delete the files on disk**.                                                               | **DESTRUCTIVE — qbm's recyclebin is bypassed.** Files are recoverable only from a backup. When qBittorrent removes the torrent itself, qbm never runs cleanup on it, so the recyclebin path is not consulted. |
 | `EnableSuperSeeding` | Switch the torrent into super-seeding mode (advanced; one-to-many seeding scenarios).                              | Most users should not need this.           |
 
 #### Examples
