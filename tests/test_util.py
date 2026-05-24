@@ -21,7 +21,6 @@ from modules.util import list_in_text
 from modules.util import parse_size_to_bytes
 from modules.util import parse_version
 from modules.util import path_replace
-from modules.util import redact_passkey
 from modules.util import trunc_val
 
 # ── get_list ─────────────────────────────────────────────────────────────────
@@ -438,44 +437,3 @@ class TestPathReplace:
         result = path_replace(["/data/file.txt"], ["/data/"], ["/mnt/"])
         assert "mnt" in result
         assert "file.txt" in result
-
-
-# ── redact_passkey (additional edge cases) ───────────────────────────────────
-
-
-class TestRedactPasskeyEdgeCases:
-    def test_empty_string(self):
-        assert redact_passkey("") == ""
-
-    def test_none_returns_none(self):
-        assert redact_passkey(None) is None
-
-    def test_dht_sentinel_passthrough(self):
-        assert redact_passkey("** [DHT] **") == "** [DHT] **"
-
-    def test_clean_announce_url_passthrough(self):
-        url = "http://tracker.example.com/announce"
-        assert redact_passkey(url) == url
-
-    def test_passkey_in_path_redacted(self):
-        url = "https://tracker.example.com/announce/abc123def456"
-        result = redact_passkey(url)
-        assert "abc123def456" not in result
-        assert "[REDACTED]" in result
-
-    def test_passkey_in_query_redacted(self):
-        url = "https://tracker.example.com/announce?passkey=secret123"
-        result = redact_passkey(url)
-        assert "secret123" not in result
-        assert "[REDACTED]" in result
-
-    def test_invalid_url_redacted(self):
-        result = redact_passkey("not-a-valid-url")
-        assert result == "[REDACTED]"
-
-    def test_prefix_passkey_redacted(self):
-        """BTN-style: passkey as path prefix before /announce."""
-        url = "https://tracker.example.com/mysecretkey/announce"
-        result = redact_passkey(url)
-        assert "mysecretkey" not in result
-        assert "[REDACTED]" in result

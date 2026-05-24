@@ -20,16 +20,7 @@ import pytest
 from modules.config import SHARE_LIMIT_ACTIONS
 from modules.config import validate_share_limit_action
 from modules.util import Failed
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _calls_of(torrent, name):
-    """Extract all calls to a specific method from torrent.calls."""
-    return [c for c in torrent.calls if c[0] == name]
-
+from tests.conftest import calls_of
 
 # ---------------------------------------------------------------------------
 # Tests: default / missing
@@ -160,7 +151,7 @@ class TestShareLimitActionPassthrough:
 
         sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action=action)
 
-        set_share_limits_calls = _calls_of(t, "set_share_limits")
+        set_share_limits_calls = calls_of(t, "set_share_limits")
         assert len(set_share_limits_calls) == 1
         call_kwargs = set_share_limits_calls[0][1]
         assert call_kwargs["share_limit_action"] == action

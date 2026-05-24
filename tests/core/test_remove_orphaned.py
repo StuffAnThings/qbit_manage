@@ -237,7 +237,10 @@ class TestHandleOrphanedFilesLogic:
         qbt = _make_qbt(config=config)
         ro = make_remove_orphaned(qbt)
 
-        monkeypatch.setattr(util, "delete_files", lambda src: (_ for _ in ()).throw(PermissionError("denied")))
+        def _raise_permission(src):
+            raise PermissionError("denied")
+
+        monkeypatch.setattr(util, "delete_files", _raise_permission)
 
         result = ro.handle_orphaned_files("/data/subdir/file.txt")
 
@@ -256,11 +259,18 @@ class TestHandleOrphanedFilesLogic:
         qbt = _make_qbt(config=config)
         ro = make_remove_orphaned(qbt)
 
+        deleted = []
         moved = []
-        monkeypatch.setattr(util, "delete_files", lambda src: (_ for _ in ()).throw(OSError("disk error")))
+
+        def _raise_oserror(src):
+            deleted.append(src)
+            raise OSError("disk error")
+
+        monkeypatch.setattr(util, "delete_files", _raise_oserror)
         monkeypatch.setattr(util, "move_files", lambda src, dest, mk: moved.append((src, dest)))
 
         result = ro.handle_orphaned_files("/data/subdir/file.txt")
 
+        assert len(deleted) == 1
         assert len(moved) == 1
         assert result is not None
