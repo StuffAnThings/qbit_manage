@@ -13,6 +13,19 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+# ---- shared test helpers (importable from conftest) --------------------------
+
+
+def calls_of(torrent, name):
+    """Extract all calls to a specific method from torrent.calls."""
+    return [c for c in torrent.calls if c[0] == name]
+
+
+def has_call(torrent, name):
+    """Check if a torrent has at least one call to a given method."""
+    return any(c[0] == name for c in torrent.calls)
+
+
 class _FakeLogger:
     """Stand-in for modules.logs.MyLogger.
 

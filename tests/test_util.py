@@ -15,9 +15,12 @@ if str(REPO_ROOT) not in sys.path:
 from modules.util import format_stats_summary
 from modules.util import get_list
 from modules.util import guess_branch
+from modules.util import human_readable_size
 from modules.util import is_tag_in_torrent
 from modules.util import list_in_text
+from modules.util import parse_size_to_bytes
 from modules.util import parse_version
+from modules.util import path_replace
 from modules.util import trunc_val
 
 # ── get_list ─────────────────────────────────────────────────────────────────
@@ -319,3 +322,118 @@ class TestFormatStatsSummary:
     def test_float_stat_shown(self):
         lines = format_stats_summary({"ratio": 1.5}, self.cfg)
         assert len(lines) == 1
+
+
+# ── human_readable_size ──────────────────────────────────────────────────────
+
+
+class TestHumanReadableSize:
+    def test_bytes(self):
+        assert human_readable_size(0) == "0.000B"
+        assert human_readable_size(512) == "512.000B"
+
+    def test_kibibytes(self):
+        result = human_readable_size(1024)
+        assert "KiB" in result
+        assert result == "1.000KiB"
+
+    def test_mebibytes(self):
+        result = human_readable_size(1024**2)
+        assert "MiB" in result
+        assert result == "1.000MiB"
+
+    def test_gibibytes(self):
+        result = human_readable_size(1024**3)
+        assert result == "1.000GiB"
+
+    def test_tebibytes(self):
+        result = human_readable_size(1024**4)
+        assert result == "1.000TiB"
+
+    def test_custom_decimal_places(self):
+        result = human_readable_size(1536, decimal_places=1)
+        assert "KiB" in result
+        assert result == "1.5KiB"
+
+    def test_large_value(self):
+        # 2.5 TiB
+        result = human_readable_size(int(2.5 * 1024**4))
+        assert "TiB" in result
+
+
+# ── parse_size_to_bytes ──────────────────────────────────────────────────────
+
+
+class TestParseSizeToBytes:
+    def test_none_returns_none(self):
+        assert parse_size_to_bytes(None) is None
+
+    def test_empty_string_returns_none(self):
+        assert parse_size_to_bytes("") is None
+        assert parse_size_to_bytes("   ") is None
+
+    def test_integer_passthrough(self):
+        assert parse_size_to_bytes(1024) == 1024
+        assert parse_size_to_bytes(0) == 0
+
+    def test_float_passthrough(self):
+        assert parse_size_to_bytes(1024.5) == 1024
+
+    def test_megabytes(self):
+        assert parse_size_to_bytes("200MB") == 200 * 1024**2
+
+    def test_gigabytes(self):
+        assert parse_size_to_bytes("1.5GB") == int(1.5 * 1024**3)
+
+    def test_mebibytes(self):
+        assert parse_size_to_bytes("750MiB") == 750 * 1024**2
+
+    def test_plain_number_string(self):
+        assert parse_size_to_bytes("2048") == 2048
+
+    def test_kilobytes(self):
+        assert parse_size_to_bytes("100KB") == 100 * 1024
+
+    def test_terabytes(self):
+        assert parse_size_to_bytes("1TB") == 1024**4
+
+    def test_invalid_string_returns_none(self):
+        assert parse_size_to_bytes("invalid") is None
+        assert parse_size_to_bytes("abc123") is None
+
+    def test_case_insensitive(self):
+        assert parse_size_to_bytes("100mb") == 100 * 1024**2
+        assert parse_size_to_bytes("100MB") == 100 * 1024**2
+
+
+# ── path_replace ─────────────────────────────────────────────────────────────
+
+
+class TestPathReplace:
+    def test_basic_replacement(self):
+        result = path_replace("/data/torrents/file.txt", "/data/", "/mnt/remote/")
+        # normpath removes trailing slashes
+        assert "mnt" in result
+        assert "torrents" in result
+        assert "file.txt" in result
+
+    def test_empty_path_returns_path(self):
+        assert path_replace("", "/old/", "/new/") == ""
+        assert path_replace(None, "/old/", "/new/") is None
+
+    def test_empty_old_path_returns_path(self):
+        assert path_replace("/data/file.txt", "", "/new/") == "/data/file.txt"
+
+    def test_no_match_returns_original(self):
+        result = path_replace("/data/file.txt", "/other/", "/new/")
+        assert result == "/data/file.txt"
+
+    def test_replacement_with_empty_new_path(self):
+        result = path_replace("/data/torrents/file.txt", "/data/", "")
+        assert "torrents" in result
+        assert "file.txt" in result
+
+    def test_list_inputs_uses_first_element(self):
+        result = path_replace(["/data/file.txt"], ["/data/"], ["/mnt/"])
+        assert "mnt" in result
+        assert "file.txt" in result

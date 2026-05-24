@@ -20,16 +20,7 @@ import pytest
 from modules.config import SHARE_LIMIT_ACTIONS
 from modules.config import validate_share_limit_action
 from modules.util import Failed
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _calls_of(torrent, name):
-    """Extract all calls to a specific method from torrent.calls."""
-    return [c for c in torrent.calls if c[0] == name]
-
+from tests.conftest import calls_of
 
 # ---------------------------------------------------------------------------
 # Tests: default / missing
@@ -152,50 +143,15 @@ class TestCleanupMutualExclusion:
 class TestShareLimitActionPassthrough:
     """Tests that share_limit_action is passed through to torrent.set_share_limits()."""
 
-    def test_set_limits_passes_share_limit_action_to_torrent(self, share_limits_factory, torrent_factory):
-        """set_limits() passes share_limit_action from group config to torrent.set_share_limits()."""
+    @pytest.mark.parametrize("action", ["Stop", "Remove", "RemoveWithContent", "EnableSuperSeeding", "Default"])
+    def test_set_limits_passes_share_limit_action_to_torrent(self, share_limits_factory, torrent_factory, action):
+        """set_limits() passes each valid share_limit_action to torrent.set_share_limits()."""
         sl = share_limits_factory()
         t = torrent_factory(max_ratio=-1.0, max_seeding_time=-1)
 
-        sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action="Stop")
+        sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action=action)
 
-        set_share_limits_calls = _calls_of(t, "set_share_limits")
+        set_share_limits_calls = calls_of(t, "set_share_limits")
         assert len(set_share_limits_calls) == 1
         call_kwargs = set_share_limits_calls[0][1]
-        assert call_kwargs["share_limit_action"] == "Stop"
-
-    def test_set_limits_with_remove_action(self, share_limits_factory, torrent_factory):
-        """set_limits() with share_limit_action='Remove' is called."""
-        sl = share_limits_factory()
-        t = torrent_factory(max_ratio=-1.0, max_seeding_time=-1)
-
-        sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action="Remove")
-
-        set_share_limits_calls = _calls_of(t, "set_share_limits")
-        assert len(set_share_limits_calls) == 1
-        call_kwargs = set_share_limits_calls[0][1]
-        assert call_kwargs["share_limit_action"] == "Remove"
-
-    def test_set_limits_with_remove_with_content_action(self, share_limits_factory, torrent_factory):
-        """set_limits() with share_limit_action='RemoveWithContent' is called."""
-        sl = share_limits_factory()
-        t = torrent_factory(max_ratio=-1.0, max_seeding_time=-1)
-
-        sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action="RemoveWithContent")
-
-        set_share_limits_calls = _calls_of(t, "set_share_limits")
-        assert len(set_share_limits_calls) == 1
-        call_kwargs = set_share_limits_calls[0][1]
-        assert call_kwargs["share_limit_action"] == "RemoveWithContent"
-
-    def test_set_limits_with_enable_super_seeding_action(self, share_limits_factory, torrent_factory):
-        """set_limits() with share_limit_action='EnableSuperSeeding' is called."""
-        sl = share_limits_factory()
-        t = torrent_factory(max_ratio=-1.0, max_seeding_time=-1)
-
-        sl.set_limits(t, max_ratio=2.0, max_seeding_time=3600, share_limit_action="EnableSuperSeeding")
-
-        set_share_limits_calls = _calls_of(t, "set_share_limits")
-        assert len(set_share_limits_calls) == 1
-        call_kwargs = set_share_limits_calls[0][1]
-        assert call_kwargs["share_limit_action"] == "EnableSuperSeeding"
+        assert call_kwargs["share_limit_action"] == action
