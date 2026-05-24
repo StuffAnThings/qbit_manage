@@ -204,6 +204,7 @@ class FakeTorrent:
             ratio_limit=ratio_limit,
             seeding_time_limit=seeding_time_limit,
             inactive_seeding_time_limit=inactive_seeding_time_limit,
+            share_limit_action=share_limit_action,
         )
         # Production code + tests reason about per-torrent ratio_limit /
         # seeding_time_limit (the qbittorrent-api field names), not the
@@ -639,6 +640,7 @@ def make_group_config(**overrides):
         "add_group_to_tag": True,
         "custom_tag": None,
         "reset_upload_speed_on_unmet_minimums": True,
+        "share_limit_action": "Default",
         "torrents": [],
     }
     base.update(overrides)
