@@ -126,10 +126,15 @@ class TestCleanupMutualExclusion:
         assert config["cleanup"] is True
         assert config["share_limit_action"] == "Stop"
 
-    def test_cleanup_without_share_limit_action_allowed(self, group_config_factory):
-        """cleanup=true without share_limit_action specified is allowed."""
-        config = group_config_factory(cleanup=True)
-        assert config["cleanup"] is True
+    def test_cleanup_without_share_limit_action_allowed(self):
+        """cleanup=true with share_limit_action unset (None from YAML) resolves
+        to 'Default' and does not raise the mutual-exclusion check.
+
+        Exercises the missing-value path directly through the production
+        validator instead of relying on the factory's defaulted dict (which
+        always includes 'Default' explicitly and would test the wrong thing)."""
+        result = validate_share_limit_action(None, cleanup=True, group="test_group")
+        assert result == "Default"
 
     def test_cleanup_false_with_any_action_allowed(self, group_config_factory):
         """cleanup=false with any share_limit_action is allowed."""
