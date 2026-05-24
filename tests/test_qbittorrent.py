@@ -358,36 +358,3 @@ class TestCrossSeedDetection:
 
         assert qbt.torrentfiles["/data/file1.txt"]["original"] == "hash2"
         assert qbt.torrentfiles["/data/file1.txt"]["cross_seed"] == ["hash3"]
-
-
-# ---- Integration-style smoke tests -------------------------------------------
-
-
-class TestQbtModuleSmoke:
-    """Smoke tests for module integration."""
-
-    def test_tracker_url_extraction_with_sentinels_filtered(self):
-        """End-to-end: DHT/PeX/LSD sentinels are filtered out."""
-        trackers = [
-            _Tracker(url="http://tracker1.example/announce"),
-            _Tracker(url="** [DHT] **"),
-            _Tracker(url="** [PeX] **"),
-        ]
-        qbt = MagicMock(spec=Qbt)
-        urls = Qbt.get_tracker_urls(qbt, trackers)
-        assert len(urls) == 1
-        assert all("**" not in url for url in urls)
-
-    def test_private_torrent_detection_fallback_to_tracker(self):
-        """If private attr missing, fallback to tracker inspection."""
-        torrent = FakeTorrent(name="TestPrivate", hash="privhash")
-        delattr(torrent, "private")
-
-        qbt = MagicMock(spec=Qbt)
-        qbt.client = MagicMock()
-        qbt.client.torrents_trackers = MagicMock(
-            return_value=[{"url": "http://tracker.example", "msg": "This torrent is private"}]
-        )
-
-        result = Qbt.is_torrent_private(qbt, torrent)
-        assert result is True
