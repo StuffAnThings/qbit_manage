@@ -496,7 +496,15 @@ class Config:
             for key in data:
                 if key not in known_keys:
                     location = f"{parent}.{section}" if parent else section
-                    errors.append(f"Unrecognized key '{key}' in '{location}'")
+                    # Legacy migration hint: function hooks (tag_tracker_error, share_limits, etc.)
+                    # used to live at webhooks root; now they live under webhooks.function.
+                    if section == "webhooks" and not parent and key in KNOWN_WEBHOOKS_FUNCTION_KEYS:
+                        errors.append(
+                            f"Unrecognized key '{key}' in 'webhooks'. "
+                            f"Hint: function hooks moved under 'webhooks.function.{key}' in newer versions."
+                        )
+                    else:
+                        errors.append(f"Unrecognized key '{key}' in '{location}'")
 
         # Top-level sections
         _check_keys(self.data, KNOWN_TOP_LEVEL_SECTIONS, "config")
