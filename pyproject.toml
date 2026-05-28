@@ -20,7 +20,7 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "bencode.py==4.0.0",
     "croniter==6.2.2",
-    "fastapi==0.136.1",
+    "fastapi==0.136.3",
     "GitPython==3.1.50",
     "humanize==4.15.0",
     "pytimeparse2==1.7.1",
@@ -29,7 +29,7 @@ dependencies = [
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.9",
-    "uvicorn==0.47.0",
+    "uvicorn==0.48.0",
 ]
 
 [project.scripts]
@@ -43,7 +43,8 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 dev = [
     "pre-commit==4.6.0",
     "pytest==9.0.3",
-    "ruff==0.15.13",
+    "pytest-cov==7.1.0",
+    "ruff==0.15.14",
 ]
 
 [tool.ruff]

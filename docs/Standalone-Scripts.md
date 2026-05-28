@@ -1,5 +1,7 @@
 # Standalone Scripts
 
+> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
+
 This section provides documentation for standalone Python scripts located in the `scripts/` directory. These scripts offer additional functionalities that can be run independently of the main `qbit_manage.py` application.
 
 ## Scripts Overview
@@ -110,6 +112,8 @@ Edit the variables directly within the script:
 - `LOG_LEVEL`: Set the logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`).
 
 ### [`update-readme-version.py`](scripts/update-readme-version.py)
+*Internal CI helper — not intended for direct user invocation.*
+
 This script updates the `SUPPORTED_VERSIONS.json` file with the latest supported qBittorrent version and the current `qbittorrent-api` version. It is typically run as part of a CI/CD pipeline or pre-commit hook to keep version information up-to-date.
 
 **Usage:**
@@ -139,3 +143,24 @@ python scripts/ban_peers.py --peers "127.0.0.1:8080|example.com:80" [options]
 - `--pass`: Password.
 - `--peers`: Peers to ban, separated by '|' (required).
 - `--dry-run`: Dry run mode without banning.
+
+---
+
+## Internal CI / Pre-commit Helpers
+
+The following scripts under `scripts/pre-commit/` are **internal CI helpers** — they are invoked automatically by pre-commit hooks and GitHub Actions pipelines. They are not intended for direct user invocation.
+
+### [`scripts/pre-commit/increase_version.sh`](scripts/pre-commit/increase_version.sh)
+*Internal CI helper — not intended for direct user invocation.*
+
+Increments the develop version counter in the `VERSION` file when run as a pre-commit hook. Detects CI environments (GitHub Actions, pre-commit.ci) and adjusts behavior accordingly. On develop branches, appends/increments a numeric suffix (e.g. `4.7.1develop2` → `4.7.1develop3`). No-ops on non-develop VERSION strings.
+
+### [`scripts/pre-commit/update-readme-version.sh`](scripts/pre-commit/update-readme-version.sh)
+*Internal CI helper — not intended for direct user invocation.*
+
+Shell wrapper that resolves the current Git branch name and delegates to `scripts/update-readme-version.py` with the branch name as the argument. Used as a pre-commit hook to keep `SUPPORTED_VERSIONS.json` up-to-date on every commit.
+
+### [`scripts/pre-commit/update_develop_version.sh`](scripts/pre-commit/update_develop_version.sh)
+*Internal CI helper — not intended for direct user invocation.*
+
+Reads `VERSION`, checks whether the string contains `"develop"`, and if so increments the trailing develop version number via `sed`. Skips the update when the version is already at the desired state or when run in CI against a PR that already bumped the version. Called by `increase_version.sh` as a sub-step.

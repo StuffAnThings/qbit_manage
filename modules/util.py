@@ -13,6 +13,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 import ruamel.yaml
@@ -93,6 +94,34 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
                     if ctag in tag:
                         tags_to_remove.append(tag)
             return tags_to_remove
+
+
+def redact_passkey(url: str) -> str:
+    """Strip tracker passkey from a URL so it is safe to log.
+
+    Private-tracker announce URLs embed the user's passkey in the path
+    (BHD: ``/announce/<pk>``; Blutopia: ``/announce/<pk>``), the query
+    (HDBits: ``?passkey=<pk>``), or as a path prefix (BTN:
+    ``/<pk>/announce``). Logging the raw URL leaks the passkey to log
+    sinks and any downstream consumer (webhooks, notifications, etc.).
+
+    Returns ``<scheme>://<host>/announce[REDACTED]`` when any
+    suspect path or query is present; passes pristine ``/announce``-only
+    URLs and qBittorrent sentinels (``** [DHT] **`` etc.) through unchanged.
+    """
+    if not url or url.startswith("**"):
+        return url
+    try:
+        parsed = urlparse(url)
+    except (ValueError, AttributeError):
+        return "[REDACTED]"
+    if not parsed.scheme or not parsed.netloc:
+        return "[REDACTED]"
+    path = parsed.path.rstrip("/")
+    looks_clean = path in ("", "/announce")
+    if looks_clean and not parsed.query:
+        return url
+    return f"{parsed.scheme}://{parsed.netloc}/announce[REDACTED]"
 
 
 def format_stats_summary(stats: dict, config) -> list[str]:
@@ -869,11 +898,12 @@ def list_in_text(text, search_list, match_all=False):
         search_list = set(search_list)
     contains = {x for x in search_list if " " in x}
     exception = search_list - contains
+    words = text.split(" ")
     if match_all:
-        if all(x == m for m in text.split(" ") for x in exception) or all(x in text for x in contains):
+        if all(x in words for x in exception) and all(x in text for x in contains):
             return True
     else:
-        if any(x == m for m in text.split(" ") for x in exception) or any(x in text for x in contains):
+        if any(x == m for m in words for x in exception) or any(x in text for x in contains):
             return True
     return False
 
