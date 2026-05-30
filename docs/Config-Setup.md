@@ -255,6 +255,27 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 | `exclude_tags`    | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes | None           | <center>❌</center> |
 | `ignore_root_dir` | Ignore any hardlinks detected in the same [root_dir](#directory)                                                                                                                      | True           | <center>❌</center> |
 
+### Global Options
+
+You can set defaults for all categories using the optional `global_options` key, with these merge semantics:
+
+- **`exclude_tags`** — per-category list is **merged (union)** with the global list. A category-level `exclude_tags` adds to the global set, it does not replace it.
+- **`ignore_root_dir`** — per-category boolean **overrides** the global value when set. Categories without the key inherit the global default.
+
+```yaml
+nohardlinks:
+  global_options:
+    exclude_tags:
+      - AnimeBytes
+    ignore_root_dir: true
+  movies-completed-4k:        # inherits: exclude_tags=[AnimeBytes], ignore_root_dir=true
+  movies-completed:
+    exclude_tags:              # merged with global → [AnimeBytes, Beyond-HD, MaM]
+      - Beyond-HD
+      - MaM
+    ignore_root_dir: false     # overrides global → false
+```
+
 ## **share_limits:**
 
 Control how torrent share limits are set depending on the priority of your grouping. This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well. Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria. Each torrent can only be matched with one share limit group.
