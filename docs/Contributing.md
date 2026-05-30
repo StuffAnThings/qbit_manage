@@ -165,7 +165,7 @@ chore(deps): bump ruff from 0.14.5 to 0.14.6
 ## Submitting a PR
 
 1. Ensure `make pre-commit` passes with no errors.
-2. Run `pytest tests/` (once available) and confirm no regressions.
+2. Run `pytest tests/` and confirm no regressions.
 3. Push your branch and open a PR against **`develop`** — not `master`.
 4. Describe what your PR does and link any related issues.
 5. A maintainer will review; CI must be green before merge.
@@ -195,7 +195,7 @@ qbit_manage/
 │       ├── recheck.py
 │       ├── remove_orphaned.py
 │       └── remove_unregistered.py
-├── tests/                  # Test suite (landing with PR #1198)
+├── tests/                  # Test suite
 │   └── factories.py        # Bypass-constructors for unit testing
 ├── scripts/                # Standalone helper scripts
 │   └── pre-commit/         # Pre-commit hook scripts
