@@ -85,6 +85,151 @@ def validate_share_limit_action(raw, cleanup, group):
     return resolved
 
 
+# Known top-level config sections
+KNOWN_TOP_LEVEL_SECTIONS = {
+    "commands",
+    "qbt",
+    "settings",
+    "directory",
+    "cat",
+    "cat_change",
+    "tracker",
+    "nohardlinks",
+    "recyclebin",
+    "orphaned",
+    "apprise",
+    "notifiarr",
+    "share_limits",
+    "webhooks",
+}
+
+# Known keys within the settings section
+KNOWN_SETTINGS_KEYS = {
+    "force_auto_tmm",
+    "force_auto_tmm_ignore_tags",
+    "tracker_error_tag",
+    "nohardlinks_tag",
+    "stalled_tag",
+    "private_tag",
+    "share_limits_tag",
+    "share_limits_suffix_tag",  # Legacy, migrated to share_limits_tag
+    "share_limits_min_seeding_time_tag",
+    "share_limits_min_num_seeds_tag",
+    "share_limits_last_active_tag",
+    "cat_filter_completed",
+    "share_limits_filter_completed",
+    "tag_nohardlinks_filter_completed",
+    "rem_unregistered_filter_completed",
+    "cat_update_all",
+    "disable_qbt_default_share_limits",
+    "tag_stalled_torrents",
+    "rem_unregistered_ignore_list",
+    "rem_unregistered_grace_minutes",
+    "rem_unregistered_max_torrents",
+}
+
+# Known keys within each share_limits group
+KNOWN_SHARE_LIMITS_KEYS = {
+    "priority",
+    "include_all_tags",
+    "include_any_tags",
+    "exclude_all_tags",
+    "exclude_any_tags",
+    "categories",
+    "min_torrent_size",
+    "max_torrent_size",
+    "cleanup",
+    "max_ratio",
+    "max_seeding_time",
+    "max_last_active",
+    "min_seeding_time",
+    "limit_upload_speed",
+    "upload_speed_on_limit_reached",
+    "enable_group_upload_speed",
+    "min_num_seeds",
+    "min_last_active",
+    "last_active",  # Legacy, migrated to min_last_active
+    "resume_torrent_after_change",
+    "add_group_to_tag",
+    "custom_tag",
+    "reset_upload_speed_on_unmet_minimums",
+}
+
+# Known keys within the recyclebin section
+KNOWN_RECYCLEBIN_KEYS = {
+    "enabled",
+    "empty_after_x_days",
+    "save_torrents",
+    "split_by_category",
+}
+
+# Known keys within the orphaned section
+KNOWN_ORPHANED_KEYS = {
+    "empty_after_x_days",
+    "exclude_patterns",
+    "max_orphaned_files_to_delete",
+    "min_file_age_minutes",
+}
+
+# Known keys within the directory section
+KNOWN_DIRECTORY_KEYS = {
+    "root_dir",
+    "remote_dir",
+    "recycle_bin",
+    "torrents_dir",
+    "orphaned_dir",
+}
+
+# Known keys within the qbt section
+KNOWN_QBT_KEYS = {
+    "host",
+    "user",
+    "pass",
+}
+
+# Known keys within the webhooks section
+KNOWN_WEBHOOKS_KEYS = {
+    "error",
+    "run_start",
+    "run_end",
+    "function",
+}
+
+# Known command keys within webhooks.function (mirrors the function hooks sent by Webhooks)
+KNOWN_WEBHOOKS_FUNCTION_KEYS = {
+    "recheck",
+    "cat_update",
+    "tag_update",
+    "rem_unregistered",
+    "tag_tracker_error",
+    "rem_orphaned",
+    "tag_nohardlinks",
+    "share_limits",
+    "cleanup_dirs",
+}
+
+# Known keys within the apprise section
+KNOWN_APPRISE_KEYS = {
+    "api_url",
+    "notify_url",
+}
+
+# Known keys within the notifiarr section
+KNOWN_NOTIFIARR_KEYS = {
+    "apikey",
+    "instance",
+}
+
+# Known keys within the commands section (mirrors the COMMANDS list + allowed booleans)
+KNOWN_COMMANDS_KEYS = set(COMMANDS)
+
+# Known keys within the nohardlinks category sub-objects
+KNOWN_NOHARDLINKS_KEYS = {
+    "exclude_tags",
+    "ignore_root_dir",
+}
+
+
 class Config:
     """Config class for qBittorrent-Manage"""
 
@@ -119,6 +264,9 @@ class Config:
         """
         self.commands = self.process_config_commands()
         self.data = self.process_config_data()
+        # Validate keys early — after normalization but before any process_config_*
+        # so users get a clean error message rather than a cryptic mid-processing crash.
+        self.validate_config_keys()
         self.process_config_settings()
         self.process_config_webhooks()
         self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
@@ -333,6 +481,105 @@ class Config:
             )
             self.notify(err, "Config")
             raise Failed(err)
+
+    def validate_config_keys(self):
+        """
+        Validate that all configuration keys are recognized.
+        Raises Failed for any unrecognized keys to catch typos and misconfiguration early.
+        """
+        errors = []
+
+        def _check_keys(data: dict, known_keys: set, section: str, parent: str = ""):
+            """Check a dict for unrecognized keys and append errors."""
+            if not isinstance(data, dict):
+                return
+            for key in data:
+                if key not in known_keys:
+                    location = f"{parent}.{section}" if parent else section
+                    # Legacy migration hint: function hooks (tag_tracker_error, share_limits, etc.)
+                    # used to live at webhooks root; now they live under webhooks.function.
+                    if section == "webhooks" and not parent and key in KNOWN_WEBHOOKS_FUNCTION_KEYS:
+                        errors.append(
+                            f"Unrecognized key '{key}' in 'webhooks'. "
+                            f"Hint: function hooks moved under 'webhooks.function.{key}' in newer versions."
+                        )
+                    else:
+                        errors.append(f"Unrecognized key '{key}' in '{location}'")
+
+        # Top-level sections
+        _check_keys(self.data, KNOWN_TOP_LEVEL_SECTIONS, "config")
+
+        # Settings
+        if "settings" in self.data and isinstance(self.data["settings"], dict):
+            _check_keys(self.data["settings"], KNOWN_SETTINGS_KEYS, "settings")
+
+        # QBT
+        if "qbt" in self.data and isinstance(self.data["qbt"], dict):
+            _check_keys(self.data["qbt"], KNOWN_QBT_KEYS, "qbt")
+
+        # Directory
+        if "directory" in self.data and isinstance(self.data["directory"], dict):
+            _check_keys(self.data["directory"], KNOWN_DIRECTORY_KEYS, "directory")
+
+        # Recyclebin
+        if "recyclebin" in self.data and isinstance(self.data["recyclebin"], dict):
+            _check_keys(self.data["recyclebin"], KNOWN_RECYCLEBIN_KEYS, "recyclebin")
+
+        # Orphaned
+        if "orphaned" in self.data and isinstance(self.data["orphaned"], dict):
+            _check_keys(self.data["orphaned"], KNOWN_ORPHANED_KEYS, "orphaned")
+
+        # Apprise
+        if "apprise" in self.data and isinstance(self.data["apprise"], dict):
+            _check_keys(self.data["apprise"], KNOWN_APPRISE_KEYS, "apprise")
+
+        # Notifiarr
+        if "notifiarr" in self.data and isinstance(self.data["notifiarr"], dict):
+            _check_keys(self.data["notifiarr"], KNOWN_NOTIFIARR_KEYS, "notifiarr")
+
+        # Commands
+        if "commands" in self.data and isinstance(self.data["commands"], dict):
+            _check_keys(self.data["commands"], KNOWN_COMMANDS_KEYS, "commands")
+
+        # Webhooks (top-level keys)
+        if "webhooks" in self.data and isinstance(self.data["webhooks"], dict):
+            _check_keys(self.data["webhooks"], KNOWN_WEBHOOKS_KEYS, "webhooks")
+            # webhooks.function sub-keys
+            webhooks_function = self.data["webhooks"].get("function")
+            if isinstance(webhooks_function, dict):
+                _check_keys(webhooks_function, KNOWN_WEBHOOKS_FUNCTION_KEYS, "function", "webhooks")
+
+        # Share limits groups
+        if "share_limits" in self.data and isinstance(self.data["share_limits"], dict):
+            for group, group_data in self.data["share_limits"].items():
+                if isinstance(group_data, dict):
+                    _check_keys(group_data, KNOWN_SHARE_LIMITS_KEYS, group, "share_limits")
+
+        # Nohardlinks categories — supports both dict (cat: {options}) and list (legacy)
+        if "nohardlinks" in self.data:
+            nhl = self.data["nohardlinks"]
+            if isinstance(nhl, dict):
+                for cat, cat_data in nhl.items():
+                    if isinstance(cat_data, dict):
+                        _check_keys(cat_data, KNOWN_NOHARDLINKS_KEYS, cat, "nohardlinks")
+            elif isinstance(nhl, list):
+                # Legacy list form: each entry is a category name string or a
+                # single-key dict {cat_name: {options}}. Validate sub-dicts where present.
+                for entry in nhl:
+                    if isinstance(entry, dict):
+                        for cat, cat_data in entry.items():
+                            if isinstance(cat_data, dict):
+                                _check_keys(cat_data, KNOWN_NOHARDLINKS_KEYS, cat, "nohardlinks")
+
+        if errors:
+            for err in errors:
+                logger.warning(f"Config Warning: {err}")
+            err_msg = (
+                f"Config Error: {len(errors)} unrecognized config option(s) found. "
+                "This usually indicates a typo. Please check your config file.\n" + "\n".join(f"  - {e}" for e in errors)
+            )
+            self.notify(err_msg, "Config")
+            raise Failed(err_msg)
 
     def process_config_settings(self):
         """
