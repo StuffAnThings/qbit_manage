@@ -46,7 +46,7 @@ rust-version = "1.70"
 version = "4.8.0"
 
 [target."cfg(unix)".dependencies]
-glib = "0.20.0"
+glib = "0.21.5"
 libc = "0.2"
 
 [target."cfg(windows)".dependencies.windows]
