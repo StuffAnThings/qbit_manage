@@ -40,6 +40,16 @@ class TestShareLimitActionDefaults:
         result = validate_share_limit_action(None, cleanup=False, group="test_group")
         assert result == "Default"
 
+    def test_validator_returns_default_for_yaml_empty_string(self):
+        """YAML ``share_limit_action: ""`` (empty string) resolves to 'Default' without raising.
+
+        Regression for the ``raw != ""`` guard added in config.py: an explicit
+        empty-string value from YAML must be treated the same as a missing/None
+        value rather than triggering the "invalid action" error.
+        """
+        result = validate_share_limit_action("", cleanup=False, group="test_group")
+        assert result == "Default"
+
 
 # ---------------------------------------------------------------------------
 # Tests: valid action values — validator must NOT raise
