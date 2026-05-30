@@ -6,7 +6,7 @@
 - "qbittorrent-api==2026.5.2"
 
 # New Features
-- Adds configurable `share_limits_action` for controlling the outcome of share limits. (See [Share Limit Action](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share-limit-action))
+- Adds configurable `share_limit_action` for controlling the outcome of share limits. (See [Share Limit Action](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share-limit-action))
 
 # Improvements
 - Modernize CI Workflows
