@@ -65,7 +65,7 @@ def validate_share_limit_action(raw, cleanup, group):
     Pure function — callable from both Config.__init__ and unit tests so test
     assertions are tied to the production logic, not a stale local mirror.
     """
-    if raw is not None and (not isinstance(raw, str) or raw not in SHARE_LIMIT_ACTIONS):
+    if raw is not None and raw != "" and (not isinstance(raw, str) or raw not in SHARE_LIMIT_ACTIONS):
         raise Failed(
             f"Config Error: invalid share_limit_action '{raw}' for the grouping "
             f"'{group}'. Valid values are: {', '.join(SHARE_LIMIT_ACTIONS.keys())}."

@@ -93,7 +93,7 @@ Hooks run automatically on `git commit`. They enforce:
 | `yamllint` + `yamlfix` | Strict YAML style lint and auto-fix |
 | `ruff-check` | Lints Python with auto-fix |
 | `ruff-format` | Formats Python |
-| `check_no_tracker_secrets` | (Once PR #1198 merges) Prevents accidental commit of tracker credentials from config files |
+| `check_no_tracker_secrets` | Prevents accidental commit of tracker credentials from config files |
 
 Run all hooks manually at any time:
 
@@ -107,9 +107,7 @@ pre-commit run --all-files
 
 ## Tests
 
-> Tests land with PR #1198. Until that PR merges, the test suite is not present on `develop`.
-
-Once available:
+Run the test suite with:
 
 ```bash
 pytest tests/              # full suite (~168 tests)

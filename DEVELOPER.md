@@ -126,7 +126,7 @@ Every PR to `develop` runs the `develop.yml` workflow, which includes:
 
 - **Ruff** — lint and format check (non-zero exit blocks merge)
 - **yamllint** — strict YAML validation for any changed YAML files
-- **pytest** — full test suite (once PR #1198 lands, `~168` tests)
+- **pytest** — full test suite (~168 tests)
 - **Docker build** — multi-arch image build (amd64, arm64, arm/v7) to catch
   import and dependency errors before release
 
@@ -140,7 +140,7 @@ green.
 
 ### check_no_tracker_secrets (pre-commit)
 
-Once PR #1198 merges, a local pre-commit hook (`check_no_tracker_secrets.py`)
+A local pre-commit hook (`check_no_tracker_secrets.py`)
 will scan staged files for patterns that match tracker credentials (API keys,
 passkeys, announce URLs with embedded tokens). The hook blocks commits that
 would accidentally include live tracker credentials sourced from a local
