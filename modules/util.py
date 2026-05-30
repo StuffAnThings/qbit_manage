@@ -903,7 +903,7 @@ def list_in_text(text, search_list, match_all=False):
         if all(x in words for x in exception) and all(x in text for x in contains):
             return True
     else:
-        if any(x == m for m in words for x in exception) or any(x in text for x in contains):
+        if any(x in exception for x in words) or any(x in text for x in contains):
             return True
     return False
 

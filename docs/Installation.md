@@ -120,8 +120,6 @@ For developers or users who want to modify the code, you can install from source
 - Python 3.10 or higher
 - Git (for source installation)
 
-> **Note:** (The runtime guard in `qbit_manage.py` checks `>=3.8.1` but that's stale code; the packaging requirement is authoritative.)
-
 ### Method 1: Install from PyPI
 
 ```bash

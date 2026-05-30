@@ -47,7 +47,7 @@ make pre-commit  # run all hooks on all files
 ## Test Commands
 
 ```bash
-pytest tests/              # full suite (~168 tests, once PR #1198 merges)
+pytest tests/              # full suite (~168 tests)
 pytest tests/ --no-cov     # quick run, skip coverage
 pytest tests/test_foo.py   # single file
 ```
@@ -118,7 +118,7 @@ the commit in auto-generated release notes.
 ## Secrets Hygiene
 
 - `config/config.yml` is gitignored — never commit a real config.
-- The `check_no_tracker_secrets` pre-commit hook (landing with PR #1198)
+- The `check_no_tracker_secrets` pre-commit hook
   blocks commits that include tracker credentials or announce URLs with
   embedded tokens.
 - Never bypass with `--no-verify` without maintainer approval.
