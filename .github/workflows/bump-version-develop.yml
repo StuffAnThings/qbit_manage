@@ -1,0 +1,69 @@
+name: Bump develop VERSION
+
+# Auto-increments the `-developN` suffix in VERSION on every push to develop
+# (typically a PR merge). Replaces the per-PR-commit pre-commit hook so that
+# contributor PRs no longer carry VERSION bumps and stop hitting rebase
+# conflicts on VERSION.
+#
+# Skips itself: bump commits include `[skip-version-bump]` in the message,
+# so the job condition below will not re-run another bump.
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: bump-version-develop
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    # Skip when a commit explicitly opts out of another version bump.
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      !contains(github.event.head_commit.message, '[skip-version-bump]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Ensure BOT_TOKEN is configured
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ secrets.BOT_TOKEN }}" ]]; then
+            echo "BOT_TOKEN is not configured. Add a repo secret named BOT_TOKEN for the trusted bypass actor."
+            exit 1
+          fi
+
+      - name: Bump develop suffix in VERSION
+        id: bump
+        run: |
+          set -euo pipefail
+          before=$(cat VERSION)
+          bash scripts/pre-commit/update_develop_version.sh
+          after=$(cat VERSION)
+          printf 'before=%s\nafter=%s\n' "$before" "$after" >> "$GITHUB_OUTPUT"
+          if [[ "$before" == "$after" ]]; then
+            echo "VERSION unchanged ($before); nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION bumped: $before -> $after"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push bump
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name 'qbit-manage-bot'
+          git config user.email 'qbit-manage-bot@users.noreply.github.com'
+          git add VERSION
+          git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip-version-bump]"
+          git push origin develop

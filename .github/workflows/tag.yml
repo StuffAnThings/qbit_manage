@@ -4,9 +4,17 @@ on:
   push:
     branches: [ master ]
 
+concurrency:
+  group: tag-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
 jobs:
   tag:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
 
       - uses: actions/checkout@v6
@@ -14,7 +22,8 @@ jobs:
           token: ${{ secrets.PAT }}
           fetch-depth: 2
 
-      - uses: Kometa-Team/tag-new-version@master
+      # Pinned per supply-chain hygiene; bump SHA on next dependabot review
+      - uses: Kometa-Team/tag-new-version@1dd1fb186f3f5229331e8ddf6515288633a2412e
         with:
           version-command: |
             cat VERSION

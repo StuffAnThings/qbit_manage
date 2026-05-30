@@ -35,7 +35,7 @@ except ModuleNotFoundError:
     print("Requirements Error: Requirements are not installed")
     sys.exit(1)
 
-REQUIRED_VERSION = (3, 8, 1)
+REQUIRED_VERSION = (3, 10)
 REQUIRED_VERSION_STR = ".".join(str(x) for x in REQUIRED_VERSION)
 current_version = sys.version_info
 

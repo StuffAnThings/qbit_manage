@@ -1,33 +1,54 @@
-# Contributing & Building
+# Contributing to qBit Manage
 
-Pull requests are welcome! Please submit them to the [develop branch](https://github.com/StuffAnThings/qbit_manage/tree/develop).
+Pull requests are welcome! Please target the **`develop`** branch — PRs to `master` will not be accepted.
 
-## Prerequisites
+---
 
-- **Python 3.10+**
-- **Git**
-- **[uv](https://docs.astral.sh/uv/)** (Python package manager)
-- **[Rust](https://rustup.rs/)** (only for desktop app builds)
+## Quick Start
 
-## Development Setup
+### 1. Fork and Clone
 
 ```bash
-# Clone the repository
-git clone https://github.com/StuffAnThings/qbit_manage.git
+# Fork via GitHub, then:
+git clone https://github.com/<your-username>/qbit_manage.git
 cd qbit_manage
 git checkout develop
-
-# Create virtual environment and install all dependencies (including dev tools)
-make venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Install pre-commit hooks
-make install-hooks
 ```
 
-The `make venv` target handles everything: installs uv if needed, creates a `.venv`, installs the project in editable mode, and adds dev dependencies (pre-commit, ruff).
+### 2. Create a Branch
+
+Branch from `develop`. Use a descriptive name:
+
+```bash
+git checkout -b fix/share-limits-edge-case
+git checkout -b feat/new-tagging-option
+```
+
+### 3. Set Up Your Dev Environment
+
+**Option A — uv (recommended, faster):**
+
+```bash
+# Install uv if not already present
+curl -Lsf https://astral.sh/uv/install.sh | sh
+
+make venv            # creates .venv, installs project + dev deps
+source .venv/bin/activate
+make install-hooks   # install pre-commit hooks
+```
+
+**Option B — pip + venv:**
+
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+pre-commit install
+```
+
+> uv is also kept current via Dependabot (uv ecosystem), so lock-file updates happen automatically.
+
+---
 
 ## Common Make Targets
 
@@ -35,147 +56,165 @@ The `make venv` target handles everything: installs uv if needed, creates a `.ve
 |--------|-------------|
 | `make venv` | Create virtual environment and install all dependencies |
 | `make install-hooks` | Install pre-commit hooks into your local repo |
-| `make test` | Run the test suite |
+| `make test` | Run the full test suite |
 | `make lint` | Run ruff linter with auto-fix |
 | `make format` | Run ruff code formatter |
 | `make pre-commit` | Run all pre-commit hooks on all files |
-| `make build` | Build Python package for distribution |
-| `make install` | Install qbit-manage as a `uv tool` (system-wide CLI) |
-| `make clean` | Remove all generated files (venv, dist, build, cache) |
-| `make help` | Show all available targets (including release/publishing targets) |
+| `make clean` | Remove generated files (venv, dist, build, cache) |
+| `make help` | List all available targets |
+
+---
 
 ## Code Style
 
-The project uses [Ruff](https://docs.astral.sh/ruff/) for both linting and formatting:
+The project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting:
 
-- **Line length**: 130 characters
-- **Import style**: Single-line imports (enforced by isort rules)
-- **Pre-commit hooks** run automatically on commit and enforce:
-  - Trailing whitespace removal
-  - End-of-file fixer
-  - JSON/YAML validation
-  - Ruff linting and formatting
-  - Automatic develop version bumping
+- **Line length:** 130 characters (see `ruff.toml`)
+- **Import style:** Single-line imports (isort rules enforced)
 
-## Building
-
-### Standalone Binary (PyInstaller)
-
-The standalone binary bundles Python, all dependencies, the web UI, and docs into a single executable.
+Run before committing:
 
 ```bash
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Install PyInstaller
-pip install pyinstaller
-
-# Build the binary
-pyinstaller --noconfirm --clean --onefile \
-    --name qbit-manage \
-    --add-data "web-ui:web-ui" \
-    --add-data "config/config.yml.sample:config" \
-    --add-data "icons/qbm_logo.png:." \
-    --add-data "VERSION:." \
-    --add-data "docs:docs" \
-    qbit_manage.py
-
-# Binary will be in dist/qbit-manage
-./dist/qbit-manage --help
+ruff check --fix .
+ruff format .
 ```
 
-> **Note:** PyInstaller produces a binary for the architecture of the machine you build on. To get an ARM64 binary, build on an ARM64 machine.
+---
 
-> **Note:** On Windows, replace `:` with `;` in the `--add-data` arguments (e.g., `--add-data "web-ui;web-ui"`).
+## Pre-Commit Hooks
 
-### Desktop App (Tauri)
+Hooks run automatically on `git commit`. They enforce:
 
-The desktop app wraps the standalone binary in a [Tauri v2](https://v2.tauri.app/) shell with a native window, system tray, and the web UI as the frontend.
+| Hook | What it does |
+|------|-------------|
+| `trailing-whitespace` | Strips trailing spaces |
+| `end-of-file-fixer` | Ensures files end with a newline |
+| `check-json` / `check-yaml` | Validates JSON and YAML syntax |
+| `yamllint` + `yamlfix` | Strict YAML style lint and auto-fix |
+| `ruff-check` | Lints Python with auto-fix |
+| `ruff-format` | Formats Python |
+| `check_no_tracker_secrets` | Prevents accidental commit of tracker credentials from config files |
 
-#### Install Tauri Build Dependencies
-
-**Linux (Debian/Ubuntu):**
-```bash
-sudo make tauri-deps
-```
-
-This installs the required system packages (`build-essential`, `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `patchelf`, and more). Requires root for `apt-get`.
-
-**macOS:** Xcode Command Line Tools are sufficient.
-
-**Windows:** Install [NSIS](https://nsis.sourceforge.io/) (e.g., `choco install nsis`).
-
-#### Build Steps
-
-1. **Build the standalone binary first** (see above) and copy it into the Tauri sidecar directory with the platform-specific name:
-   ```bash
-   mkdir -p desktop/tauri/src-tauri/bin
-
-   # Copy only YOUR platform's binary (pick one):
-   cp dist/qbit-manage desktop/tauri/src-tauri/bin/qbit-manage-linux-amd64   # x86_64 Linux
-   # cp dist/qbit-manage desktop/tauri/src-tauri/bin/qbit-manage-linux-arm64   # ARM64 Linux
-   # cp dist/qbit-manage desktop/tauri/src-tauri/bin/qbit-manage-macos-arm64   # Apple Silicon
-   # cp dist/qbit-manage desktop/tauri/src-tauri/bin/qbit-manage-macos-x86_64  # Intel Mac
-
-   chmod +x desktop/tauri/src-tauri/bin/qbit-manage-*
-   ```
-
-2. **Install the Tauri CLI and build:**
-   ```bash
-   cd desktop/tauri/src-tauri
-   cargo install tauri-cli --version ^2 --locked
-   cargo tauri build --bundles deb   # Linux: produces .deb in target/release/bundle/deb/
-   cargo tauri build --bundles dmg   # macOS: produces .dmg
-   cargo tauri build --bundles nsis  # Windows: produces installer .exe
-   ```
-
-The build script (`build.rs`) automatically reads the `VERSION` file and updates `Cargo.toml` and `tauri.conf.json` to keep versions in sync.
-
-### Docker Image
+Run all hooks manually at any time:
 
 ```bash
-docker build -t qbit-manage .
+make pre-commit
+# or directly:
+pre-commit run --all-files
 ```
 
-The Dockerfile is a multi-stage Alpine build. For multi-architecture builds (amd64, arm64, arm/v7), the CI uses Docker Buildx with QEMU.
+---
+
+## Tests
+
+Run the test suite with:
+
+```bash
+pytest tests/              # full suite (~168 tests)
+pytest tests/ --no-cov     # quick run, skip coverage report
+```
+
+**Test scaffolding pattern** (`tests/factories.py`):
+
+The factories module provides bypass-constructors that create objects without
+needing a live qBittorrent connection. Key helpers:
+
+- `make_share_limits()` — returns a configured `ShareLimits` instance
+- `make_category()` — returns a `Category` instance
+- `make_tag_nohardlinks()` — returns a `TagNoHardLinks` instance
+
+Use these in your own test fixtures rather than instantiating core classes
+directly. Each factory accepts keyword arguments to override defaults, keeping
+tests readable and isolated.
+
+---
+
+## Commit Messages
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <short description>
+```
+
+Scopes are optional but encouraged (e.g., `share_limits`, `tags`, `config`).
+
+**Types used in this repo** (verified against git history):
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature or behavior |
+| `fix` | Bug fix |
+| `refactor` | Code restructuring, no behavior change |
+| `chore` | Dependency bumps, tooling, housekeeping |
+| `docs` | Documentation only |
+| `test` | Adding or updating tests |
+| `ci` | CI/CD workflow changes |
+| `perf` | Performance improvements |
+
+Examples from the log:
+```
+feat(tags): add support for tagging private torrents
+fix(share_limits): set limits when throttle skipped
+refactor(share_limits): simplify logic and reduce code duplication
+chore(deps): bump ruff from 0.14.5 to 0.14.6
+```
+
+---
+
+## Submitting a PR
+
+1. Ensure `make pre-commit` passes with no errors.
+2. Run `pytest tests/` and confirm no regressions.
+3. Push your branch and open a PR against **`develop`** — not `master`.
+4. Describe what your PR does and link any related issues.
+5. A maintainer will review; CI must be green before merge.
+
+For the release process (merging `develop → master`, tagging, PyPI publish),
+see [`DEVELOPER.md`](../DEVELOPER.md).
+
+---
 
 ## Project Structure
 
 ```
 qbit_manage/
-├── qbit_manage.py          # Main entry point
-├── modules/                # Core application modules
-├── web-ui/                 # Web UI frontend (HTML/CSS/JS)
-│   ├── index.html
-│   ├── js/
-│   └── css/
-├── desktop/tauri/          # Tauri desktop app shell
-│   └── src-tauri/
-│       ├── src/            # Rust source
-│       ├── bin/            # Sidecar binaries (gitignored, populated at build time)
-│       ├── Cargo.toml
-│       ├── build.rs        # Version sync script
-│       └── tauri.conf.json # Tauri configuration
-├── config/                 # Sample configuration files
-├── docs/                   # Wiki documentation (synced to GitHub wiki)
-├── icons/                  # Application icons
+├── qbit_manage.py          # Main entry point and CLI argument parsing
+├── modules/                # Core application logic
+│   ├── config.py           # Config loading; check_for_attribute() calls define all valid keys
+│   ├── qbittorrent.py      # qBittorrent API wrapper
+│   ├── util.py             # Shared helpers and utilities
+│   ├── webhooks.py         # Webhook notification support
+│   ├── web_api.py          # REST API server
+│   ├── web_ui.py           # Web UI server
+│   └── core/               # Per-feature modules
+│       ├── tags.py
+│       ├── share_limits.py
+│       ├── category.py
+│       ├── tag_nohardlinks.py
+│       ├── recheck.py
+│       ├── remove_orphaned.py
+│       └── remove_unregistered.py
+├── tests/                  # Test suite
+│   └── factories.py        # Bypass-constructors for unit testing
 ├── scripts/                # Standalone helper scripts
+│   └── pre-commit/         # Pre-commit hook scripts
+├── web-ui/                 # Web UI frontend (HTML/CSS/JS)
+├── desktop/tauri/          # Tauri desktop app shell
+├── docs/                   # Wiki documentation (synced to GitHub Wiki)
+├── config/                 # Sample configuration files
+├── icons/                  # Application icons
 ├── Makefile                # Development automation
 ├── Dockerfile              # Docker build
 ├── pyproject.toml          # Python project configuration
+├── ruff.toml               # Ruff linter/formatter config
 └── VERSION                 # Single source of truth for version
 ```
 
-## Submitting Changes
-
-1. Fork the repository and create a branch from `develop`
-2. Make your changes and ensure `make pre-commit` passes
-3. Test your changes locally
-4. Submit a pull request to the `develop` branch
-5. Describe what your PR does and why
+---
 
 ## Support
 
-- **Questions**: Join the [Notifiarr Discord](https://discord.com/invite/AURf8Yz) and post in the `qbit-manage` channel
-- **Bugs/Enhancements**: Open an [Issue](https://github.com/StuffAnThings/qbit_manage/issues/new)
-- **Config Questions**: Start a [Discussion](https://github.com/StuffAnThings/qbit_manage/discussions/new)
+- **Questions:** Join the [Notifiarr Discord](https://discord.com/invite/AURf8Yz) → `#qbit-manage` channel
+- **Bugs / Enhancements:** Open an [Issue](https://github.com/StuffAnThings/qbit_manage/issues/new)
+- **Config Questions:** Start a [Discussion](https://github.com/StuffAnThings/qbit_manage/discussions/new)

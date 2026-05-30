@@ -460,6 +460,7 @@ class ShareLimits:
                         max_ratio=group_config["max_ratio"],
                         max_seeding_time=group_config["max_seeding_time"],
                         limit_upload_speed=group_config["limit_upload_speed"],
+                        share_limit_action=group_config.get("share_limit_action", "Default"),
                     )
                     return
 
@@ -501,6 +502,7 @@ class ShareLimits:
                 max_ratio=group_config["max_ratio"],
                 max_seeding_time=group_config["max_seeding_time"],
                 limit_upload_speed=group_config["limit_upload_speed"],
+                share_limit_action=group_config.get("share_limit_action", "Default"),
             )
 
         # Resume torrent if it was paused now that the share limit has changed
@@ -614,7 +616,15 @@ class ShareLimits:
 
         return None
 
-    def set_limits(self, torrent, max_ratio, max_seeding_time, limit_upload_speed=None, do_print=True):
+    def set_limits(
+        self,
+        torrent,
+        max_ratio,
+        max_seeding_time,
+        limit_upload_speed=None,
+        share_limit_action="Default",
+        do_print=True,
+    ):
         """Set tags and limits for a torrent"""
         body = []
         if limit_upload_speed is not None:
@@ -664,7 +674,7 @@ class ShareLimits:
                 ratio_limit=max_ratio,
                 seeding_time_limit=max_seeding_time,
                 inactive_seeding_time_limit=-2,
-                share_limit_action="Default",
+                share_limit_action=share_limit_action,
             )
         [logger.print_line(msg, self.config.loglevel) for msg in body if do_print]
         return body

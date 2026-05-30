@@ -1,5 +1,7 @@
 # Overview
 
+> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
+
 The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI), which requires the [Web API](Web-API) to be enabled.
 
 ## Default Configuration File Locations
@@ -37,9 +39,19 @@ You can reference environment variables inside your `config.yml` by `!ENV VAR_NA
 
 This section will override any [commands](Commands) that are defined via environment variable or command line and use the ones defined in this yaml file instead. Useful if you want to run qbm with multiple configurations files that execute different commands for each qbt instance.
 
-| Variable  | Definition                                            | Required            |
-| :-------- | :---------------------------------------------------- | :------------------ |
-| `command` | The [command](Commands) that you want qbm to execute. | <center>❌</center> |
+| Variable | Definition | Required |
+| :-- | :-- | :-- |
+| `dry_run` | Run in dry-run mode (preview actions only). | <center>❌</center> |
+| `recheck` | Run the recheck command. | <center>❌</center> |
+| `cat_update` | Run the cat-update command. | <center>❌</center> |
+| `tag_update` | Run the tag-update command. | <center>❌</center> |
+| `rem_unregistered` | Run the rem-unregistered command. | <center>❌</center> |
+| `tag_tracker_error` | Run the tag-tracker-error command. | <center>❌</center> |
+| `rem_orphaned` | Run the rem-orphaned command. | <center>❌</center> |
+| `tag_nohardlinks` | Run the tag-nohardlinks command. | <center>❌</center> |
+| `share_limits` | Run the share-limits command. | <center>❌</center> |
+| `skip_qb_version_check` | Skip qBittorrent version compatibility checks. | <center>❌</center> |
+| `skip_cleanup` | Skip recyclebin/orphaned cleanup pass. | <center>❌</center> |
 
 ## **qbt:**
 
@@ -52,6 +64,45 @@ This section defines your qBittorrent instance.
 | `host`   | IP address of your qB installation. | <center>✅</center> |
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
 | `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
+
+### Environment variable override
+
+Every CLI flag (and a few internal settings) can be set via environment variable. The table below lists every `get_arg(...)` call found in `qbit_manage.py` on master as of v4.7.1.
+
+| Env var | Maps to CLI / config key | Override? | Notes |
+|---------|--------------------------|-----------|-------|
+| `QBT_HOST` | `qbt.host` in YAML / `-H`/`--host` web-server flag | YAML default | IP/hostname of qBittorrent instance |
+| `QBT_PORT` | `-p`/`--port` | CLI default | Web-server port (default: 8181) |
+| `QBT_BASE_URL` | `-b`/`--base-url` | CLI default | Base URL path for the web UI |
+| `QBT_WEB_SERVER` | `-ws`/`--web-server` | CLI default | Enable/disable the built-in web server |
+| `QBT_RUN` | `-r`/`--run` | CLI default | Run once and exit (no scheduler) |
+| `QBT_SCHEDULE` | `-sch`/`--schedule` | CLI default | Schedule interval in minutes (or cron string) |
+| `QBT_STARTUP_DELAY` | `-sd`/`--startup-delay` | CLI default | Delay in seconds before first scheduled run |
+| `QBT_CONFIG` | `-c`/`--config-file` | — | Path to `config.yml`; hidden from `--help` (argparse.SUPPRESS) |
+| `QBT_CONFIG_DIR` | `-cd`/`--config-dir` | CLI default | Directory containing `config.yml` |
+| `QBT_LOGFILE` | `-lf`/`--log-file` | CLI default | Log file name (default: `qbit_manage.log`) |
+| `QBT_RECHECK` | `-re`/`--recheck` | CLI default | Run the recheck command |
+| `QBT_CAT_UPDATE` | `-cu`/`--cat-update` | CLI default | Run the cat-update command |
+| `QBT_TAG_UPDATE` | `-tu`/`--tag-update` | CLI default | Run the tag-update command |
+| `QBT_REM_UNREGISTERED` | `-ru`/`--rem-unregistered` | CLI default | Run the rem-unregistered command |
+| `QBT_TAG_TRACKER_ERROR` | `-tte`/`--tag-tracker-error` | CLI default | Run the tag-tracker-error command |
+| `QBT_REM_ORPHANED` | `-ro`/`--rem-orphaned` | CLI default | Run the rem-orphaned command |
+| `QBT_TAG_NOHARDLINKS` | `-tnhl`/`--tag-nohardlinks` | CLI default | Run the tag-nohardlinks command |
+| `QBT_SHARE_LIMITS` | `-sl`/`--share-limits` | CLI default | Run the share-limits command |
+| `QBT_SKIP_CLEANUP` | `-sc`/`--skip-cleanup` | CLI default | Skip emptying RecycleBin and orphaned dirs |
+| `QBT_SKIP_QB_VERSION_CHECK` | `-svc`/`--skip-qb-version-check` | CLI default | Bypass qBittorrent version compatibility check |
+| `QBT_DRY_RUN` | `-dr`/`--dry-run` | CLI default | Preview actions without executing them |
+| `QBT_LOG_LEVEL` | `-ll`/`--log-level` | CLI default | Log verbosity (default: `INFO`) |
+| `QBT_LOG_SIZE` | `-ls`/`--log-size` | CLI default | Max log file size in MB (default: 10) |
+| `QBT_LOG_COUNT` | `-lc`/`--log-count` | CLI default | Max number of log files to keep (default: 5) |
+| `QBT_DIVIDER` | `-d`/`--divider` | CLI default | Section divider character (default: `=`) |
+| `QBT_WIDTH` | `-w`/`--width` | CLI default | Screen width for log formatting (default: 100) |
+| `QBT_DEBUG` | `--debug` | CLI default | Enable debug logging |
+| `QBT_TRACE` | `--trace` | CLI default | Enable trace logging |
+| `QBM_DOCKER` | Internal only | — | Detected automatically via `in_docker()`; set to force Docker mode |
+| `BRANCH_NAME` | Internal only | — | Used to select the correct version string at startup (default: `"master"`) |
+
+**Keys with NO env-var override:** `qbt.user` and `qbt.pass` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
 
 ## **settings:**
 
@@ -76,15 +127,23 @@ This section defines any settings defined in the configuration.
 | `cat_update_all`                    | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents.                                                                                                                                                                                                   | True                      | <center>❌</center> |
 | `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
 | `tag_stalled_torrents`              | Tags any downloading torrents that are stalled with the user defined `stalledDL` tag when running the tag_update command                                                                                                                                                                                                                        | True                      | <center>❌</center> |
+| `stalled_tag`                       | Tag applied to torrents in `stalledDL` state when `tag_stalled_torrents: true`. Customizable. Reference: `modules/config.py:304`.                                                                                                                                                                                                               | stalledDL                 | <center>❌</center> |
+| `rem_unregistered_filter_completed` | Restrict the `rem_unregistered` command to completed torrents only. Reference: `modules/config.py:327-329`.                                                                                                                                                                                                                                     | false                     | <center>❌</center> |
 | `rem_unregistered_ignore_list`      | Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched                                                                                                                                                                                                     |                           | <center>❌</center> |
 | `rem_unregistered_grace_minutes`    | Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable.                                                                                                                                                                                                                   | 10                        | <center>❌</center> |
 | `rem_unregistered_max_torrents`     | Maximum number of torrents to remove per tracker per run. Set to 0 to disable.                                                                                                                                                                                                                                                                  | 10                        | <center>❌</center> |
+
+`stalled_tag` only fires when `tag_stalled_torrents: true` is also set. The boolean toggle activates the feature; this string is the tag name applied.
+
+**Cross-seed interplay:** even with `rem_unregistered_filter_completed: true`, the rem_unregistered logic still checks for cross-seed siblings before deleting torrent data — a torrent registered as unregistered AND completed will still preserve its data files if a sibling cross-seed shares the save path. See [share_limits cleanup notes](#share_limits) for the full cross-seed safety model.
 
 ## **directory:**
 
 ---
 
 This section defines the directories that qbit_manage will be looking into for various parts of the script.
+
+**Multi-root setups:** `root_dir` is singular — only one root directory per qbit_manage instance. For setups with multiple distinct root directories, run separate qbit_manage instances (e.g., separate Docker containers or separate cron schedules), each with its own config and own `root_dir`.
 
 | Variable       | Definition                                                                                                                                                                                                                                                                                                          | Required                                                      |
 | :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------ |
@@ -221,13 +280,103 @@ Control how torrent share limits are set depending on the priority of your group
 | `min_seeding_time`                     | Will prevent torrent deletion by the cleanup variable if the torrent has reached the `max_ratio` limit you have set. If the torrent has not yet reached this minimum seeding time, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m. **MANDATORY: Must use also `max_ratio` with a value greater than `0` (default: `-1`) for this to work.** If you use both `min_seed_time` and `max_seed_time`, then you must set the value of `max_seed_time` to a number greater than `min_seed_time`. | 0                    | str       | <center>❌</center> |
 | `min_last_active`                      | Will prevent torrent deletion by cleanup variable if torrent has been active within the last x minutes. If the torrent has been active within the last x minutes, it will change the share limits back to no limits and resume the torrent to continue seeding. See Some examples of [valid time expressions](https://github.com/onegreyonewhite/pytimeparse2?tab=readme-ov-file#pytimeparse2-time-expression-parser) 32m, 2h32m, 3d2h32m, 1w3d2h32m                                                                                                                                                                                                                                                                          | 0                    | str       | <center>❌</center> |
 | `limit_upload_speed`                   | Will limit the upload speed KiB/s (KiloBytes/second) (`-1` : No Limit)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -1                   | int       | <center>❌</center> |
-| `upload_speed_on_limit_reached`        | When cleanup is `false` and a torrent reaches its share limits, throttle per‑torrent upload to this value (KiB/s). Use `-1` for unlimited. QBM will also clear the share limits to prevent qBittorrent from pausing, allowing continued seeding at the throttled rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                        | -1                   | int       | <center>❌</center> |
+| `upload_speed_on_limit_reached`        | When cleanup is `false` and a torrent reaches its share limits, throttle per‑torrent upload to this value (KiB/s). Use `-1` for unlimited. QBM will also clear the share limits to prevent qBittorrent from pausing, allowing continued seeding at the throttled rate.                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 0                    | int       | <center>❌</center> |
 | `enable_group_upload_speed`            | Upload speed limits are applied at the group level. This will take `limit_upload_speed` defined and divide it equally among the number of torrents in the group.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | False                | bool      | <center>❌</center> |
 | `reset_upload_speed_on_unmet_minimums` | Controls whether upload speed limits are reset when minimum conditions are not met. When `true` (default), upload speed limits will be reset to unlimited if minimum seeding time, number of seeds, or last active time conditions are not satisfied. When `false`, existing upload speed limits will be preserved for bandwidth management purposes.                                                                                                                                                                                                                                                                                                                                                                         | True                 | bool      | <center>❌</center> |
 | `resume_torrent_after_change`          | Will resume your torrent after changing share limits.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | True                 | bool      | <center>❌</center> |
 | `add_group_to_tag`                     | This adds your grouping as a tag with a prefix defined in settings (share_limits_tag). Example: A grouping named noHL with a priority of 1 will have a tag set to `~share_limit_1.noHL` (if using the default prefix).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | True                 | bool      | <center>❌</center> |
 | `min_num_seeds`                        | Will prevent torrent deletion by cleanup variable if the number of seeds is less than the value set here (depending on the tracker, you may or may not be included). If the torrent has less number of seeds than the min_num_seeds, the share limits will be changed back to no limits and resume the torrent to continue seeding.                                                                                                                                                                                                                                                                                                                                                                                           | 0                    | int       | <center>❌</center> |
 | `custom_tag`                           | Apply a custom tag name for this particular group. **WARNING (This tag MUST be unique as it will be used to determine share limits. Please ensure it does not overlap with any other tags in qBittorrent)**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | None                 | str       | <center>❌</center> |
+| `share_limit_action`                   | What qBittorrent itself should do to a torrent when its share limits are reached (required by qBittorrent 5.2.0+). Valid values: `Default`, `Stop`, `Remove`, `RemoveWithContent`, `EnableSuperSeeding`. **Not the same as `cleanup`** — see the [Share Limit Action](#share-limit-action) section below for the per-value risk table, the cleanup-vs-action interaction, and the qbm-managed vs qBittorrent-managed deletion models.                                                                                                                                                                                                                                                                                          | `Default`            | str       | <center>❌</center> |
+
+**Cleanup + recyclebin interaction:** when `cleanup: true` triggers a torrent removal, the data files are sent to the `recyclebin:` configured location if recyclebin is enabled (`recyclebin.enabled: true`). If recyclebin is disabled, data is hard-deleted. This is independent of cross-seed handling — see below.
+
+**Worked example — cleanup with recyclebin enabled:**
+
+```yaml
+recyclebin:
+  enabled: true
+  empty_after_x_days: 7
+  save_torrents: true
+share_limits:
+  archived-movies:
+    max_ratio: 2.0
+    cleanup: true
+```
+
+Walkthrough: torrent reaches `max_ratio >= 2.0` → marked cleanup-eligible → qBittorrent removes the torrent from its session → data files are moved to `recyclebin.recycle_bin_path` (or `<root_dir>/.RecycleBin` if not set) → kept for 7 days, then permanently deleted by the recyclebin sweep.
+
+**Cleanup + cross-seed safety:** if the torrent being cleaned up shares its save path with another active torrent (cross-seed), the torrent is removed from qBittorrent but the data files are preserved on disk. The sibling cross-seed continues seeding uninterrupted.
+
+**Cross-seed safety extends to `rem_unregistered` and `tag_nohardlinks` paths as well.** Both commands check for sibling torrents sharing the same save path before any destructive operation. `rem_unregistered` will preserve data when a cross-seed sibling exists; `tag_nohardlinks` is read-only and never deletes (only adds/removes tags), so no cross-seed gate is needed in that path.
+
+**Behavior note:** the default `0` means **stop upload** (rate-limit to zero) once share limits are reached, when `cleanup: false`. Set to `-1` for unlimited upload after limits are reached, or any positive value (KiB/s) to throttle to a specific rate. QBM clears the share limits in qBittorrent to prevent the client from pausing the torrent, then applies this upload cap — so the torrent keeps seeding at the specified rate indefinitely.
+
+### Share Limit Action
+
+`share_limit_action` controls **what qBittorrent itself** does to a torrent in this group when its share limits (`max_ratio` / `max_seeding_time` / `max_last_active`) are reached. This is a qBittorrent-level setting (required by the qBittorrent Web API since version 5.2.0); qbm just forwards your choice to qBittorrent.
+
+> **This is not the same as qbm's `cleanup` option.** qBittorrent acts the instant a share-limit goal is met (in-process, real-time); qbm runs on a schedule (batch) and only sees torrents *after* qBittorrent has already acted. So if you tell qBittorrent to `Remove` or `RemoveWithContent`, qbm's recyclebin is silently bypassed — by the time qbm's cleanup pass runs, the torrent is already gone.
+>
+> Because of this, `cleanup` and a destructive `share_limit_action` (`Remove` or `RemoveWithContent`) are **mutually exclusive** — qbm rejects the config at startup if both are set on the same group. Pick one of the two models:
+>
+> - **(a) qbm-managed deletion** — `cleanup: true` + `share_limit_action: Default` or `Stop`. qBittorrent stops the torrent at the goal; qbm later deletes it through the recyclebin.
+> - **(b) qBittorrent-managed deletion** — `cleanup: false` + `share_limit_action: Remove` or `RemoveWithContent`. qBittorrent removes the torrent itself the moment the goal is hit; qbm's recyclebin is **not** consulted.
+
+| Value                | What it does                                                                                                       | Risk                                       |
+| :------------------- | :----------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
+| `Default`            | Use whatever action qBittorrent is globally configured to do. **Recommended for most users.**                      | Safe — qBittorrent's own settings apply.   |
+| `Stop`               | Stop the torrent (qBittorrent's normal "pause"). Torrent stays listed; just stops seeding. Files untouched.        | Safe and reversible.                       |
+| `Remove`             | Remove the torrent from qBittorrent **but keep the files on disk**. Torrent disappears from the list.              | Files are kept; you can re-add later.      |
+| `RemoveWithContent`  | Remove the torrent **and delete the files on disk**.                                                               | **DESTRUCTIVE — qbm's recyclebin is bypassed.** Files are recoverable only from a backup. When qBittorrent removes the torrent itself, qbm never runs cleanup on it, so the recyclebin path is not consulted. |
+| `EnableSuperSeeding` | Switch the torrent into super-seeding mode (advanced; one-to-many seeding scenarios).                              | Most users should not need this.           |
+
+#### Examples
+
+Stop torrents when limits are reached (most common):
+
+```yaml
+share_limits:
+  noHL:
+    priority: 1
+    max_ratio: 5.0
+    cleanup: false
+    share_limit_action: Stop
+```
+
+Have qBittorrent itself delete torrents (and their files) when limits are reached, **bypassing qbm's recyclebin**:
+
+```yaml
+share_limits:
+  expendable:
+    priority: 1
+    max_ratio: 1.0
+    cleanup: false                          # required — must be false for this action
+    share_limit_action: RemoveWithContent   # WARNING: irreversible, no recyclebin
+```
+
+Let qbm move files to its recyclebin instead (preferred — keeps a safety net):
+
+```yaml
+share_limits:
+  expendable:
+    priority: 1
+    max_ratio: 1.0
+    cleanup: true                # qbm handles deletion and uses the recyclebin if enabled
+    share_limit_action: Default  # must NOT be Remove or RemoveWithContent (config error)
+```
+
+> qbm will fail at startup with a clear error message if you set `cleanup: true` together with `share_limit_action: Remove` or `RemoveWithContent` — qBittorrent would have already removed the torrent by the time qbm's batch cleanup ran, so the recyclebin path would be unreachable.
+
+Use the global qBittorrent default (do nothing special at the group level):
+
+```yaml
+share_limits:
+  any-group:
+    priority: 1
+    max_ratio: 2.0
+    share_limit_action: Default  # or omit the key entirely
+```
 
 ## **recyclebin:**
 
@@ -239,7 +388,7 @@ This is very useful if you're hesitant about using this script to delete informa
 
 | Variable             | Definition                                                                                                                                                                                 | Default Values | Required            |
 | :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------- | :------------------ |
-| `enable`             | `true` or `false`                                                                                                                                                                          | `true`         | <center>✅</center> |
+| `enabled`            | `true` or `false`                                                                                                                                                                          | `true`         | <center>✅</center> |
 | `empty_after_x_days` | Will delete Recycle Bin contents if the files have been in the Recycle Bin for more than x days. (Uses date modified to track the time)                                                    | None           | <center>❌</center> |
 | `save_torrents`      | This will save a copy of your .torrent and .fastresume file in the recycle bin before deleting it from qbittorrent. This requires the [torrents_dir](#directory) to be defined             | False          | <center>❌</center> |
 | `split_by_category`  | This will split the recycle bin folder by the save path defined in the [cat](#cat) attribute and add the base folder name of the recycle bin that was defined in [recycle_bin](#directory) | False          | <center>❌</center> |
@@ -293,35 +442,35 @@ This is handy when you have automatically generated files that certain OSs decid
 
 Provide webhook notifications based on event triggers
 
+Per-function hooks are configured under `webhooks.function` in `config.yml.sample`.
+
 | Variable                                                        | Notification Sent                                                    | Default Values | Required            |
 | :-------------------------------------------------------------- | :------------------------------------------------------------------- | :------------- | :------------------ |
 | [error](#error-notifications)                                   | When errors occur during the run                                     | N/A            | <center>❌</center> |
 | [run_start](#run-start-notifications)                           | At the beginning of every run                                        | N/A            | <center>❌</center> |
 | [run_end](#run-end-notifications)                               | At the end of every run                                              | N/A            | <center>❌</center> |
-| [recheck](#recheck-notifications)                               | During the recheck function                                          | N/A            | <center>❌</center> |
-| [cat_update](#category-update-notifications)                    | During the category update function                                  | N/A            | <center>❌</center> |
-| [tag_update](#tag-update-notifications)                         | During the tag update function                                       | N/A            | <center>❌</center> |
-| [rem_unregistered](#remove-unregistered-torrents-notifications) | During the removing unregistered torrents function                   | N/A            | <center>❌</center> |
-| [tag_tracker_error](#tag-tracker-error-notifications)           | During the removing unregistered torrents/tag tracker error function | N/A            | <center>❌</center> |
-| [rem_orphaned](#remove-orphaned-files-notifications)            | During the removing orphaned function                                | N/A            | <center>❌</center> |
-| [tag_nohardlinks](#tag-no-hardlinks-notifications)              | During the tag no hardlinks function                                 | N/A            | <center>❌</center> |
-| [share_limits](#share-limits-notifications)                     | During the share limits function                                     | N/A            | <center>❌</center> |
-| [cleanup_dirs](#cleanup-directories-notifications)              | When files are deleted from certain directories                      | N/A            | <center>❌</center> |
+| [function.recheck](#recheck-notifications)                      | During the recheck function                                          | N/A            | <center>❌</center> |
+| [function.cat_update](#category-update-notifications)           | During the category update function                                  | N/A            | <center>❌</center> |
+| [function.tag_update](#tag-update-notifications)                | During the tag update function                                       | N/A            | <center>❌</center> |
+| [function.rem_unregistered](#remove-unregistered-torrents-notifications) | During the removing unregistered torrents function                   | N/A            | <center>❌</center> |
+| [function.tag_tracker_error](#tag-tracker-error-notifications)  | During the removing unregistered torrents/tag tracker error function | N/A            | <center>❌</center> |
+| [function.rem_orphaned](#remove-orphaned-files-notifications)   | During the removing orphaned function                                | N/A            | <center>❌</center> |
+| [function.tag_nohardlinks](#tag-no-hardlinks-notifications)     | During the tag no hardlinks function                                 | N/A            | <center>❌</center> |
+| [function.share_limits](#share-limits-notifications)            | During the share limits function                                     | N/A            | <center>❌</center> |
+| [function.cleanup_dirs](#cleanup-directories-notifications)     | When files are deleted from certain directories                      | N/A            | <center>❌</center> |
 
 ### **Error Notifications**
 
 Payload will be sent on any errors
 
 ```yaml
-{ "function": "run_error", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Error Message of the Payload
-    "critical"
-  : bool, ? // Critical Error
-    "type"
-  : str                  // severity of error }
+{
+  "function": "run_error", // Webhook Trigger keyword
+  "title": str,             // Title of the Payload
+  "body": str,              // Error Message of the Payload
+  "critical": bool,         // Critical Error
+  "type": str               // severity of error
+}
 ```
 
 ### **Run Start Notifications**
@@ -329,21 +478,16 @@ Payload will be sent on any errors
 Payload will be sent at the start of the run
 
 ```yaml
-{ "function": "run_start", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "start_time"
-  : str, ? // Time Run is started Format "YYYY-mm-dd HH:MM:SS"
-    "dry_run"
-  : bool, ? // Dry-Run
-    "web_api_used"
-  : bool, ? // Indicates whether the run was initiated via the Web API (true) or not (false).
-    "commands"
-  : list, ? // List of commands that that will be ran
-    "execution_options"
-  : list    // List of eecution options selected }
+{
+  "function": "run_start",     // Webhook Trigger keyword
+  "title": str,                  // Title of the Payload
+  "body": str,                   // Message of the Payload
+  "start_time": str,             // Time Run is started Format "YYYY-mm-dd HH:MM:SS"
+  "dry_run": bool,               // Dry-Run
+  "web_api_used": bool,          // Indicates whether the run was initiated via the Web API (true) or not (false).
+  "commands": list,              // List of commands that that will be ran
+  "execution_options": list      // List of eecution options selected
+}
 ```
 
 ### **Run End Notifications**
@@ -384,21 +528,16 @@ Payload will be sent at the end of the run
 Payload will be sent when rechecking/resuming a torrent that is paused
 
 ```yaml
-{ "function": "recheck", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_tag"
-  : str, ? // Torrent Tags
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "recheck",       // Webhook Trigger keyword
+  "title": str,                  // Title of the Payload
+  "body": str,                   // Message of the Payload
+  "torrents": [str],             // List of Torrent Names
+  "torrent_tag": str,            // Torrent Tags
+  "torrent_category": str,       // Torrent Category
+  "torrent_tracker": str,        // Torrent Tracker URL
+  "notifiarr_indexer": str       // Notifiarr React name/id for indexer
+}
 ```
 
 ### **Category Update Notifications**
@@ -406,21 +545,16 @@ Payload will be sent when rechecking/resuming a torrent that is paused
 Payload will be sent when updating torrents with missing category
 
 ```yaml
-{ "function": "cat_update", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // New Torrent Category
-    "torrent_tag"
-  : str, ? // Torrent Tags
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "cat_update",    // Webhook Trigger keyword
+  "title": str,                  // Title of the Payload
+  "body": str,                   // Message of the Payload
+  "torrents": [str],             // List of Torrent Names
+  "torrent_category": str,       // New Torrent Category
+  "torrent_tag": str,            // Torrent Tags
+  "torrent_tracker": str,        // Torrent Tracker URL
+  "notifiarr_indexer": str       // Notifiarr React name/id for indexer
+}
 ```
 
 ### **Tag Update Notifications**
@@ -428,21 +562,16 @@ Payload will be sent when updating torrents with missing category
 Payload will be sent when updating torrents with missing tag
 
 ```yaml
-{ "function": "tag_update", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tag"
-  : str, ? // New Torrent Tag
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "tag_update",    // Webhook Trigger keyword
+  "title": str,                  // Title of the Payload
+  "body": str,                   // Message of the Payload
+  "torrents": [str],             // List of Torrent Names
+  "torrent_category": str,       // Torrent Category
+  "torrent_tag": str,            // New Torrent Tag
+  "torrent_tracker": str,        // Torrent Tracker URL
+  "notifiarr_indexer": str       // Notifiarr React name/id for indexer
+}
 ```
 
 ### **Remove Unregistered Torrents Notifications**
@@ -450,25 +579,18 @@ Payload will be sent when updating torrents with missing tag
 Payload will be sent when Unregistered Torrents are found
 
 ```yaml
-{ "function": "rem_unregistered", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_status"
-  : str, ? // Torrent Tracker Status message
-    "torrent_tag"
-  : str, ? // Torrent Tags
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, ? // Notifiarr React name/id for indexer
-    "torrents_deleted_and_contents"
-  : bool, // Deleted Torrents and contents or Deleted just the torrent }
+{
+  "function": "rem_unregistered",     // Webhook Trigger keyword
+  "title": str,                         // Title of the Payload
+  "body": str,                          // Message of the Payload
+  "torrents": [str],                    // List of Torrent Names
+  "torrent_category": str,              // Torrent Category
+  "torrent_status": str,                // Torrent Tracker Status message
+  "torrent_tag": str,                   // Torrent Tags
+  "torrent_tracker": str,               // Torrent Tracker URL
+  "notifiarr_indexer": str,             // Notifiarr React name/id for indexer
+  "torrents_deleted_and_contents": bool // Deleted Torrents and contents or Deleted just the torrent
+}
 ```
 
 ### **Tag Tracker Error Notifications**
@@ -476,41 +598,30 @@ Payload will be sent when Unregistered Torrents are found
 Payload will be sent when trackers with errors are tagged/untagged
 
 ```yaml
-{ "function": "tag_tracker_error", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tag"
-  : "issue", ? // Tag Added
-    "torrent_status"
-  : str, ? // Torrent Tracker Status message
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "tag_tracker_error", // Webhook Trigger keyword
+  "title": str,                      // Title of the Payload
+  "body": str,                       // Message of the Payload
+  "torrents": [str],                 // List of Torrent Names
+  "torrent_category": str,           // Torrent Category
+  "torrent_tag": "issue",           // Tag Added
+  "torrent_status": str,             // Torrent Tracker Status message
+  "torrent_tracker": str,            // Torrent Tracker URL
+  "notifiarr_indexer": str           // Notifiarr React name/id for indexer
+}
 ```
 
 ```yaml
-{ "function": "untag_tracker_error", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tag"
-  : str, ? // Tag Added
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "untag_tracker_error", // Webhook Trigger keyword
+  "title": str,                        // Title of the Payload
+  "body": str,                         // Message of the Payload
+  "torrents": [str],                   // List of Torrent Names
+  "torrent_category": str,             // Torrent Category
+  "torrent_tag": str,                  // Tag Added
+  "torrent_tracker": str,              // Torrent Tracker URL
+  "notifiarr_indexer": str             // Notifiarr React name/id for indexer
+}
 ```
 
 ### **Remove Orphaned Files Notifications**
@@ -518,17 +629,14 @@ Payload will be sent when trackers with errors are tagged/untagged
 Payload will be sent when Orphaned Files are found and moved into the orphaned folder
 
 ```yaml
-{ "function": "rem_orphaned", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "orphaned_files"
-  : list, ? // List of orphaned files
-    "orphaned_directory"
-  : str, ? // Folder path where orphaned files will be moved to
-    "total_orphaned_files"
-  : int, // Total number of orphaned files found }
+{
+  "function": "rem_orphaned",   // Webhook Trigger keyword
+  "title": str,                   // Title of the Payload
+  "body": str,                    // Message of the Payload
+  "orphaned_files": list,         // List of orphaned files
+  "orphaned_directory": str,      // Folder path where orphaned files will be moved to
+  "total_orphaned_files": int     // Total number of orphaned files found
+}
 ```
 
 ### **Tag No Hardlinks Notifications**
@@ -536,41 +644,31 @@ Payload will be sent when Orphaned Files are found and moved into the orphaned f
 Payload will be sent when no hard links are found for any files in a particular torrent
 
 ```yaml
-{ "function": "tag_nohardlinks", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tag"
-  : "noHL", ? // Add `noHL` to Torrent Tags
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "tag_nohardlinks", // Webhook Trigger keyword
+  "title": str,                    // Title of the Payload
+  "body": str,                     // Message of the Payload
+  "torrents": [str],               // List of Torrent Names
+  "torrent_category": str,         // Torrent Category
+  "torrent_tag": "noHL",          // Add `noHL` to Torrent Tags
+  "torrent_tracker": str,          // Torrent Tracker URL
+  "notifiarr_indexer": str         // Notifiarr React name/id for indexer
+}
 ```
 
 Payload will be sent when hard links are found for any torrents that were previously tagged with `noHL`
 
 ```yaml
-{ "function": "untag_nohardlinks", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "torrent_tag"
-  : "noHL", ? // Remove `noHL` from Torrent Tags
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, // Notifiarr React name/id for indexer }
+{
+  "function": "untag_nohardlinks", // Webhook Trigger keyword
+  "title": str,                      // Title of the Payload
+  "body": str,                       // Message of the Payload
+  "torrents": [str],                 // List of Torrent Names
+  "torrent_category": str,           // Torrent Category
+  "torrent_tag": "noHL",            // Remove `noHL` from Torrent Tags
+  "torrent_tracker": str,            // Torrent Tracker URL
+  "notifiarr_indexer": str           // Notifiarr React name/id for indexer
+}
 ```
 
 ### **Share Limits Notifications**
@@ -578,49 +676,35 @@ Payload will be sent when hard links are found for any torrents that were previo
 Payload will be sent when Share Limits are updated for a specific group
 
 ```yaml
-{ "function": "share_limits", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "grouping"
-  : str, ? // Share Limit group name
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_tag"
-  : str, ? // Torrent Tags
-    "torrent_max_ratio"
-  : float, ? // Set the Max Ratio Share Limit
-    "torrent_max_seeding_time"
-  : int, ? // Set the Max Seeding Time (minutes) Share Limit
-    "torrent_min_seeding_time"
-  : int, ? // Set the Min Seeding Time (minutes) Share Limit
-    "torrent_limit_upload_speed"
-  : int         // Set the the torrent upload speed limit (kB/s) }
+{
+  "function": "share_limits",        // Webhook Trigger keyword
+  "title": str,                        // Title of the Payload
+  "body": str,                         // Message of the Payload
+  "grouping": str,                     // Share Limit group name
+  "torrents": [str],                   // List of Torrent Names
+  "torrent_tag": str,                  // Torrent Tags
+  "torrent_max_ratio": float,          // Set the Max Ratio Share Limit
+  "torrent_max_seeding_time": int,     // Set the Max Seeding Time (minutes) Share Limit
+  "torrent_min_seeding_time": int,     // Set the Min Seeding Time (minutes) Share Limit
+  "torrent_limit_upload_speed": int    // Set the the torrent upload speed limit (kB/s)
+}
 ```
 
 Payload will be sent when `cleanup` flag is set to true and torrent meets share limit criteria.
 
 ```yaml
-{ "function": "cleanup_share_limits", ? // Webhook Trigger keyword
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "grouping"
-  : str, ? // Share Limit group name
-    "torrents"
-  : [str], ? // List of Torrent Names
-    "torrent_category"
-  : str, ? // Torrent Category
-    "cleanup"
-  : True, ? // Cleanup flag
-    "torrent_tracker"
-  : str, ? // Torrent Tracker URL
-    "notifiarr_indexer"
-  : str, ? // Notifiarr React name/id for indexer
-    "torrents_deleted_and_contents"
-  : bool, // Deleted Torrents and contents or Deleted just the torrent }
+{
+  "function": "cleanup_share_limits",  // Webhook Trigger keyword
+  "title": str,                          // Title of the Payload
+  "body": str,                           // Message of the Payload
+  "grouping": str,                       // Share Limit group name
+  "torrents": [str],                     // List of Torrent Names
+  "torrent_category": str,               // Torrent Category
+  "cleanup": True,                       // Cleanup flag
+  "torrent_tracker": str,                // Torrent Tracker URL
+  "notifiarr_indexer": str,              // Notifiarr React name/id for indexer
+  "torrents_deleted_and_contents": bool  // Deleted Torrents and contents or Deleted just the torrent
+}
 ```
 
 ### **Cleanup directories Notifications**
@@ -628,17 +712,13 @@ Payload will be sent when `cleanup` flag is set to true and torrent meets share 
 Payload will be sent when files are deleted/cleaned up from the various folders
 
 ```yaml
-{ "function": "cleanup_dirs", ? // Webhook Trigger keyword
-    "location"
-  : str, ? // Location of the folder that is being cleaned
-    "title"
-  : str, ? // Title of the Payload
-    "body"
-  : str, ? // Message of the Payload
-    "files"
-  : list, ? // List of files that were deleted from the location
-    "empty_after_x_days"
-  : int, ? // Number of days that the files will be kept in the location
-    "size_in_bytes"
-  : int, // Total number of bytes deleted from the location }
+{
+  "function": "cleanup_dirs", // Webhook Trigger keyword
+  "location": str,             // Location of the folder that is being cleaned
+  "title": str,                // Title of the Payload
+  "body": str,                 // Message of the Payload
+  "files": list,               // List of files that were deleted from the location
+  "empty_after_x_days": int,   // Number of days that the files will be kept in the location
+  "size_in_bytes": int         // Total number of bytes deleted from the location
+}
 ```

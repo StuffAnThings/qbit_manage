@@ -8,12 +8,15 @@ updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
       time: "07:00"
       timezone: "America/Toronto"
     target-branch: "develop"
     assignees:
       - "bobokun"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
     # Reads pyproject.toml and keeps uv.lock in sync on every bump.
     allow:
       - dependency-type: "direct"
@@ -21,11 +24,27 @@ updates:
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: "daily"
+      interval: "weekly"
       time: "07:00"
       timezone: "America/Toronto"
     assignees:
       - "bobokun"
     target-branch: "develop"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
     ignore:
       - dependency-name: "salsify/action-detect-and-tag-new-version"
+  - package-ecosystem: cargo
+    directory: /desktop/tauri/src-tauri
+    schedule:
+      interval: weekly
+      time: "07:00"
+      timezone: "America/Toronto"
+    target-branch: develop
+    assignees:
+      - bobokun
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "rust"

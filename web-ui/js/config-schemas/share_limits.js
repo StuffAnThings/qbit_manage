@@ -136,6 +136,19 @@ export const shareLimitsSchema = {
                     description: 'Apply a unique custom tag for this group. This tag will be used to identify and manage the share limits for these torrents.',
                     default: ''
                 },
+                share_limit_action: {
+                    type: 'select',
+                    label: 'Share Limit Action',
+                    description: 'What qBittorrent should do when this group\'s share limits (max_ratio / max_seeding_time / max_last_active) are reached. Required by qBittorrent 5.2.0+. NOT the same as qbm\'s `cleanup`: qBittorrent applies this action IMMEDIATELY when a torrent hits its limit (between qbm runs). qbm cleanup only acts on torrents qBittorrent has already stopped/removed at the next scheduled run. WARNING: `RemoveWithContent` is destructive — qbm\'s recyclebin is bypassed. Files are recoverable only from a backup. When qBittorrent removes the torrent itself, qbm never runs cleanup on it, so the recyclebin path is not consulted.',
+                    options: [
+                        { value: 'Default', label: 'Default — use qBittorrent\'s global setting (recommended)' },
+                        { value: 'Stop', label: 'Stop — pause the torrent, keep it listed, files untouched' },
+                        { value: 'Remove', label: 'Remove — remove torrent from qBittorrent, KEEP files' },
+                        { value: 'RemoveWithContent', label: 'RemoveWithContent — remove torrent AND DELETE files (destructive)' },
+                        { value: 'EnableSuperSeeding', label: 'EnableSuperSeeding — switch torrent to super-seeding mode (advanced)' }
+                    ],
+                    default: 'Default'
+                },
                 reset_upload_speed_on_unmet_minimums: {
                     type: 'boolean',
                     label: 'Reset Upload Speed on Unmet Minimums',
@@ -185,7 +198,7 @@ export const shareLimitsSchema = {
             },
             {
                 title: 'Advanced',
-                fields: ['custom_tag']
+                fields: ['custom_tag', 'share_limit_action']
             }
         ],
         fieldIcons: {

@@ -1,18 +1,20 @@
 # Requirements Updated
-- "fastapi==0.136.1"
-- "GitPython==3.1.50"
-- "qbittorrent-api==2026.5.1"
-- "requests==2.34.2"
-- "uvicorn==0.47.0"
-- "pre-commit==4.6.0"
-- "ruff==0.15.13"
+- "fastapi==0.136.3"
+- "uvicorn==0.48.0"
+- "pytest-cov==7.1.0"
+- "ruff==0.15.15"
+- "qbittorrent-api==2026.5.2"
+
+# New Features
+- Adds configurable `share_limit_action` for controlling the outcome of share limits. (See [Share Limit Action](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share-limit-action))
 
 # Improvements
-- Minor CI improvements
+- Modernize CI Workflows
+- Improved logging for redacting tracker passkeys
+- Adds unit-testing for core functionality
 
 # Bug Fixes
-- Pass ShareLimitAction to ShareLimits for qbit 5.2.0+ support (Fixes #1174)
-- Fix bug causing new categories to be created in config when auto_tmm is disabled.
-- Respect reset_upload_speed_on_unmet_minimums for min_num_seeds (Fixes #1157)
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.7.0...v4.7.1
-Special thanks to @bakerboy448 for their contributions!
+- Fixed Remove Orphaned count not being logged (Fixes #1196)
+- Fixes Remove Unregistered from not identifying unregistered torrents correctly in 5.2.0+ (Fixes #1201)
+
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.7.1...v4.8.0

@@ -26,3 +26,9 @@ entities.json
 # Local agent / IDE session artifacts
 .claude-session-name
 .claude/settings.local.json
+
+# pytest-cov runtime artifacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/

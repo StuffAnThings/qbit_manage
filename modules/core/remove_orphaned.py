@@ -162,6 +162,7 @@ class RemoveOrphaned:
 
         body = []
         num_orphaned = len(orphaned_files)
+        self.stats = num_orphaned
         logger.print_line(f"{num_orphaned} Orphaned files found", self.config.loglevel)
         body += logger.print_line("\n".join(orphaned_files), self.config.loglevel)
 

@@ -117,7 +117,7 @@ Perfect for server environments, automation, or users who prefer command-line to
 For developers or users who want to modify the code, you can install from source or PyPI.
 
 ### Prerequisites
-- Python 3.9 or higher
+- Python 3.10 or higher
 - Git (for source installation)
 
 ### Method 1: Install from PyPI
