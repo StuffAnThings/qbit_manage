@@ -2,7 +2,7 @@
 - "fastapi==0.136.3"
 - "uvicorn==0.48.0"
 - "pytest-cov==7.1.0"
-- "ruff==0.15.14"
+- "ruff==0.15.15"
 - "qbittorrent-api==2026.5.2"
 
 # New Features

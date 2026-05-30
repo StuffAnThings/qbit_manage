@@ -96,7 +96,7 @@ def is_tag_in_torrent(check_tag, torrent_tags, exact=True):
             return tags_to_remove
 
 
-def redact_passkey(url: str) -> str:
+def redact_passkey(url: str | None) -> str | None:
     """Strip tracker passkey from a URL so it is safe to log.
 
     Private-tracker announce URLs embed the user's passkey in the path
