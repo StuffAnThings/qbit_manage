@@ -962,7 +962,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.0.3" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==7.1.0" },
     { name = "pytimeparse2", specifier = "==1.7.1" },
-    { name = "qbittorrent-api", specifier = "==2026.5.2" },
+    { name = "qbittorrent-api", specifier = "==2026.5.3" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "retrying", specifier = "==1.4.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
@@ -974,16 +974,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "qbittorrent-api"
-version = "2026.5.2"
+version = "2026.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d1/f5/fd476a6c274d06b7ea48926600084c2b9aa204b65bbb028d1d2d000388a4/qbittorrent_api-2026.5.2.tar.gz", hash = "sha256:80d871ecf0156253d4a2357b40348767c93ced807c682649cba04591311c6474", size = 1324180, upload-time = "2026-05-30T04:33:51.764Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/a5/e127046c04dc99fd2a39a71ef4bcbed583de17167f9946dda2af1ec6f747/qbittorrent_api-2026.5.3.tar.gz", hash = "sha256:2fd286be5dfab793dbc94c03182214ddf6d341f454d8c0c95c8a1ae1fd04615a", size = 1325934, upload-time = "2026-05-30T17:30:41.095Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/40/352ce72624421019ace7dc5faf629f16a234fef70e6ef1bcc48e033dcdb4/qbittorrent_api-2026.5.2-py3-none-any.whl", hash = "sha256:c08d58113d60774b654c9b213c686df32041b0f2ab134a1d6029c0c71229e13b", size = 67319, upload-time = "2026-05-30T04:33:50.255Z" },
+    { url = "https://files.pythonhosted.org/packages/35/fc/4ef74d565239ba8c3083f48da8d3bb8236db43f87fe020d98e6528aede07/qbittorrent_api-2026.5.3-py3-none-any.whl", hash = "sha256:757b49c88b85784129a2a7313e5353092f45cd9f0e993e68565d0faa0a243321", size = 68181, upload-time = "2026-05-30T17:30:39.447Z" },
 ]
 
 [[package]]
