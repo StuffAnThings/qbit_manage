@@ -28,7 +28,7 @@ version = "2"
 
 [dependencies.tokio]
 features = ["macros", "rt-multi-thread", "time", "process"]
-version = "1.37"
+version = "1.50"
 
 [features]
 default = []
