@@ -658,8 +658,8 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
     .env("QBT_DESKTOP_APP", "true")  // Indicate running in desktop app to prevent browser opening
     .args(&cfg.args)  // Pass command-line arguments to the binary
     .stdin(Stdio::null())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
+    .stdout(Stdio::null())
+    .stderr(Stdio::null());
 
   // On Windows, make sure process does not open a console window
   #[cfg(target_os = "windows")]
