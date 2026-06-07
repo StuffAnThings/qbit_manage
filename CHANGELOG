@@ -1,20 +1,9 @@
 # Requirements Updated
-- "fastapi==0.136.3"
-- "uvicorn==0.48.0"
-- "pytest-cov==7.1.0"
-- "ruff==0.15.15"
-- "qbittorrent-api==2026.5.2"
-
-# New Features
-- Adds configurable `share_limit_action` for controlling the outcome of share limits. (See [Share Limit Action](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup#share-limit-action))
-
-# Improvements
-- Modernize CI Workflows
-- Improved logging for redacting tracker passkeys
-- Adds unit-testing for core functionality
+- "qbittorrent-api==2026.6.0"
+- "uvicorn==0.49.0"
+- "ruff==0.15.16"
 
 # Bug Fixes
-- Fixed Remove Orphaned count not being logged (Fixes #1196)
-- Fixes Remove Unregistered from not identifying unregistered torrents correctly in 5.2.0+ (Fixes #1201)
+- Fixes bug in Windows desktop builds that cause sheduler to hang
 
-**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.7.1...v4.8.0
+**Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.8.0...v4.8.1
