@@ -4,6 +4,6 @@
 - "ruff==0.15.16"
 
 # Bug Fixes
-- Fixes bug in Windows desktop builds that cause sheduler to hang
+- Fixes bug in Windows desktop builds that causes scheduler to hang
 
 **Full Changelog**: https://github.com/StuffAnThings/qbit_manage/compare/v4.8.0...v4.8.1
