@@ -962,7 +962,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.0.3" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==7.1.0" },
     { name = "pytimeparse2", specifier = "==1.7.1" },
-    { name = "qbittorrent-api", specifier = "==2026.5.2" },
+    { name = "qbittorrent-api", specifier = "==2026.6.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "retrying", specifier = "==1.4.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
@@ -974,16 +974,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "qbittorrent-api"
-version = "2026.5.2"
+version = "2026.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d1/f5/fd476a6c274d06b7ea48926600084c2b9aa204b65bbb028d1d2d000388a4/qbittorrent_api-2026.5.2.tar.gz", hash = "sha256:80d871ecf0156253d4a2357b40348767c93ced807c682649cba04591311c6474", size = 1324180, upload-time = "2026-05-30T04:33:51.764Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/cb/50d2483e5fe988b5cded54f76078ed448f021ea9f8c5ee457c1d502c644d/qbittorrent_api-2026.6.0.tar.gz", hash = "sha256:f2e25bf070960b906035917a10759042b0c288ac6adf191baf4f4848890b8213", size = 1428450, upload-time = "2026-06-06T01:15:27.12Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/40/352ce72624421019ace7dc5faf629f16a234fef70e6ef1bcc48e033dcdb4/qbittorrent_api-2026.5.2-py3-none-any.whl", hash = "sha256:c08d58113d60774b654c9b213c686df32041b0f2ab134a1d6029c0c71229e13b", size = 67319, upload-time = "2026-05-30T04:33:50.255Z" },
+    { url = "https://files.pythonhosted.org/packages/02/3c/f94bab91cf6a4e48468c6521ca5d325b321a0e1b8df020661c009626973a/qbittorrent_api-2026.6.0-py3-none-any.whl", hash = "sha256:95b6b3dd34cfdbfbde0f745dc5f8af35491bc184af009efe139437239cdf9a30", size = 68113, upload-time = "2026-06-06T01:15:25.657Z" },
 ]
 
 [[package]]
