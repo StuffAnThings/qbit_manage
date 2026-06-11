@@ -45,8 +45,7 @@ class Notifiarr:
         params = {"qbit_client": self.config.data["qbt"]["host"], "instance": self.instance}
         try:
             response = self.config.get(f"{self.url}notification/qbitManage/", json=json, headers=self.header, params=params)
-            response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            raise Failed(f"Notifiarr error: Unable to send notification ({e})")
+            raise Failed(f"Notifiarr Error: Unable to send notification ({e})")
         time.sleep(1)  # Pause for 1 second before sending the next request
         return response
