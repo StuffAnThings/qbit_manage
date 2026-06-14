@@ -538,15 +538,19 @@ class ShareLimits:
         tags_set = set(tags)
         if include_all_tags:
             if not set(include_all_tags).issubset(tags_set):
+                logger.trace(f"Tag check failed: missing required include_all_tags {set(include_all_tags) - tags_set}.")
                 return False
         if include_any_tags:
             if not set(include_any_tags).intersection(tags_set):
+                logger.trace(f"Tag check failed: none of include_any_tags {set(include_any_tags)} present.")
                 return False
         if exclude_all_tags:
             if set(exclude_all_tags).issubset(tags_set):
+                logger.trace(f"Tag check failed: all exclude_all_tags {set(exclude_all_tags)} present.")
                 return False
         if exclude_any_tags:
             if set(exclude_any_tags).intersection(tags_set):
+                logger.trace(f"Tag check failed: matched excluded tag(s) {set(exclude_any_tags).intersection(tags_set)}.")
                 return False
         return True
 
@@ -554,6 +558,7 @@ class ShareLimits:
         """Check if the torrent has the required category"""
         if categories:
             if category not in categories:
+                logger.trace(f"Category check failed: '{category}' not in allowed categories {categories}.")
                 return False
         return True
 
@@ -565,7 +570,7 @@ class ShareLimits:
 
         size = self._get_torrent_size_bytes(torrent)
         if size is None:
-            logger.trace(f"Unable to determine size for torrent: {torrent.name}. Excluding from size-filtered groups.")
+            # _get_torrent_size_bytes already logs why the size could not be determined.
             return False
 
         if min_size is not None and size < int(min_size):
@@ -587,8 +592,8 @@ class ShareLimits:
                 val = getattr(torrent, attr, None)
                 if val is not None:
                     return int(val)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.trace(f"Could not read '{attr}' size attribute for torrent '{torrent.name}': {e}")
 
         # Fallback: sum file sizes if available
         try:
@@ -602,9 +607,13 @@ class ShareLimits:
                     continue
             if total > 0:
                 return total
-        except Exception:
-            pass
+        except Exception as e:
+            logger.trace(f"Could not sum file sizes for torrent '{torrent.name}': {e}")
 
+        logger.debug(
+            f"Unable to determine size for torrent '{torrent.name}'; it will be excluded from any "
+            "size-filtered share-limit groups (min_torrent_size / max_torrent_size)."
+        )
         return None
 
     def set_limits(
