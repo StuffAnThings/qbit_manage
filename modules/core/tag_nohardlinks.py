@@ -98,7 +98,7 @@ class TagNoHardLinks:
         )
         if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in exclude_tags):
             # Skip to the next torrent if we find any torrents that are in the exclude tag
-            return
+            return has_nohardlinks
         else:
             # Checks for any hardlinks and not already tagged
             # Cleans up previously tagged nohardlinks_tag torrents that no longer have hardlinks
@@ -111,6 +111,7 @@ class TagNoHardLinks:
                         category=category,
                     )
         self.check_previous_nohardlinks_tagged_torrents(has_nohardlinks, torrent, tracker, category)
+        return has_nohardlinks
 
     def tag_nohardlinks(self):
         """Tag torrents with no hardlinks"""
@@ -121,14 +122,23 @@ class TagNoHardLinks:
 
         if self.hashes:
             torrent_list = self.qbt.get_torrents({"torrent_hashes": self.hashes, "status_filter": self.status_filter})
+            logger.debug(f"Checking {len(torrent_list)} torrent(s) from supplied hashes for hardlinks.")
+            checked = 0
+            no_hardlinks = 0
             for torrent in torrent_list:
-                self._process_torrent_for_nohardlinks(
+                checked += 1
+                if self._process_torrent_for_nohardlinks(
                     torrent,
                     check_hardlinks,
                     nohardlinks.get(torrent.category, {}).get("ignore_root_dir", True),
                     nohardlinks.get(torrent.category, {}).get("exclude_tags", []),
                     torrent.category,
-                )
+                ):
+                    no_hardlinks += 1
+            logger.print_line(
+                f"Checked {checked} torrent{'s' if checked != 1 else ''}, {no_hardlinks} with no hardlinks.",
+                self.config.loglevel,
+            )
         else:
             for category in nohardlinks:
                 torrent_list = self.qbt.get_torrents({"category": category, "status_filter": self.status_filter})
@@ -141,14 +151,25 @@ class TagNoHardLinks:
                     )
                     logger.warning(ex)
                     continue
+                logger.debug(f"Checking {len(torrent_list)} torrent(s) in category '{category}' for hardlinks.")
+                category_checked = 0
+                category_no_hardlinks = 0
                 for torrent in torrent_list:
-                    self._process_torrent_for_nohardlinks(
+                    category_checked += 1
+                    if self._process_torrent_for_nohardlinks(
                         torrent,
                         check_hardlinks,
                         nohardlinks.get(category, {}).get("ignore_root_dir", True),
                         nohardlinks.get(category, {}).get("exclude_tags", []),
                         category,
-                    )
+                    ):
+                        category_no_hardlinks += 1
+                logger.print_line(
+                    f"Category '{category}': checked {category_checked} "
+                    f"torrent{'s' if category_checked != 1 else ''}, "
+                    f"{category_no_hardlinks} with no hardlinks.",
+                    self.config.loglevel,
+                )
         if self.stats_tagged >= 1:
             logger.print_line(
                 f"{'Did not Tag' if self.config.dry_run else 'Added Tag'} for {self.stats_tagged} "
