@@ -23,6 +23,11 @@ parser.add_argument("--host", help="qbittorrent host including port", required=T
 parser.add_argument("-u", "--user", help="qbittorrent user", default="admin")
 parser.add_argument("-p", "--password", help="qbittorrent password", default="adminadmin")
 parser.add_argument(
+    "--ca-bundle",
+    help="Path to a CA bundle used to verify the qBittorrent WebUI HTTPS certificate",
+    default=None,
+)
+parser.add_argument(
     "--cache-mount",
     "--cache_mount",
     help="Cache mount point in Unraid. This is used to additionally filter for only torrents that exists on the cache mount."
@@ -189,6 +194,10 @@ if __name__ == "__main__":
     current = datetime.now()
     args = parser.parse_args()
 
+    if args.ca_bundle and not os.path.isfile(args.ca_bundle):
+        logging.error(f"CA bundle not found: {args.ca_bundle}")
+        sys.exit(1)
+
     # If no specific operation is requested, default to all operations (original behavior)
     if not any([args.pause, args.resume, args.move]):
         args.pause = True
@@ -204,7 +213,16 @@ if __name__ == "__main__":
 
     if args.pause or args.resume:
         try:
-            client = Client(host=args.host, username=args.user, password=args.password)
+            client_kwargs = {
+                "host": args.host,
+                "username": args.user,
+                "password": args.password,
+            }
+
+            if args.ca_bundle:
+                client_kwargs["REQUESTS_ARGS"] = {"verify": args.ca_bundle}
+
+            client = Client(**client_kwargs)
         except LoginFailed:
             raise ("Qbittorrent Error: Failed to login. Invalid username/password.")
         except APIConnectionError:
