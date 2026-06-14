@@ -100,6 +100,7 @@ class TagNoHardLinks:
         )
         if any(util.is_tag_in_torrent(tag, torrent.tags) for tag in exclude_tags):
             # Skip to the next torrent if we find any torrents that are in the exclude tag
+            logger.debug(f"Torrent '{torrent.name}' has an excluded tag ({exclude_tags}); skipping nohardlinks tagging.")
             return has_nohardlinks
         else:
             # Checks for any hardlinks and not already tagged
