@@ -38,7 +38,8 @@ class TagNoHardLinks:
         """Add tag nohardlinks_tag to torrents with no hardlinks"""
         body = []
         body.append(logger.insert_space(f"Torrent Name: {torrent.name}", 3))
-        body.append(logger.insert_space(f"Added Tag: {self.nohardlinks_tag}", 6))
+        tag_action = "Not Adding Tag (Dry-Run)" if self.config.dry_run else "Added Tag"
+        body.append(logger.insert_space(f"{tag_action}: {self.nohardlinks_tag}", 6))
         title = "Tagging Torrents with No Hardlinks"
         body.append(logger.insert_space(f"Tracker: {tracker['url']}", 8))
         if not self.config.dry_run:
@@ -71,7 +72,8 @@ class TagNoHardLinks:
                 f"Previous Tagged {self.nohardlinks_tag} Torrent Name: {torrent.name} has hardlinks found now.",
                 self.config.loglevel,
             )
-            body += logger.print_line(logger.insert_space(f"Removed Tag: {self.nohardlinks_tag}", 6), self.config.loglevel)
+            tag_action = "Not Removing Tag (Dry-Run)" if self.config.dry_run else "Removed Tag"
+            body += logger.print_line(logger.insert_space(f"{tag_action}: {self.nohardlinks_tag}", 6), self.config.loglevel)
             body += logger.print_line(logger.insert_space(f"Tracker: {tracker['url']}", 8), self.config.loglevel)
             if not self.config.dry_run:
                 torrent.remove_tags(tags=self.nohardlinks_tag)
