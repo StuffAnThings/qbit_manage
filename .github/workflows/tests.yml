@@ -32,7 +32,12 @@ on:
 
 concurrency:
   # Cancel in-flight runs when a new push lands on the same PR / branch.
-  group: tests-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  # Use github.ref directly: for PR events it's `refs/pull/<num>/merge`
+  # (unique per PR even across forks with the same head branch name);
+  # for push events it's `refs/heads/<branch>` (unique per branch).
+  # `head_ref` would be just the branch name — two PRs both named e.g.
+  # `patch-1` would cancel each other.
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
