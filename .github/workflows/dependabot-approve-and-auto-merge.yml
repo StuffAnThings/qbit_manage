@@ -16,9 +16,9 @@ jobs:
   dependabot:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Checking the actor will prevent your Action run failing on non-Dependabot
-    # PRs but also ensures that it only does work for Dependabot PRs.
-    if: ${{ github.actor == 'dependabot[bot]' }}
+    # Upstream-only: forks shouldn't auto-approve/merge on the upstream's
+    # behalf. Actor check keeps non-dependabot PRs from running the job.
+    if: ${{ github.repository == 'StuffAnThings/qbit_manage' && github.actor == 'dependabot[bot]' }}
     steps:
       # This first step will fail if there's no metadata and so the approval
       # will not occur.

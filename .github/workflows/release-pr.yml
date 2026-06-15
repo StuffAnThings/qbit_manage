@@ -42,6 +42,8 @@ jobs:
     name: Prepare release branch
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Upstream-only: writes release/* branches against the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     outputs:
       new_version: ${{ steps.compute.outputs.new_version }}
       current_version: ${{ steps.compute.outputs.current_version }}

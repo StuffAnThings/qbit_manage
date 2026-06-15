@@ -21,8 +21,10 @@ permissions:
 
 jobs:
   bump:
-    # Skip when a commit explicitly opts out of another version bump.
+    # Skip when a commit explicitly opts out of another version bump, and
+    # skip entirely on forks (BOT_TOKEN won't be configured there).
     if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
       github.actor != 'github-actions[bot]' &&
       !contains(github.event.head_commit.message, '[skip-version-bump]')
     runs-on: ubuntu-latest
