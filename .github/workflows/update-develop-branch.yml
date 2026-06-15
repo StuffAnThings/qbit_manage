@@ -16,6 +16,8 @@ jobs:
   update-develop:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Upstream-only: force-pushes develop on the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out Repo

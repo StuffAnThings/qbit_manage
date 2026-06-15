@@ -6,11 +6,34 @@ on:
       - master
       - main
       - develop
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/FUNDING.yml'
+      - '.github/pull_request_template.md'
+      - 'icons/**'
+      - 'CHANGELOG'
+      - 'LICENSE'
   pull_request:
     branches:
       - master
       - main
       - develop
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/FUNDING.yml'
+      - '.github/pull_request_template.md'
+      - 'icons/**'
+      - 'CHANGELOG'
+      - 'LICENSE'
+
+concurrency:
+  # Cancel in-flight runs when a new push lands on the same PR / branch.
+  group: tests-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

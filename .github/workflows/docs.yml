@@ -23,7 +23,7 @@ env:
 jobs:
   job-sync-docs-to-wiki:
     runs-on: ubuntu-latest
-    if: github.event_name != 'gollum'
+    if: github.event_name != 'gollum' && github.repository == 'StuffAnThings/qbit_manage'
     timeout-minutes: 10
     permissions:
       contents: read
@@ -42,7 +42,7 @@ jobs:
 
   job-sync-wiki-to-docs:
     runs-on: ubuntu-latest
-    if: github.event_name == 'gollum'
+    if: github.event_name == 'gollum' && github.repository == 'StuffAnThings/qbit_manage'
     timeout-minutes: 10
     permissions:
       contents: write

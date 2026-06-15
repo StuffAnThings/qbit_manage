@@ -12,6 +12,8 @@ concurrency:
 jobs:
   build-binaries:
     name: Build Standalone Binaries (${{ matrix.os }})
+    # Upstream-only: forks shouldn't run the full release matrix on every tag.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     permissions:
       contents: read
     runs-on: ${{ matrix.os }}
@@ -405,6 +407,8 @@ jobs:
 
   docker-release:
     runs-on: ubuntu-latest
+    # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: set lower case owner name
