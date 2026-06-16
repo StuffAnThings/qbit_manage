@@ -7,14 +7,14 @@ on:
       # Skip the full 5-OS PyInstaller + Tauri matrix on doc-only / template-only
       # commits. Use workflow_dispatch to force a manual rebuild if a docs change
       # needs to land in the bundled artifact.
-      - 'docs/**'
-      - '**/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/FUNDING.yml'
-      - '.github/pull_request_template.md'
-      - '.github/labeler.yml'
-      - 'CHANGELOG'
-      - 'LICENSE'
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - ".github/labeler.yml"
+      - "CHANGELOG"
+      - "LICENSE"
   workflow_dispatch:
 
 concurrency:
@@ -34,19 +34,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: ubuntu-24.04-arm # for Arm based Linux (Raspberry Pi, etc.)
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: windows-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: "macos-latest" # for Arm based macs (M1 and above).
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: "macos-15-intel" # for Intel based macs.
-            python-version: "3.12"
+            python-version: "3.14"
             arch: x86_64
     env:
       APP_NAME: qbit-manage

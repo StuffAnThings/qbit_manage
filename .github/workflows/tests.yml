@@ -7,28 +7,28 @@ on:
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/FUNDING.yml'
-      - '.github/pull_request_template.md'
-      - 'icons/**'
-      - 'CHANGELOG'
-      - 'LICENSE'
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - "icons/**"
+      - "CHANGELOG"
+      - "LICENSE"
   pull_request:
     branches:
       - master
       - main
       - develop
     paths-ignore:
-      - 'docs/**'
-      - '**/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/FUNDING.yml'
-      - '.github/pull_request_template.md'
-      - 'icons/**'
-      - 'CHANGELOG'
-      - 'LICENSE'
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - "icons/**"
+      - "CHANGELOG"
+      - "LICENSE"
 
 concurrency:
   # Cancel in-flight runs when a new push lands on the same PR / branch.
@@ -49,7 +49,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Checkout

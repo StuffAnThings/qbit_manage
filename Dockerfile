@@ -1,5 +1,5 @@
 # Use a multi-stage build to minimize final image size
-FROM python:3.13-alpine AS builder
+FROM python:3.14-alpine AS builder
 
 ARG BRANCH_NAME=master
 ENV BRANCH_NAME=${BRANCH_NAME}
@@ -27,7 +27,7 @@ WORKDIR /app
 RUN /root/.local/bin/uv pip install --system .
 
 # Final stage: minimal runtime image
-FROM python:3.13-alpine
+FROM python:3.14-alpine
 
 # Build arguments
 ARG APP_VERSION
@@ -46,7 +46,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.url="https://github.com/StuffAnThings/qbit_manage"
 LABEL org.opencontainers.image.documentation="https://github.com/StuffAnThings/qbit_manage/wiki"
 LABEL org.opencontainers.image.source="https://github.com/StuffAnThings/qbit_manage"
-LABEL org.opencontainers.image.base.name="python:3.13-alpine"
+LABEL org.opencontainers.image.base.name="python:3.14-alpine"
 
 ENV TINI_VERSION=v0.19.0
 
@@ -62,7 +62,7 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Copy installed packages and scripts from builder
-COPY --from=builder /usr/local/lib/python3.13/site-packages/ /usr/local/lib/python3.13/site-packages/
+COPY --from=builder /usr/local/lib/python3.14/site-packages/ /usr/local/lib/python3.14/site-packages/
 COPY --from=builder /app /app
 COPY . /app
 COPY entrypoint.sh /app/entrypoint.sh

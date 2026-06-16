@@ -22,19 +22,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: ubuntu-24.04-arm # for Arm based Linux (Raspberry Pi, etc.)
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: windows-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: "macos-latest" # for Arm based macs (M1 and above).
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: "macos-15-intel" # for Intel based macs.
-            python-version: "3.12"
+            python-version: "3.14"
             arch: x86_64
     env:
       APP_NAME: qbit-manage
