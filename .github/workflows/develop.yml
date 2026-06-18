@@ -3,6 +3,18 @@ name: Docker Develop Release
 on:
   push:
     branches: [develop]
+    paths-ignore:
+      # Skip the full 5-OS PyInstaller + Tauri matrix on doc-only / template-only
+      # commits. Use workflow_dispatch to force a manual rebuild if a docs change
+      # needs to land in the bundled artifact.
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - ".github/labeler.yml"
+      - "CHANGELOG"
+      - "LICENSE"
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +24,8 @@ concurrency:
 jobs:
   build-binaries:
     name: Build Standalone Binaries (${{ matrix.os }})
+    # Upstream-only: forks shouldn't burn ~5 OS-runners on every develop push.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     permissions:
       contents: read
     runs-on: ${{ matrix.os }}
@@ -20,19 +34,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: ubuntu-24.04-arm # for Arm based Linux (Raspberry Pi, etc.)
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: windows-latest
-            python-version: "3.12"
+            python-version: "3.14"
             arch: amd64
           - os: "macos-latest" # for Arm based macs (M1 and above).
-            python-version: "3.12"
+            python-version: "3.14"
             arch: arm64
           - os: "macos-15-intel" # for Intel based macs.
-            python-version: "3.12"
+            python-version: "3.14"
             arch: x86_64
     env:
       APP_NAME: qbit-manage
@@ -377,6 +391,8 @@ jobs:
 
   docker-develop:
     runs-on: ubuntu-latest
+    # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: set lower case owner name

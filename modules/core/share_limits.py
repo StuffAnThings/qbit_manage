@@ -330,38 +330,29 @@ class ShareLimits:
         hash_not_prev_checked,
         share_limits_not_yet_tagged,
     ):
-        """Log detailed trace information for a torrent"""
-        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}]")
-        logger.trace(f"Torrent Category: {torrent.category}")
-        logger.trace(f"Torrent Tags: {torrent.tags}")
-        logger.trace(f"Grouping: {group_name}")
-        logger.trace(f"Config Max Ratio vs Torrent Max Ratio:{group_config['max_ratio']} vs {torrent.ratio_limit}")
-        logger.trace(f"check_max_ratio: {check_max_ratio}")
+        """Log detailed trace information for a torrent as a single grouped record (was ~18 separate
+        trace lines per torrent, which made share-limit decisions hard to follow)."""
+        max_seed = group_config["max_seeding_time"]
+        min_seed = group_config["min_seeding_time"]
         logger.trace(
-            "Config Max Seeding Time vs Torrent Max Seeding Time (minutes): "
-            f"{group_config['max_seeding_time']} vs {torrent.seeding_time_limit}"
+            f"Evaluating share limits for torrent '{t_name}' [Hash: {t_hash}]\n"
+            f"    Category: {torrent.category} | Tags: {torrent.tags} | Grouping: {group_name}\n"
+            f"    Max Ratio (config vs torrent): {group_config['max_ratio']} vs {torrent.ratio_limit} "
+            f"-> check_max_ratio={check_max_ratio}\n"
+            f"    Max Seeding Time (config vs torrent limit, minutes): {max_seed} vs {torrent.seeding_time_limit}\n"
+            f"    Max Seeding Time (config vs current, minutes): {max_seed} vs {torrent.seeding_time / 60} "
+            f"[{timedelta(minutes=max_seed)} vs {timedelta(seconds=torrent.seeding_time)}]\n"
+            f"    Min Seeding Time (config vs current, minutes): {min_seed} vs {torrent.seeding_time / 60} "
+            f"[{timedelta(minutes=min_seed)} vs {timedelta(seconds=torrent.seeding_time)}] "
+            f"-> check_max_seeding_time={check_max_seeding_time}\n"
+            f"    Min Num Seeds (config vs torrent): {group_config['min_num_seeds']} vs {torrent.num_complete}\n"
+            f"    Limit Upload Speed (config vs torrent): {group_config['limit_upload_speed']} vs {torrent_upload_limit} "
+            f"-> check_limit_upload_speed={check_limit_upload_speed}\n"
+            f"    upload_speed_on_limit_reached={group_config['upload_speed_on_limit_reached']}\n"
+            f"    hash_not_prev_checked={hash_not_prev_checked} | "
+            f"share_limits_not_yet_tagged={share_limits_not_yet_tagged} | "
+            f"check_multiple_share_limits_tag={is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)}"
         )
-        logger.trace(
-            "Config Max Seeding Time vs Torrent Current Seeding Time (minutes): "
-            f"({group_config['max_seeding_time']} vs {torrent.seeding_time / 60}) "
-            f"{str(timedelta(minutes=group_config['max_seeding_time']))} vs {str(timedelta(seconds=torrent.seeding_time))}"
-        )
-        logger.trace(
-            "Config Min Seeding Time vs Torrent Current Seeding Time (minutes): "
-            f"({group_config['min_seeding_time']} vs {torrent.seeding_time / 60}) "
-            f"{str(timedelta(minutes=group_config['min_seeding_time']))} vs {str(timedelta(seconds=torrent.seeding_time))}"
-        )
-        logger.trace(f"Config Min Num Seeds vs Torrent Num Seeds: {group_config['min_num_seeds']} vs {torrent.num_complete}")
-        logger.trace(f"check_max_seeding_time: {check_max_seeding_time}")
-        logger.trace(
-            "Config Limit Upload Speed vs Torrent Limit Upload Speed: "
-            f"{group_config['limit_upload_speed']} vs {torrent_upload_limit}"
-        )
-        logger.trace(f"check_limit_upload_speed: {check_limit_upload_speed}")
-        logger.trace(f"upload_speed_on_limit_reached: {group_config['upload_speed_on_limit_reached']}")
-        logger.trace(f"hash_not_prev_checked: {hash_not_prev_checked}")
-        logger.trace(f"share_limits_not_yet_tagged: {share_limits_not_yet_tagged}")
-        logger.trace(f"check_multiple_share_limits_tag: {is_tag_in_torrent(self.share_limits_tag, torrent.tags, exact=False)}")
 
     def _should_update_torrent(
         self,
@@ -547,15 +538,19 @@ class ShareLimits:
         tags_set = set(tags)
         if include_all_tags:
             if not set(include_all_tags).issubset(tags_set):
+                logger.trace(f"Tag check failed: missing required include_all_tags {set(include_all_tags) - tags_set}.")
                 return False
         if include_any_tags:
             if not set(include_any_tags).intersection(tags_set):
+                logger.trace(f"Tag check failed: none of include_any_tags {set(include_any_tags)} present.")
                 return False
         if exclude_all_tags:
             if set(exclude_all_tags).issubset(tags_set):
+                logger.trace(f"Tag check failed: all exclude_all_tags {set(exclude_all_tags)} present.")
                 return False
         if exclude_any_tags:
             if set(exclude_any_tags).intersection(tags_set):
+                logger.trace(f"Tag check failed: matched excluded tag(s) {set(exclude_any_tags).intersection(tags_set)}.")
                 return False
         return True
 
@@ -563,6 +558,7 @@ class ShareLimits:
         """Check if the torrent has the required category"""
         if categories:
             if category not in categories:
+                logger.trace(f"Category check failed: '{category}' not in allowed categories {categories}.")
                 return False
         return True
 
@@ -574,7 +570,7 @@ class ShareLimits:
 
         size = self._get_torrent_size_bytes(torrent)
         if size is None:
-            logger.trace(f"Unable to determine size for torrent: {torrent.name}. Excluding from size-filtered groups.")
+            # _get_torrent_size_bytes already logs why the size could not be determined.
             return False
 
         if min_size is not None and size < int(min_size):
@@ -596,8 +592,8 @@ class ShareLimits:
                 val = getattr(torrent, attr, None)
                 if val is not None:
                     return int(val)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.trace(f"Could not read '{attr}' size attribute for torrent '{torrent.name}': {e}")
 
         # Fallback: sum file sizes if available
         try:
@@ -611,9 +607,13 @@ class ShareLimits:
                     continue
             if total > 0:
                 return total
-        except Exception:
-            pass
+        except Exception as e:
+            logger.trace(f"Could not sum file sizes for torrent '{torrent.name}': {e}")
 
+        logger.debug(
+            f"Unable to determine size for torrent '{torrent.name}'; it will be excluded from any "
+            "size-filtered share-limit groups (min_torrent_size / max_torrent_size)."
+        )
         return None
 
     def set_limits(

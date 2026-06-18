@@ -18,6 +18,7 @@ jobs:
   lock:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
       - uses: dessant/lock-threads@v6
         with:

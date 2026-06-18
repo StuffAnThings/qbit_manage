@@ -1125,6 +1125,9 @@ class CheckHardLinks:
                     self.inode_count[inode_no] += 1
                 else:
                     self.inode_count[inode_no] = 1
+        logger.debug(
+            f"Built inode count from {len(self.root_files)} file(s) in root_dir ({len(self.inode_count)} unique inode(s))."
+        )
 
     def nohardlink(self, file, notify, ignore_root_dir):
         """
@@ -1135,21 +1138,21 @@ class CheckHardLinks:
         This fixes the bug in #192
         """
 
-        def has_hardlinks(self, file, ignore_root_dir):
+        def has_hardlinks(file_stat, ignore_root_dir):
             """
             Check if a file has hard links.
 
             Args:
-                file (str): The path to the file.
-                ignore_root_dir (bool): Whether to ignore the root directory.
+                file_stat (os.stat_result): The cached stat result of the file.
+                ignore_root_dir (bool): Whether to ignore links that live inside root_dir.
 
             Returns:
                 bool: True if the file has hard links, False otherwise.
             """
             if ignore_root_dir:
-                return os.stat(file).st_nlink - self.inode_count.get(os.stat(file).st_ino, 1) > 0
+                return file_stat.st_nlink - self.inode_count.get(file_stat.st_ino, 1) > 0
             else:
-                return os.stat(file).st_nlink > 1
+                return file_stat.st_nlink > 1
 
         check_for_hl = True
         try:
@@ -1157,19 +1160,24 @@ class CheckHardLinks:
                 if os.path.islink(file):
                     logger.warning(f"Symlink found in {file}, unable to determine hardlinks. Skipping...")
                     return False
-                logger.trace(f"Checking file: {file}")
-                logger.trace(f"Checking file inum: {os.stat(file).st_ino}")
-                logger.trace(f"Checking no of hard links: {os.stat(file).st_nlink}")
-                logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(file).st_ino)}")
-                logger.trace(f"ignore_root_dir: {ignore_root_dir}")
+                file_stat = os.stat(file)
+                inode_count = self.inode_count.get(file_stat.st_ino, 1)
+                # Single compact trace line per file instead of one line per attribute (was too spammy).
+                logger.trace(
+                    f"Checking file '{file}' | inode: {file_stat.st_ino} | nlink: {file_stat.st_nlink} | "
+                    f"links inside root_dir: {inode_count} | ignore_root_dir: {ignore_root_dir}"
+                )
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
-                if has_hardlinks(self, file, ignore_root_dir):
-                    logger.trace(f"Hardlinks found in {file}.")
+                if has_hardlinks(file_stat, ignore_root_dir):
                     check_for_hl = False
+                    logger.debug(
+                        f"Hardlinks found for '{file}': nlink={file_stat.st_nlink}, links inside root_dir={inode_count}, "
+                        f"ignore_root_dir={ignore_root_dir}."
+                    )
+                else:
+                    logger.debug(f"No hardlinks found for '{file}' (nlink={file_stat.st_nlink}).")
             else:
                 sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
-                logger.trace(f"Folder: {file}")
-                logger.trace(f"Files Sorted by size: {sorted_files}")
                 threshold = 0.1
                 if not sorted_files:
                     msg = (
@@ -1180,23 +1188,41 @@ class CheckHardLinks:
                     logger.warning(msg)
                 else:
                     largest_file_size = os.stat(sorted_files[0]).st_size
-                    logger.trace(f"Largest file: {sorted_files[0]}")
-                    logger.trace(f"Largest file size: {largest_file_size}")
+                    size_threshold = largest_file_size * threshold
+                    logger.trace(
+                        f"Checking folder '{file}' | files: {len(sorted_files)} | "
+                        f"largest file: '{sorted_files[0]}' ({largest_file_size} bytes) | "
+                        f"only checking files >= {threshold:.0%} of largest ({size_threshold:.0f} bytes)"
+                    )
                     for files in sorted_files:
                         if os.path.islink(files):
                             logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
                             continue
-                        file_size = os.stat(files).st_size
-                        file_no_hardlinks = os.stat(files).st_nlink
-                        logger.trace(f"Checking file: {files}")
-                        logger.trace(f"Checking file inum: {os.stat(files).st_ino}")
-                        logger.trace(f"Checking file size: {file_size}")
-                        logger.trace(f"Checking no of hard links: {file_no_hardlinks}")
-                        logger.trace(f"Checking inode_count dict: {self.inode_count.get(os.stat(files).st_ino)}")
-                        logger.trace(f"ignore_root_dir: {ignore_root_dir}")
-                        if has_hardlinks(self, files, ignore_root_dir) and file_size >= (largest_file_size * threshold):
-                            logger.trace(f"Hardlinks found in {files}.")
+                        file_stat = os.stat(files)
+                        file_size = file_stat.st_size
+                        # sorted_files is sorted by size descending, so once we drop below the threshold no
+                        # remaining file can qualify -> stop checking (avoids checking/logging every small file).
+                        if file_size < size_threshold:
+                            logger.trace(
+                                f"Skipping remaining files in '{file}': '{files}' ({file_size} bytes) and smaller "
+                                f"are below the {threshold:.0%} size threshold."
+                            )
+                            break
+                        inode_count = self.inode_count.get(file_stat.st_ino, 1)
+                        logger.trace(
+                            f"Checking file '{files}' | size: {file_size} | inode: {file_stat.st_ino} | "
+                            f"nlink: {file_stat.st_nlink} | links inside root_dir: {inode_count} | "
+                            f"ignore_root_dir: {ignore_root_dir}"
+                        )
+                        if has_hardlinks(file_stat, ignore_root_dir):
                             check_for_hl = False
+                            logger.debug(
+                                f"Hardlinks found in folder '{file}' for file '{files}': nlink={file_stat.st_nlink}, "
+                                f"links inside root_dir={inode_count}, ignore_root_dir={ignore_root_dir}."
+                            )
+                            break
+                    if check_for_hl:
+                        logger.debug(f"No hardlinks found in folder '{file}'.")
         except PermissionError as perm:
             logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
             return False

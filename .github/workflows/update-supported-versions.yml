@@ -26,6 +26,8 @@ jobs:
   update-versions:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Upstream-only: opens PR to upstream's develop.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6

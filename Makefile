@@ -35,12 +35,15 @@ ifdef UV_INSTALL
 	@curl -LsSf https://astral.sh/uv/install.sh | sh
 	@echo "uv installed to $(HOME)/.local/bin/uv"
 	$(eval UV_PATH := $(HOME)/.local/bin/uv)
+else
+	@echo "Updating uv..."
+	@$(UV_PATH) self update
 endif
 
 .PHONY: venv
 venv: install-uv
 	@echo "Creating virtual environment..."
-	@$(UV_PATH) venv $(VENV)
+	@$(UV_PATH) venv $(VENV) --python 3.14
 	@echo "Installing project and development dependencies from pyproject.toml..."
 	@$(UV_PATH) pip install --python $(VENV_PYTHON) -e ".[dev]" --config-settings editable_mode=compat
 	@echo "Removing conflicting console script to avoid PATH conflicts..."

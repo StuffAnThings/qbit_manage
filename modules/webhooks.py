@@ -6,7 +6,6 @@ from json import JSONDecodeError
 from requests.exceptions import JSONDecodeError as requestsJSONDecodeError
 
 from modules import util
-from modules.util import Failed
 
 logger = util.logger
 
@@ -74,7 +73,7 @@ class Webhooks:
                 logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
                 break
             response = self.request_and_check(webhook, json)
-            if response:
+            if response is not None:
                 skip = False
                 try:
                     response_json = response.json()
@@ -85,18 +84,15 @@ class Webhooks:
                         and "details" in response_json
                         and "response" in response_json["details"]
                     ):
-                        if "trigger is not enabled" in response_json["details"]["response"]:
-                            logger.info(f"Notifiarr Warning: {response_json['details']['response']}")
-                            skip = True
-                        else:
-                            raise Failed(f"Notifiarr Error: {response_json['details']['response']}")
+                        logger.error(f"Notifiarr Error: Unable to send notification ({response_json['details']['response']})")
+                        skip = True
                     if (
                         response.status_code >= 400 or ("result" in response_json and response_json["result"] == "error")
                     ) and skip is False:
-                        raise Failed(f"({response.status_code} [{response.reason}]) {response_json}")
-                except (JSONDecodeError, requestsJSONDecodeError) as exc:
+                        logger.error(f"Notifiarr Error: Unable to send notification ({response.status_code} [{response.reason}])")
+                except (JSONDecodeError, requestsJSONDecodeError):
                     if response.status_code >= 400:
-                        raise Failed(f"({response.status_code} [{response.reason}])") from exc
+                        logger.error(f"Notifiarr Error: Unable to send notification ({response.status_code} [{response.reason}])")
 
     def start_time_hooks(self, start_time):
         """Send a webhook to notify that the run has started."""
