@@ -1,3 +1,4 @@
+# Resets develop to master and bumps the develop VERSION suffix after every push to master.
 name: Update Develop Branch
 
 on:
@@ -21,7 +22,7 @@ jobs:
 
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0

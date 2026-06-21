@@ -1,3 +1,4 @@
+# Publishes the package to PyPI (or Test PyPI) on version tag push or manual trigger.
 name: PyPI Publish
 
 on:
@@ -27,7 +28,7 @@ jobs:
       id-token: write # Required for trusted publishing to PyPI
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python
         uses: actions/setup-python@v6

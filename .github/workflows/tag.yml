@@ -1,3 +1,4 @@
+# Tags the new version on every push to master using the VERSION file.
 name: Tag New Version
 
 on:
@@ -19,7 +20,7 @@ jobs:
     if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 2

@@ -1,3 +1,4 @@
+# Builds binaries and Docker image for the develop branch on every push or manual trigger.
 name: Docker Develop Release
 
 on:
@@ -53,7 +54,7 @@ jobs:
       ENTRY: qbit_manage.py
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: develop
 
@@ -402,7 +403,7 @@ jobs:
           OWNER: "${{ github.repository_owner }}"
 
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: develop
 

@@ -1,3 +1,4 @@
+# Locks closed issues, PRs, and discussions after 365 days of inactivity; runs daily at 06:00 UTC.
 name: Lock Closed Threads
 
 on:
