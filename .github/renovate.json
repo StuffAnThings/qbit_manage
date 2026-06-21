@@ -43,7 +43,7 @@
             "groupSlug": "python-deps"
         },
         {
-            "description": "Group Python (uv/pep621) major dependencies — qbittorrent-api excluded (has its own rule)",
+            "description": "Group Python (uv/pep621) major dependencies \u2014 qbittorrent-api excluded (has its own rule)",
             "matchManagers": [
                 "pep621"
             ],
