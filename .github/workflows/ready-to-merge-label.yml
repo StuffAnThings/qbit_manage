@@ -1,0 +1,64 @@
+# Adds a "ready to merge" label to a PR once all its other checks are green; removes it if they aren't.
+name: Ready to Merge Label
+
+on:
+  check_suite:
+    types: [completed]
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  checks: read
+  statuses: read
+  pull-requests: write
+
+concurrency:
+  group: ready-to-merge-${{ github.event.pull_request.number || github.event.check_suite.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  ready-to-merge:
+    runs-on: ubuntu-latest
+    if: github.event.repository.fork == false
+    steps:
+      - uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          script: |
+            const LABEL = 'ready to merge';
+            const { owner, repo } = context.repo;
+
+            // PRs to evaluate + their head SHA
+            let prs = [];
+            if (context.eventName === 'check_suite') {
+              prs = (context.payload.check_suite.pull_requests || [])
+                .map(p => ({ number: p.number, sha: p.head.sha }));
+            } else if (context.payload.pull_request) {
+              prs = [{ number: context.payload.pull_request.number, sha: context.payload.pull_request.head.sha }];
+            }
+
+            for (const pr of prs) {
+              // All check-runs for the head SHA, excluding this workflow's own check.
+              const runs = await github.paginate(github.rest.checks.listForRef, {
+                owner, repo, ref: pr.sha, per_page: 100,
+              });
+              const others = runs.filter(c => !/ready to merge/i.test(c.name));
+              const checksDone = others.every(c => c.status === 'completed');
+              const checksOk = others.every(c => ['success', 'neutral', 'skipped'].includes(c.conclusion));
+
+              // Legacy commit statuses (e.g. external services).
+              const { data: combined } = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: pr.sha });
+              const statusOk = combined.statuses.length === 0 || combined.state === 'success';
+
+              const green = others.length > 0 && checksDone && checksOk && statusOk;
+
+              const labels = (await github.rest.issues.listLabelsOnIssue({ owner, repo, issue_number: pr.number })).data.map(l => l.name);
+              const has = labels.includes(LABEL);
+
+              if (green && !has) {
+                await github.rest.issues.addLabels({ owner, repo, issue_number: pr.number, labels: [LABEL] });
+                core.info(`#${pr.number}: all checks green -> added "${LABEL}"`);
+              } else if (!green && has) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: LABEL }).catch(() => {});
+                core.info(`#${pr.number}: checks not all green -> removed "${LABEL}"`);
+              }
+            }
