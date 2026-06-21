@@ -1,3 +1,4 @@
+# Builds binaries, Docker image, and creates the GitHub release on every version tag push.
 name: Version Release
 
 on:

@@ -1,3 +1,4 @@
+# Resets develop to master and bumps the develop VERSION suffix after every push to master.
 name: Update Develop Branch
 
 on:

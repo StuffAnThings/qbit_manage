@@ -1,3 +1,4 @@
+# Manually triggered: creates a release branch from develop, opens a PR to master, and drafts a GitHub release.
 name: Release PR
 
 # Creates a release branch (copy of develop), opens a PR to master, and

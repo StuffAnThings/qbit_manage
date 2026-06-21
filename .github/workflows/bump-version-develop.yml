@@ -1,4 +1,5 @@
-name: Bump develop VERSION
+# Bumps the -developN suffix in VERSION on every push to develop, avoiding per-PR rebase conflicts.
+name: Bump Develop VERSION
 
 # Auto-increments the `-developN` suffix in VERSION on every push to develop
 # (typically a PR merge). Replaces the per-PR-commit pre-commit hook so that
