@@ -1,13 +1,12 @@
-name: Renovate Pull Request Approve and Merge
+name: Renovate Pull Request Approve
 
-on: pull_request
+on: pull_request_target
 
 concurrency:
-  group: renovate-auto-merge-${{ github.event.pull_request.number }}
+  group: renovate-approve-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
-  contents: write
   pull-requests: write
 
 jobs:
