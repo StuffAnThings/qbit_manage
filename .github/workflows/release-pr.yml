@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Check Out develop
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: develop
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -140,7 +140,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -224,7 +224,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}

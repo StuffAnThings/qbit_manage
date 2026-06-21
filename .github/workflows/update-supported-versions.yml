@@ -30,7 +30,7 @@ jobs:
     if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.targetBranch || github.ref_name }}
 
