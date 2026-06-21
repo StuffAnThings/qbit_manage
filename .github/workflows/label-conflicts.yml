@@ -1,3 +1,4 @@
+# Adds a 'conflict' label to PRs that have merge conflicts, on push to master/develop or PR events.
 name: Label Conflicting PRs
 
 on:

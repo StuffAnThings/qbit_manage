@@ -1,3 +1,4 @@
+# Tags the new version on every push to master using the VERSION file.
 name: Tag New Version
 
 on:

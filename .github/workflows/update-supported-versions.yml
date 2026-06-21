@@ -1,3 +1,4 @@
+# Updates SUPPORTED_VERSIONS.json and opens a PR to develop when pyproject.toml changes.
 name: Update Supported Versions
 
 on:

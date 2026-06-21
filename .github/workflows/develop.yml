@@ -1,3 +1,4 @@
+# Builds binaries and Docker image for the develop branch on every push or manual trigger.
 name: Docker Develop Release
 
 on:
