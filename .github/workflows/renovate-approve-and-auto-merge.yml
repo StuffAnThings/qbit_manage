@@ -14,20 +14,19 @@ jobs:
   renovate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Only act on Renovate's own PRs.
-    if: ${{ github.actor == 'renovate[bot]' }}
+    # Only act on Renovate's own PRs in the upstream repo.
+    # Fork guard: prevents forks that install Renovate from triggering
+    # unintended auto-approvals or auto-merge.
+    if: ${{ github.repository == 'StuffAnThings/qbit_manage' && github.actor == 'renovate[bot]' }}
     steps:
       # Approve so the PR satisfies the required-review branch protection.
+      # Auto-merge eligibility is controlled by Renovate via platformAutomerge
+      # and the automerge/automerge:false packageRules in .github/renovate.json.
+      # This step only satisfies the human-review requirement; it does NOT
+      # force-enable GitHub auto-merge for every PR (which would bypass the
+      # automerge:false rules for major updates).
       - name: Approve the PR
         run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Enable auto-merge; GitHub completes the squash merge once all required
-      # checks pass. Renovate decides eligibility (digest/minor/patch, and
-      # qbittorrent-api) via .github/renovate.json automerge rules.
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
