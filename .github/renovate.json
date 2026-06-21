@@ -16,6 +16,7 @@
     "baseBranchPatterns": [
         "develop"
     ],
+    "platformAutomerge": true,
     "minimumReleaseAge": "3 days",
     "labels": [
         "dependencies"
@@ -42,19 +43,22 @@
             "groupSlug": "python-deps"
         },
         {
-            "description": "Group Python (uv/pep621) major dependencies",
+            "description": "Group Python (uv/pep621) major dependencies — qbittorrent-api excluded (has its own rule)",
             "matchManagers": [
                 "pep621"
             ],
             "matchUpdateTypes": [
                 "major"
             ],
+            "excludePackageNames": [
+                "qbittorrent-api"
+            ],
             "groupName": "Python major dependencies",
             "groupSlug": "python-major",
             "automerge": false
         },
         {
-            "description": "Always automerge qbittorrent-api (major bumps track qBittorrent releases)",
+            "description": "Always automerge qbittorrent-api (major bumps track qBittorrent releases); kept after python-major so it is never bundled into that group",
             "matchPackageNames": [
                 "qbittorrent-api"
             ],
@@ -64,7 +68,10 @@
                 "patch",
                 "digest"
             ],
-            "automerge": true
+            "groupName": "qbittorrent-api",
+            "groupSlug": "qbittorrent-api",
+            "automerge": true,
+            "platformAutomerge": true
         },
         {
             "description": "Group GitHub Actions non-major dependencies",
