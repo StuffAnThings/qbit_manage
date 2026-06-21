@@ -25,11 +25,11 @@ This is a program used to manage your qBittorrent instance such as:
 * Built-in scheduler to run the script every x minutes. (Can use `--run` command to run without the scheduler)
 * Webhook notifications with [Notifiarr](https://notifiarr.com/) and [Apprise API](https://github.com/caronc/apprise-api) integration
 
-## Supported Qbittorrent Versions
+## Supported qBittorrent Versions
 
-We rely on [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) to interact with Qbittorrent.
+We rely on [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) to interact with qBittorrent.
 
-Generally expect new releases of Qbittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support for the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
+Generally expect new releases of qBittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support for the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
 
 ### Master
 
@@ -47,7 +47,7 @@ Generally expect new releases of Qbittorrent to not immediately be supported. Su
 
 Check out the [wiki](https://github.com/StuffAnThings/qbit_manage/wiki) for installation help
 
-1. Install qbit_manage either by installing Python 3.9.0+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.
+1. Install qbit_manage either by installing Python 3.10+ on the localhost and following the [Local Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Local-Installations) Guide or by installing Docker and following the [Docker Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Docker-Installation) Guide or the [unRAID Installation](https://github.com/StuffAnThings/qbit_manage/wiki/Unraid-Installation) Guide.
 1. Once installed, you have to [set up your Configuration](https://github.com/StuffAnThings/qbit_manage/wiki/Config-Setup) by create a [Configuration File](https://github.com/StuffAnThings/qbit_manage/blob/master/config/config.yml.sample) filled with all your values to connect to your qBittorrent instance.
 1. Please refer to the list of [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) that can be used with this tool.
 
