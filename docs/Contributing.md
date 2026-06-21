@@ -46,7 +46,7 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
-> uv is also kept current via Dependabot (uv ecosystem), so lock-file updates happen automatically.
+> uv is also kept current via Renovate (the `pep621`/uv manager), so lock-file updates happen automatically.
 
 ---
 
