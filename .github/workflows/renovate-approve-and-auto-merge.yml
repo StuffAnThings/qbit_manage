@@ -1,0 +1,33 @@
+name: Renovate Pull Request Approve and Merge
+
+on: pull_request
+
+concurrency:
+  group: renovate-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only act on Renovate's own PRs.
+    if: ${{ github.actor == 'renovate[bot]' }}
+    steps:
+      # Approve so the PR satisfies the required-review branch protection.
+      - name: Approve the PR
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Enable auto-merge; GitHub completes the squash merge once all required
+      # checks pass. Renovate decides eligibility (digest/minor/patch, and
+      # qbittorrent-api) via .github/renovate.json automerge rules.
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
