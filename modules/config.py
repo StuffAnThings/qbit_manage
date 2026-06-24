@@ -85,6 +85,49 @@ def validate_share_limit_action(raw, cleanup, group):
     return resolved
 
 
+def normalize_cat_change(raw):
+    """Validate and normalize cat_change config into the canonical mapping
+    ``{old_cat: {"new_cat": str, "delay_minutes": int}}``.
+
+    Accepts the simple form (``old_cat: new_cat``) and the extended form
+    (``old_cat: {new_cat: str, delay_minutes: int}``); raises Failed on invalid
+    input. Pure function — shared by Config._process_cat_change and the test
+    FakeConfig factory so test assertions track production validation rather
+    than a stale local mirror.
+    """
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise Failed(f"Config Error: cat_change must be a mapping (dict), got {type(raw).__name__}")
+    result = {}
+    for old_cat, value in raw.items():
+        if isinstance(value, str):
+            result[old_cat] = {"new_cat": value, "delay_minutes": 0}
+        elif isinstance(value, dict):
+            new_cat = value.get("new_cat")
+            if not new_cat:
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' is missing required 'new_cat' key")
+            if not isinstance(new_cat, str):
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' new_cat must be a string, got {type(new_cat).__name__}")
+            delay = value.get("delay_minutes", 0)
+            if isinstance(delay, bool) or not isinstance(delay, (int, float)) or delay < 0:
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}")
+            # Reject floats with a non-zero fractional part: int(0.9)=0 would silently
+            # disable the delay; int(30.9)=30 fires ~54s early. PR #1161 advertises
+            # integer minutes — be strict (Copilot review).
+            if isinstance(delay, float) and not delay.is_integer():
+                raise Failed(
+                    f"Config Error: cat_change entry '{old_cat}' has fractional "
+                    f"delay_minutes={delay}; must be a whole number of minutes."
+                )
+            result[old_cat] = {"new_cat": new_cat, "delay_minutes": int(delay)}
+        else:
+            raise Failed(
+                f"Config Error: cat_change entry '{old_cat}' has invalid type {type(value).__name__}; must be string or dict"
+            )
+    return result
+
+
 class Config:
     """Config class for qBittorrent-Manage"""
 
@@ -121,10 +164,14 @@ class Config:
         self.data = self.process_config_data()
         self.process_config_settings()
         self.process_config_webhooks()
-        self.cat_change = self._process_cat_change()
         self.process_config_apprise()
         self.process_config_notifiarr()
         self.process_config_all_webhooks()
+        # Must run AFTER process_config_all_webhooks() wraps webhooks_factory into a
+        # Webhooks object: _process_cat_change() calls self.notify() on config errors,
+        # which would raise AttributeError on the still-dict webhooks_factory and mask
+        # the real config error (Copilot review).
+        self.cat_change = self._process_cat_change()
         self.validate_required_sections()
         self.process_config_nohardlinks()
         self.process_config_share_limits()
@@ -328,47 +375,11 @@ class Config:
 
         Returns dict mapping old_cat -> {"new_cat": str, "delay_minutes": int}
         """
-        raw = self.data.get("cat_change")
-        if raw is None:
-            return {}
-        if not isinstance(raw, dict):
-            err = f"Config Error: cat_change must be a mapping (dict), got {type(raw).__name__}"
-            self.notify(err, "Config")
-            raise Failed(err)
-        if not raw:
-            return {}
-        result = {}
-        for old_cat, value in raw.items():
-            if isinstance(value, str):
-                result[old_cat] = {"new_cat": value, "delay_minutes": 0}
-            elif isinstance(value, dict):
-                new_cat = value.get("new_cat")
-                if not new_cat:
-                    err = f"Config Error: cat_change entry '{old_cat}' is missing required 'new_cat' key"
-                    self.notify(err, "Config")
-                    raise Failed(err)
-                delay = value.get("delay_minutes", 0)
-                if isinstance(delay, bool) or not isinstance(delay, (int, float)) or delay < 0:
-                    err = f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}"
-                    self.notify(err, "Config")
-                    raise Failed(err)
-                # Reject floats with non-zero fractional part: int(0.9)=0 would
-                # silently disable the delay; int(30.9)=30 fires ~54s early. PR
-                # #1161 advertises integer minutes — be strict (Copilot review).
-                if isinstance(delay, float) and not delay.is_integer():
-                    err = (
-                        f"Config Error: cat_change entry '{old_cat}' has fractional "
-                        f"delay_minutes={delay}; must be a whole number of minutes."
-                    )
-                    self.notify(err, "Config")
-                    raise Failed(err)
-                result[old_cat] = {"new_cat": str(new_cat), "delay_minutes": int(delay)}
-            else:
-                val_type = type(value).__name__
-                err = f"Config Error: cat_change entry '{old_cat}' has invalid type {val_type}; must be string or dict"
-                self.notify(err, "Config")
-                raise Failed(err)
-        return result
+        try:
+            return normalize_cat_change(self.data.get("cat_change"))
+        except Failed as e:
+            self.notify(str(e), "Config")
+            raise
 
     def process_config_settings(self):
         """

@@ -321,19 +321,13 @@ class FakeConfig:
     webhooks_factory: Any = field(default_factory=_FakeWebhooksFactory)
 
     def __post_init__(self):
-        # Mirror modules.config.Config._process_cat_change: tests may pass the
-        # user-facing short form ({old: "new"}); Category consumes the normalized
-        # extended form ({old: {"new_cat": str, "delay_minutes": int}}).
-        normalized = {}
-        for old_cat, value in self.cat_change.items():
-            if isinstance(value, dict):
-                normalized[old_cat] = {
-                    "new_cat": str(value["new_cat"]),
-                    "delay_minutes": int(value.get("delay_minutes", 0)),
-                }
-            else:
-                normalized[old_cat] = {"new_cat": str(value), "delay_minutes": 0}
-        self.cat_change = normalized
+        # Normalize via the production validator (modules.config.normalize_cat_change)
+        # so the test factory and Config stay in lockstep — no stale local mirror that
+        # silently coerces invalid values (e.g. str(True)) or KeyErrors on a missing
+        # new_cat instead of raising the real Config Error.
+        from modules.config import normalize_cat_change
+
+        self.cat_change = normalize_cat_change(self.cat_change)
 
     def send_notifications(self, attr):
         self.notifications_sent.append(copy.deepcopy(attr))

@@ -89,11 +89,14 @@ class Category:
                     if completion_on <= 0:
                         logger.debug(f"Skipping category change for {torrent.name}: torrent has not completed yet")
                         continue
-                    elapsed_minutes = (now - completion_on) / 60
-                    if elapsed_minutes < delay_minutes:
+                    # Compare in integer seconds (now and completion_on are both int
+                    # epoch seconds) to avoid float rounding at the boundary — fire
+                    # only once a full delay_minutes has elapsed (Copilot review).
+                    elapsed_seconds = now - completion_on
+                    if elapsed_seconds < delay_minutes * 60:
                         logger.debug(
                             f"Skipping category change for {torrent.name}: "
-                            f"completed {elapsed_minutes:.0f} min ago, delay is {delay_minutes} min"
+                            f"completed {elapsed_seconds // 60} min ago, delay is {delay_minutes} min"
                         )
                         continue
                 self.update_cat(torrent, updated_cat, True)
