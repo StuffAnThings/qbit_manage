@@ -1086,6 +1086,28 @@ class ConfigForm {
             return processedData;
         }
 
+        // cat_change uses the complex-object renderer with a {new_cat, delay_minutes}
+        // value. Normalize the legacy simple form (old_cat: "new_cat") and any stale
+        // new_category alias into the canonical object shape so the renderer shows both
+        // fields instead of [object Object] and the save path round-trips delay_minutes.
+        if (sectionName === 'cat_change') {
+            const normalized = {};
+            Object.entries(processedData || {}).forEach(([oldCat, value]) => {
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    normalized[oldCat] = {
+                        new_cat: value.new_cat ?? value.new_category ?? '',
+                        delay_minutes: Number.isFinite(value.delay_minutes) ? value.delay_minutes : 0
+                    };
+                } else {
+                    normalized[oldCat] = {
+                        new_cat: typeof value === 'string' ? value : '',
+                        delay_minutes: 0
+                    };
+                }
+            });
+            return normalized;
+        }
+
         if (sectionConfig && sectionConfig.type === 'fixed-object-config') {
             const mainFieldName = sectionConfig.fields[0]?.name;
             const mainFieldProperties = sectionConfig.fields[0]?.properties || {};
