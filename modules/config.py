@@ -556,9 +556,22 @@ class Config:
                 )
                 self.notify(err, "Config")
                 raise Failed(err)
+            # Entries must be strings — a non-string (e.g. nested list/dict) would raise an
+            # unhashable-type TypeError in the per-category dedup below instead of a clear error.
+            for _tag in global_exclude_tags:
+                if not isinstance(_tag, str):
+                    err = (
+                        f"Config Error: nohardlinks global_options exclude_tags entries must be strings"
+                        f" (got {type(_tag).__name__})"
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
             global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
             for cat in nohardlinks_data:
-                if cat == "global_options":
+                # Only the dict-form `nohardlinks: {global_options: {...}}` reserves this key.
+                # In list-form, a category legitimately named "global_options" must not be
+                # silently dropped (the list-form global entry is the dict-item case below).
+                if isinstance(nohardlinks_data, dict) and cat == "global_options":
                     continue
                 # Bug 3 fix: skip the global_options dict entry when iterating a list-form nohardlinks
                 if isinstance(nohardlinks_data, list) and isinstance(cat, dict) and "global_options" in cat:
@@ -587,6 +600,13 @@ class Config:
                         raise Failed(err)
                     seen: set[str] = set(merged_exclude_tags)
                     for _tag in cat_exclude_tags:
+                        if not isinstance(_tag, str):
+                            err = (
+                                f"Config Error: nohardlinks category {cat_str} exclude_tags entries must be strings"
+                                f" (got {type(_tag).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
                         if _tag not in seen:
                             seen.add(_tag)
                             merged_exclude_tags.append(_tag)

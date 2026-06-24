@@ -291,6 +291,28 @@ class TestGlobalExcludeTagsTypeValidation:
         cfg.process_config_nohardlinks()
         assert cfg.nohardlinks["cat1"]["exclude_tags"] == ["tag1"]
 
+    def test_global_exclude_tags_non_string_entry_raises_failed(self):
+        """A non-string global exclude_tags entry must raise Failed, not an unhashable TypeError."""
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": ["ok", ["nested"]]},
+                "cat1": {},
+            }
+        )
+        with pytest.raises(Failed, match="exclude_tags entries must be strings"):
+            cfg.process_config_nohardlinks()
+
+    def test_category_exclude_tags_non_string_entry_raises_failed(self):
+        """A non-string per-category exclude_tags entry must raise Failed, not an unhashable TypeError."""
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": ["g"]},
+                "cat1": {"exclude_tags": ["ok", {"bad": 1}]},
+            }
+        )
+        with pytest.raises(Failed, match="exclude_tags entries must be strings"):
+            cfg.process_config_nohardlinks()
+
 
 # ---------------------------------------------------------------------------
 # Bug 3 — legacy list-form inherits global_options
@@ -312,6 +334,15 @@ class TestLegacyListInheritsGlobalOptions:
         assert cfg.nohardlinks["series-completed"]["exclude_tags"] == ["tracker1.example", "tracker2.example"]
         # global_options itself must NOT become a category key
         assert "global_options" not in cfg.nohardlinks
+
+    def test_list_form_category_literally_named_global_options_is_not_dropped(self):
+        """A bare list-form category literally named 'global_options' must still be
+        processed (only the dict-form global_options key is reserved), preserving
+        backwards-compatibility for legacy list-based configs."""
+        cfg = _make_config(["global_options", "movies-completed"])
+        cfg.process_config_nohardlinks()
+        assert "global_options" in cfg.nohardlinks
+        assert "movies-completed" in cfg.nohardlinks
 
     def test_list_of_strings_inherits_global_ignore_root_dir(self):
         """Legacy list-of-strings entries must inherit global_options ignore_root_dir."""
