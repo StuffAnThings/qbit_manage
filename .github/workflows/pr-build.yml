@@ -1,0 +1,89 @@
+# PR build artifacts + a pr-<number> docker image so reviewers can test before merge.
+#
+# Repo owner + org members build automatically on every push. Everyone else
+# (outside collaborators, contributors, fork PRs) builds only when a maintainer
+# adds the `build` label — and only on that labeled event (a later push does NOT
+# rebuild under the still-present label; re-add the label to rebuild).
+# Other PRs cost zero runner minutes here.
+name: PR Build Artifacts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: pr-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-pr-assets:
+    name: Build PR test assets
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' && (
+        contains(fromJSON('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
+        || (github.event.action == 'labeled' && github.event.label.name == 'build')
+      )
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}
+
+  docker-pr:
+    name: Build PR docker image (pr-N)
+    # Additionally requires a same-repo head: pushing to GHCR needs packages:write
+    # + secrets, which a fork PR's read-only token doesn't have. Fork PRs still get
+    # the binary artifacts from build-pr-assets above.
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      github.event.pull_request.head.repo.full_name == github.repository && (
+        contains(fromJSON('["OWNER","MEMBER"]'), github.event.pull_request.author_association)
+        || (github.event.action == 'labeled' && github.event.label.name == 'build')
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: set lower case owner name
+        run: echo "OWNER_LC=${OWNER,,}" >>"${GITHUB_ENV}"
+        env:
+          OWNER: "${{ github.repository_owner }}"
+
+      - name: Check Out PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ env.OWNER_LC }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Read version from VERSION file
+        id: get_version
+        run: echo "APP_VERSION=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push pr-${{ github.event.pull_request.number }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ./
+          file: ./Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.get_version.outputs.APP_VERSION }}
+          # amd64 only: PR preview images favor speed over multi-arch coverage.
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ env.OWNER_LC }}/qbit_manage:pr-${{ github.event.pull_request.number }}

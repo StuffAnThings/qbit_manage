@@ -1,10 +1,14 @@
-# Manually triggered: creates a release branch from develop, opens a PR to master, and drafts a GitHub release.
+# Manually triggered: creates a release branch from develop, opens a PR to master,
+# builds the standalone binaries / desktop bundles, and creates a draft GitHub
+# release with those assets attached so they can be tested before the PR merges.
 name: Release PR
 
-# Creates a release branch (copy of develop), opens a PR to master, and
-# creates a draft GitHub release. Operator reviews the PR, then merges
-# normally — existing tag.yml + pypi-publish.yml + version.yml +
-# update-develop-branch.yml workflows take over from there.
+# Creates a release branch (copy of develop), opens a PR to master, builds the
+# release assets off that branch (via the reusable build-binaries workflow), and
+# creates a draft GitHub release with the assets + auto-generated notes attached.
+# Operator reviews the PR (and can test the attached binaries), then merges
+# normally — tag.yml pushes the tag and version.yml publishes this draft + pushes
+# the Docker image.
 #
 # IMPORTANT: enable "Automatically delete head branches" in the repo's
 # Settings → General → Pull Requests so the release/vX.Y.Z branch is
@@ -34,6 +38,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +143,7 @@ jobs:
     needs: prepare-release-branch
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out release branch
@@ -152,15 +158,19 @@ jobs:
 
       - name: Generate release notes from git log
         id: notes
+        env:
+          # Via env, never interpolated into the script body — prevents shell
+          # injection from a maliciously crafted dispatch input.
+          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-          OVERRIDE="${{ inputs.release_notes_override }}"
+          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
 
           if [[ -n "$OVERRIDE" ]]; then
             NOTES="$OVERRIDE"
           else
-            # Commits on this release branch that are NOT yet on master
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+            # Exclude the pipeline's own VERSION-bump commit from the notes.
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
@@ -189,7 +199,6 @@ jobs:
             fi
           fi
 
-          # Footer reminder about branch cleanup
           NOTES+=$'\n'"---"$'\n'
           NOTES+="_This PR was opened by the **Release PR** workflow. The \`${{ needs.prepare-release-branch.outputs.release_branch }}\` branch will auto-delete on merge (repo setting \"Automatically delete head branches\")._"$'\n'
 
@@ -197,13 +206,11 @@ jobs:
           echo "Notes written."
 
       - name: Open PR ${{ needs.prepare-release-branch.outputs.release_branch }} → master
-        id: open-pr
         env:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          BRANCH="${{ needs.prepare-release-branch.outputs.release_branch }}"
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-
           PR_URL=$(gh pr create \
             --base master \
             --head "$BRANCH" \
@@ -212,16 +219,29 @@ jobs:
             --label release)
 
           echo "Release PR: $PR_URL"
-          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Job 3: Create a draft GitHub release (tag not pushed yet)
+  # Job 3: Build release assets off the release branch (reusable matrix)
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-release-assets:
+    name: Build release assets
+    needs: prepare-release-branch
+    # Upstream-only (defense in depth; prepare-release-branch is already gated).
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 4: Create a draft GitHub release with the built assets attached
+  #        (tag ref not pushed yet — that happens post-merge via tag.yml)
   # ─────────────────────────────────────────────────────────────────────────────
   create-draft-release:
     name: Create draft GitHub release
-    needs: [prepare-release-branch, open-release-pr]
+    needs: [prepare-release-branch, build-release-assets]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out release branch
@@ -231,19 +251,35 @@ jobs:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      - name: Resolve release commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to overwrite an already-published release
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          TAG: "v${{ needs.prepare-release-branch.outputs.new_version }}"
+        run: |
+          if gh release view "$TAG" --json isDraft -q '.isDraft' 2>/dev/null | grep -qx 'false'; then
+            echo "::error::Release $TAG already exists and is published. Delete it before re-running."
+            exit 1
+          fi
+
       - name: Fetch master for changelog range
         run: git fetch origin master
 
       - name: Regenerate release notes for GitHub release
         id: notes
+        env:
+          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-          OVERRIDE="${{ inputs.release_notes_override }}"
+          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
 
           if [[ -n "$OVERRIDE" ]]; then
             NOTES="$OVERRIDE"
           else
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
@@ -274,14 +310,21 @@ jobs:
 
           printf '%s' "$NOTES" > /tmp/draft_release_notes.md
 
-      - name: Create draft GitHub release (no tag yet)
+      - name: Download prepared release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: qbit-manage-release-assets
+          path: release-assets
+
+      - name: Create draft GitHub release with assets (no tag yet)
         # Switched from softprops/action-gh-release to ncipollo/release-action
         # because softprops creates the tag ref immediately on `draft: true`,
         # which triggers tag-watching workflows (pypi-publish.yml /
         # version.yml) before the release PR is reviewed + merged.
         # ncipollo records the tag in the release object but does NOT push
         # the underlying tag ref while the release stays in draft. The
-        # tag is created post-merge by tag.yml when master advances.
+        # tag is created post-merge by tag.yml when master advances, and
+        # version.yml then flips this draft to published.
         # (Copilot review #1200 + operator pick 2026-05-22.)
         uses: ncipollo/release-action@v1
         with:
@@ -289,8 +332,12 @@ jobs:
           tag: "v${{ needs.prepare-release-branch.outputs.new_version }}"
           name: "v${{ needs.prepare-release-branch.outputs.new_version }}"
           bodyFile: /tmp/draft_release_notes.md
+          artifacts: "release-assets/*"
+          artifactErrorsFailBuild: true
           draft: true
           prerelease: false
           allowUpdates: true
-          commit: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          # SHA, not the branch name — the release branch is deleted on merge,
+          # which would leave the release with a dangling target_commitish.
+          commit: ${{ steps.sha.outputs.sha }}
           skipIfReleaseExists: false

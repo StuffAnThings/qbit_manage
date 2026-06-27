@@ -26,11 +26,13 @@ The workflow:
   copy at the snapshot point).
 - Writes the new version to `VERSION` on the release branch and pushes it.
 - Opens a PR from `release/v<NEW> → master` titled `Release v<NEW>`.
-- PR body is auto-generated from `git log master..release/v<NEW> --oneline`,
+- PR body is auto-generated from `git log origin/master..HEAD --oneline --no-merges`,
   grouped by Conventional Commit prefix (`feat`, `fix`, `chore`, etc.).
+- Builds the 5-platform binary + Tauri desktop bundle matrix via the reusable
+  `build-binaries.yml` workflow.
 - Creates a **draft** GitHub release tagged `v<NEW>` (`target_commitish`
-  set to the release branch) with the same notes. The tag is **not pushed**
-  yet — the draft exists only as a preview.
+  set to the release branch) with the auto-generated notes and built assets
+  attached. The tag is **not pushed** yet — the draft is a testable preview.
 
 > **Repo setting prerequisite:** enable **Settings → General → Pull Requests
 > → Automatically delete head branches** so the `release/v<NEW>` branch is
@@ -40,7 +42,8 @@ The workflow:
 ### Step 2 — Operator Review and Merge
 
 The operator:
-1. Reviews the release PR and checks the draft release notes.
+1. Reviews the release PR, checks the draft release notes, and optionally downloads
+   and tests the binaries attached to the draft GitHub release.
 2. Verifies all CI checks are green on the PR.
 3. Merges `release/v<NEW>` to `master`. **Use `Rebase and merge`** (not
    squash) so the individual Conventional Commit messages (`feat:`,
@@ -58,17 +61,56 @@ The operator:
 
 ### Step 3 — Post-Merge Automation (CI, auto-triggered on master push)
 
-Four workflows fire in parallel after the master push:
+The master push triggers `tag.yml` (and `update-develop-branch.yml`) directly;
+`tag.yml` then pushes the `v<X.Y.Z>` tag, which in turn triggers `version.yml`
+and `pypi-publish.yml`. The cascade is two steps, not a single parallel burst:
 
 | Workflow | What it does |
 |----------|-------------|
 | `tag.yml` | Reads `VERSION`, creates and pushes the `v<X.Y.Z>` tag via `Kometa-Team/tag-new-version`. |
 | `pypi-publish.yml` | Triggered by the new `v*` tag; builds the Python package and publishes to PyPI via trusted publishing (OIDC, no API token needed). |
-| `version.yml` | Builds standalone PyInstaller binaries (Linux amd64/arm64, Windows, macOS) and the Tauri desktop bundles; attaches them to the GitHub release. |
+| `version.yml` | Triggered by the `v*` tag; builds + pushes the Docker image, then publishes the draft GitHub release that `release-pr.yml` already prepared — flips it from draft to published. Does **not** rebuild binaries. |
 | `update-develop-branch.yml` | Resets `develop` to `master`, bumps `VERSION` to the next patch-develop1 (e.g. `4.7.3-develop1`), force-pushes develop, then triggers `develop.yml` to rebuild Docker develop images. |
 
-The draft release created in Step 1 is promoted to published once `tag.yml`
-pushes the matching tag.
+After `tag.yml` pushes the `v<X.Y.Z>` tag, `version.yml` fires: it builds and
+pushes the Docker image, then publishes the draft release (binaries and notes
+were already attached by `release-pr.yml` in Step 1).
+
+---
+
+## Develop Builds & PR Artifacts
+
+### Rolling develop pre-release
+
+Every push to `develop` (excluding doc-only paths) triggers `develop.yml`, which:
+
+1. Builds the full 5-platform binary + Tauri bundle matrix via `build-binaries.yml`.
+2. Pushes the `:develop` Docker image.
+3. Deletes and recreates the `latest-develop` rolling GitHub pre-release at the
+   current develop HEAD (`gh release delete latest-develop --cleanup-tag`, then
+   `gh release create latest-develop --prerelease --latest=false ...`).
+
+The `latest-develop` tag is intentionally non-`v*` so it never triggers `tag.yml`,
+`version.yml`, or `pypi-publish.yml`. Use it to grab a development binary without
+waiting for a full release.
+
+### PR cross-platform artifacts
+
+By default, PRs do **not** run the 5-OS binary build — unlabeled PRs cost zero
+runner minutes. When a maintainer adds the **`build` label** to a PR, `pr-build.yml`
+triggers the full matrix via `build-binaries.yml` using the PR's head SHA. The
+resulting `qbit-manage-release-assets` artifact is available for download from the
+**Actions → PR Build Artifacts** workflow run, letting reviewers test all platforms
+before merge. A concurrency group cancels superseded runs when new commits land on
+the same labeled PR.
+
+### Reusable build workflow (`build-binaries.yml`)
+
+`build-binaries.yml` is a `workflow_call` reusable workflow — the single source of
+truth for the PyInstaller + Tauri matrix. All three callers (`release-pr.yml`,
+`develop.yml`, `pr-build.yml`) pass a `ref` input (branch / tag / SHA). The
+workflow produces one consolidated `qbit-manage-release-assets` artifact containing
+the 5 server binaries plus the per-platform desktop installer bundles.
 
 ---
 
@@ -122,17 +164,16 @@ branch, and opens the PR from that branch. `develop` is not modified during this
 
 ## CI Gates
 
-Every PR to `develop` runs the `develop.yml` workflow, which includes:
+Every PR to `develop` (and to `master`) is gated by `tests.yml` (triggered by
+`pull_request` to master/main/develop), which runs pytest across Python
+3.10–3.14. That is the only CI job that must pass before merge.
 
-- **Ruff** — lint and format check (non-zero exit blocks merge)
-- **yamllint** — strict YAML validation for any changed YAML files
-- **pytest** — full test suite (~168 tests)
-- **Docker build** — multi-arch image build (amd64, arm64, arm/v7) to catch
-  import and dependency errors before release
+Ruff (lint/format) and yamllint are enforced as local pre-commit hooks, not as
+CI jobs. `develop.yml` is a post-merge workflow triggered by
+`push: branches:[develop]` — it is not a PR gate.
 
-The Release PR to `master` must also pass these same checks. Branch protection
-on `master` requires at least one maintainer approval and all status checks
-green.
+Branch protection on `master` requires at least one maintainer approval and all
+status checks green.
 
 ---
 
@@ -157,7 +198,7 @@ would accidentally include live tracker credentials sourced from a local
 
 | Secret | Used by | Purpose |
 |--------|---------|---------|
-| `PAT` | `tag.yml`, `update-develop-branch.yml` | Push tags and force-push develop (bypasses branch protection) |
+| `PAT` | `tag.yml`, `update-develop-branch.yml`, `version.yml`, `release-pr.yml` | Push tags, force-push develop, publish releases, and open release PRs (bypasses branch protection) |
 | `GITHUB_TOKEN` | Most workflows | Default Actions token for read operations and PR creation |
 | PyPI OIDC | `pypi-publish.yml` | Trusted publishing — no stored API token |
 
