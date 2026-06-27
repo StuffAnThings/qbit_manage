@@ -246,19 +246,21 @@ class Qbt:
         t_hash = torrent.hash
         t_name = torrent.name
         if torrent.downloaded != 0:
-            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] is not a cross seeded torrent. Download is > 0.")
+            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] is not a cross seed (downloaded > 0).")
             return False
         cross_seed = True
+        reason = "all files are cross-seeded copies of existing data"
         for file in torrent.files:
             full_path = os.path.join(torrent.save_path, file.name)
             if self.torrentfiles[full_path]["original"] == t_hash or t_hash not in self.torrentfiles[full_path]["cross_seed"]:
-                logger.trace(f"File: [{full_path}] is found in Torrent: {t_name} [Hash: {t_hash}] as the original torrent")
                 cross_seed = False
+                reason = f"file '{full_path}' belongs to this torrent as the original"
                 break
             elif self.torrentfiles[full_path]["original"] is None:
                 cross_seed = False
+                reason = f"file '{full_path}' has no original torrent"
                 break
-        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'is' if cross_seed else 'is not'} a cross seed torrent.")
+        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'is' if cross_seed else 'is not'} a cross seed ({reason}).")
         return cross_seed
 
     def has_cross_seed(self, torrent):
@@ -266,13 +268,19 @@ class Qbt:
         cross_seed = False
         t_hash = torrent.hash
         t_name = torrent.name
+        matched_file = None
+        cross_seeds = None
         for file in torrent.files:
             full_path = os.path.join(torrent.save_path, file.name)
             if len(self.torrentfiles[full_path]["cross_seed"]) > 0:
-                logger.trace(f"{full_path} has cross seeds: {self.torrentfiles[full_path]['cross_seed']}")
                 cross_seed = True
+                matched_file = full_path
+                cross_seeds = self.torrentfiles[full_path]["cross_seed"]
                 break
-        logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] {'has' if cross_seed else 'has no'} cross seeds.")
+        if cross_seed:
+            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] has cross seeds (file '{matched_file}' shared with {cross_seeds}).")
+        else:
+            logger.trace(f"Torrent: {t_name} [Hash: {t_hash}] has no cross seeds.")
         return cross_seed
 
     def remove_torrent_files(self, torrent):
@@ -289,9 +297,11 @@ class Qbt:
             else:
                 if torrent_hash in self.torrentfiles[full_path]["cross_seed"]:
                     self.torrentfiles[full_path]["cross_seed"].remove(torrent_hash)
-                    logger.trace(f"Removed {torrent_hash} from {full_path} cross seeds")
-                    logger.trace(f"{full_path} original: {self.torrentfiles[full_path]['original']}")
-                    logger.trace(f"{full_path} cross seeds: {self.torrentfiles[full_path]['cross_seed']}")
+                    logger.trace(
+                        f"Removed {torrent_hash} from {full_path} cross seeds | "
+                        f"original: {self.torrentfiles[full_path]['original']} | "
+                        f"cross seeds: {self.torrentfiles[full_path]['cross_seed']}"
+                    )
 
     def get_torrents(self, params):
         """Get torrents from qBittorrent"""

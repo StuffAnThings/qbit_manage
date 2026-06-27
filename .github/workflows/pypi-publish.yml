@@ -1,3 +1,4 @@
+# Publishes the package to PyPI (or Test PyPI) on version tag push or manual trigger.
 name: PyPI Publish
 
 on:
@@ -7,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       test_pypi:
-        description: 'Publish to Test PyPI instead of PyPI'
+        description: "Publish to Test PyPI instead of PyPI"
         required: false
         default: false
         type: boolean
@@ -20,17 +21,19 @@ jobs:
   pypi-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Upstream-only: PyPI trusted publisher is configured on the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     permissions:
       contents: read
-      id-token: write  # Required for trusted publishing to PyPI
+      id-token: write # Required for trusted publishing to PyPI
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.14"
 
       - name: Install build dependencies
         run: |

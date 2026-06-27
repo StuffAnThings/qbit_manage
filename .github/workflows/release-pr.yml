@@ -1,3 +1,4 @@
+# Manually triggered: creates a release branch from develop, opens a PR to master, and drafts a GitHub release.
 name: Release PR
 
 # Creates a release branch (copy of develop), opens a PR to master, and
@@ -42,6 +43,8 @@ jobs:
     name: Prepare release branch
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Upstream-only: writes release/* branches against the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     outputs:
       new_version: ${{ steps.compute.outputs.new_version }}
       current_version: ${{ steps.compute.outputs.current_version }}
@@ -49,7 +52,7 @@ jobs:
 
     steps:
       - name: Check Out develop
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: develop
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -138,7 +141,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -222,7 +225,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}

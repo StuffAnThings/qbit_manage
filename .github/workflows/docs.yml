@@ -1,3 +1,4 @@
+# Syncs docs/ ↔ GitHub Wiki bidirectionally on doc pushes (docs→wiki) or wiki edits (wiki→docs).
 name: Documentation
 
 on:
@@ -21,15 +22,15 @@ env:
   GIT_AUTHOR_EMAIL: actions@github.com
 
 jobs:
-  job-sync-docs-to-wiki:
+  sync-docs-to-wiki:
     runs-on: ubuntu-latest
-    if: github.event_name != 'gollum'
+    if: github.event_name != 'gollum' && github.repository == 'StuffAnThings/qbit_manage'
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Sync docs to wiki
         # PAT required: wiki and main repo are separate GitHub repositories
         uses: newrelic/wiki-sync-action@8fb7a9efe4e975bdb2977107fbed96fa0433db52
@@ -40,15 +41,15 @@ jobs:
           gitAuthorName: ${{ env.GIT_AUTHOR_NAME }}
           gitAuthorEmail: ${{ env.GIT_AUTHOR_EMAIL }}
 
-  job-sync-wiki-to-docs:
+  sync-wiki-to-docs:
     runs-on: ubuntu-latest
-    if: github.event_name == 'gollum'
+    if: github.event_name == 'gollum' && github.repository == 'StuffAnThings/qbit_manage'
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.PAT }} # allows us to push back to repo
           ref: develop

@@ -1,3 +1,4 @@
+# Resets develop to master and bumps the develop VERSION suffix after every push to master.
 name: Update Develop Branch
 
 on:
@@ -16,10 +17,12 @@ jobs:
   update-develop:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Upstream-only: force-pushes develop on the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0

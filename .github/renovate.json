@@ -1,0 +1,142 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:best-practices",
+        "customManagers:githubActionsVersions",
+        "schedule:weekly",
+        ":automergePr",
+        ":automergeDigest",
+        ":automergeLinters",
+        ":automergeStableNonMajor",
+        ":automergeTesters",
+        ":automergeTypes",
+        ":enableVulnerabilityAlerts",
+        ":renovatePrefix"
+    ],
+    "baseBranchPatterns": [
+        "develop"
+    ],
+    "platformAutomerge": true,
+    "minimumReleaseAge": "3 days",
+    "labels": [
+        "dependencies"
+    ],
+    "assignees": [
+        "bobokun"
+    ],
+    "pre-commit": {
+        "enabled": true
+    },
+    "packageRules": [
+        {
+            "description": "Group Python (uv/pep621) non-major dependencies",
+            "matchManagers": [
+                "pep621"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch",
+                "pin",
+                "digest"
+            ],
+            "groupName": "Python dependencies",
+            "groupSlug": "python-deps"
+        },
+        {
+            "description": "Group Python (uv/pep621) major dependencies \u2014 qbittorrent-api excluded (has its own rule)",
+            "matchManagers": [
+                "pep621"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "excludePackageNames": [
+                "qbittorrent-api"
+            ],
+            "groupName": "Python major dependencies",
+            "groupSlug": "python-major",
+            "automerge": false
+        },
+        {
+            "description": "Always automerge qbittorrent-api (major bumps track qBittorrent releases); kept after python-major so it is never bundled into that group",
+            "matchPackageNames": [
+                "qbittorrent-api"
+            ],
+            "matchUpdateTypes": [
+                "major",
+                "minor",
+                "patch",
+                "digest"
+            ],
+            "groupName": "qbittorrent-api",
+            "groupSlug": "qbittorrent-api",
+            "automerge": true,
+            "platformAutomerge": true
+        },
+        {
+            "description": "Group GitHub Actions non-major dependencies",
+            "matchManagers": [
+                "github-actions"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch",
+                "pin",
+                "digest"
+            ],
+            "groupName": "GitHub Actions",
+            "groupSlug": "github-actions"
+        },
+        {
+            "description": "Group GitHub Actions major dependencies",
+            "matchManagers": [
+                "github-actions"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "groupName": "GitHub Actions major",
+            "groupSlug": "github-actions-major",
+            "automerge": false
+        },
+        {
+            "description": "Group Cargo (Rust/Tauri) non-major dependencies",
+            "matchManagers": [
+                "cargo"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch",
+                "pin",
+                "digest"
+            ],
+            "groupName": "Cargo dependencies",
+            "groupSlug": "cargo-deps",
+            "addLabels": [
+                "rust"
+            ]
+        },
+        {
+            "description": "Group Cargo (Rust/Tauri) major dependencies",
+            "matchManagers": [
+                "cargo"
+            ],
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "groupName": "Cargo major dependencies",
+            "groupSlug": "cargo-major",
+            "addLabels": [
+                "rust"
+            ],
+            "automerge": false
+        },
+        {
+            "description": "Keep salsify/action-detect-and-tag-new-version pinned (matches prior Dependabot ignore)",
+            "matchDepNames": [
+                "salsify/action-detect-and-tag-new-version"
+            ],
+            "enabled": false
+        }
+    ]
+}

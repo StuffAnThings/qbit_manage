@@ -1,4 +1,4 @@
-name: tests
+name: Tests
 
 on:
   push:
@@ -6,26 +6,55 @@ on:
       - master
       - main
       - develop
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - "icons/**"
+      - "CHANGELOG"
+      - "LICENSE"
   pull_request:
     branches:
       - master
       - main
       - develop
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/pull_request_template.md"
+      - "icons/**"
+      - "CHANGELOG"
+      - "LICENSE"
+
+concurrency:
+  # Cancel in-flight runs when a new push lands on the same PR / branch.
+  # Use github.ref directly: for PR events it's `refs/pull/<num>/merge`
+  # (unique per PR even across forks with the same head branch name);
+  # for push events it's `refs/heads/<branch>` (unique per branch).
+  # `head_ref` would be just the branch name — two PRs both named e.g.
+  # `patch-1` would cancel each other.
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   pytest:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6

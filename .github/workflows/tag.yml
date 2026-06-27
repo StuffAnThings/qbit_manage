@@ -1,3 +1,4 @@
+# Tags the new version on every push to master using the VERSION file.
 name: Tag New Version
 
 on:
@@ -15,9 +16,11 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Upstream-only: PAT secret writes tags on the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.PAT }}
           fetch-depth: 2

@@ -1,3 +1,4 @@
+# Adds a 'conflict' label to PRs that have merge conflicts, on push to master/develop or PR events.
 name: Label Conflicting PRs
 
 on:
@@ -23,6 +24,8 @@ jobs:
   label-conflicts:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Upstream-only: the conflict label only exists on upstream's tracker.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
       - name: Label PRs with merge conflicts
         uses: eps1lon/actions-label-merge-conflict@v3

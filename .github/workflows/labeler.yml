@@ -1,3 +1,4 @@
+# Auto-applies labels to PRs based on changed file paths, on every PR open/sync/reopen.
 name: PR Labeler
 
 on:
@@ -13,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  label:
+  labeler:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
