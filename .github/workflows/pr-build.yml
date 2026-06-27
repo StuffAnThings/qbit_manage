@@ -5,10 +5,13 @@ name: PR Build Artifacts
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    # `labeled` ONLY (not synchronize): a build is tied to the exact commit a
+    # maintainer reviewed when they added the label. A later push does NOT
+    # rebuild with the still-present label (TOCTOU) — re-add the label to
+    # rebuild against the new HEAD.
+    types: [labeled]
 
 concurrency:
-  # Cancel a superseded build when a new commit lands on the same PR.
   group: pr-build-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 

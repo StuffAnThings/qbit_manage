@@ -143,6 +143,7 @@ jobs:
     needs: prepare-release-branch
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out release branch
@@ -157,15 +158,19 @@ jobs:
 
       - name: Generate release notes from git log
         id: notes
+        env:
+          # Via env, never interpolated into the script body — prevents shell
+          # injection from a maliciously crafted dispatch input.
+          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-          OVERRIDE="${{ inputs.release_notes_override }}"
+          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
 
           if [[ -n "$OVERRIDE" ]]; then
             NOTES="$OVERRIDE"
           else
-            # Commits on this release branch that are NOT yet on master
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+            # Exclude the pipeline's own VERSION-bump commit from the notes.
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
@@ -194,7 +199,6 @@ jobs:
             fi
           fi
 
-          # Footer reminder about branch cleanup
           NOTES+=$'\n'"---"$'\n'
           NOTES+="_This PR was opened by the **Release PR** workflow. The \`${{ needs.prepare-release-branch.outputs.release_branch }}\` branch will auto-delete on merge (repo setting \"Automatically delete head branches\")._"$'\n'
 
@@ -202,13 +206,11 @@ jobs:
           echo "Notes written."
 
       - name: Open PR ${{ needs.prepare-release-branch.outputs.release_branch }} → master
-        id: open-pr
         env:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          BRANCH="${{ needs.prepare-release-branch.outputs.release_branch }}"
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-
           PR_URL=$(gh pr create \
             --base master \
             --head "$BRANCH" \
@@ -217,7 +219,6 @@ jobs:
             --label release)
 
           echo "Release PR: $PR_URL"
-          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Job 3: Build release assets off the release branch (reusable matrix)
@@ -240,6 +241,7 @@ jobs:
     needs: [prepare-release-branch, build-release-assets]
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out release branch
@@ -249,19 +251,35 @@ jobs:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      - name: Resolve release commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to overwrite an already-published release
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          TAG: "v${{ needs.prepare-release-branch.outputs.new_version }}"
+        run: |
+          if gh release view "$TAG" --json isDraft -q '.isDraft' 2>/dev/null | grep -qx 'false'; then
+            echo "::error::Release $TAG already exists and is published. Delete it before re-running."
+            exit 1
+          fi
+
       - name: Fetch master for changelog range
         run: git fetch origin master
 
       - name: Regenerate release notes for GitHub release
         id: notes
+        env:
+          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
+          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ needs.prepare-release-branch.outputs.new_version }}"
-          OVERRIDE="${{ inputs.release_notes_override }}"
+          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
 
           if [[ -n "$OVERRIDE" ]]; then
             NOTES="$OVERRIDE"
           else
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || echo "")
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
@@ -319,5 +337,7 @@ jobs:
           draft: true
           prerelease: false
           allowUpdates: true
-          commit: ${{ needs.prepare-release-branch.outputs.release_branch }}
+          # SHA, not the branch name — the release branch is deleted on merge,
+          # which would leave the release with a dangling target_commitish.
+          commit: ${{ steps.sha.outputs.sha }}
           skipIfReleaseExists: false

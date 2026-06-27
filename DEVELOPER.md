@@ -26,7 +26,7 @@ The workflow:
   copy at the snapshot point).
 - Writes the new version to `VERSION` on the release branch and pushes it.
 - Opens a PR from `release/v<NEW> → master` titled `Release v<NEW>`.
-- PR body is auto-generated from `git log master..release/v<NEW> --oneline`,
+- PR body is auto-generated from `git log origin/master..HEAD --oneline --no-merges`,
   grouped by Conventional Commit prefix (`feat`, `fix`, `chore`, etc.).
 - Builds the 5-platform binary + Tauri desktop bundle matrix via the reusable
   `build-binaries.yml` workflow.
@@ -61,7 +61,9 @@ The operator:
 
 ### Step 3 — Post-Merge Automation (CI, auto-triggered on master push)
 
-Four workflows fire in parallel after the master push:
+The master push triggers `tag.yml` (and `update-develop-branch.yml`) directly;
+`tag.yml` then pushes the `v<X.Y.Z>` tag, which in turn triggers `version.yml`
+and `pypi-publish.yml`. The cascade is two steps, not a single parallel burst:
 
 | Workflow | What it does |
 |----------|-------------|
@@ -162,17 +164,16 @@ branch, and opens the PR from that branch. `develop` is not modified during this
 
 ## CI Gates
 
-Every PR to `develop` runs the `develop.yml` workflow, which includes:
+Every PR to `develop` (and to `master`) is gated by `tests.yml` (triggered by
+`pull_request` to master/main/develop), which runs pytest across Python
+3.10–3.14. That is the only CI job that must pass before merge.
 
-- **Ruff** — lint and format check (non-zero exit blocks merge)
-- **yamllint** — strict YAML validation for any changed YAML files
-- **pytest** — full test suite (~168 tests)
-- **Docker build** — multi-arch image build (amd64, arm64, arm/v7) to catch
-  import and dependency errors before release
+Ruff (lint/format) and yamllint are enforced as local pre-commit hooks, not as
+CI jobs. `develop.yml` is a post-merge workflow triggered by
+`push: branches:[develop]` — it is not a PR gate.
 
-The Release PR to `master` must also pass these same checks. Branch protection
-on `master` requires at least one maintainer approval and all status checks
-green.
+Branch protection on `master` requires at least one maintainer approval and all
+status checks green.
 
 ---
 
@@ -197,7 +198,7 @@ would accidentally include live tracker credentials sourced from a local
 
 | Secret | Used by | Purpose |
 |--------|---------|---------|
-| `PAT` | `tag.yml`, `update-develop-branch.yml` | Push tags and force-push develop (bypasses branch protection) |
+| `PAT` | `tag.yml`, `update-develop-branch.yml`, `version.yml`, `release-pr.yml` | Push tags, force-push develop, publish releases, and open release PRs (bypasses branch protection) |
 | `GITHUB_TOKEN` | Most workflows | Default Actions token for read operations and PR creation |
 | PyPI OIDC | `pypi-publish.yml` | Trusted publishing — no stored API token |
 

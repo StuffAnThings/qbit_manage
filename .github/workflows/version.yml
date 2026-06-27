@@ -87,8 +87,10 @@ jobs:
     name: Publish draft release from Release PR
     runs-on: ubuntu-latest
     needs: [docker-release]
+    # always(): publishing the release must not be blocked by a transient Docker
+    # push failure — the draft + its assets are independent of the image.
     # Upstream-only: the draft release + PAT live on the upstream repo.
-    if: github.repository == 'StuffAnThings/qbit_manage'
+    if: always() && github.repository == 'StuffAnThings/qbit_manage'
     permissions:
       contents: write
     steps:
@@ -98,7 +100,7 @@ jobs:
 
       - name: Publish the draft release (keep its notes + assets)
         env:
-          GH_TOKEN: ${{ secrets.PAT }}
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
           TAG="${{ steps.get_version.outputs.VERSION }}"

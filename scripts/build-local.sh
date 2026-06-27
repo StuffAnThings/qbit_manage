@@ -12,6 +12,8 @@ readonly REPO_ROOT
 readonly TAURI_DIR="${REPO_ROOT}/desktop/tauri/src-tauri"
 
 build_desktop=1
+os=""
+arch=""
 
 usage() {
   cat <<'EOF'
@@ -63,11 +65,13 @@ build_server_binary() {
     exit 1
   }
 
-  # `:` everywhere this script runs (Windows here means git-bash, which still
-  # accepts `:` for PyInstaller add-data on recent versions).
+  # PyInstaller add-data uses ';' on native Windows, ':' elsewhere — match CI.
   local sep=":"
+  [[ "${os}" == "windows" ]] && sep=";"
   local icon_arg=""
-  if [[ "${os}" == "macos" && -f "${REPO_ROOT}/icons/qbm_logo.icns" ]]; then
+  if [[ "${os}" == "windows" ]]; then
+    icon_arg="--icon=icons/qbm_logo.ico"
+  elif [[ "${os}" == "macos" ]]; then
     icon_arg="--icon=icons/qbm_logo.icns"
   elif [[ -f "${REPO_ROOT}/icons/qbm_logo.png" ]]; then
     icon_arg="--icon=icons/qbm_logo.png"
@@ -121,7 +125,7 @@ build_desktop_bundle() {
     cargo check
     command -v cargo-tauri >/dev/null 2>&1 || cargo install tauri-cli --version "^2" --locked
     case "${os}" in
-      windows) cargo tauri build --bundles nsis ;;
+      windows) cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis ;;
       macos) cargo tauri build --bundles app,dmg ;;
       *) cargo tauri build --bundles deb ;;
     esac
@@ -146,7 +150,6 @@ main() {
     shift
   done
 
-  local os arch
   detect_platform
   build_server_binary
   if [[ "${build_desktop}" -eq 1 ]]; then

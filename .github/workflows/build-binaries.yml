@@ -117,7 +117,6 @@ jobs:
             mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-${{ matrix.arch }}"
           fi
 
-      # Build Tauri desktop shell after binaries are ready
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -147,6 +146,8 @@ jobs:
         with:
           workspaces: |
             desktop/tauri/src-tauri -> desktop/tauri/src-tauri/target
+          # Cache ~/.cargo/bin so the compiled tauri-cli is reused across runs.
+          cache-directories: ~/.cargo/bin
 
       - name: Install NSIS (Windows)
         if: runner.os == 'Windows'
@@ -168,7 +169,6 @@ jobs:
         run: |
           mkdir -p desktop/tauri/src-tauri/bin
 
-          # Copy the actual binary for this platform as a resource
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cp "out/${APP_NAME}-windows-${{ matrix.arch }}.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-${{ matrix.arch }}.exe"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
@@ -183,21 +183,24 @@ jobs:
         working-directory: desktop/tauri/src-tauri
         shell: bash
         run: |
-          # Run cargo check to trigger build script and update version files
+          # cargo check runs the build script for its side effect (version files),
+          # not to type-check.
           cargo check
 
       - name: Install Tauri CLI
         working-directory: desktop/tauri/src-tauri
         shell: bash
         run: |
-          # Install Tauri 2 CLI (project migrated to Tauri v2 config & deps)
-          cargo install tauri-cli --version ^2 --locked --force
+          # Project is on Tauri v2; skip the (slow) source build when a cached v2
+          # CLI is already present.
+          if ! cargo tauri --version 2>/dev/null | grep -qE '^tauri-cli 2\.'; then
+            cargo install tauri-cli --version ^2 --locked
+          fi
 
       - name: Build Tauri app (initial attempt)
         working-directory: desktop/tauri/src-tauri
         shell: bash
         run: |
-          # Build with explicit bundle targets for this platform
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
@@ -208,12 +211,7 @@ jobs:
         continue-on-error: true
         id: tauri-build
 
-      - name: Wait before retry (macOS DMG recovery)
-        if: steps.tauri-build.outcome == 'failure' && runner.os == 'macOS'
-        run: sleep 30
-        shell: bash
-
-      - name: Wait before retry (build recovery)
+      - name: Wait before retry
         if: steps.tauri-build.outcome == 'failure'
         run: sleep 30
         shell: bash
@@ -223,7 +221,6 @@ jobs:
         working-directory: desktop/tauri/src-tauri
         shell: bash
         run: |
-          # Build with explicit bundle targets for this platform
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
@@ -243,8 +240,9 @@ jobs:
         if: steps.tauri-build-retry1.outcome == 'failure'
         working-directory: desktop/tauri/src-tauri
         shell: bash
+        continue-on-error: true
+        id: tauri-build-retry2
         run: |
-          # Build with explicit bundle targets for this platform
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
@@ -253,8 +251,13 @@ jobs:
             cargo tauri build --bundles deb
           fi
 
+      # Fail only when the LAST attempt that ran failed — checking the first two
+      # outcomes alone would falsely fail a build that recovered on attempt 3.
       - name: Fail if all Tauri build attempts failed
-        if: steps.tauri-build.outcome == 'failure' && steps.tauri-build-retry1.outcome == 'failure'
+        if: >-
+          steps.tauri-build.outcome == 'failure' &&
+          steps.tauri-build-retry1.outcome == 'failure' &&
+          steps.tauri-build-retry2.outcome == 'failure'
         shell: bash
         run: |
           echo "❌ Tauri build failed after all attempts"
@@ -274,7 +277,7 @@ jobs:
             desktop/tauri/src-tauri/target/**/release/bundle/**
           if-no-files-found: error
           retention-days: 7
-          compression-level: 0
+          compression-level: 6
 
   prepare-release-assets:
     runs-on: ubuntu-latest
@@ -384,14 +387,12 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            // Get all artifacts from this workflow run
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,
               repo: context.repo.repo,
               run_id: context.runId,
             });
 
-            // Delete temporary build artifacts, keep only the final release assets
             for (const artifact of artifacts.data.artifacts) {
               if (artifact.name.startsWith('build-outputs-')) {
                 console.log(`Deleting temporary artifact: ${artifact.name}`);
