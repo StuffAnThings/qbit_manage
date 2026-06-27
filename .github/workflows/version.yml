@@ -1,4 +1,7 @@
-# Builds binaries, Docker image, and creates the GitHub release on every version tag push.
+# On every version tag push: build + push the Docker image, then publish the draft
+# GitHub release that release-pr.yml already prepared (binaries + auto-generated
+# notes attached to the draft). No rebuild, no CHANGELOG — the draft is the source
+# of truth; this workflow only flips it from draft to published.
 name: Version Release
 
 on:
@@ -11,401 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-binaries:
-    name: Build Standalone Binaries (${{ matrix.os }})
-    # Upstream-only: forks shouldn't run the full release matrix on every tag.
-    if: github.repository == 'StuffAnThings/qbit_manage'
-    permissions:
-      contents: read
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.14"
-            arch: amd64
-          - os: ubuntu-24.04-arm # for Arm based Linux (Raspberry Pi, etc.)
-            python-version: "3.14"
-            arch: arm64
-          - os: windows-latest
-            python-version: "3.14"
-            arch: amd64
-          - os: "macos-latest" # for Arm based macs (M1 and above).
-            python-version: "3.14"
-            arch: arm64
-          - os: "macos-15-intel" # for Intel based macs.
-            python-version: "3.14"
-            arch: x86_64
-    env:
-      APP_NAME: qbit-manage
-      ENTRY: qbit_manage.py
-    steps:
-      - name: Check Out Repo
-        uses: actions/checkout@v7
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: |
-            pyproject.toml
-            uv.lock
-
-      - name: Upgrade Pip and install project + PyInstaller
-        run: |
-          python -m pip install --upgrade pip wheel
-          python -m pip install . pyinstaller
-
-      - name: Compute add-data separator
-        id: sep
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "SEP=;" >> $GITHUB_OUTPUT
-          else
-            echo "SEP=:" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build (PyInstaller onefile)
-        shell: bash
-        run: |
-          ADD_WEBUI="web-ui${{ steps.sep.outputs.SEP }}web-ui"
-          ADD_SAMPLE_CFG="config/config.yml.sample${{ steps.sep.outputs.SEP }}config"
-          ADD_LOGO="icons/qbm_logo.png${{ steps.sep.outputs.SEP }}."
-          ADD_VERSION="VERSION${{ steps.sep.outputs.SEP }}."
-          ADD_DOCS="docs${{ steps.sep.outputs.SEP }}docs"
-          ICON_ARG=""
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            ICON_ARG=--icon=icons/qbm_logo.ico
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            ICON_ARG=--icon=icons/qbm_logo.icns
-          else
-            # Linux: optional icon (helps some desktop environments)
-            if [[ -f icons/qbm_logo.png ]]; then
-              ICON_ARG=--icon=icons/qbm_logo.png
-            elif [[ -f icons/qbm_logo.ico ]]; then
-              ICON_ARG=--icon=icons/qbm_logo.ico
-            fi
-          fi
-          pyinstaller --noconfirm \
-                      --clean \
-                      --onefile \
-                      --name "${APP_NAME}" \
-                      --add-data "$ADD_WEBUI" \
-                      --add-data "$ADD_SAMPLE_CFG" \
-                      --add-data "$ADD_LOGO" \
-                      --add-data "$ADD_VERSION" \
-                      --add-data "$ADD_DOCS" \
-                      $ICON_ARG \
-                      "${ENTRY}"
-
-      - name: Rename output for OS
-        shell: bash
-        run: |
-          mkdir -p out
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            mv "dist/${APP_NAME}.exe" "out/${APP_NAME}-windows-${{ matrix.arch }}.exe"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            mv "dist/${APP_NAME}" "out/${APP_NAME}-macos-${{ matrix.arch }}"
-          else
-            mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-${{ matrix.arch }}"
-          fi
-
-      # Build Tauri desktop shell after binaries are ready
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-        env:
-          RUSTUP_MAX_RETRIES: 10
-        timeout-minutes: 10
-        continue-on-error: true
-        id: rust-setup
-
-      - name: Wait before retry (network recovery)
-        if: steps.rust-setup.outcome == 'failure'
-        run: sleep 30
-        shell: bash
-
-      - name: Retry Rust toolchain setup on failure
-        if: steps.rust-setup.outcome == 'failure'
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-        env:
-          RUSTUP_MAX_RETRIES: 10
-        timeout-minutes: 10
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            desktop/tauri/src-tauri -> desktop/tauri/src-tauri/target
-
-      - name: Install NSIS (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: choco install nsis -y
-
-      - name: Install Tauri dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          # Ubuntu 24.04 (noble) uses libwebkit2gtk-4.1-dev (4.0 no longer available)
-          # Install core deps first
-          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
-          # Try new package name, fall back for older runners
-          sudo apt-get install -y libwebkit2gtk-4.1-dev || sudo apt-get install -y libwebkit2gtk-4.0-dev
-
-      - name: Prepare Tauri server binary
-        shell: bash
-        run: |
-          mkdir -p desktop/tauri/src-tauri/bin
-
-          # Copy the actual binary for this platform as a resource
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp "out/${APP_NAME}-windows-${{ matrix.arch }}.exe" "desktop/tauri/src-tauri/bin/qbit-manage-windows-${{ matrix.arch }}.exe"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cp "out/${APP_NAME}-macos-${{ matrix.arch }}" "desktop/tauri/src-tauri/bin/qbit-manage-macos-${{ matrix.arch }}"
-            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-macos-${{ matrix.arch }}"
-          else
-            cp "out/${APP_NAME}-linux-${{ matrix.arch }}" "desktop/tauri/src-tauri/bin/qbit-manage-linux-${{ matrix.arch }}"
-            chmod +x "desktop/tauri/src-tauri/bin/qbit-manage-linux-${{ matrix.arch }}"
-          fi
-
-      - name: Update Tauri version files
-        working-directory: desktop/tauri/src-tauri
-        shell: bash
-        run: |
-          # Run cargo check to trigger build script and update version files
-          cargo check
-
-      - name: Build Tauri CLI
-        working-directory: desktop/tauri/src-tauri
-        shell: bash
-        run: |
-          # Install Tauri 2 CLI (project migrated to Tauri v2 config & deps)
-          cargo install tauri-cli --version ^2 --locked --force
-
-      - name: Build Tauri app (initial attempt)
-        working-directory: desktop/tauri/src-tauri
-        shell: bash
-        run: |
-          # Build with explicit bundle targets for this platform
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cargo tauri build --bundles app,dmg
-          else
-            cargo tauri build --bundles deb
-          fi
-        continue-on-error: true
-        id: tauri-build
-
-      - name: Wait before retry (macOS DMG recovery)
-        if: steps.tauri-build.outcome == 'failure' && runner.os == 'macOS'
-        run: sleep 30
-        shell: bash
-
-      - name: Wait before retry (build recovery)
-        if: steps.tauri-build.outcome == 'failure'
-        run: sleep 30
-        shell: bash
-
-      - name: Retry Tauri build on failure (attempt 2)
-        if: steps.tauri-build.outcome == 'failure'
-        working-directory: desktop/tauri/src-tauri
-        shell: bash
-        run: |
-          # Build with explicit bundle targets for this platform
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cargo tauri build --bundles app,dmg
-          else
-            cargo tauri build --bundles deb
-          fi
-        continue-on-error: true
-        id: tauri-build-retry1
-
-      - name: Wait before final retry (build recovery)
-        if: steps.tauri-build-retry1.outcome == 'failure'
-        run: sleep 30
-        shell: bash
-
-      - name: Final retry Tauri build on failure (attempt 3)
-        if: steps.tauri-build-retry1.outcome == 'failure'
-        working-directory: desktop/tauri/src-tauri
-        shell: bash
-        run: |
-          # Build with explicit bundle targets for this platform
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cargo tauri build --target x86_64-pc-windows-msvc --bundles nsis
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            cargo tauri build --bundles app,dmg
-          else
-            cargo tauri build --bundles deb
-          fi
-
-      - name: Fail if all Tauri build attempts failed
-        if: steps.tauri-build.outcome == 'failure' && steps.tauri-build-retry1.outcome == 'failure'
-        shell: bash
-        run: |
-          echo "❌ Tauri build failed after all attempts"
-          exit 1
-
-      - name: Set BUILD_ARCH for artifact naming
-        shell: bash
-        run: |
-          echo "BUILD_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
-
-      - name: Upload build outputs (binary + Tauri bundles)
-        uses: actions/upload-artifact@v7
-        with:
-          name: build-outputs-${{ runner.os }}-${{ env.BUILD_ARCH }}
-          path: |
-            out/**
-            desktop/tauri/src-tauri/target/**/release/bundle/**
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-
-  prepare-release-assets:
-    runs-on: ubuntu-latest
-    needs: build-binaries
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Download and collect all build outputs
-        uses: actions/download-artifact@v8
-        with:
-          pattern: build-outputs-*
-          path: collected
-          merge-multiple: true
-
-      - name: Filter and rename files for release
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release-assets
-
-          echo "=== Collecting server binaries (standalone executables) ==="
-          # Copy server binaries with error checking
-          server_files=(
-            "qbit-manage-linux-amd64"
-            "qbit-manage-linux-arm64"
-            "qbit-manage-macos-arm64"
-            "qbit-manage-macos-x86_64"
-            "qbit-manage-windows-amd64.exe"
-          )
-
-          for server_file in "${server_files[@]}"; do
-            if find collected -name "$server_file" -exec cp {} release-assets/ \; -print | grep -q .; then
-              echo "✓ Found and copied: $server_file"
-            else
-              echo "⚠️  Warning: $server_file not found"
-            fi
-          done
-
-          echo "=== Processing installer files (desktop app packages) ==="
-
-          # Linux .deb installer
-          deb_count=$(find collected -name "*.deb" -exec cp {} release-assets/ \; -print | wc -l)
-          if [ "$deb_count" -gt 0 ]; then
-            echo "✓ Found $deb_count .deb installer(s)"
-            for file in release-assets/*.deb; do
-              if [ -f "$file" ]; then
-                basename=$(basename "$file" .deb)
-                mv "$file" "release-assets/${basename}-desktop-installer.deb"
-                echo "  → Renamed to: ${basename}-desktop-installer.deb"
-              fi
-            done
-          else
-            echo "⚠️  Warning: No .deb installers found"
-          fi
-
-          # macOS .dmg installers
-          dmg_count=$(find collected -name "*.dmg" -exec cp {} release-assets/ \; -print | wc -l)
-          if [ "$dmg_count" -gt 0 ]; then
-            echo "✓ Found $dmg_count .dmg installer(s)"
-            for file in release-assets/*.dmg; do
-              if [ -f "$file" ]; then
-                basename=$(basename "$file" .dmg)
-                mv "$file" "release-assets/${basename}-desktop-installer.dmg"
-                echo "  → Renamed to: ${basename}-desktop-installer.dmg"
-              fi
-            done
-          else
-            echo "⚠️  Warning: No .dmg installers found"
-          fi
-
-          # Windows .exe installer
-          exe_count=$(find collected -name "*-setup.exe" -exec cp {} release-assets/ \; -print | wc -l)
-          if [ "$exe_count" -gt 0 ]; then
-            echo "✓ Found $exe_count .exe installer(s)"
-            for file in release-assets/*-setup.exe; do
-              if [ -f "$file" ]; then
-                basename=$(basename "$file" -setup.exe)
-                mv "$file" "release-assets/${basename}-desktop-installer-setup.exe"
-                echo "  → Renamed to: ${basename}-desktop-installer-setup.exe"
-              fi
-            done
-          else
-            echo "⚠️  Warning: No .exe installers found"
-          fi
-
-          echo "=== File processing completed ==="
-
-      - name: Display final release assets
-        run: |
-          echo "=== Final Release Assets ==="
-          ls -la release-assets/
-          echo ""
-          echo "=== File Count Summary ==="
-          echo "Server binaries: $(find release-assets -name "qbit-manage-*" -not -name "*desktop*" | wc -l)"
-          echo "Desktop installers: $(find release-assets -name "*desktop-installer*" | wc -l)"
-
-      - name: Upload final release assets
-        uses: actions/upload-artifact@v7
-        with:
-          name: qbit-manage-release-assets
-          path: release-assets/*
-          if-no-files-found: error
-          compression-level: 6
-
-      - name: Clean up temporary build artifacts
-        uses: actions/github-script@v9
-        with:
-          script: |
-            // Get all artifacts from this workflow run
-            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: context.runId,
-            });
-
-            // Delete temporary build artifacts, keep only the final release assets
-            for (const artifact of artifacts.data.artifacts) {
-              if (artifact.name.startsWith('build-outputs-')) {
-                console.log(`Deleting temporary artifact: ${artifact.name}`);
-                try {
-                  await github.rest.actions.deleteArtifact({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    artifact_id: artifact.id,
-                  });
-                  console.log(`✓ Successfully deleted: ${artifact.name}`);
-                } catch (error) {
-                  console.log(`⚠️  Failed to delete ${artifact.name}: ${error.message}`);
-                }
-              } else {
-                console.log(`✓ Keeping final artifact: ${artifact.name}`);
-              }
-            }
-
   docker-release:
     runs-on: ubuntu-latest
     # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
@@ -475,40 +83,33 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/qbit_manage:${{ steps.get_version.outputs.VERSION }}
             ghcr.io/${{ env.OWNER_LC }}/qbit_manage:latest
 
-  create-release:
+  publish-release:
+    name: Publish draft release from Release PR
     runs-on: ubuntu-latest
-    needs: [prepare-release-assets, docker-release]
+    needs: [docker-release]
+    # Upstream-only: the draft release + PAT live on the upstream repo.
+    if: github.repository == 'StuffAnThings/qbit_manage'
     permissions:
       contents: write
     steps:
-      - name: Check Out Repo
-        uses: actions/checkout@v7
-
       - name: Get the version
         id: get_version
         run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
-      - name: Download prepared release assets
-        uses: actions/download-artifact@v8
-        with:
-          name: qbit-manage-release-assets
-          path: release-assets
-
-      - name: Display assets to be released
+      - name: Publish the draft release (keep its notes + assets)
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          echo "=== Assets to be released ==="
-          ls -la release-assets/
-          echo ""
-          echo "=== Individual files that will be uploaded ==="
-          find release-assets -type f -exec basename {} \;
+          TAG="${{ steps.get_version.outputs.VERSION }}"
 
-      - name: Create release with individual assets
-        id: create_release
-        uses: softprops/action-gh-release@v3
-        with:
-          body_path: CHANGELOG
-          token: ${{ secrets.PAT }}
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          files: release-assets/*
-          draft: false
-          prerelease: false
+          # release-pr.yml created this draft with the standalone binaries +
+          # auto-generated changelog already attached. Just flip it to published;
+          # do NOT touch the body or assets.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::No release found for tag $TAG — expected a draft created by release-pr.yml."
+            exit 1
+          fi
+
+          gh release edit "$TAG" --draft=false --latest
+          echo "Published release $TAG"

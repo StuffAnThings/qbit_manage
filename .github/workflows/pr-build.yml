@@ -1,0 +1,31 @@
+# Builds the full binary + desktop matrix for a PR ONLY when a maintainer adds the
+# `build` label, so reviewers can download + test the artifacts before merge.
+# Default (unlabeled) PRs cost zero runner minutes here.
+name: PR Build Artifacts
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  # Cancel a superseded build when a new commit lands on the same PR.
+  group: pr-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-pr-assets:
+    name: Build PR test assets
+    # Two gates: (1) only on the upstream repo — a fork's own PRs never burn the
+    # fork owner's minutes here; (2) only when the maintainer-only `build` label
+    # is present. Together these mean a fork PR builds only after a maintainer
+    # opts it in on upstream.
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      contains(github.event.pull_request.labels.*.name, 'build')
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}

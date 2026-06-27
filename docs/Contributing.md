@@ -170,6 +170,12 @@ chore(deps): bump ruff from 0.14.5 to 0.14.6
 4. Describe what your PR does and link any related issues.
 5. A maintainer will review; CI must be green before merge.
 
+> **Cross-platform test artifacts:** If your change affects platform-specific
+> behavior, ask a maintainer to add the **`build` label** to your PR. This
+> triggers the full 5-platform PyInstaller + Tauri bundle matrix and uploads a
+> `qbit-manage-release-assets` artifact to the workflow run so the team can
+> test all platforms before merge.
+
 For the release process (merging `develop → master`, tagging, PyPI publish),
 see [`DEVELOPER.md`](../DEVELOPER.md).
 
