@@ -4,6 +4,8 @@ name: Tag New Version
 on:
   push:
     branches: [ master ]
+  # Manual recovery lever if a master push is ever skipped.
+  workflow_dispatch:
 
 concurrency:
   group: tag-${{ github.ref }}

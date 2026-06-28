@@ -1,0 +1,64 @@
+name: Generate release notes
+description: Build categorized release notes from git log (origin/master..HEAD).
+
+inputs:
+  new-version:
+    description: Version being released, without the leading v.
+    required: true
+  override:
+    description: If non-empty, used verbatim instead of the git-log changelog.
+    required: false
+    default: ""
+  outfile:
+    description: Path the generated notes are written to.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        RELEASE_NOTES_OVERRIDE: ${{ inputs.override }}
+        NEW_VERSION: ${{ inputs.new-version }}
+        OUTFILE: ${{ inputs.outfile }}
+      run: |
+        OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
+
+        if [[ -n "$OVERRIDE" ]]; then
+          NOTES="$OVERRIDE"
+        else
+          RAW=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || true)
+
+          # Collapse dependency bumps to a single count instead of one line each.
+          DEPS=$(printf '%s\n' "$RAW" | grep -ciE 'chore\(deps' || true)
+
+          # Drop bot/noise commits (deps, pre-commit, VERSION + supported-versions
+          # bumps), then neutralize CI-skip directives — on a squash-merge these
+          # notes become the master commit message and a literal [skip ci] there
+          # would make GitHub skip the whole release chain.
+          LOG=$(printf '%s\n' "$RAW" \
+            | grep -viE 'chore(\(release\))?: bump VERSION|chore\(deps|\[pre-commit\.ci\]|pre-commit autoupdate|Update SUPPORTED_VERSIONS' \
+            | sed -E 's/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/(\1)/Ig; s/\*\*\*NO_CI\*\*\*/(no ci)/Ig' \
+            || true)
+
+          if [[ -z "$LOG" && "$DEPS" -eq 0 ]]; then
+            NOTES="No new commits since last release."
+          else
+            FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
+            FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
+            REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
+            PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
+            DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
+
+            NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
+
+            [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
+            [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'
+            [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
+            [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
+            [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
+            [[ "$DEPS" -gt 0 ]]  && NOTES+="### Dependencies"$'\n'"- ${DEPS} dependency update(s)"$'\n'$'\n'
+          fi
+        fi
+
+        printf '%s' "$NOTES" > "$OUTFILE"

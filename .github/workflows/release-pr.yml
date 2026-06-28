@@ -156,54 +156,21 @@ jobs:
       - name: Fetch master for changelog range
         run: git fetch origin master
 
-      - name: Generate release notes from git log
-        id: notes
+      - name: Generate release notes
+        uses: ./.github/actions/release-notes
+        with:
+          new-version: ${{ needs.prepare-release-branch.outputs.new_version }}
+          override: ${{ inputs.release_notes_override }}
+          outfile: /tmp/release_notes.md
+
+      - name: Append branch-cleanup footer
         env:
-          # Via env, never interpolated into the script body — prevents shell
-          # injection from a maliciously crafted dispatch input.
-          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
-          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
+          RELEASE_BRANCH: ${{ needs.prepare-release-branch.outputs.release_branch }}
         run: |
-          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
-
-          if [[ -n "$OVERRIDE" ]]; then
-            NOTES="$OVERRIDE"
-          else
-            # Exclude the pipeline's own VERSION-bump commit from the notes.
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
-
-            if [[ -z "$LOG" ]]; then
-              NOTES="No new commits since last release."
-            else
-              FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
-              FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
-              REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
-              PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
-              DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
-              TEST=$(echo "$LOG"     | grep -E '^[a-f0-9]+ test(\(.*\))?:'     || true)
-              CI=$(echo "$LOG"       | grep -E '^[a-f0-9]+ ci(\(.*\))?:'       || true)
-              CHORE=$(echo "$LOG"    | grep -E '^[a-f0-9]+ chore(\(.*\))?:'    || true)
-              OTHER=$(echo "$LOG"    | grep -vE '^[a-f0-9]+ (feat|fix|refactor|perf|docs|test|ci|chore)(\(.*\))?:' || true)
-
-              NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
-
-              [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
-              [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'
-              [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
-              [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
-              [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
-              [[ -n "$TEST" ]]     && NOTES+="### Tests"$'\n'"$TEST"$'\n'$'\n'
-              [[ -n "$CI" ]]       && NOTES+="### CI"$'\n'"$CI"$'\n'$'\n'
-              [[ -n "$CHORE" ]]    && NOTES+="### Chores"$'\n'"$CHORE"$'\n'$'\n'
-              [[ -n "$OTHER" ]]    && NOTES+="### Other"$'\n'"$OTHER"$'\n'$'\n'
-            fi
-          fi
-
-          NOTES+=$'\n'"---"$'\n'
-          NOTES+="_This PR was opened by the **Release PR** workflow. The \`${{ needs.prepare-release-branch.outputs.release_branch }}\` branch will auto-delete on merge (repo setting \"Automatically delete head branches\")._"$'\n'
-
-          printf '%s' "$NOTES" > /tmp/release_notes.md
-          echo "Notes written."
+          {
+            printf '\n---\n'
+            printf '_This PR was opened by the **Release PR** workflow. The `%s` branch will auto-delete on merge (repo setting "Automatically delete head branches")._\n' "$RELEASE_BRANCH"
+          } >> /tmp/release_notes.md
 
       - name: Open PR ${{ needs.prepare-release-branch.outputs.release_branch }} → master
         env:
@@ -268,47 +235,12 @@ jobs:
       - name: Fetch master for changelog range
         run: git fetch origin master
 
-      - name: Regenerate release notes for GitHub release
-        id: notes
-        env:
-          RELEASE_NOTES_OVERRIDE: ${{ inputs.release_notes_override }}
-          NEW_VERSION: ${{ needs.prepare-release-branch.outputs.new_version }}
-        run: |
-          OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
-
-          if [[ -n "$OVERRIDE" ]]; then
-            NOTES="$OVERRIDE"
-          else
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
-
-            if [[ -z "$LOG" ]]; then
-              NOTES="No new commits since last release."
-            else
-              FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
-              FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
-              REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
-              PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
-              DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
-              TEST=$(echo "$LOG"     | grep -E '^[a-f0-9]+ test(\(.*\))?:'     || true)
-              CI=$(echo "$LOG"       | grep -E '^[a-f0-9]+ ci(\(.*\))?:'       || true)
-              CHORE=$(echo "$LOG"    | grep -E '^[a-f0-9]+ chore(\(.*\))?:'    || true)
-              OTHER=$(echo "$LOG"    | grep -vE '^[a-f0-9]+ (feat|fix|refactor|perf|docs|test|ci|chore)(\(.*\))?:' || true)
-
-              NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
-
-              [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
-              [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'
-              [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
-              [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
-              [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
-              [[ -n "$TEST" ]]     && NOTES+="### Tests"$'\n'"$TEST"$'\n'$'\n'
-              [[ -n "$CI" ]]       && NOTES+="### CI"$'\n'"$CI"$'\n'$'\n'
-              [[ -n "$CHORE" ]]    && NOTES+="### Chores"$'\n'"$CHORE"$'\n'$'\n'
-              [[ -n "$OTHER" ]]    && NOTES+="### Other"$'\n'"$OTHER"$'\n'$'\n'
-            fi
-          fi
-
-          printf '%s' "$NOTES" > /tmp/draft_release_notes.md
+      - name: Generate release notes
+        uses: ./.github/actions/release-notes
+        with:
+          new-version: ${{ needs.prepare-release-branch.outputs.new_version }}
+          override: ${{ inputs.release_notes_override }}
+          outfile: /tmp/draft_release_notes.md
 
       - name: Download prepared release assets
         uses: actions/download-artifact@v8

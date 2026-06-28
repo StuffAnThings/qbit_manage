@@ -56,6 +56,14 @@ The operator:
      release, so develop's history ends up matching master's. Rebase keeps
      that history granular and bisectable.
    - Individual commits remain revertible.
+   - **Squash is hazardous:** a squash commit message is built from the PR
+     title + the auto-generated changelog. If any line in it contains
+     `[skip ci]` (VERSION-bump subjects historically did), GitHub skips
+     **every** push-triggered workflow on master — no `tag.yml`, so no tag,
+     no `version.yml`/`pypi`/develop-reset (this is exactly how the 4.9.0
+     release silently no-op'd). `release-pr.yml` now strips bump subjects and
+     neutralizes CI-skip tokens in the notes as a backstop, but **rebase-merge
+     remains the supported path.**
 
    The release branch auto-deletes on merge (per the repo setting above).
 
@@ -230,6 +238,20 @@ A release with the same version was already uploaded. Increment the version
 the same version.
 
 **`bump-version-develop.yml` triggers unexpectedly:**
-This workflow runs on every push to `develop`. If you need to prevent it from
-bumping `VERSION` on a specific push, include `[skip ci]` in the commit message
-or use the `paths-ignore` exemptions already in the workflow.
+This workflow runs on every push to `develop`. To prevent it from bumping
+`VERSION` on a specific push, include `[skip-version-bump]` in the commit
+message (the bump commit itself uses this). **Do not use `[skip ci]`** — it
+gets replayed into release notes and, on a squash-merge, into the master commit
+message, which skips the entire release chain.
+
+**Release didn't run after a merge to master (no tag / no PyPI / no Docker):**
+The master commit message contained a CI-skip token (`[skip ci]` etc.), so
+GitHub skipped `tag.yml`. Confirm with `git log origin/master -1 --format=%B`.
+Recover:
+- `gh release edit v<X.Y.Z> --draft=false --latest` — publish the draft that
+  `release-pr.yml` already built (binaries + notes attached).
+- `gh workflow run tag.yml` and `gh workflow run update-develop-branch.yml` —
+  manual `workflow_dispatch` levers to re-create the tag and reset develop.
+- `gh workflow run pypi-publish.yml --ref master` — re-publish to PyPI.
+Prevention: rebase-merge release PRs; never put `[skip ci]` in a commit that
+can reach master.
