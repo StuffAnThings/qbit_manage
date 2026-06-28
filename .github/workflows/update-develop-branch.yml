@@ -4,6 +4,8 @@ name: Update Develop Branch
 on:
   push:
     branches: [ master ]
+  # Manual recovery if a master push is skipped (e.g. [skip ci] in the merge commit).
+  workflow_dispatch:
 
 concurrency:
   group: update-develop
