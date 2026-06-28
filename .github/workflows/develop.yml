@@ -30,7 +30,8 @@ jobs:
     # Upstream-only: forks shouldn't burn ~5 OS-runners on every develop push.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
-      !contains(github.event.head_commit.message, '[skip-version-bump]')
+      (github.event_name != 'push' ||
+       !contains(github.event.head_commit.message, '[skip-version-bump]'))
     permissions:
       contents: read
       actions: write
@@ -44,7 +45,8 @@ jobs:
     # Upstream-only: rolling pre-release lives on the upstream repo.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
-      !contains(github.event.head_commit.message, '[skip-version-bump]')
+      (github.event_name != 'push' ||
+       !contains(github.event.head_commit.message, '[skip-version-bump]'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -91,7 +93,8 @@ jobs:
     # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
-      !contains(github.event.head_commit.message, '[skip-version-bump]')
+      (github.event_name != 'push' ||
+       !contains(github.event.head_commit.message, '[skip-version-bump]'))
     permissions:
       contents: read
 
