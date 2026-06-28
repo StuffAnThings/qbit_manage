@@ -944,3 +944,31 @@
     display: none; /* WebKit/Blink */
   }
 }
+
+/* iOS auto-zoom (#1023): Safari zooms the viewport when a focused input has a
+   font-size < 16px. Our inputs use --font-size-sm (14px), so focusing any
+   field on iPhone zooms the page. Force >= 16px for form controls on small
+   screens to prevent the zoom while keeping the compact size on desktop. */
+@media (max-width: 768px) {
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .config-select,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Preview YAML action (#1023): on desktop it's position:fixed top-right, which
+   overlaps long section titles (e.g. "qBittorrent Connection") once they wrap
+   on narrow screens. Put it back in the document flow on small screens so it
+   stacks above the section instead of floating over the title. */
+@media (max-width: 768px) {
+  .main-content > .content-actions {
+    position: static;
+    justify-content: flex-end;
+    padding: var(--spacing-md) var(--spacing-md) 0;
+  }
+}
