@@ -27,15 +27,21 @@ runs:
         if [[ -n "$OVERRIDE" ]]; then
           NOTES="$OVERRIDE"
         else
-          # Drop VERSION-bump commits, then neutralize any CI-skip directive: on a
-          # squash-merge these notes become the master commit message, and a literal
-          # [skip ci] there makes GitHub skip tag.yml -> no tag -> no release.
-          LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null \
-            | grep -viE 'chore(\(release\))?: bump VERSION' \
+          RAW=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || true)
+
+          # Collapse dependency bumps to a single count instead of one line each.
+          DEPS=$(printf '%s\n' "$RAW" | grep -ciE 'chore\(deps' || true)
+
+          # Drop bot/noise commits (deps, pre-commit, VERSION + supported-versions
+          # bumps), then neutralize CI-skip directives — on a squash-merge these
+          # notes become the master commit message and a literal [skip ci] there
+          # would make GitHub skip the whole release chain.
+          LOG=$(printf '%s\n' "$RAW" \
+            | grep -viE 'chore(\(release\))?: bump VERSION|chore\(deps|\[pre-commit\.ci\]|pre-commit autoupdate|Update SUPPORTED_VERSIONS' \
             | sed -E 's/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/(\1)/Ig; s/\*\*\*NO_CI\*\*\*/(no ci)/Ig' \
             || true)
 
-          if [[ -z "$LOG" ]]; then
+          if [[ -z "$LOG" && "$DEPS" -eq 0 ]]; then
             NOTES="No new commits since last release."
           else
             FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
@@ -43,10 +49,6 @@ runs:
             REFACTOR=$(echo "$LOG" | grep -E '^[a-f0-9]+ refactor(\(.*\))?:' || true)
             PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
             DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
-            TEST=$(echo "$LOG"     | grep -E '^[a-f0-9]+ test(\(.*\))?:'     || true)
-            CI=$(echo "$LOG"       | grep -E '^[a-f0-9]+ ci(\(.*\))?:'       || true)
-            CHORE=$(echo "$LOG"    | grep -E '^[a-f0-9]+ chore(\(.*\))?:'    || true)
-            OTHER=$(echo "$LOG"    | grep -vE '^[a-f0-9]+ (feat|fix|refactor|perf|docs|test|ci|chore)(\(.*\))?:' || true)
 
             NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
 
@@ -55,10 +57,7 @@ runs:
             [[ -n "$REFACTOR" ]] && NOTES+="### Refactoring"$'\n'"$REFACTOR"$'\n'$'\n'
             [[ -n "$PERF" ]]     && NOTES+="### Performance"$'\n'"$PERF"$'\n'$'\n'
             [[ -n "$DOCS" ]]     && NOTES+="### Documentation"$'\n'"$DOCS"$'\n'$'\n'
-            [[ -n "$TEST" ]]     && NOTES+="### Tests"$'\n'"$TEST"$'\n'$'\n'
-            [[ -n "$CI" ]]       && NOTES+="### CI"$'\n'"$CI"$'\n'$'\n'
-            [[ -n "$CHORE" ]]    && NOTES+="### Chores"$'\n'"$CHORE"$'\n'$'\n'
-            [[ -n "$OTHER" ]]    && NOTES+="### Other"$'\n'"$OTHER"$'\n'$'\n'
+            [[ "$DEPS" -gt 0 ]]  && NOTES+="### Dependencies"$'\n'"- ${DEPS} dependency update(s)"$'\n'$'\n'
           fi
         fi
 
