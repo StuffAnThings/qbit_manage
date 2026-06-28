@@ -923,3 +923,24 @@
     min-height: 44px;
   }
 }
+
+/* Header fit (#1023): the header is a grid whose cells default to
+   min-width:auto, so a crowded action row can't shrink and stretches the
+   whole .app column past the viewport (horizontal page scroll). Let the
+   cells shrink, and scroll the action row internally on very narrow phones
+   instead of breaking the page width. */
+@media (max-width: 768px) {
+  .header-left,
+  .header-right {
+    min-width: 0;
+  }
+
+  .header-actions {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .header-actions::-webkit-scrollbar {
+    display: none; /* WebKit/Blink */
+  }
+}
