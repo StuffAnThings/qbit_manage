@@ -857,3 +857,69 @@
     display: grid !important;
   }
 }
+
+/* ==========================================================================
+   Small-screen refinements (#1023 "Mobile friendly UI")
+   Fills gaps below ~600px that the main 768px breakpoint didn't cover:
+   - the 480-600px range, dropdown/select overflow, stacked category rows,
+     and short/landscape viewport heights for tall drawers.
+   ========================================================================== */
+
+/* Compact phones in portrait (<= 600px) */
+@media (max-width: 600px) {
+  /* Header config selector was 12rem min-width; let it shrink */
+  .config-select {
+    min-width: 0;
+  }
+
+  /* Dropdown menus: never run off-screen, cap to viewport */
+  .dropdown-menu {
+    min-width: 0;
+    max-width: calc(100vw - var(--spacing-md) * 2);
+  }
+
+  /* A right-aligned dropdown near the edge can still overflow; clamp it */
+  .dropdown-menu.right {
+    right: 0;
+    left: auto;
+  }
+}
+
+/* Very small phones (<= 480px) */
+@media (max-width: 480px) {
+  /* Category name/path inputs sit side-by-side; stack them */
+  .category-inputs .category-inputs-row {
+    flex-direction: column;
+  }
+
+  .category-name-group,
+  .category-path-group {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Short viewports (landscape phones, small tablets) — keep tall drawers/
+   panels from eating the whole screen. */
+@media (max-height: 600px) {
+  .command-panel-drawer {
+    height: 60vh;
+    max-height: 60vh;
+  }
+
+  .accordion-item.active .accordion-content {
+    max-height: 60vh;
+  }
+}
+
+/* Touch devices: guarantee 44px tap targets on the small icon buttons that
+   the generic touch rules don't already cover. */
+@media (hover: none) and (pointer: coarse) {
+  .remove-array-item,
+  .remove-category-btn,
+  .remove-complex-object-item,
+  .remove-share-limit-group {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

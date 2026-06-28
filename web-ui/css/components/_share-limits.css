@@ -303,7 +303,8 @@
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  min-width: 600px !important;
+  /* Keep 600px on desktop, but never exceed the viewport on small screens. */
+  min-width: min(600px, 95vw) !important;
   width: auto !important;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
