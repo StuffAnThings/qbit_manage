@@ -1028,3 +1028,24 @@
     transition: none;
   }
 }
+
+/* Fluid heading typography on phones/tablets (#1023): scale the large heading
+   sizes down smoothly on smaller viewports instead of holding the full desktop
+   size. Each clamp() reaches its max (the existing desktop value) at ~768px, so
+   the >768px desktop scale is unchanged and the breakpoint is seamless. Body
+   text (base/sm/xs) is intentionally left fixed so inputs stay >= 16px. */
+@media (max-width: 768px) {
+  :root {
+    --font-size-xl: clamp(1.125rem, 0.95rem + 0.9vw, 1.25rem);
+    --font-size-2xl: clamp(1.25rem, 0.9rem + 1.6vw, 1.5rem);
+    --font-size-3xl: clamp(1.4rem, 0.9rem + 2.5vw, 1.875rem);
+  }
+
+  /* The section heading (h2.section-title) has no explicit size — it falls back
+     to the browser default (1.5em = 24px). Give it the same fluid scale so the
+     most prominent heading shrinks gracefully on phones (max stays 24px, so the
+     desktop/breakpoint size is unchanged). */
+  .section-title {
+    font-size: clamp(1.25rem, 0.9rem + 1.6vw, 1.5rem);
+  }
+}
