@@ -46,11 +46,6 @@ permissions:
 jobs:
   pytest:
     name: Tests (Python ${{ matrix.python-version }})
-    # Skip only the bot VERSION-bump push (VERSION-only). PRs and dispatch always
-    # run — the event_name guard avoids any reliance on head_commit being null.
-    if: >-
-      github.event_name != 'push' ||
-      !contains(github.event.head_commit.message, '[skip-version-bump]')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

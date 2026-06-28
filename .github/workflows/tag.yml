@@ -4,8 +4,7 @@ name: Tag New Version
 on:
   push:
     branches: [ master ]
-  # Manual recovery: if a master push is ever skipped (e.g. a [skip ci] in the
-  # merge commit), dispatch this to create the tag and fire version.yml / pypi.
+  # Manual recovery lever if a master push is ever skipped.
   workflow_dispatch:
 
 concurrency:
@@ -25,9 +24,6 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          # PAT only (no GITHUB_TOKEN fallback): a tag pushed with GITHUB_TOKEN does
-          # not trigger version.yml / pypi-publish, so the fallback would push the tag
-          # but silently skip the release. Better to fail loudly if PAT is missing.
           token: ${{ secrets.PAT }}
           fetch-depth: 2
 
