@@ -22,7 +22,11 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.PAT }}
+          # Match update-develop-branch.yml: prefer PAT (so the tag push triggers the
+          # downstream v* workflows) but fall back to GITHUB_TOKEN so a missing/expired
+          # PAT secret doesn't hard-fail checkout with "Input required and not supplied:
+          # token" and silently skip creating the release tag.
+          token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 2
 
       # Pinned per supply-chain hygiene; bump SHA on next dependabot review
