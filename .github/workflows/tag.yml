@@ -4,6 +4,9 @@ name: Tag New Version
 on:
   push:
     branches: [ master ]
+  # Manual recovery: if a master push is ever skipped (e.g. a [skip ci] in the
+  # merge commit), dispatch this to create the tag and fire version.yml / pypi.
+  workflow_dispatch:
 
 concurrency:
   group: tag-${{ github.ref }}

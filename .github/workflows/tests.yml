@@ -46,6 +46,9 @@ permissions:
 jobs:
   pytest:
     name: Tests (Python ${{ matrix.python-version }})
+    # Skip the bot VERSION-bump commit (VERSION-only, nothing to test). On PRs
+    # head_commit is null so this is always true and tests still run.
+    if: "!contains(github.event.head_commit.message, '[skip-version-bump]')"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
