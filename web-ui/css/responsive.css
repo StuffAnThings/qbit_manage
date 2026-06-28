@@ -972,3 +972,59 @@
     padding: var(--spacing-md) var(--spacing-md) 0;
   }
 }
+
+/* Bottom-sheet modals on phones (#1023): centered dialogs are awkward to reach
+   on mobile. Anchor modals to the bottom edge, full-width, and slide them up
+   (thumb-friendly — NN/g & Material bottom-sheet pattern). Scoped to exclude
+   the share-limits modal, which has its own flex layout + slide animation. */
+@media (max-width: 768px) {
+  .modal-overlay:not(.share-limit-modal) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-overlay:not(.share-limit-modal) .modal {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    transform: translateY(100%); /* slide up instead of scale */
+  }
+
+  .modal-overlay:not(.share-limit-modal):not(.hidden) .modal {
+    transform: translateY(0);
+  }
+
+  /* Grab-handle affordance at the top of the sheet */
+  .modal-overlay:not(.share-limit-modal) .modal-header {
+    position: relative;
+  }
+
+  .modal-overlay:not(.share-limit-modal) .modal-header::before {
+    content: "";
+    position: absolute;
+    top: 0.4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.25rem;
+    height: 0.25rem;
+    border-radius: 999px;
+    background-color: var(--border-color);
+  }
+
+  /* Content fills the sheet and scrolls; header + footer stay pinned */
+  .modal-overlay:not(.share-limit-modal) .modal-content {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+}
+
+/* Respect reduced-motion: no slide transition */
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .modal-overlay:not(.share-limit-modal) .modal {
+    transition: none;
+  }
+}
