@@ -170,7 +170,14 @@ jobs:
             NOTES="$OVERRIDE"
           else
             # Exclude the pipeline's own VERSION-bump commit from the notes.
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
+            # Drop VERSION-bump commits, then neutralize any CI-skip directive in
+            # the remaining subjects: on a squash-merge these notes BECOME the
+            # master commit message, and a literal `[skip ci]` there makes GitHub
+            # skip tag.yml -> no tag -> no version.yml/pypi/develop-reset.
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null \
+              | grep -viE 'chore(\(release\))?: bump VERSION' \
+              | sed -E 's/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/(\1)/Ig; s/\*\*\*NO_CI\*\*\*/(no ci)/Ig' \
+              || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
@@ -279,7 +286,14 @@ jobs:
           if [[ -n "$OVERRIDE" ]]; then
             NOTES="$OVERRIDE"
           else
-            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null | grep -v 'chore(release): bump VERSION' || true)
+            # Drop VERSION-bump commits, then neutralize any CI-skip directive in
+            # the remaining subjects: on a squash-merge these notes BECOME the
+            # master commit message, and a literal `[skip ci]` there makes GitHub
+            # skip tag.yml -> no tag -> no version.yml/pypi/develop-reset.
+            LOG=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null \
+              | grep -viE 'chore(\(release\))?: bump VERSION' \
+              | sed -E 's/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/(\1)/Ig; s/\*\*\*NO_CI\*\*\*/(no ci)/Ig' \
+              || true)
 
             if [[ -z "$LOG" ]]; then
               NOTES="No new commits since last release."
