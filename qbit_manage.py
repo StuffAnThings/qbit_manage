@@ -267,7 +267,7 @@ try:
 
     try:
         git_branch = Repo(path=".").head.ref.name  # noqa
-    except InvalidGitRepositoryError:
+    except (InvalidGitRepositoryError, TypeError):
         git_branch = None
 except ImportError:
     git_branch = None
