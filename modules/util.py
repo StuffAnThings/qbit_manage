@@ -581,7 +581,10 @@ def get_current_version():
 
         try:
             git_branch = Repo(path=".").head.ref.name  # noqa
-        except InvalidGitRepositoryError:
+        except (InvalidGitRepositoryError, TypeError, ValueError):
+            # TypeError/ValueError is raised when HEAD is a detached reference
+            # (e.g. when running from a specific commit checkout in CI or a
+            # PyInstaller-built binary run against a detached-HEAD clone).
             git_branch = None
     except ImportError:
         git_branch = None
