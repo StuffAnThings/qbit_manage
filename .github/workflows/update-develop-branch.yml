@@ -16,6 +16,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write   # the final step dispatches develop.yml via `gh workflow run`
 
 jobs:
 
@@ -43,10 +44,11 @@ jobs:
           # Ensure we have the latest remote refs
           git fetch origin
 
-          # Check out develop from the remote tip (no reset --hard; history is preserved)
+          # Align the local develop checkout with its own remote tip. We never reset
+          # develop to master and never force-push, so develop's history is preserved.
           if git show-ref --verify --quiet refs/heads/develop; then
             git checkout develop
-            git reset --hard origin/develop   # align local develop with remote tip, NOT master
+            git reset --hard origin/develop   # local develop -> origin/develop (its own tip), NOT master
           else
             git checkout -b develop origin/develop
           fi
@@ -89,6 +91,10 @@ jobs:
 
           echo "Successfully back-merged master and set develop to $NEW_VERSION"
 
+      # Unconditional dispatch is intentional: the VERSION-bump commit pushed above carries
+      # `[skip ci]`, which suppresses develop.yml's `on: push` trigger even under a PAT push.
+      # So we always dispatch it explicitly. (develop.yml has cancel-in-progress, so on the
+      # rare no-VERSION-change push a redundant auto-trigger would just be superseded.)
       - name: Trigger develop workflow
         if: success()
         run: |
