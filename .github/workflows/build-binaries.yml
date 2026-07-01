@@ -67,9 +67,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "SEP=;" >> $GITHUB_OUTPUT
+            echo "SEP=;" >> "$GITHUB_OUTPUT"
           else
-            echo "SEP=:" >> $GITHUB_OUTPUT
+            echo "SEP=:" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build (PyInstaller onefile)
@@ -116,6 +116,39 @@ jobs:
           else
             mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-${{ matrix.arch }}"
           fi
+
+      # gh#1282: the frozen binary crashed at multiprocessing.Manager() because Python
+      # 3.14 changed the Linux default start method to 'forkserver' (incompatible with
+      # the PyInstaller bootloader). Nothing ran the built binary, so it shipped broken.
+      # Exercise the Manager() init path on Linux to catch this class of regression.
+      - name: Smoke test binary (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="out/${APP_NAME}-linux-${{ matrix.arch }}"
+          chmod +x "$BIN"
+          mkdir -p smoke
+          cat > smoke/config.yml <<'EOF'
+          commands:
+            dry_run: true
+          qbt:
+            host: 127.0.0.1:1
+          EOF
+          # -r exits after one run; --web-server=False keeps the process from hanging.
+          # The unreachable qbt host makes the run fail fast, but only *after*
+          # multiprocessing.Manager() has initialized.
+          out="$(timeout 120 "$BIN" -r --web-server=False --config-dir smoke 2>&1)" || true
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qiE 'forkserver|Connection reset by peer|multiprocessing/(managers|forkserver|connection)\.py'; then
+            echo "::error::multiprocessing start-method regression (gh#1282): Manager() failed in the frozen binary"
+            exit 1
+          fi
+          if ! printf '%s\n' "$out" | grep -qi 'Run Mode'; then
+            echo "::error::binary did not reach the run stage (Manager() init may have failed)"
+            exit 1
+          fi
+          echo "Smoke test passed: multiprocessing.Manager() initialized in the frozen binary."
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -266,7 +299,7 @@ jobs:
       - name: Set BUILD_ARCH for artifact naming
         shell: bash
         run: |
-          echo "BUILD_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "BUILD_ARCH=${{ matrix.arch }}" >> "$GITHUB_ENV"
 
       - name: Upload build outputs (binary + Tauri bundles)
         uses: actions/upload-artifact@v7

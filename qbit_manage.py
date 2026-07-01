@@ -719,6 +719,16 @@ def main():
         sys.exit(0)
 
     multiprocessing.freeze_support()
+    # gh#1282: Python 3.14 made 'forkserver' the default start method on Linux,
+    # which fails inside the PyInstaller standalone binary (the forkserver re-execs
+    # the bootloader and the handshake dies with ConnectionResetError). Pin the start
+    # method explicitly per-platform so a future default flip can't silently break us
+    # the same way: 'fork' on Linux (pre-3.14 behaviour), 'spawn' everywhere else
+    # (macOS/Windows already default to 'spawn'; safe on any other platform too).
+    if sys.platform.startswith("linux"):
+        multiprocessing.set_start_method("fork", force=True)
+    else:
+        multiprocessing.set_start_method("spawn", force=True)
     killer = GracefulKiller()
     logger.add_main_handler()
     print_logo(logger)
