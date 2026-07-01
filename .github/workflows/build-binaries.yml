@@ -67,9 +67,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "SEP=;" >> $GITHUB_OUTPUT
+            echo "SEP=;" >> "$GITHUB_OUTPUT"
           else
-            echo "SEP=:" >> $GITHUB_OUTPUT
+            echo "SEP=:" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build (PyInstaller onefile)
@@ -299,7 +299,7 @@ jobs:
       - name: Set BUILD_ARCH for artifact naming
         shell: bash
         run: |
-          echo "BUILD_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "BUILD_ARCH=${{ matrix.arch }}" >> "$GITHUB_ENV"
 
       - name: Upload build outputs (binary + Tauri bundles)
         uses: actions/upload-artifact@v7
