@@ -723,7 +723,8 @@ def main():
     # which fails inside the PyInstaller standalone binary (the forkserver re-execs
     # the bootloader and the handshake dies with ConnectionResetError). Pin the start
     # method explicitly per-platform so a future default flip can't silently break us
-    # the same way: 'fork' on Linux (pre-3.14 behaviour), 'spawn' on macOS/Windows.
+    # the same way: 'fork' on Linux (pre-3.14 behaviour), 'spawn' everywhere else
+    # (macOS/Windows already default to 'spawn'; safe on any other platform too).
     if sys.platform.startswith("linux"):
         multiprocessing.set_start_method("fork", force=True)
     else:

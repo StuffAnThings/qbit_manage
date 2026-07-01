@@ -125,7 +125,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           BIN="out/${APP_NAME}-linux-${{ matrix.arch }}"
           chmod +x "$BIN"
           mkdir -p smoke
