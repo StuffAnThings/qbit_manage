@@ -78,7 +78,8 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const version = context.payload.pull_request.head.ref.replace('release/', '');
+            const pr = context.payload.pull_request;
+            const version = pr.head.ref.replace('release/', '');
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               ...context.repo, state: 'open', labels: 'status:added-to-develop', per_page: 100,
             });
@@ -88,7 +89,9 @@ jobs:
               if (issue.pull_request) continue;
               await github.rest.issues.createComment({
                 ...context.repo, issue_number: issue.number,
-                body: `Released in [${version}](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${version}). Closing — please open a new issue if this persists on the latest release.`,
+                // Link the release PR (public now) rather than /releases/tag/${version}:
+                // at merge time the release is still a draft and the tag may not exist yet.
+                body: `Shipped to \`master\` for the ${version} release (${pr.html_url}). Closing — please open a new issue if this persists on the latest release.`,
               });
               await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed' });
               core.info(`Closed #${issue.number}.`);
