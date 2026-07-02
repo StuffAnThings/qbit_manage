@@ -403,6 +403,11 @@ body {
 .main-content {
   /* Removed grid layout for main content as sidebar is now fixed */
   overflow: hidden;
+  /* Grid item defaults to min-width:auto, so wide content (e.g. long torrent
+     paths in the log viewer) forces the #app grid past the viewport and scrolls
+     the whole page. Allow it to shrink so descendant overflow-x:auto boxes
+     (log viewer) contain their own scroll instead. */
+  min-width: 0;
 }
 
 /* Content Actions at top of main content - aligned with sidebar header */
