@@ -1,6 +1,7 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from fnmatch import fnmatch
 
 from modules import util
@@ -202,7 +203,7 @@ class RemoveOrphaned:
             for future in futures:
                 try:
                     stats.append(future.result(timeout=30.0))  # 30 second timeout per file
-                except TimeoutError:
+                except FuturesTimeoutError:
                     logger.warning(f"Timeout checking file age (permission issue?): {futures[future]}")
                 except Exception as e:
                     logger.error(f"Unexpected error during age check for {futures[future]}: {e}")
