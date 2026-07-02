@@ -256,6 +256,14 @@ parser.add_argument(
 parser.add_argument(
     "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
 )
+parser.add_argument(
+    "--log-format",
+    dest="log_format",
+    action="store",
+    default="text",
+    type=str,
+    help="Log output format: 'text' (default, human-readable) or 'json' (machine-readable, one JSON object per line).",
+)
 parser.add_argument("-v", "--version", dest="version", action="store_true", default=False, help="Display the version and exit")
 # Use parse_known_args to ignore PyInstaller/multiprocessing injected flags on Windows
 args, _unknown_cli = parser.parse_known_args()
@@ -304,6 +312,7 @@ dry_run = get_arg("QBT_DRY_RUN", args.dry_run, arg_bool=True)
 log_level = get_arg("QBT_LOG_LEVEL", args.log_level)
 log_size = get_arg("QBT_LOG_SIZE", args.log_size, arg_int=True)
 log_count = get_arg("QBT_LOG_COUNT", args.log_count, arg_int=True)
+log_format = get_arg("QBT_LOG_FORMAT", args.log_format)
 divider = get_arg("QBT_DIVIDER", args.divider)
 screen_width = get_arg("QBT_WIDTH", args.width, arg_int=True)
 debug = get_arg("QBT_DEBUG", args.debug, arg_bool=True)
@@ -347,6 +356,7 @@ for v in [
     "log_level",
     "log_size",
     "log_count",
+    "log_format",
     "divider",
     "screen_width",
     "debug",
@@ -361,6 +371,11 @@ for v in [
 if screen_width < 90 or screen_width > 300:
     print(f"Argument Error: width argument invalid: {screen_width} must be an integer between 90 and 300 using the default 100")
     screen_width = 100
+
+log_format = str(log_format).lower()
+if log_format not in ("text", "json"):
+    print(f"Argument Error: log-format invalid: {log_format} must be 'text' or 'json', using 'text'")
+    log_format = "text"
 
 # Check if Schedule parameter is a number
 try:
@@ -378,7 +393,9 @@ except ValueError:
     sys.exit(1)
 
 
-logger = MyLogger("qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, log_size, log_count)
+logger = MyLogger(
+    "qBit Manage", log_file, log_level, default_dir, screen_width, divider[0], False, log_size, log_count, log_format
+)
 from modules import util  # noqa
 
 # Ensure all modules that imported util.logger earlier route to this MyLogger

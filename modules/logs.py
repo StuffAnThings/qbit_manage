@@ -1,6 +1,7 @@
 """Logging module"""
 
 import io
+import json
 import logging
 import os
 import re
@@ -31,11 +32,37 @@ def fmt_filter(record):
 _srcfile = os.path.normcase(fmt_filter.__code__.co_filename)
 
 
+class JsonFormatter(logging.Formatter):
+    """Emit one JSON object per log record (used when log_format='json')."""
+
+    def format(self, record):
+        payload = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname.strip("[]"),
+            "logger": record.name,
+            "source": f"{os.path.basename(record.pathname)}:{record.lineno}",
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
 class MyLogger:
     """Logger class"""
 
     def __init__(
-        self, logger_name, log_file, log_level, default_dir, screen_width, separating_character, ignore_ghost, log_size, log_count
+        self,
+        logger_name,
+        log_file,
+        log_level,
+        default_dir,
+        screen_width,
+        separating_character,
+        ignore_ghost,
+        log_size,
+        log_count,
+        log_format="text",
     ):
         """Initialize logger"""
         self.logger_name = logger_name
@@ -53,6 +80,7 @@ class MyLogger:
         self.spacing = 0
         self.log_size = log_size
         self.log_count = log_count
+        self.log_format = log_format
         os.makedirs(self.log_dir, exist_ok=True)
         self._logger = logging.getLogger(self.logger_name)
         logging.DRYRUN = DRYRUN
@@ -95,9 +123,13 @@ class MyLogger:
 
     def _formatter(self, handler=None, border=True, log_only=False, space=False):
         """Format log message"""
+        handlers = [handler] if handler else self._logger.handlers
+        if self.log_format == "json":
+            for h in handlers:
+                h.setFormatter(JsonFormatter())
+            return
         console = f"| %(message)-{self.screen_width - 2}s |" if border else f"%(message)-{self.screen_width - 2}s"
         file = f"{' ' * 65}" if space else "[%(asctime)s] %(filename)-27s %(levelname)-10s "
-        handlers = [handler] if handler else self._logger.handlers
         for h in handlers:
             if not log_only or isinstance(h, RotatingFileHandler):
                 h.setFormatter(logging.Formatter(f"{file if isinstance(h, RotatingFileHandler) else ''}{console}"))
@@ -105,7 +137,8 @@ class MyLogger:
     def add_main_handler(self):
         """Add main handler to logger"""
         self.main_handler = self._get_handler(self.main_log)
-        self.main_handler.addFilter(fmt_filter)
+        if self.log_format != "json":
+            self.main_handler.addFilter(fmt_filter)
         self._logger.addHandler(self.main_handler)
 
     def remove_main_handler(self):
@@ -140,6 +173,11 @@ class MyLogger:
 
     def separator(self, text=None, space=True, border=True, side_space=True, left=False, loglevel="INFO"):
         """Print separator"""
+        if self.log_format == "json":
+            if text:
+                for txt in str(text).split("\n"):
+                    self.print_line(txt, loglevel)
+            return [text]
         sep = " " if space else self.separating_character
         for handler in self._logger.handlers:
             self._formatter(handler, border=False)
@@ -220,20 +258,22 @@ class MyLogger:
 
     def ghost(self, text):
         """Print ghost"""
-        if not self.ignore_ghost:
-            try:
-                final_text = f"| {text}"
-            except UnicodeEncodeError:
-                text = text.encode("utf-8")
-                final_text = f"| {text}"
-            print(self._space(final_text), end="\r")
-            self.spacing = len(text) + 2
+        if self.ignore_ghost or self.log_format == "json":
+            return
+        try:
+            final_text = f"| {text}"
+        except UnicodeEncodeError:
+            text = text.encode("utf-8")
+            final_text = f"| {text}"
+        print(self._space(final_text), end="\r")
+        self.spacing = len(text) + 2
 
     def exorcise(self):
         """Exorcise ghost"""
-        if not self.ignore_ghost:
-            print(self._space(" "), end="\r")
-            self.spacing = 0
+        if self.ignore_ghost or self.log_format == "json":
+            return
+        print(self._space(" "), end="\r")
+        self.spacing = 0
 
     def secret(self, text):
         """Add secret"""
@@ -254,7 +294,7 @@ class MyLogger:
         log_only = False
         if self.spacing > 0:
             self.exorcise()
-        if "\n" in msg:
+        if "\n" in msg and self.log_format != "json":
             for i, line in enumerate(msg.split("\n")):
                 self._log(level, line, args, exc_info=exc_info, extra=extra, stack_info=stack_info, stacklevel=stacklevel)
                 if i == 0:
