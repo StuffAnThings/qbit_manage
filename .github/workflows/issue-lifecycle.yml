@@ -1,0 +1,97 @@
+# Tracks issue lifecycle across the develop -> master release flow:
+#   1. A PR merges to develop with "Fixes #N" -> label issue N status:added-to-develop.
+#      GitHub's native keyword-close only fires on default-branch (master) merges, and
+#      it creates no link at all for develop-base PRs, so the body must be parsed.
+#   2. A release/* PR merges to master -> close every open issue carrying that label,
+#      since a develop->master release ships all of develop.
+#
+# SECURITY: pull_request_target is required so fork PRs get a write-capable token for
+# labeling. It is safe here because NOTHING from the PR head is checked out or executed
+# -- the PR body is only read as data inside github-script (never shell-interpolated).
+# The repo already uses this same pattern in label-conflicts.yml.
+name: Issue Lifecycle
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - develop
+      - master
+
+permissions:
+  issues: write
+
+jobs:
+  label-added-to-develop:
+    name: Label linked issues on develop merge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Upstream-only: the status label only exists on upstream's tracker.
+    if: >
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'develop'
+    steps:
+      - name: Add status:added-to-develop to issues this PR fixes
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Strip HTML comments so PR-template boilerplate ("Fixes # (issue)") can't match.
+            const body = (context.payload.pull_request.body || '').replace(/<!--[\s\S]*?-->/g, '');
+
+            // Official closing keywords; same-repo #N or full issue URL only.
+            const re = /\b(?:clos(?:e[sd]?)|fix(?:e[sd])?|resolv(?:e[sd]?))\s*:?\s+(?:https:\/\/github\.com\/StuffAnThings\/qbit_manage\/issues\/(\d+)|#(\d+))/gi;
+            const issues = new Set();
+            for (const m of body.matchAll(re)) issues.add(Number(m[1] || m[2]));
+
+            if (issues.size === 0) {
+              core.info('No closing-keyword issue references in PR body.');
+              return;
+            }
+
+            for (const issue_number of issues) {
+              try {
+                const { data: issue } = await github.rest.issues.get({ ...context.repo, issue_number });
+                if (issue.pull_request) { core.info(`#${issue_number} is a PR, skipping.`); continue; }
+                if (issue.state !== 'open') { core.info(`#${issue_number} already closed, skipping.`); continue; }
+                await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['status:added-to-develop'] });
+                core.info(`Labeled #${issue_number}.`);
+              } catch (e) {
+                core.warning(`Skipping #${issue_number}: ${e.message}`);
+              }
+            }
+
+  close-released-issues:
+    name: Close shipped issues on release merge
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Gate on release/* head from the upstream repo itself: a fork PR titled
+    # release/x merged to master can never trigger a mass close.
+    if: >
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'master' &&
+      startsWith(github.event.pull_request.head.ref, 'release/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Close all open issues labeled status:added-to-develop
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const version = context.payload.pull_request.head.ref.replace('release/', '');
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: 'open', labels: 'status:added-to-develop', per_page: 100,
+            });
+
+            let closed = 0;
+            for (const issue of issues) {
+              if (issue.pull_request) continue;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `Released in [${version}](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${version}). Closing — please open a new issue if this persists on the latest release.`,
+              });
+              await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed' });
+              core.info(`Closed #${issue.number}.`);
+              closed++;
+            }
+            core.info(`Closed ${closed} issue(s) for ${version}.`);
