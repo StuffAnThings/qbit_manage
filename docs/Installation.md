@@ -137,6 +137,10 @@ uv tool install qbit-manage
 git clone https://github.com/StuffAnThings/qbit_manage.git
 cd qbit_manage
 
+# The default branch is `develop` (latest code, may be unstable).
+# For the latest stable release, switch to master (omit to build from develop):
+git checkout master
+
 # Install uv if not already installed
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
