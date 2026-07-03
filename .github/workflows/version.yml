@@ -13,6 +13,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege default: docker-release only needs to read the repo.
+# publish-release overrides this at the job level with contents: write.
+permissions:
+  contents: read
+
 jobs:
   docker-release:
     runs-on: ubuntu-latest
@@ -22,7 +27,7 @@ jobs:
     steps:
       - name: set lower case owner name
         run: |
-          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+          echo "OWNER_LC=${OWNER,,}" >>"${GITHUB_ENV}"
         env:
           OWNER: "${{ github.repository_owner }}"
 
@@ -53,17 +58,17 @@ jobs:
 
       - name: Get the version
         id: get_version
-        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> "${GITHUB_OUTPUT}"
 
       - name: Read version from VERSION file
         id: get_app_version
-        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "APP_VERSION=$(cat VERSION)" >> "${GITHUB_OUTPUT}"
 
       - name: Set build metadata
         id: build_meta
         run: |
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-          echo "VCS_REF=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "${GITHUB_OUTPUT}"
+          echo "VCS_REF=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
 
       - name: Build and push
         id: docker_build
@@ -96,7 +101,7 @@ jobs:
     steps:
       - name: Get the version
         id: get_version
-        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> "${GITHUB_OUTPUT}"
 
       - name: Publish the draft release (keep its notes + assets)
         env:
