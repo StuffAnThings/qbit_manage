@@ -337,3 +337,49 @@ class TestFilterTooNew:
         ro = self._ro(min_age_minutes=0)
 
         assert ro._filter_too_new({str(f)}, set(), time.time()) == {str(f)}
+
+    def test_too_new_orphan_protected_with_mapped_remote_dir(self, tmp_path):
+        """Age protection must stat the remote_dir path, not the root_dir namespace."""
+        now = time.time()
+        root_dir = "/data/torrents"
+        orphan_host = tmp_path / "Movies" / "orphan_new.mkv"
+        orphan_host.parent.mkdir(parents=True)
+        orphan_host.write_text("x")
+        os.utime(orphan_host, (now, now))
+
+        orphan_root = f"{root_dir}/Movies/orphan_new.mkv"
+        cfg = FakeConfig()
+        cfg.root_dir = root_dir
+        cfg.remote_dir = str(tmp_path)
+        cfg.orphaned["min_file_age_minutes"] = 14400
+
+        ro = make_remove_orphaned(_make_qbt(config=cfg))
+        result = ro._filter_too_new({orphan_root}, set(), now)
+
+        assert result == set()
+
+    def test_hardlinked_orphan_cleaned_with_mapped_remote_dir(self, tmp_path):
+        """Inode matching must stat the remote_dir path when root_dir differs."""
+        now = time.time()
+        root_dir = "/data/torrents"
+        movies_dir = tmp_path / "Movies"
+        movies_dir.mkdir()
+
+        tracked_host = movies_dir / "tracked.mkv"
+        tracked_host.write_text("data")
+        orphan_host = movies_dir / "orphan_hardlink.mkv"
+        os.link(tracked_host, orphan_host)
+        os.utime(tracked_host, (now, now))
+
+        tracked_root = f"{root_dir}/Movies/tracked.mkv"
+        orphan_root = f"{root_dir}/Movies/orphan_hardlink.mkv"
+
+        cfg = FakeConfig()
+        cfg.root_dir = root_dir
+        cfg.remote_dir = str(tmp_path)
+        cfg.orphaned["min_file_age_minutes"] = 14400
+
+        ro = make_remove_orphaned(_make_qbt(config=cfg))
+        result = ro._filter_too_new({orphan_root}, {tracked_root}, now)
+
+        assert orphan_root in result

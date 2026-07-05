@@ -173,6 +173,10 @@ class RemoveOrphaned:
         duration = end_time - start_time
         logger.debug(f"Remove orphaned command completed in {duration:.2f} seconds")
 
+    def _host_path(self, path):
+        """Map a root_dir-namespace path to the host-accessible remote_dir path."""
+        return util.path_replace(path, self.root_dir, self.remote_dir)
+
     def _filter_too_new(self, orphaned_files, torrent_files, now):
         """Drop orphaned files younger than ``min_file_age_minutes`` from the deletion set.
 
@@ -189,12 +193,13 @@ class RemoveOrphaned:
 
         def stat_file(file):
             try:
-                st = os.stat(file)
+                st = os.stat(self._host_path(file))
                 return file, (now - st.st_mtime) / 60, st.st_nlink, (st.st_dev, st.st_ino)
             except PermissionError as e:
                 logger.warning(f"Permission denied checking file age for {file}: {e}")
             except Exception as e:
                 logger.error(f"Error checking file age for {file}: {e}")
+            # Stat failed — leave file eligible for cleanup rather than protecting it on bad data.
             return file, None, None, None
 
         stats = []
@@ -247,7 +252,7 @@ class RemoveOrphaned:
 
         def stat_inode(path):
             try:
-                st = os.stat(path)
+                st = os.stat(self._host_path(path))
                 return (st.st_dev, st.st_ino)
             except OSError:
                 return None
