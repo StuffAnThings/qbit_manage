@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 
 from modules.logs import JsonFormatter
 from modules.logs import MyLogger
@@ -74,6 +75,18 @@ class TestJsonFormatter:
 
 
 class TestMyLoggerJsonMode:
+    def test_default_stream_handler_emits_json(self, tmp_path):
+        """The init StreamHandler must emit JSON in json mode (production default)."""
+        logger = _make_logger(tmp_path)
+        sio = io.StringIO()
+        for handler in logger._logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
+                handler.stream = sio
+        logger.info("from default handler")
+        parsed = json.loads(sio.getvalue().strip())
+        assert parsed["message"] == "from default handler"
+        assert parsed["level"] == "INFO"
+
     def test_info_emits_valid_json(self, tmp_path):
         logger = _make_logger(tmp_path)
         handler, sio = _capture_stream()

@@ -94,8 +94,8 @@ class MyLogger:
 
         cmd_handler = logging.StreamHandler()
         cmd_handler.setLevel(self._log_level)
-
         self._logger.addHandler(cmd_handler)
+        self._formatter(handler=cmd_handler)
 
     def get_level(self):
         """Get the current log level"""
