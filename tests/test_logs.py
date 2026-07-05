@@ -87,6 +87,18 @@ class TestMyLoggerJsonMode:
         assert parsed["message"] == "from default handler"
         assert parsed["level"] == "INFO"
 
+    def test_multiline_message_is_single_json_record(self, tmp_path):
+        logger = _make_logger(tmp_path)
+        sio = io.StringIO()
+        for handler in logger._logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
+                handler.stream = sio
+        logger.info("line one\nline two")
+        lines = [line for line in sio.getvalue().splitlines() if line.strip()]
+        assert len(lines) == 1
+        parsed = json.loads(lines[0])
+        assert parsed["message"] == "line one\nline two"
+
     def test_info_emits_valid_json(self, tmp_path):
         logger = _make_logger(tmp_path)
         handler, sio = _capture_stream()

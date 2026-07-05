@@ -686,11 +686,25 @@ def run_web_server(
         # Gracefully allow shutdown
         pass
     except Exception:
-        # Avoid dependency on application logger here; print minimal traceback for diagnostics
         try:
+            import json
+            import sys
             import traceback
 
-            traceback.print_exc()
+            if process_args.get("log_format") == "json":
+                print(
+                    json.dumps(
+                        {
+                            "level": "ERROR",
+                            "message": "Web server failed to start",
+                            "exc_info": traceback.format_exc(),
+                        },
+                        ensure_ascii=False,
+                    ),
+                    file=sys.stderr,
+                )
+            else:
+                traceback.print_exc()
         except Exception:
             pass
 
