@@ -876,6 +876,7 @@
   .dropdown-menu {
     min-width: 0;
     max-width: calc(100vw - var(--spacing-md) * 2);
+    overflow-x: auto;
   }
 
   /* A right-aligned dropdown near the edge can still overflow; clamp it */

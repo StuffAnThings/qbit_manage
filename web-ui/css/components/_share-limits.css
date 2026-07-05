@@ -303,7 +303,7 @@
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  /* Keep 600px on desktop, but never exceed the viewport on small screens. */
+  /* Desktop keeps a 600px minimum; on narrow screens min() shrinks to 95vw. */
   min-width: min(600px, 95vw) !important;
   width: auto !important;
   background: var(--card-bg);
