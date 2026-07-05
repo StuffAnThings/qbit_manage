@@ -797,7 +797,10 @@
     transition: all var(--transition-normal);
   }
 
-  .sidebar.open + .sidebar-overlay {
+  .sidebar.show + .sidebar-overlay,
+  .sidebar.show ~ .sidebar-overlay,
+  .sidebar.open + .sidebar-overlay,
+  .sidebar.open ~ .sidebar-overlay {
     opacity: 1;
     visibility: visible;
   }
