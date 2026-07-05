@@ -177,6 +177,10 @@ class RemoveOrphaned:
         """Map a root_dir-namespace path to the host-accessible remote_dir path."""
         return util.path_replace(path, self.root_dir, self.remote_dir)
 
+    def _orphan_stat_entry(self, file, age_minutes=None, nlink=None, inode=None):
+        """Build a stat result for age/inode filtering (None values mean unreadable)."""
+        return {"file": file, "age_minutes": age_minutes, "nlink": nlink, "inode": inode}
+
     def _filter_too_new(self, orphaned_files, torrent_files, now):
         """Drop orphaned files younger than ``min_file_age_minutes`` from the deletion set.
 
@@ -194,13 +198,18 @@ class RemoveOrphaned:
         def stat_file(file):
             try:
                 st = os.stat(self._host_path(file))
-                return file, (now - st.st_mtime) / 60, st.st_nlink, (st.st_dev, st.st_ino)
+                return self._orphan_stat_entry(
+                    file,
+                    age_minutes=(now - st.st_mtime) / 60,
+                    nlink=st.st_nlink,
+                    inode=(st.st_dev, st.st_ino),
+                )
             except PermissionError as e:
                 logger.warning(f"Permission denied checking file age for {file}: {e}")
             except Exception as e:
                 logger.error(f"Error checking file age for {file}: {e}")
             # Stat failed — leave file eligible for cleanup rather than protecting it on bad data.
-            return file, None, None, None
+            return self._orphan_stat_entry(file)
 
         stats = []
         if self.executor:
@@ -211,18 +220,22 @@ class RemoveOrphaned:
                 except FuturesTimeoutError:
                     failed_file = futures[future]
                     logger.warning(f"Timeout checking file age (permission issue?): {failed_file}")
-                    stats.append((failed_file, None, None, None))
+                    stats.append(self._orphan_stat_entry(failed_file))
                 except Exception as e:
                     failed_file = futures[future]
                     logger.error(f"Unexpected error during age check for {failed_file}: {e}")
-                    stats.append((failed_file, None, None, None))
+                    stats.append(self._orphan_stat_entry(failed_file))
         else:
             stats = [stat_file(file) for file in orphaned_files]
 
         # Only pay for the tracked-inode index if a "too new" orphan is hardlinked.
         tracked_inodes = None
         protected_files = set()
-        for file, age_minutes, nlink, inode in stats:
+        for entry in stats:
+            file = entry["file"]
+            age_minutes = entry["age_minutes"]
+            nlink = entry["nlink"]
+            inode = entry["inode"]
             if age_minutes is None or age_minutes >= min_file_age_minutes:
                 continue  # unreadable or old enough — leave eligible for handling
             if nlink and nlink > 1:
