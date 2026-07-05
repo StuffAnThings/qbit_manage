@@ -209,9 +209,13 @@ class RemoveOrphaned:
                 try:
                     stats.append(future.result(timeout=30.0))  # 30 second timeout per file
                 except FuturesTimeoutError:
-                    logger.warning(f"Timeout checking file age (permission issue?): {futures[future]}")
+                    failed_file = futures[future]
+                    logger.warning(f"Timeout checking file age (permission issue?): {failed_file}")
+                    stats.append((failed_file, None, None, None))
                 except Exception as e:
-                    logger.error(f"Unexpected error during age check for {futures[future]}: {e}")
+                    failed_file = futures[future]
+                    logger.error(f"Unexpected error during age check for {failed_file}: {e}")
+                    stats.append((failed_file, None, None, None))
         else:
             stats = [stat_file(file) for file in orphaned_files]
 
