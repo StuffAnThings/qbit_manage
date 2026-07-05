@@ -22,12 +22,11 @@ def _make_config(data: dict) -> Config:
 
 
 class TestValidateRequiredSections:
-    """validate_required_sections() raises Failed when sections are missing/empty."""
+    """validate_required_sections() requires at least one of cat or tracker."""
 
     def test_valid_cat_section_passes(self):
         """A non-empty 'cat' section satisfies the validator."""
         cfg = _make_config({"cat": {"Movies": "/data/movies"}})
-        # Must not raise
         cfg.validate_required_sections()
 
     def test_valid_tracker_section_passes(self):
@@ -36,14 +35,6 @@ class TestValidateRequiredSections:
         cfg.validate_required_sections()
 
     def test_both_sections_present_and_non_empty_passes(self):
-        """Both non-empty sections together satisfy the validator.
-
-        Note: tests in this class target ``validate_required_sections()`` in
-        isolation, BEFORE ``process_config_data()`` injects default ``cat: {}``
-        and ``tracker: {}`` keys. Production flow always populates those
-        defaults first; these tests deliberately exercise the validator
-        without that injection (Copilot review #1207).
-        """
         cfg = _make_config(
             {
                 "cat": {"Movies": "/data/movies"},
@@ -52,40 +43,39 @@ class TestValidateRequiredSections:
         )
         cfg.validate_required_sections()
 
-    def test_empty_cat_section_raises(self):
-        """An empty 'cat' section raises Failed."""
-        cfg = _make_config({"cat": {}})
-        with pytest.raises(Failed, match="Category section"):
-            cfg.validate_required_sections()
+    def test_cat_only_with_empty_tracker_passes(self):
+        """Tracker-only configs are valid when cat is empty (production default injection)."""
+        cfg = _make_config(
+            {
+                "cat": {},
+                "tracker": {"tracker1.example": {"tag": ["t1"]}},
+            }
+        )
+        cfg.validate_required_sections()
 
-    def test_none_cat_section_raises(self):
-        """A None 'cat' section raises Failed."""
-        cfg = _make_config({"cat": None})
-        with pytest.raises(Failed, match="Category section"):
-            cfg.validate_required_sections()
+    def test_tracker_only_with_empty_cat_passes(self):
+        """Category-only configs are valid when tracker is empty (production default injection)."""
+        cfg = _make_config(
+            {
+                "cat": {"Movies": "/data/movies"},
+                "tracker": {},
+            }
+        )
+        cfg.validate_required_sections()
 
-    def test_empty_tracker_section_raises(self):
-        """An empty 'tracker' section raises Failed."""
-        cfg = _make_config({"tracker": {}})
-        with pytest.raises(Failed, match="Tracker section"):
-            cfg.validate_required_sections()
-
-    def test_none_tracker_section_raises(self):
-        """A None 'tracker' section raises Failed."""
-        cfg = _make_config({"tracker": None})
-        with pytest.raises(Failed, match="Tracker section"):
+    def test_both_sections_empty_raises(self):
+        cfg = _make_config({"cat": {}, "tracker": {}})
+        with pytest.raises(Failed, match="Both"):
             cfg.validate_required_sections()
 
     def test_both_sections_missing_raises(self):
-        """Neither 'cat' nor 'tracker' present raises Failed."""
         cfg = _make_config({})
         with pytest.raises(Failed, match="Both"):
             cfg.validate_required_sections()
 
-    def test_notify_called_before_raise_on_empty_cat(self):
-        """notify() is called before raising so webhooks fire."""
-        cfg = _make_config({"cat": {}})
+    def test_notify_called_before_raise_when_both_empty(self):
+        cfg = _make_config({"cat": {}, "tracker": {}})
         with pytest.raises(Failed):
             cfg.validate_required_sections()
         assert len(cfg._notify_calls) == 1
-        assert "Category section" in cfg._notify_calls[0]
+        assert "Both" in cfg._notify_calls[0]

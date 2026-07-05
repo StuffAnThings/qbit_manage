@@ -55,8 +55,11 @@ def setup_services(qbt=False):
         try:
             qbt_client.auth_log_in()
             print("Successfully connected to qBittorrent!")
-        except:
+        except qbittorrentapi.LoginFailed:
             print("Error: Could not log into qBittorrent. Please verify login details are correct and Web Ui is available.")
+            quit_program(1)
+        except qbittorrentapi.APIConnectionError as e:
+            print(f"Error: Could not connect to qBittorrent: {e}")
             quit_program(1)
 
 

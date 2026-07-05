@@ -147,6 +147,8 @@ class RemoveUnregistered:
             def process_single_torrent():
                 if self.filter_completed and not torrent.state_enum.is_complete:
                     return
+                if not torrent.trackers:
+                    return
                 tracker_working = False
                 for trk in torrent.trackers:
                     if (

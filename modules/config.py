@@ -308,21 +308,6 @@ class Config:
         has_categories = "cat" in self.data and self.data["cat"] is not None and len(self.data["cat"]) > 0
         has_trackers = "tracker" in self.data and self.data["tracker"] is not None and len(self.data["tracker"]) > 0
 
-        # Check categories section
-        if "cat" in self.data:
-            if self.data["cat"] is None or len(self.data["cat"]) == 0:
-                err = (
-                    "Config Error: Category section is not completed and is mandatory. "
-                    "Please enter all categories and save path combinations."
-                )
-                self.notify(err, "Config")
-                raise Failed(err)
-        # Check tracker section
-        if "tracker" in self.data:
-            if self.data["tracker"] is None or len(self.data["tracker"]) == 0:
-                err = "Config Error: 'Tracker section is not completed and is mandatory."
-                self.notify(err, "Config")
-                raise Failed(err)
         if not has_categories and not has_trackers:
             # Both sections exist but are empty (since process_config_data creates them)
             err = (
@@ -584,7 +569,7 @@ class Config:
                             self.notify(err, "Config")
                             raise Failed(err)
                     else:
-                        priority = max(priorities) + 1
+                        priority = (max(priorities) if priorities else 0) + 1
                         logger.warning(
                             f"Priority not defined for the grouping '{key}' in share_limits. Setting priority to {priority}"
                         )

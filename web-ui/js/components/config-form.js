@@ -1419,7 +1419,13 @@ class ConfigForm {
         if (this.validationState.errors.length === 0) {
             // Perform backend validation which may add default values
             try {
-                const response = await this.api.validateConfig(this.currentSection, this.currentData);
+                const filename = window.app?.currentConfig;
+                const fullData = window.app?.configData ?? {};
+                if (!filename) {
+                    showToast('No configuration selected', 'warning');
+                    return;
+                }
+                const response = await this.api.validateConfig(filename, { data: fullData });
 
                 if (response.valid) {
                     // Check if config was modified during validation
@@ -1428,10 +1434,16 @@ class ConfigForm {
 
                         // Reload the configuration data from the server to reflect changes
                         try {
-                            const configResponse = await this.api.getConfig(this.currentSection);
+                            const configResponse = await this.api.getConfig(filename);
                             if (configResponse && configResponse.data) {
-                                // Update current data with the modified config
-                                this.currentData = this._preprocessComplexObjectData(this.currentSection, configResponse.data);
+                                if (window.app) {
+                                    window.app.configData = configResponse.data;
+                                }
+                                // Update current data with the modified section
+                                this.currentData = this._preprocessComplexObjectData(
+                                    this.currentSection,
+                                    configResponse.data[this.currentSection] || {},
+                                );
 
                                 // Store initial data only once per section
                                 if (!this.initialSectionData[this.currentSection]) {

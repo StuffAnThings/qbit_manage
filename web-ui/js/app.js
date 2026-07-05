@@ -22,6 +22,7 @@ class QbitManageApp {
         this.currentConfig = null;
         this.currentSection = 'commands';
         this.configData = {};
+        this.yamlPreviewVisible = false;
         this.initialConfigData = {}; // Store initial loaded config for dirty checking
         this.validationState = {};
         this.isDirty = false;
@@ -694,7 +695,10 @@ class QbitManageApp {
 
                             // Update YAML preview if it's open
                             if (this.yamlPreviewVisible) {
-                                this.updateYamlPreview();
+                                const yamlContent = get('yaml-content');
+                                if (yamlContent) {
+                                    yamlContent.textContent = this.generateYamlString(this.configData);
+                                }
                             }
                         }
                     } catch (reloadError) {
@@ -905,6 +909,7 @@ class QbitManageApp {
 
         yamlContent.textContent = yamlString;
         previewContainer.classList.remove('hidden');
+        this.yamlPreviewVisible = true;
 
         // Allow the display property to take effect before starting the transition
         setTimeout(() => {
@@ -922,6 +927,7 @@ class QbitManageApp {
         if (mainContent) mainContent.classList.remove('yaml-preview-active');
         previewContainer.classList.remove('active');
         yamlPreviewBtn.classList.remove('active');
+        this.yamlPreviewVisible = false;
 
         // Hide with delay to allow transition to complete
         setTimeout(() => {
@@ -1108,12 +1114,17 @@ class QbitManageApp {
                 log_level: options.log_level
             });
 
-            this.logViewer.log('info', 'Commands executed successfully.');
+            if (response?.status === 'queued') {
+                this.logViewer.log('info', response.message || 'Command queued — waiting for current run to finish.');
+            } else {
+                this.logViewer.log('info', 'Commands executed successfully.');
+            }
 
             // Display the API response in the log viewer
             if (response) {
                 this.logViewer.log('info', `Response: ${JSON.stringify(response, null, 2)}`);
             }
+            await this.logViewer.loadRecentLogs();
         } catch (error) {
             console.error('Command execution failed:', error);
             this.logViewer.log('error', `Command execution failed: ${error.message}`);

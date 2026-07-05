@@ -177,6 +177,7 @@ class Qbt:
             except Exception as ex:
                 self.config.notify(ex, "Get Torrent Info", False)
                 logger.warning(ex)
+                continue
             if torrent_name in self.torrentinfo:
                 t_obj_list.append(torrent)
                 msg_list = self.torrentinfo[torrent_name]["msg"]
@@ -590,6 +591,7 @@ class Qbt:
                 )
 
                 # Move files from torrent contents to Recycle bin
+                to_delete = False
                 for file in tor_files:
                     src = file
                     dest = os.path.join(recycle_path, util.path_replace(file, self.config.remote_dir, ""))

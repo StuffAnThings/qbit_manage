@@ -424,8 +424,8 @@ class LogViewer {
 
     showToast(message, type = 'info') {
         // If there's a global toast function available, use it
-        if (window.qbitManageApp && window.qbitManageApp.showToast) {
-            window.qbitManageApp.showToast(message, type);
+        if (window.app?.showToast) {
+            window.app.showToast(message, type);
         }
     }
 }
