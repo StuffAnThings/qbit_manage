@@ -882,6 +882,11 @@
     overflow-x: auto;
   }
 
+  .dropdown-menu .dropdown-item {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   /* A right-aligned dropdown near the edge can still overflow; clamp it */
   .dropdown-menu.right {
     right: 0;
