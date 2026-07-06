@@ -288,7 +288,7 @@
   margin: 0 auto;
 }
 
-.share-limit-modal .modal-overlay {
+.modal-overlay.share-limit-modal {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,7 +303,8 @@
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  min-width: 600px !important;
+  /* Desktop keeps a 600px minimum; on narrow screens min() shrinks to 95vw. */
+  min-width: min(600px, 95vw) !important;
   width: auto !important;
   background: var(--card-bg);
   border: 1px solid var(--card-border);
