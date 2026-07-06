@@ -8,6 +8,8 @@ name: Bump Develop VERSION
 #
 # Skips itself: bump commits include `[skip-version-bump]` in the message,
 # so the job condition below will not re-run another bump.
+#
+# On completion, develop.yml chains automatically via workflow_run.
 
 on:
   push:
