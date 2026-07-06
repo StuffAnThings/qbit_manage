@@ -16,7 +16,6 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write   # the final step dispatches develop.yml via `gh workflow run`
 
 jobs:
 
@@ -75,7 +74,7 @@ jobs:
           echo "$NEW_VERSION" > VERSION
           git add VERSION
           if ! git diff --cached --quiet; then
-            git commit -m "Update VERSION to $NEW_VERSION [skip ci]"
+            git commit -m "Update VERSION to $NEW_VERSION [skip ci][skip-version-bump]"
           else
             echo "VERSION already at $NEW_VERSION; nothing to commit"
           fi
@@ -90,15 +89,3 @@ jobs:
           fi
 
           echo "Successfully back-merged master and set develop to $NEW_VERSION"
-
-      # Unconditional dispatch is intentional: the VERSION-bump commit pushed above carries
-      # `[skip ci]`, which suppresses develop.yml's `on: push` trigger even under a PAT push.
-      # So we always dispatch it explicitly. (develop.yml has cancel-in-progress, so on the
-      # rare no-VERSION-change push a redundant auto-trigger would just be superseded.)
-      - name: Trigger develop workflow
-        if: success()
-        run: |
-          echo "Triggering develop workflow..."
-          gh workflow run develop.yml --ref develop
-        env:
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}

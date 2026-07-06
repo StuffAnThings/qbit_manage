@@ -8,6 +8,8 @@ name: Bump Develop VERSION
 #
 # Skips itself: bump commits include `[skip-version-bump]` in the message,
 # so the job condition below will not re-run another bump.
+#
+# On completion, develop.yml chains automatically via workflow_run.
 
 on:
   push:
@@ -19,7 +21,6 @@ concurrency:
 
 permissions:
   contents: write
-  actions: write   # dispatch develop.yml after VERSION bump
 
 jobs:
   bump:
@@ -71,12 +72,3 @@ jobs:
           git add VERSION
           git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip ci][skip-version-bump]"
           git push origin develop
-
-      # The bump commit carries `[skip ci]`, so develop.yml's `on: push` will not
-      # fire. Dispatch explicitly after VERSION is at its final value — same
-      # pattern as update-develop-branch.yml.
-      - name: Trigger develop workflow
-        if: success()
-        run: gh workflow run develop.yml --ref develop
-        env:
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}

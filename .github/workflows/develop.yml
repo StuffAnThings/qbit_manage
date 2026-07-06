@@ -1,26 +1,17 @@
 # Build develop binaries + Docker `:develop` and refresh the rolling
-# `latest-develop` pre-release. Normally triggered by bump-version-develop.yml
-# (via workflow_dispatch) after VERSION is bumped — not on the merge commit
-# itself, which still carries the pre-bump VERSION. Also runs on workflow_dispatch
-# and on pushes whose commit message includes `[skip-version-bump]` (manual /
-# recovery paths that bypass the bump workflow).
+# `latest-develop` pre-release. Chains automatically after bump-version-develop.yml
+# (or update-develop-branch.yml) via workflow_run — always checks out the current
+# develop tip so the build includes the post-bump VERSION. workflow_dispatch remains
+# for manual recovery only.
 name: Docker Develop Release
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - "Bump Develop VERSION"
+      - "Update Develop Branch"
+    types: [completed]
     branches: [develop]
-    paths-ignore:
-      # Skip the full 5-OS PyInstaller + Tauri matrix on doc-only / template-only
-      # commits. Use workflow_dispatch to force a manual rebuild if a docs change
-      # needs to land in the bundled artifact.
-      - "docs/**"
-      - "**/*.md"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/FUNDING.yml"
-      - ".github/pull_request_template.md"
-      - ".github/labeler.yml"
-      - "CHANGELOG"
-      - "LICENSE"
   workflow_dispatch:
 
 concurrency:
@@ -31,18 +22,18 @@ jobs:
   build-release-assets:
     name: Build develop assets
     # Upstream-only: forks shouldn't burn ~5 OS-runners on every develop push.
-    # Skip merge commits: bump-version-develop.yml dispatches this workflow once
-    # VERSION is bumped. workflow_dispatch covers that dispatch and manual runs.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
       (github.event_name == 'workflow_dispatch' ||
-       contains(github.event.head_commit.message, '[skip-version-bump]'))
+       github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: read
       actions: write
     uses: ./.github/workflows/build-binaries.yml
     with:
-      ref: ${{ github.sha }}
+      # workflow_run.head_sha is the *triggering* commit (pre-bump merge); checkout
+      # the develop branch tip so we build after bump-version-develop.yml has pushed.
+      ref: develop
 
   develop-prerelease:
     name: Update rolling develop pre-release
@@ -51,15 +42,19 @@ jobs:
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
       (github.event_name == 'workflow_dispatch' ||
-       contains(github.event.head_commit.message, '[skip-version-bump]'))
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Check Out develop commit
+      - name: Check Out develop tip
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
+          ref: develop
+
+      - name: Record develop HEAD
+        id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Download prepared release assets
         uses: actions/download-artifact@v8
@@ -74,6 +69,7 @@ jobs:
           set -euo pipefail
           VERSION="$(cat VERSION)"
           TAG="latest-develop"
+          HEAD_SHA="${{ steps.head.outputs.sha }}"
 
           # The GitHub API cannot move an existing tag to a new commit, so delete
           # the rolling release + its tag and recreate both at the current HEAD.
@@ -86,9 +82,9 @@ jobs:
             gh release delete "$TAG" --cleanup-tag --yes
           fi
           gh release create "$TAG" \
-            --target "${{ github.sha }}" \
+            --target "$HEAD_SHA" \
             --title "Develop build ($VERSION)" \
-            --notes "Rolling pre-release built from the latest \`develop\` commit (\`${{ github.sha }}\`). Auto-updated on every merge to develop — this is a development build, not a stable release." \
+            --notes "Rolling pre-release built from the latest \`develop\` commit (\`$HEAD_SHA\`). Auto-updated on every merge to develop — this is a development build, not a stable release." \
             --prerelease \
             --latest=false \
             release-assets/*
@@ -99,7 +95,7 @@ jobs:
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
       (github.event_name == 'workflow_dispatch' ||
-       contains(github.event.head_commit.message, '[skip-version-bump]'))
+       github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: read
 
@@ -110,10 +106,10 @@ jobs:
         env:
           OWNER: "${{ github.repository_owner }}"
 
-      - name: Check Out Repo
+      - name: Check Out develop tip
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.sha }}
+          ref: develop
 
       - name: Login to Docker Hub
         uses: docker/login-action@v4

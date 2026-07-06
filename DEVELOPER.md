@@ -90,11 +90,11 @@ were already attached by `release-pr.yml` in Step 1).
 
 ### Rolling develop pre-release
 
-Every push to `develop` (excluding doc-only paths) triggers `bump-version-develop.yml`,
-which bumps `VERSION` and then dispatches `develop.yml`. The merge commit itself does
-**not** run `develop.yml` — it still carries the pre-bump `VERSION`, and the bump
-commit uses `[skip ci]`, so an explicit dispatch is required (same pattern as
-`update-develop-branch.yml`).
+Every push to `develop` triggers `bump-version-develop.yml`, which bumps `VERSION`
+when needed. When that workflow finishes, `develop.yml` chains automatically via
+`workflow_run` (same for `update-develop-branch.yml` after a master release).
+The develop build always checks out the current `develop` tip so binaries, Docker,
+and `latest-develop` match the bumped `VERSION`.
 
 `develop.yml` then:
 
