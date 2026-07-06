@@ -1,6 +1,9 @@
-# On every push to develop: build the binary + Tauri matrix (reusable workflow),
-# refresh the rolling `latest-develop` pre-release with those assets, and push the
-# `:develop` Docker image.
+# Build develop binaries + Docker `:develop` and refresh the rolling
+# `latest-develop` pre-release. Normally triggered by bump-version-develop.yml
+# (via workflow_dispatch) after VERSION is bumped — not on the merge commit
+# itself, which still carries the pre-bump VERSION. Also runs on workflow_dispatch
+# and on pushes whose commit message includes `[skip-version-bump]` (manual /
+# recovery paths that bypass the bump workflow).
 name: Docker Develop Release
 
 on:
@@ -28,7 +31,12 @@ jobs:
   build-release-assets:
     name: Build develop assets
     # Upstream-only: forks shouldn't burn ~5 OS-runners on every develop push.
-    if: github.repository == 'StuffAnThings/qbit_manage'
+    # Skip merge commits: bump-version-develop.yml dispatches this workflow once
+    # VERSION is bumped. workflow_dispatch covers that dispatch and manual runs.
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      (github.event_name == 'workflow_dispatch' ||
+       contains(github.event.head_commit.message, '[skip-version-bump]'))
     permissions:
       contents: read
       actions: write
@@ -40,7 +48,10 @@ jobs:
     name: Update rolling develop pre-release
     needs: build-release-assets
     # Upstream-only: rolling pre-release lives on the upstream repo.
-    if: github.repository == 'StuffAnThings/qbit_manage'
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      (github.event_name == 'workflow_dispatch' ||
+       contains(github.event.head_commit.message, '[skip-version-bump]'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,7 +96,10 @@ jobs:
   docker-develop:
     runs-on: ubuntu-latest
     # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
-    if: github.repository == 'StuffAnThings/qbit_manage'
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      (github.event_name == 'workflow_dispatch' ||
+       contains(github.event.head_commit.message, '[skip-version-bump]'))
     permissions:
       contents: read
 

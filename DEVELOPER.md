@@ -90,7 +90,13 @@ were already attached by `release-pr.yml` in Step 1).
 
 ### Rolling develop pre-release
 
-Every push to `develop` (excluding doc-only paths) triggers `develop.yml`, which:
+Every push to `develop` (excluding doc-only paths) triggers `bump-version-develop.yml`,
+which bumps `VERSION` and then dispatches `develop.yml`. The merge commit itself does
+**not** run `develop.yml` — it still carries the pre-bump `VERSION`, and the bump
+commit uses `[skip ci]`, so an explicit dispatch is required (same pattern as
+`update-develop-branch.yml`).
+
+`develop.yml` then:
 
 1. Builds the full 5-platform binary + Tauri bundle matrix via `build-binaries.yml`.
 2. Pushes the `:develop` Docker image.
