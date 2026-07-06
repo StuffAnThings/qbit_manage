@@ -228,7 +228,7 @@ if __name__ == "__main__":
         except APIConnectionError:
             raise ConnectionError("Qbittorrent Error: Unable to connect to the client.") from None
         except Exception:
-            raise ("Qbittorrent Error: Unable to connect to the client.")
+            raise ConnectionError("Qbittorrent Error: Unable to connect to the client.") from None
 
         timeoffset_from = current - timedelta(days=args.days_from)
         timeoffset_to = current - timedelta(days=args.days_to)
