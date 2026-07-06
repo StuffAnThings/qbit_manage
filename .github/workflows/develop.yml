@@ -11,7 +11,7 @@ on:
       - "Bump Develop VERSION"
       - "Update Develop Branch"
     types: [completed]
-    branches: [develop]
+    branches: [develop, master]
   workflow_dispatch:
 
 concurrency:
