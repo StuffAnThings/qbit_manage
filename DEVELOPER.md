@@ -78,7 +78,7 @@ and `pypi-publish.yml`. The cascade is two steps, not a single parallel burst:
 | `tag.yml` | Reads `VERSION`, creates and pushes the `v<X.Y.Z>` tag via `Kometa-Team/tag-new-version`. |
 | `pypi-publish.yml` | Triggered by the new `v*` tag; builds the Python package and publishes to PyPI via trusted publishing (OIDC, no API token needed). |
 | `version.yml` | Triggered by the `v*` tag; builds + pushes the Docker image, then publishes the draft GitHub release that `release-pr.yml` already prepared — flips it from draft to published. Does **not** rebuild binaries. |
-| `update-develop-branch.yml` | Resets `develop` to `master`, bumps `VERSION` to the next patch-develop1 (e.g. `4.7.3-develop1`), force-pushes develop, then triggers `develop.yml` to rebuild Docker develop images. |
+| `update-develop-branch.yml` | Back-merges `master` into `develop`, bumps `VERSION` to the next patch-develop1 (e.g. `4.7.3-develop1`); `develop.yml` chains automatically via `workflow_run`. |
 
 After `tag.yml` pushes the `v<X.Y.Z>` tag, `version.yml` fires: it builds and
 pushes the Docker image, then publishes the draft release (binaries and notes
