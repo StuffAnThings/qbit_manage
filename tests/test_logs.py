@@ -86,6 +86,16 @@ class TestMyLoggerJsonMode:
         parsed = json.loads(sio.getvalue().strip())
         assert parsed["message"] == "from default handler"
         assert parsed["level"] == "INFO"
+        assert parsed["source"].endswith("test_logs.py:85")
+
+    def test_source_field_uses_caller_pathname(self, tmp_path):
+        """JSON source must reflect the real caller, not a mangled func/pathname tuple."""
+        logger = _make_logger(tmp_path)
+        handler, sio = _capture_stream()
+        logger._logger.addHandler(handler)
+        logger.info("caller line")
+        parsed = json.loads(sio.getvalue().strip())
+        assert parsed["source"].startswith("test_logs.py:")
 
     def test_multiline_message_is_single_json_record(self, tmp_path):
         logger = _make_logger(tmp_path)

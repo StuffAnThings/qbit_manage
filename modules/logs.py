@@ -311,15 +311,17 @@ class MyLogger:
             try:
                 if not _srcfile:
                     raise ValueError
-                func, lno, func, sinfo = self.find_caller(stack_info, stacklevel)
+                pathname, lno, func_name, sinfo = self.find_caller(stack_info, stacklevel)
             except ValueError:
-                func, lno, func, sinfo = "(unknown file)", 0, "(unknown function)", None
+                pathname, lno, func_name, sinfo = "(unknown file)", 0, "(unknown function)", None
             if exc_info:
                 if isinstance(exc_info, BaseException):
                     exc_info = (type(exc_info), exc_info, exc_info.__traceback__)
                 elif not isinstance(exc_info, tuple):
                     exc_info = sys.exc_info()
-            record = self._logger.makeRecord(self._logger.name, level, func, lno, msg, args, exc_info, func, extra, sinfo)
+            record = self._logger.makeRecord(
+                self._logger.name, level, pathname, lno, msg, args, exc_info, func_name, extra, sinfo
+            )
             self._logger.handle(record)
         if log_only:
             self._formatter()

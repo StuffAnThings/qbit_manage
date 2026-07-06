@@ -376,6 +376,7 @@ log_format = str(log_format).lower()
 if log_format not in ("text", "json"):
     print(f"Argument Error: log-format invalid: {log_format} must be 'text' or 'json', using 'text'")
     log_format = "text"
+args["log_format"] = log_format
 
 # Check if Schedule parameter is a number
 try:
