@@ -199,10 +199,10 @@ class CommandPanel {
                 skip_qb_version_check: skipQbVersionCheck,
                 log_level: logLevel
             });
-            this.showToast(`${command} command executed`, 'success');
+            showToast(`${command} command executed`, 'success');
         } catch (error) {
             console.error('Failed to execute quick command:', error);
-            this.showToast(`Failed to execute ${command}`, 'error');
+            showToast(`Failed to execute ${command}`, 'error');
         }
     }
 
@@ -363,7 +363,7 @@ class CommandPanel {
             const logLevel = modal.querySelector('#log-level-select').value;
 
             if (selectedCommands.length === 0) {
-                this.showToast('Please select at least one command', 'warning');
+                showToast('Please select at least one command', 'warning');
                 return;
             }
 
@@ -386,7 +386,7 @@ class CommandPanel {
                 });
             } catch (error) {
                 console.error('Failed to execute commands:', error);
-                this.showToast('Failed to execute commands', 'error');
+                showToast('Failed to execute commands', 'error');
             }
         });
     }
@@ -420,17 +420,6 @@ class CommandPanel {
         } else {
             // Otherwise, show it
             this.showRunCommandsModal();
-        }
-    }
-
-    showToast(message, type = 'info') {
-        // This would typically call a global toast function
-        // For now, we'll use console.log
-        console.log(`[${type.toUpperCase()}] ${message}`);
-
-        // If there's a global toast function available, use it
-        if (window.app?.showToast) {
-            window.app.showToast(message, type);
         }
     }
 

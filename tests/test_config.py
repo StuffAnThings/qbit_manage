@@ -43,7 +43,7 @@ class TestValidateRequiredSections:
         )
         cfg.validate_required_sections()
 
-    def test_cat_only_with_empty_tracker_passes(self):
+    def test_tracker_only_with_empty_cat_passes(self):
         """Tracker-only configs are valid when cat is empty (production default injection)."""
         cfg = _make_config(
             {
@@ -53,7 +53,7 @@ class TestValidateRequiredSections:
         )
         cfg.validate_required_sections()
 
-    def test_tracker_only_with_empty_cat_passes(self):
+    def test_cat_only_with_empty_tracker_passes(self):
         """Category-only configs are valid when tracker is empty (production default injection)."""
         cfg = _make_config(
             {

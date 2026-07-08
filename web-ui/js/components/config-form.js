@@ -1439,10 +1439,17 @@ class ConfigForm {
                                 if (window.app) {
                                     window.app.configData = configResponse.data;
                                 }
-                                // Update current data with the modified section
+                                // Update current data with the modified section.
+                                // multi-root-object sections (e.g. notifications) keep their
+                                // fields at the config root, not under data[currentSection].
+                                const isMultiRoot =
+                                    this.schemas[this.currentSection]?.type === 'multi-root-object';
+                                const reloadedSectionData = isMultiRoot
+                                    ? configResponse.data
+                                    : configResponse.data[this.currentSection] || {};
                                 this.currentData = this._preprocessComplexObjectData(
                                     this.currentSection,
-                                    configResponse.data[this.currentSection] || {},
+                                    reloadedSectionData,
                                 );
 
                                 // Store initial data only once per section
