@@ -1,6 +1,6 @@
 [build-dependencies]
 serde_json = "1.0"
-toml = "0.9"
+toml = "1.0"
 
 [build-dependencies.tauri-build]
 features = []
