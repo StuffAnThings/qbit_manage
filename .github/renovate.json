@@ -43,19 +43,19 @@
             "groupSlug": "python-deps"
         },
         {
-            "description": "Group Python (uv/pep621) major dependencies \u2014 qbittorrent-api excluded (has its own rule)",
+            "description": "Group Python (uv/pep621) major dependencies — qbittorrent-api excluded (has its own rule)",
             "matchManagers": [
                 "pep621"
             ],
             "matchUpdateTypes": [
                 "major"
             ],
-            "excludePackageNames": [
-                "qbittorrent-api"
-            ],
             "groupName": "Python major dependencies",
             "groupSlug": "python-major",
-            "automerge": false
+            "automerge": false,
+            "matchPackageNames": [
+                "!qbittorrent-api"
+            ]
         },
         {
             "description": "Always automerge qbittorrent-api (major bumps track qBittorrent releases); kept after python-major so it is never bundled into that group",
