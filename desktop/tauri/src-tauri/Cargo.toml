@@ -15,7 +15,7 @@ tauri-plugin-single-instance = "2"
 
 [dependencies.reqwest]
 default-features = false
-features = ["rustls-tls", "json"]
+features = ["rustls", "json"]
 version = "0.13"
 
 [dependencies.serde]
