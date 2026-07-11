@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 5
     if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
-      - uses: dessant/lock-threads@v6
+      - uses: dessant/lock-threads@89ae32b08ed1a541efecbab17912962a5e38981c # v6
         with:
           # Lock closed issues / PRs / discussions after 365 days of inactivity.
           # Avoids necro-comments on long-resolved threads while still leaving

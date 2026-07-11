@@ -30,7 +30,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Sync docs to wiki
         # PAT required: wiki and main repo are separate GitHub repositories
         uses: newrelic/wiki-sync-action@8fb7a9efe4e975bdb2977107fbed96fa0433db52
@@ -49,7 +49,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           token: ${{ secrets.PAT }} # allows us to push back to repo
           ref: develop
