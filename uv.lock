@@ -477,7 +477,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -962,7 +962,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==7.1.0" },
     { name = "pytimeparse2", specifier = "==1.7.1" },
-    { name = "qbittorrent-api", specifier = "==2026.6.0" },
+    { name = "qbittorrent-api", specifier = "==2026.7.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "retrying", specifier = "==1.4.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
@@ -974,16 +974,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "qbittorrent-api"
-version = "2026.6.0"
+version = "2026.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/cb/50d2483e5fe988b5cded54f76078ed448f021ea9f8c5ee457c1d502c644d/qbittorrent_api-2026.6.0.tar.gz", hash = "sha256:f2e25bf070960b906035917a10759042b0c288ac6adf191baf4f4848890b8213", size = 1428450, upload-time = "2026-06-06T01:15:27.12Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/49/73123503771d0610a27bf2e5c73995ddce15e8d8cac6babef8eef51097bb/qbittorrent_api-2026.7.0.tar.gz", hash = "sha256:9f0a6e33ee4dba290d155de3ad59c191de02e4d9639d424bf02ec4a00ecf3205", size = 1427366, upload-time = "2026-07-08T00:54:39.78Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/3c/f94bab91cf6a4e48468c6521ca5d325b321a0e1b8df020661c009626973a/qbittorrent_api-2026.6.0-py3-none-any.whl", hash = "sha256:95b6b3dd34cfdbfbde0f745dc5f8af35491bc184af009efe139437239cdf9a30", size = 68113, upload-time = "2026-06-06T01:15:25.657Z" },
+    { url = "https://files.pythonhosted.org/packages/40/79/e1ee523dd8b14a4e8b8ddd474a93803855b8170a10240a65997c21d69fe2/qbittorrent_api-2026.7.0-py3-none-any.whl", hash = "sha256:189ff96c2c08f999d82b3b4970c4d3e0da1c32ae9c36e9da2fdec7847e5f37a5", size = 69450, upload-time = "2026-07-08T00:54:38.377Z" },
 ]
 
 [[package]]
