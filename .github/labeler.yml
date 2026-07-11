@@ -44,3 +44,14 @@ dependencies:
           - "desktop/tauri/src-tauri/Cargo.toml"
           - "desktop/tauri/src-tauri/Cargo.lock"
           - .github/dependabot.yml
+
+# Bot-authored PRs (e.g. Renovate) don't get pr-build.yml's automatic
+# OWNER/MEMBER build - only a human maintainer applying `build` triggers it for
+# them. Cargo bumps are exactly the case that can break silently (see #1304/
+# #1312): auto-apply `build` so Cargo dependency PRs always get the real
+# cargo check / cargo tauri build, not just CodeQL static analysis.
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "desktop/tauri/src-tauri/Cargo.toml"
+          - "desktop/tauri/src-tauri/Cargo.lock"

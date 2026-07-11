@@ -1,0 +1,55 @@
+# Fast, cheap gate for the Tauri desktop crate: catches dependency-resolution
+# and compile-time breaks (e.g. #1304/#1312: a Renovate bump merged with a
+# stale Cargo.lock and a removed Cargo feature) in ~1-2 min on every push,
+# instead of relying only on the full 5-platform build-binaries.yml matrix -
+# which is label-gated and, for non-OWNER/MEMBER authors like Renovate, only
+# re-runs on the push that first adds the `build` label, not every push after.
+#
+# Intended to be added as a REQUIRED status check on develop branch protection
+# (admin-only GitHub UI action) so a red check here physically blocks merge,
+# unlike Renovate's own advisory renovate/artifacts check.
+name: Cargo Check
+
+on:
+  pull_request:
+    paths:
+      - "desktop/tauri/src-tauri/**"
+  push:
+    branches: [develop]
+    paths:
+      - "desktop/tauri/src-tauri/**"
+
+concurrency:
+  group: cargo-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-check:
+    name: cargo check (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Install Linux Tauri build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev || sudo apt-get install -y libwebkit2gtk-4.0-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: desktop/tauri/src-tauri
+
+      - name: cargo check --locked
+        working-directory: desktop/tauri/src-tauri
+        run: cargo check --locked
