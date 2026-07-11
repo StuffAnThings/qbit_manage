@@ -115,7 +115,7 @@ fn save_minimize_setting(app: &AppHandle, value: bool) {
 fn is_startup_enabled() -> bool {
   unsafe {
     let mut hkey = HKEY::default();
-    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), Some(0), KEY_READ, &mut hkey).is_ok() {
+    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), None, KEY_READ, &mut hkey).is_ok() {
       let mut buffer = [0u16; 260];
       let mut size = (buffer.len() * 2) as u32;
       let result = RegQueryValueExW(hkey, w!("qbit-manage-desktop"), None, None, Some(buffer.as_mut_ptr() as *mut _), Some(&mut size));
@@ -131,13 +131,13 @@ fn is_startup_enabled() -> bool {
 fn set_startup_enabled(enabled: bool) {
   unsafe {
     let mut hkey = HKEY::default();
-    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), Some(0), KEY_SET_VALUE, &mut hkey).is_ok() {
+    if RegOpenKeyExW(HKEY_CURRENT_USER, w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), None, KEY_SET_VALUE, &mut hkey).is_ok() {
       if enabled {
         if let Ok(exe_path) = std::env::current_exe() {
           if let Some(path_str) = exe_path.to_str() {
             let wide_path: Vec<u16> = path_str.encode_utf16().chain(std::iter::once(0)).collect();
             let data_bytes = std::slice::from_raw_parts(wide_path.as_ptr() as *const u8, wide_path.len() * 2);
-            let _ = RegSetValueExW(hkey, w!("qbit-manage-desktop"), Some(0), REG_SZ, Some(data_bytes));
+            let _ = RegSetValueExW(hkey, w!("qbit-manage-desktop"), None, REG_SZ, Some(data_bytes));
           }
         }
       } else {
