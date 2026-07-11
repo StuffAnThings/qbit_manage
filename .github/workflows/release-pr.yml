@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Check Out develop
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: develop
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -212,7 +212,7 @@ jobs:
 
     steps:
       - name: Check Out release branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ needs.prepare-release-branch.outputs.release_branch }}
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
@@ -243,7 +243,7 @@ jobs:
           outfile: /tmp/draft_release_notes.md
 
       - name: Download prepared release assets
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: qbit-manage-release-assets
           path: release-assets
@@ -258,7 +258,7 @@ jobs:
         # tag is created post-merge by tag.yml when master advances, and
         # version.yml then flips this draft to published.
         # (Copilot review #1200 + operator pick 2026-05-22.)
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           tag: "v${{ needs.prepare-release-branch.outputs.new_version }}"

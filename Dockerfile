@@ -1,5 +1,5 @@
 # Use a multi-stage build to minimize final image size
-FROM python:3.14-alpine AS builder
+FROM python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92 AS builder
 
 ARG BRANCH_NAME=master
 ENV BRANCH_NAME=${BRANCH_NAME}
@@ -27,7 +27,7 @@ WORKDIR /app
 RUN /root/.local/bin/uv pip install --system .
 
 # Final stage: minimal runtime image
-FROM python:3.14-alpine
+FROM python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92
 
 # Build arguments
 ARG APP_VERSION

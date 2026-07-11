@@ -33,7 +33,7 @@ jobs:
       github.event.pull_request.base.ref == 'develop'
     steps:
       - name: Add status:added-to-develop to issues this PR fixes
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             // Strip HTML comments so PR-template boilerplate ("Fixes # (issue)") can't match.
@@ -75,7 +75,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - name: Close all open issues labeled status:added-to-develop
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const pr = context.payload.pull_request;
