@@ -65,6 +65,11 @@ jobs:
                 'in the README), comment here and we\'ll reopen.',
             });
 
-            await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['status:not-a-bug'] });
+            try {
+              await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['status:not-a-bug'] });
+            } catch (e) {
+              core.warning(`Could not label #${issue_number}: ${e.message}`);
+            }
+
             await github.rest.issues.update({ ...context.repo, issue_number, state: 'closed', state_reason: 'not_planned' });
             core.info(`Auto-closed #${issue_number} as a qBittorrent version-support ask.`);
