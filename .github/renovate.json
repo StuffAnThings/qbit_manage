@@ -17,6 +17,7 @@
         "develop"
     ],
     "platformAutomerge": true,
+    "rebaseWhen": "conflicted",
     "minimumReleaseAge": "3 days",
     "labels": [
         "dependencies"
