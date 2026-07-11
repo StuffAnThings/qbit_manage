@@ -11,6 +11,13 @@ body:
       value: >
         **THIS IS NOT THE PLACE TO ASK FOR SUPPORT!**
         Please use [Notifiarr Discord](https://discord.com/invite/AURf8Yz) and post your question under the `qbit-manage` channel for support issues.
+  - type: markdown
+    attributes:
+      value: >
+        **Seeing "qbit_manage is only compatible with vX.Y.Z"?** That's not a bug — qBittorrent version support is
+        added automatically once [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) adds it. No issue is
+        needed; see [Supported qBittorrent Versions](https://github.com/StuffAnThings/qbit_manage#supported-qbittorrent-versions).
+        Issues asking for this will be auto-closed.
   - type: textarea
     id: description
     attributes:
