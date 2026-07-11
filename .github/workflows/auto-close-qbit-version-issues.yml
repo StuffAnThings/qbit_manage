@@ -31,7 +31,7 @@ jobs:
     if: github.repository == 'StuffAnThings/qbit_manage'
     steps:
       - name: Detect and close
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const title = context.payload.issue.title || '';
