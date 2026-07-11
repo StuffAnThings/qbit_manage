@@ -133,6 +133,20 @@
             "automerge": false
         },
         {
+            "description": "0.x packages: a minor bump can be as breaking as a major one (pre-1.0 semver gives no compat guarantee). Pull these out of the auto-merged python-deps/cargo-deps groups into their own reviewed group, placed after those rules so it overrides their inherited automerge.",
+            "matchManagers": [
+                "pep621",
+                "cargo"
+            ],
+            "matchCurrentVersion": "<1.0.0",
+            "matchUpdateTypes": [
+                "minor"
+            ],
+            "groupName": "Unstable (0.x) minor updates",
+            "groupSlug": "unstable-0x-minor",
+            "automerge": false
+        },
+        {
             "description": "Keep salsify/action-detect-and-tag-new-version pinned (matches prior Dependabot ignore)",
             "matchDepNames": [
                 "salsify/action-detect-and-tag-new-version"
