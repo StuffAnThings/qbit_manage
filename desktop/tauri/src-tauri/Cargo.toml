@@ -16,7 +16,7 @@ tauri-plugin-single-instance = "2"
 [dependencies.reqwest]
 default-features = false
 features = ["rustls-tls", "json"]
-version = "0.11"
+version = "0.13"
 
 [dependencies.serde]
 features = ["derive"]
@@ -46,9 +46,9 @@ rust-version = "1.70"
 version = "4.8.1"
 
 [target."cfg(unix)".dependencies]
-glib = "0.20.0"
+glib = "0.22.0"
 libc = "0.2"
 
 [target."cfg(windows)".dependencies.windows]
 features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_System_Registry"]
-version = "0.58.0"
+version = "0.62.0"
