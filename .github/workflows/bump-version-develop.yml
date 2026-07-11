@@ -6,6 +6,9 @@ name: Bump Develop VERSION
 # contributor PRs no longer carry VERSION bumps and stop hitting rebase
 # conflicts on VERSION.
 #
+# Skips pushes that only touch .github/** (CI/workflow/Renovate-only changes) -
+# no app code changed, so no version bump or downstream Docker rebuild is needed.
+#
 # Skips itself: bump commits include `[skip-version-bump]` in the message,
 # so the job condition below will not re-run another bump.
 #
@@ -14,6 +17,8 @@ name: Bump Develop VERSION
 on:
   push:
     branches: [develop]
+    paths-ignore:
+      - ".github/**"
 
 concurrency:
   group: bump-version-develop
