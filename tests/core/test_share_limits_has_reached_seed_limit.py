@@ -292,6 +292,61 @@ def test_max_last_active_met_clears_last_active_tag(share_limits_factory, torren
     assert removes
 
 
+# ---- max_last_active gated by min_seeding_time (regression: #1318) ---------
+
+
+def test_max_last_active_met_but_min_seeding_time_not_met_protects_torrent(
+    share_limits_factory, torrent_factory, monkeypatch
+):
+    """max_last_active fires but min_seeding_time is NOT yet met → torrent must be
+    protected (tagged + limits cleared), not deleted."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    # 120 min idle >= max_last_active=60, but seeding_time (453600s = 7560min) < min_seeding_time=8640min
+    t = torrent_factory(last_activity=1_000_000 - 7200, seeding_time=453600, tags="")
+    result = _seed_limit(sl, t, max_last_active=60, min_last_active=0, min_seeding_time=8640)
+    assert result is False
+    add = _calls_of(t, "add_tags")
+    assert add and add[0][1]["tags"] == sl.min_seeding_time_tag
+    set_limits = _calls_of(t, "set_share_limits")
+    assert set_limits and set_limits[0][1]["seeding_time_limit"] == -1
+
+
+def test_max_last_active_met_and_min_seeding_time_met_returns_body(
+    share_limits_factory, torrent_factory, monkeypatch
+):
+    """max_last_active fires and min_seeding_time IS met → deletion eligible."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    # seeding_time (518400s = 8640min) >= min_seeding_time=8640min
+    t = torrent_factory(last_activity=1_000_000 - 7200, seeding_time=518400, tags="")
+    result = _seed_limit(sl, t, max_last_active=60, min_last_active=0, min_seeding_time=8640)
+    assert result
+    assert "Inactive Time vs Max Last Active Time" in result
+
+
+def test_max_last_active_met_but_min_seeding_time_not_met_exclusion_tag_added(
+    share_limits_factory, torrent_factory, monkeypatch
+):
+    """Second tuple element is True when the min_seeding_time protection tag is newly applied."""
+    sl = share_limits_factory()
+    monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
+    t = torrent_factory(last_activity=1_000_000 - 7200, seeding_time=453600, tags="")
+    _body, exclusion_tag_added = sl.has_reached_seed_limit(
+        torrent=t,
+        max_ratio=-1,
+        max_seeding_time=-1,
+        max_last_active=60,
+        min_seeding_time=8640,
+        min_num_seeds=0,
+        min_last_active=0,
+        resume_torrent=True,
+        tracker="http://tracker1.example/announce",
+        reset_upload_speed_on_unmet_minimums=True,
+    )
+    assert exclusion_tag_added is True
+
+
 # ---- reset_upload_speed_on_unmet_minimums -----------------------------------
 
 
