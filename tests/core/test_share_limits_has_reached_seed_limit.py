@@ -295,9 +295,7 @@ def test_max_last_active_met_clears_last_active_tag(share_limits_factory, torren
 # ---- max_last_active gated by min_seeding_time (regression: #1318) ---------
 
 
-def test_max_last_active_met_but_min_seeding_time_not_met_protects_torrent(
-    share_limits_factory, torrent_factory, monkeypatch
-):
+def test_max_last_active_met_but_min_seeding_time_not_met_protects_torrent(share_limits_factory, torrent_factory, monkeypatch):
     """max_last_active fires but min_seeding_time is NOT yet met → torrent must be
     protected (tagged + limits cleared), not deleted."""
     sl = share_limits_factory()
@@ -312,9 +310,7 @@ def test_max_last_active_met_but_min_seeding_time_not_met_protects_torrent(
     assert set_limits and set_limits[0][1]["seeding_time_limit"] == -1
 
 
-def test_max_last_active_met_and_min_seeding_time_met_returns_body(
-    share_limits_factory, torrent_factory, monkeypatch
-):
+def test_max_last_active_met_and_min_seeding_time_met_returns_body(share_limits_factory, torrent_factory, monkeypatch):
     """max_last_active fires and min_seeding_time IS met → deletion eligible."""
     sl = share_limits_factory()
     monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)
@@ -325,9 +321,7 @@ def test_max_last_active_met_and_min_seeding_time_met_returns_body(
     assert "Inactive Time vs Max Last Active Time" in result
 
 
-def test_max_last_active_met_but_min_seeding_time_not_met_exclusion_tag_added(
-    share_limits_factory, torrent_factory, monkeypatch
-):
+def test_max_last_active_met_but_min_seeding_time_not_met_exclusion_tag_added(share_limits_factory, torrent_factory, monkeypatch):
     """Second tuple element is True when the min_seeding_time protection tag is newly applied."""
     sl = share_limits_factory()
     monkeypatch.setattr(share_limits_mod, "time", lambda: 1_000_000)

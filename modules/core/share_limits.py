@@ -796,7 +796,11 @@ class ShareLimits:
             now = int(time())
             inactive_time_minutes = round((now - torrent.last_activity) / 60)
             if max_last_active is not None and max_last_active != -1:
-                if (inactive_time_minutes >= max_last_active) and _has_reached_min_last_active_time_limit() and _has_reached_min_seeding_time_limit():
+                if (
+                    (inactive_time_minutes >= max_last_active)
+                    and _has_reached_min_last_active_time_limit()
+                    and _has_reached_min_seeding_time_limit()
+                ):
                     body += logger.insert_space(
                         f"Inactive Time vs Max Last Active Time: {str(timedelta(minutes=inactive_time_minutes))} >= "
                         f"{str(timedelta(minutes=max_last_active))}",
