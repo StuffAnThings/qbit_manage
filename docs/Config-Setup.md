@@ -273,7 +273,7 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 Control how torrent share limits are set depending on the priority of your grouping. This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well. Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria. Each torrent can only be matched with one share limit group.
 
 > [!NOTE]
-> No matching group = untouched. No limits, no tag, no cleanup. For a catch-all, add a group with no filters at the lowest priority (highest number):
+> No matching group = untouched. No limits, no tag, no cleanup. For a catch-all, add a group with no filters at the lowest priority (highest number). Set `add_group_to_tag: false` too, or matched torrents get a `~share_limit_999.default`-style tag instead of staying untouched:
 > ```yaml
 > share_limits:
 >   default:
@@ -281,6 +281,7 @@ Control how torrent share limits are set depending on the priority of your group
 >     max_ratio: -1
 >     max_seeding_time: -1
 >     cleanup: false
+>     add_group_to_tag: false
 > ```
 
 | Configuration | Definition                                                                                                    | Required            |
