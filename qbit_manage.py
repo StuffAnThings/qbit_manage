@@ -254,7 +254,7 @@ parser.add_argument(
     "-ls", "--log-size", dest="log_size", action="store", default=10, type=int, help="Maximum log size per file (in MB)"
 )
 parser.add_argument(
-    "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum mumber of logs to keep"
+    "-lc", "--log-count", dest="log_count", action="store", default=5, type=int, help="Maximum number of logs to keep"
 )
 parser.add_argument(
     "--log-format",
