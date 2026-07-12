@@ -220,6 +220,19 @@ If you are unsure what key word to use. Simply select a torrent within qB and do
 > [!NOTE]
 > If `other` is not used then trackers will be auto added.
 
+Without `other:`, an unmatched tracker gets auto-tagged with its own domain name — one tag per tracker, unplanned. With it, all unmatched trackers share one tag:
+
+```yaml
+tracker:
+  passthepopcorn:
+    tag: PassThePopcorn
+  other:
+    tag: other
+```
+
+> [!NOTE]
+> Match order = declaration order. First keyword that matches wins. For cross-seeded torrents with multiple tracker URLs, put the tracker you want to win higher in the list.
+
 ## **nohardlinks:**
 
 ---
@@ -235,7 +248,7 @@ If you're needing information regarding hardlinks here are some excellent resour
 
 > [!NOTE]
 > Mandatory to fill out [directory parameter](#directory) above to use this function (root_dir/remote_dir)
-> Beyond this you'll need to use one of the [categories](#cat) above as the key.
+> Beyond this you'll need to use one of the [categories](#cat) above as the key. Use `""` (empty string) as the key to match torrents with no category — there's no `All`/`Uncategorized` wildcard, so list each category you want checked.
 
 This functionality will tag any torrent's whose file (or largest file if multi-file) does not have any hardlinks outside the qbm root_dir.
 Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected in the same root_dir.
@@ -258,6 +271,18 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 ## **share_limits:**
 
 Control how torrent share limits are set depending on the priority of your grouping. This can apply a max ratio, seed time limits to your torrents or limit your torrent upload speed as well. Each torrent will be matched with the share limit group with the highest priority that meets the group filter criteria. Each torrent can only be matched with one share limit group.
+
+> [!NOTE]
+> No matching group = untouched. No limits, no tag, no cleanup. For a catch-all, add a group with no filters at the lowest priority (highest number). Set `add_group_to_tag: false` too, or matched torrents get a `~share_limit_999.default`-style tag instead of staying untouched:
+> ```yaml
+> share_limits:
+>   default:
+>     priority: 999
+>     max_ratio: -1
+>     max_seeding_time: -1
+>     cleanup: false
+>     add_group_to_tag: false
+> ```
 
 | Configuration | Definition                                                                                                    | Required            |
 | :------------ | :------------------------------------------------------------------------------------------------------------ | :------------------ |
@@ -419,6 +444,9 @@ This is handy when you have automatically generated files that certain OSs decid
 ---
 
 [Apprise](https://github.com/caronc/apprise) integration is used in conjunction with webhooks to allow notifications via apprise-api.
+
+> [!NOTE]
+> `api_url` is a separate [apprise-api](https://github.com/caronc/apprise-api) server you run yourself (e.g. `docker run caronc/apprise-api`) — not your notification service's own URL. `notify_url` is where your actual service string (Discord, email, etc.) goes. Both are required; qbm checks `api_url` is reachable on startup.
 
 | Variable     | Definition                                                          | Default Values | Required            |
 | :----------- | :------------------------------------------------------------------ | :------------- | :------------------ |
