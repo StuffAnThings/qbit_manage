@@ -8,6 +8,7 @@ import json
 import logging
 import math
 import os
+import queue
 import re
 import shutil
 import tempfile
@@ -165,7 +166,7 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
                                 logger.info("Successfully processed queued request")
                             except Exception as e:
                                 logger.error(f"Error processing queued request: {str(e)}")
-                        except:
+                        except queue.Empty:
                             # Queue is empty, break out of inner loop
                             break
                 finally:
@@ -862,7 +863,7 @@ class WebAPI:
             config_modified = False
 
             # Get the actual config file path
-            config_path = self.config_path / filename
+            config_path = self._validate_config_filename(filename)
             if not config_path.exists():
                 raise HTTPException(status_code=404, detail=f"Config file '{filename}' not found")
 
@@ -1214,7 +1215,7 @@ class WebAPI:
     async def backup_config(self, filename: str) -> dict:
         """Create a manual backup of a configuration file."""
         try:
-            config_file_path = self.config_path / filename
+            config_file_path = self._validate_config_filename(filename)
 
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")

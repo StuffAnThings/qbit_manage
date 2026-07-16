@@ -1,6 +1,7 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from fnmatch import fnmatch
 
 from modules import util
@@ -45,6 +46,10 @@ class RemoveOrphaned:
         logger.print_line("Locating orphan files", self.config.loglevel)
 
         # Fetch torrents and root files (parallel if executor available, synchronous otherwise)
+        logger.trace(
+            f"Remove orphaned scan paths: root_dir={self.root_dir}, remote_dir={self.remote_dir}, "
+            f"orphaned_dir={self.orphaned_dir}"
+        )
         if self.executor:
             torrent_list_future = self.executor.submit(self.qbt.get_torrents, {"sort": "added_on"})
             root_files_future = self.executor.submit(util.get_root_files, self.root_dir, self.remote_dir, self.orphaned_dir)
@@ -53,6 +58,7 @@ class RemoveOrphaned:
         else:
             torrent_list = self.qbt.get_torrents({"sort": "added_on"})
             root_files = set(util.get_root_files(self.root_dir, self.remote_dir, self.orphaned_dir))
+        logger.trace(f"Found {len(torrent_list)} torrents and {len(root_files)} files under root_dir")
 
         # Process torrent files (parallel if executor available, synchronous otherwise)
         torrent_files = set()
@@ -65,6 +71,9 @@ class RemoveOrphaned:
 
         # Find orphaned files efficiently
         orphaned_files = root_files - torrent_files
+        logger.trace(
+            f"Resolved {len(torrent_files)} tracked torrent files; {len(orphaned_files)} candidate orphaned files before filters"
+        )
 
         # Process exclude patterns efficiently
         if self.config.orphaned["exclude_patterns"]:
@@ -77,66 +86,11 @@ class RemoveOrphaned:
             # Use set comprehension for efficient filtering
             excluded_files = {file for file in orphaned_files if any(fnmatch(file, pattern) for pattern in exclude_patterns)}
             orphaned_files -= excluded_files
+            logger.trace(f"Excluded {len(excluded_files)} orphaned candidates via patterns: {exclude_patterns}")
 
         # === AGE PROTECTION: Don't touch files that are "too new" (likely being created/uploaded) ===
-        min_file_age_minutes = self.config.orphaned.get("min_file_age_minutes", 0)
-        now = time.time()
-        protected_files = set()
-
-        if min_file_age_minutes > 0:  # Only apply age protection if configured
-
-            def check_file_age(file):
-                try:
-                    file_mtime = os.path.getmtime(file)
-                    file_age_minutes = (now - file_mtime) / 60
-                    return file, file_mtime, file_age_minutes
-                except PermissionError as e:
-                    logger.warning(f"Permission denied checking file age for {file}: {e}")
-                    return file, None, None
-                except Exception as e:
-                    logger.error(f"Error checking file age for {file}: {e}")
-                    return file, None, None
-
-            # Process age checks (parallel if executor available, synchronous otherwise)
-            if self.executor:
-                age_check_futures = [self.executor.submit(check_file_age, file) for file in orphaned_files]
-                for future in age_check_futures:
-                    try:
-                        file, file_mtime, file_age_minutes = future.result(timeout=30.0)  # 30 second timeout per file
-                        if file_mtime is not None and file_age_minutes < min_file_age_minutes:
-                            protected_files.add(file)
-                            logger.print_line(
-                                f"Skipping orphaned file (too new): {os.path.basename(file)} "
-                                f"(age {file_age_minutes:.1f} mins < {min_file_age_minutes} mins)",
-                                self.config.loglevel,
-                            )
-                    except TimeoutError:
-                        logger.warning(f"Timeout checking file age (permission issue?): {file}")
-                        continue
-                    except Exception as e:
-                        logger.error(f"Unexpected error during age check for {file}: {e}")
-                        continue
-            else:
-                # Synchronous processing
-                for file in orphaned_files:
-                    file_result, file_mtime, file_age_minutes = check_file_age(file)
-                    if file_mtime is not None and file_age_minutes < min_file_age_minutes:
-                        protected_files.add(file)
-                        logger.print_line(
-                            f"Skipping orphaned file (too new): {os.path.basename(file)} "
-                            f"(age {file_age_minutes:.1f} mins < {min_file_age_minutes} mins)",
-                            self.config.loglevel,
-                        )
-
-            # Remove protected files from orphaned files
-            orphaned_files -= protected_files
-
-            if protected_files:
-                logger.print_line(
-                    f"Protected {len(protected_files)} orphaned files from deletion due to age filter "
-                    f"(min_file_age_minutes={min_file_age_minutes})",
-                    self.config.loglevel,
-                )
+        orphaned_files = self._filter_too_new(orphaned_files, torrent_files, time.time())
+        logger.trace(f"{len(orphaned_files)} orphaned files remain after age/inode filtering")
 
         # Early return if no orphaned files
         if not orphaned_files:
@@ -229,11 +183,137 @@ class RemoveOrphaned:
         duration = end_time - start_time
         logger.debug(f"Remove orphaned command completed in {duration:.2f} seconds")
 
+    def _host_path(self, path):
+        """Map a root_dir-namespace path to the host-accessible remote_dir path."""
+        return util.path_replace(path, self.root_dir, self.remote_dir)
+
+    def _orphan_stat_entry(self, file, age_minutes=None, nlink=None, inode=None):
+        """Build a stat result for age/inode filtering (None values mean unreadable)."""
+        return {"file": file, "age_minutes": age_minutes, "nlink": nlink, "inode": inode}
+
+    def _filter_too_new(self, orphaned_files, torrent_files, now):
+        """Drop orphaned files younger than ``min_file_age_minutes`` from the deletion set.
+
+        Inode-aware exception (gh#1095): a hardlinked orphan whose inode is also
+        referenced by a tracked torrent file inherits the tracked sibling's mtime
+        (the shared inode is kept fresh while that torrent seeds), so it can never
+        age past the threshold. Such an orphan is a stale hardlink of a tracked
+        file and is safe to clean regardless of mtime — the data survives via the
+        tracked path. Age protection still applies to every other orphan.
+        """
+        min_file_age_minutes = self.config.orphaned.get("min_file_age_minutes", 0)
+        if min_file_age_minutes <= 0:
+            logger.trace("Orphaned age protection disabled; leaving all candidate orphaned files eligible")
+            return orphaned_files
+        logger.trace(
+            f"Applying orphaned age protection to {len(orphaned_files)} files (min_file_age_minutes={min_file_age_minutes})"
+        )
+
+        def stat_file(file):
+            try:
+                host_path = self._host_path(file)
+                st = os.stat(host_path)
+                age_minutes = (now - st.st_mtime) / 60
+                inode = (st.st_dev, st.st_ino)
+                logger.trace(
+                    f"Orphaned stat: file={file}, host_path={host_path}, age_minutes={age_minutes:.1f}, "
+                    f"nlink={st.st_nlink}, inode={inode}"
+                )
+                return self._orphan_stat_entry(
+                    file,
+                    age_minutes=age_minutes,
+                    nlink=st.st_nlink,
+                    inode=inode,
+                )
+            except PermissionError as e:
+                logger.warning(f"Permission denied checking file age for {file}: {e}")
+            except Exception as e:
+                logger.error(f"Error checking file age for {file}: {e}")
+            # Stat failed — leave file eligible for cleanup rather than protecting it on bad data.
+            return self._orphan_stat_entry(file)
+
+        stats = []
+        if self.executor:
+            futures = {self.executor.submit(stat_file, file): file for file in orphaned_files}
+            for future in futures:
+                try:
+                    stats.append(future.result(timeout=30.0))  # 30 second timeout per file
+                except FuturesTimeoutError:
+                    failed_file = futures[future]
+                    logger.warning(f"Timeout checking file age (permission issue?): {failed_file}")
+                    stats.append(self._orphan_stat_entry(failed_file))
+                except Exception as e:
+                    failed_file = futures[future]
+                    logger.error(f"Unexpected error during age check for {failed_file}: {e}")
+                    stats.append(self._orphan_stat_entry(failed_file))
+        else:
+            stats = [stat_file(file) for file in orphaned_files]
+
+        # Only pay for the tracked-inode index if a "too new" orphan is hardlinked.
+        tracked_inodes = None
+        protected_files = set()
+        for entry in stats:
+            file = entry["file"]
+            age_minutes = entry["age_minutes"]
+            nlink = entry["nlink"]
+            inode = entry["inode"]
+            if age_minutes is None or age_minutes >= min_file_age_minutes:
+                logger.trace(
+                    f"Orphaned age decision: eligible file={file}, age_minutes={age_minutes}, "
+                    f"min_file_age_minutes={min_file_age_minutes}"
+                )
+                continue  # unreadable or old enough — leave eligible for handling
+            if nlink and nlink > 1:
+                if tracked_inodes is None:
+                    tracked_inodes = self._tracked_inodes(torrent_files)
+                    logger.trace(f"Indexed {len(tracked_inodes)} tracked torrent inodes for hardlink comparison")
+                if inode in tracked_inodes:
+                    logger.print_line(
+                        f"Cleaning hardlinked orphan (shares an inode with a tracked file; the "
+                        f"{age_minutes:.1f} min mtime age is the tracked sibling's, not the orphan's): "
+                        f"{os.path.basename(file)}",
+                        self.config.loglevel,
+                    )
+                    continue
+            protected_files.add(file)
+            logger.print_line(
+                f"Skipping orphaned file (too new): {os.path.basename(file)} "
+                f"(age {age_minutes:.1f} mins < {min_file_age_minutes} mins)",
+                self.config.loglevel,
+            )
+
+        if protected_files:
+            logger.print_line(
+                f"Protected {len(protected_files)} orphaned files from deletion due to age filter "
+                f"(min_file_age_minutes={min_file_age_minutes})",
+                self.config.loglevel,
+            )
+        return orphaned_files - protected_files
+
+    def _tracked_inodes(self, torrent_files):
+        """Return the set of ``(st_dev, st_ino)`` for tracked torrent files present on disk."""
+
+        def stat_inode(path):
+            host_path = self._host_path(path)
+            try:
+                st = os.stat(host_path)
+                inode = (st.st_dev, st.st_ino)
+                logger.trace(f"Tracked inode: file={path}, host_path={host_path}, inode={inode}")
+                return inode
+            except OSError:
+                logger.trace(f"Tracked inode unavailable: file={path}, host_path={host_path}")
+                return None
+
+        results = self.executor.map(stat_inode, torrent_files) if self.executor else map(stat_inode, torrent_files)
+        return {inode for inode in results if inode is not None}
+
     def handle_orphaned_files(self, file):
         """Handle orphaned file with improved error handling and batching"""
         src = util.path_replace(file, self.root_dir, self.remote_dir)
         dest = os.path.join(self.orphaned_dir, util.path_replace(file, self.root_dir, ""))
         orphaned_parent_path = util.path_replace(os.path.dirname(file), self.root_dir, self.remote_dir)
+        mode = "delete" if self.config.orphaned["empty_after_x_days"] == 0 else "move"
+        logger.trace(f"Handling orphaned file: file={file}, src={src}, dest={dest}, mode={mode}")
 
         try:
             if self.config.orphaned["empty_after_x_days"] == 0:

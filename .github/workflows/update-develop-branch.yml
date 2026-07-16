@@ -1,4 +1,7 @@
-# Resets develop to master and bumps the develop VERSION suffix after every push to master.
+# Back-merges master into develop and bumps the develop VERSION suffix after every push to master.
+# Uses a merge (not reset --hard + force-push) so develop's history is preserved: force-rewriting
+# develop every release turned old develop commits into phantom commits on open feature branches
+# and churned develop's git-blame each cycle.
 name: Update Develop Branch
 
 on:
@@ -19,18 +22,20 @@ jobs:
   update-develop:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Upstream-only: force-pushes develop on the upstream repo.
+    # Upstream-only: pushes develop on the upstream repo.
     if: github.repository == 'StuffAnThings/qbit_manage'
 
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           token: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Update develop branch
         run: |
+          set -euo pipefail
+
           # Configure git with GitHub Actions bot credentials
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -38,57 +43,49 @@ jobs:
           # Ensure we have the latest remote refs
           git fetch origin
 
-          # Check if develop branch exists locally, if not create it
+          # Align the local develop checkout with its own remote tip. We never reset
+          # develop to master and never force-push, so develop's history is preserved.
           if git show-ref --verify --quiet refs/heads/develop; then
-            echo "Local develop branch exists, checking it out"
             git checkout develop
+            git reset --hard origin/develop   # local develop -> origin/develop (its own tip), NOT master
           else
-            echo "Local develop branch doesn't exist, creating from remote"
             git checkout -b develop origin/develop
           fi
 
-          # Reset develop to master
-          echo "Resetting develop branch to match master..."
-          git reset --hard origin/master
-
-          # Read current version and bump patch
-          CURRENT_VERSION=$(cat VERSION)
-          echo "Current version: $CURRENT_VERSION"
-
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-develop1"
-
-          echo "New version: $NEW_VERSION"
-
-          # Update VERSION file
-          echo "$NEW_VERSION" > VERSION
-
-          # Check if there are changes to commit
-          if git diff --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          # Commit the change
-          git add VERSION
-          git commit -m "Update VERSION to $NEW_VERSION [skip ci]"
-
-          # Push develop branch (force push since we reset to master)
-          # Note: This requires PAT_TOKEN secret with admin privileges to bypass branch protection
-          echo "Pushing changes to develop branch..."
-          if ! git push --force origin develop; then
-            echo "Failed to push to develop branch. This may be due to branch protection rules."
-            echo "Ensure PAT_TOKEN secret is set with admin privileges or disable branch protection for this workflow."
+          # Back-merge master into develop. -X theirs makes master's content win on conflict
+          # (so develop matches the just-released code) while keeping develop's commit history
+          # and any dev-only commits that landed after the release branch was cut.
+          echo "Back-merging master into develop..."
+          if ! git merge --no-edit -X theirs origin/master; then
+            echo "::error::merge of master into develop failed beyond -X theirs; manual resolution required"
+            git merge --abort || true
             exit 1
           fi
 
-          echo "Successfully updated develop branch to $NEW_VERSION"
+          # Bump the develop VERSION suffix off the released version.
+          CURRENT_VERSION=$(cat VERSION)
+          echo "Current version: $CURRENT_VERSION"
+          BASE_VERSION="${CURRENT_VERSION%%-*}"   # strip any -developN suffix
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}-develop1"
+          echo "New version: $NEW_VERSION"
 
-      - name: Trigger develop workflow
-        if: success()
-        run: |
-          echo "Triggering develop workflow..."
-          gh workflow run develop.yml --ref develop
-        env:
-          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          echo "$NEW_VERSION" > VERSION
+          git add VERSION
+          if ! git diff --cached --quiet; then
+            git commit -m "Update VERSION to $NEW_VERSION [skip ci][skip-version-bump]"
+          else
+            echo "VERSION already at $NEW_VERSION; nothing to commit"
+          fi
+
+          # Regular push (no force). develop only moves forward now.
+          # Note: requires PAT with permission to push to develop if it is protected.
+          echo "Pushing develop..."
+          if ! git push origin develop; then
+            echo "Failed to push to develop branch. This may be due to branch protection rules."
+            echo "Ensure PAT secret is set with permission to push to develop, or allow this workflow."
+            exit 1
+          fi
+
+          echo "Successfully back-merged master and set develop to $NEW_VERSION"

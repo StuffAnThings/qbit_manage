@@ -797,7 +797,10 @@
     transition: all var(--transition-normal);
   }
 
-  .sidebar.open + .sidebar-overlay {
+  .sidebar.show + .sidebar-overlay,
+  .sidebar.show ~ .sidebar-overlay,
+  .sidebar.open + .sidebar-overlay,
+  .sidebar.open ~ .sidebar-overlay {
     opacity: 1;
     visibility: visible;
   }
@@ -855,5 +858,204 @@
 
   .desktop-grid {
     display: grid !important;
+  }
+}
+
+/* ==========================================================================
+   Small-screen refinements (#1023 "Mobile friendly UI")
+   Fills gaps below ~600px that the main 768px breakpoint didn't cover:
+   - the 480-600px range, dropdown/select overflow, stacked category rows,
+     and short/landscape viewport heights for tall drawers.
+   ========================================================================== */
+
+/* Compact phones in portrait (<= 600px) */
+@media (max-width: 600px) {
+  /* Header config selector was 12rem min-width; let it shrink */
+  .config-select {
+    min-width: 0;
+  }
+
+  /* Dropdown menus: never run off-screen, cap to viewport */
+  .dropdown-menu {
+    min-width: 0;
+    max-width: calc(100vw - var(--spacing-md) * 2);
+    overflow-x: auto;
+  }
+
+  .dropdown-menu .dropdown-item {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* A right-aligned dropdown near the edge can still overflow; clamp it */
+  .dropdown-menu.right {
+    right: 0;
+    left: auto;
+  }
+}
+
+/* Very small phones (<= 480px) */
+@media (max-width: 480px) {
+  /* Category name/path inputs sit side-by-side; stack them */
+  .category-inputs .category-inputs-row {
+    flex-direction: column;
+  }
+
+  .category-name-group,
+  .category-path-group {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* Short viewports (landscape phones, small tablets) — keep tall drawers/
+   panels from eating the whole screen. */
+@media (max-height: 600px) {
+  .command-panel-drawer {
+    height: 60vh;
+    max-height: 60vh;
+  }
+
+  .accordion-item.active .accordion-content {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
+
+/* Touch devices: guarantee 44px tap targets on the small icon buttons that
+   the generic touch rules don't already cover. */
+@media (hover: none) and (pointer: coarse) {
+  .remove-array-item,
+  .remove-category-btn,
+  .remove-complex-object-item,
+  .remove-share-limit-group {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Header fit (#1023): the header is a grid whose cells default to
+   min-width:auto, so a crowded action row can't shrink and stretches the
+   whole .app column past the viewport (horizontal page scroll). Let the
+   cells shrink, and scroll the action row internally on very narrow phones
+   instead of breaking the page width. */
+@media (max-width: 768px) {
+  .header-left,
+  .header-right {
+    min-width: 0;
+  }
+
+  .header-actions {
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .header-actions::-webkit-scrollbar {
+    display: none; /* WebKit/Blink */
+  }
+}
+
+/* iOS auto-zoom (#1023): Safari zooms the viewport when a focused input has a
+   font-size < 16px. Our inputs use --font-size-sm (14px), so focusing any
+   field on iPhone zooms the page. Force >= 16px for form controls on small
+   screens to prevent the zoom while keeping the compact size on desktop. */
+@media (max-width: 768px) {
+  .form-input,
+  .form-select,
+  .form-textarea,
+  .config-select,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Preview YAML action (#1023): on desktop it's position:fixed top-right, which
+   overlaps long section titles (e.g. "qBittorrent Connection") once they wrap
+   on narrow screens. Put it back in the document flow on small screens so it
+   stacks above the section instead of floating over the title. */
+@media (max-width: 768px) {
+  .main-content > .content-actions {
+    position: static;
+    justify-content: flex-end;
+    padding: var(--spacing-md) var(--spacing-md) 0;
+  }
+}
+
+/* Bottom-sheet modals on phones (#1023): centered dialogs are awkward to reach
+   on mobile. Anchor modals to the bottom edge, full-width, and slide them up
+   (thumb-friendly — NN/g & Material bottom-sheet pattern). Scoped to exclude
+   the share-limits modal, which has its own flex layout + slide animation. */
+@media (max-width: 768px) {
+  .modal-overlay:not(.share-limit-modal) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-overlay:not(.share-limit-modal) .modal {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    transform: translateY(100%); /* slide up instead of scale */
+  }
+
+  .modal-overlay:not(.share-limit-modal):not(.hidden) .modal {
+    transform: translateY(0);
+  }
+
+  /* Grab-handle affordance at the top of the sheet */
+  .modal-overlay:not(.share-limit-modal) .modal-header {
+    position: relative;
+  }
+
+  .modal-overlay:not(.share-limit-modal) .modal-header::before {
+    content: "";
+    position: absolute;
+    top: 0.4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.25rem;
+    height: 0.25rem;
+    border-radius: 999px;
+    background-color: var(--border-color);
+  }
+
+  /* Content fills the sheet and scrolls; header + footer stay pinned */
+  .modal-overlay:not(.share-limit-modal) .modal-content {
+    flex: 1 1 auto;
+    max-height: none;
+  }
+}
+
+/* Respect reduced-motion: no slide transition */
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .modal-overlay:not(.share-limit-modal) .modal {
+    transition: none;
+  }
+}
+
+/* Fluid heading typography on phones/tablets (#1023): scale the large heading
+   sizes down smoothly on smaller viewports instead of holding the full desktop
+   size. Each clamp() reaches its max (the existing desktop value) at ~768px, so
+   the >768px desktop scale is unchanged and the breakpoint is seamless. Body
+   text (base/sm/xs) is intentionally left fixed so inputs stay >= 16px. */
+@media (max-width: 768px) {
+  :root {
+    --font-size-xl: clamp(1.125rem, 0.95rem + 0.9vw, 1.25rem);
+    --font-size-2xl: clamp(1.25rem, 0.9rem + 1.6vw, 1.5rem);
+    --font-size-3xl: clamp(1.4rem, 0.9rem + 2.5vw, 1.875rem);
+  }
+
+  /* The section heading (h2.section-title) has no explicit size — it falls back
+     to the browser default (1.5em = 24px). Give it the same fluid scale so the
+     most prominent heading shrinks gracefully on phones (max stays 24px, so the
+     desktop/breakpoint size is unchanged). */
+  .section-title {
+    font-size: clamp(1.25rem, 0.9rem + 1.6vw, 1.5rem);
   }
 }

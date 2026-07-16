@@ -205,7 +205,7 @@ if __name__ == "__main__":
         args.move = True
 
     if args.days_from > args.days_to:
-        raise ("Config Error: days_from must be set lower than days_to")
+        raise ValueError("Config Error: days_from must be set lower than days_to")
 
     # Initialize client and torrents only if pause or resume operations are requested
     client = None
@@ -224,11 +224,11 @@ if __name__ == "__main__":
 
             client = Client(**client_kwargs)
         except LoginFailed:
-            raise ("Qbittorrent Error: Failed to login. Invalid username/password.")
+            raise ValueError("Qbittorrent Error: Failed to login. Invalid username/password.") from None
         except APIConnectionError:
-            raise ("Qbittorrent Error: Unable to connect to the client.")
+            raise ConnectionError("Qbittorrent Error: Unable to connect to the client.") from None
         except Exception:
-            raise ("Qbittorrent Error: Unable to connect to the client.")
+            raise ConnectionError("Qbittorrent Error: Unable to connect to the client.") from None
 
         timeoffset_from = current - timedelta(days=args.days_from)
         timeoffset_to = current - timedelta(days=args.days_to)

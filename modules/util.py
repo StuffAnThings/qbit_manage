@@ -581,7 +581,10 @@ def get_current_version():
 
         try:
             git_branch = Repo(path=".").head.ref.name  # noqa
-        except InvalidGitRepositoryError:
+        except (InvalidGitRepositoryError, TypeError, ValueError):
+            # TypeError/ValueError is raised when HEAD is a detached reference
+            # (e.g. when running from a specific commit checkout in CI or a
+            # PyInstaller-built binary run against a detached-HEAD clone).
             git_branch = None
     except ImportError:
         git_branch = None
@@ -1277,10 +1280,17 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
 
     root_files = []
 
+    def _path_is_under(path, parent):
+        if not parent:
+            return False
+        path_norm = os.path.normcase(os.path.normpath(path))
+        parent_norm = os.path.normcase(os.path.normpath(parent.rstrip("/\\")))
+        return path_norm == parent_norm or path_norm.startswith(parent_norm + os.sep)
+
     if is_same_path:
         # Fast path when paths are the same or remote_dir not provided
         for path, subdirs, files in os.walk(base_to_walk):
-            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(path):
+            if local_exclude_dir and _path_is_under(path, local_exclude_dir):
                 continue
             for name in files:
                 root_files.append(os.path.join(path, name))
@@ -1288,7 +1298,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
         # Walk the accessible remote_dir and convert to root_dir representation once per directory
         for path, subdirs, files in os.walk(base_to_walk):
             replaced_path = path_replace(path, remote_dir, root_dir)
-            if local_exclude_dir and os.path.normcase(local_exclude_dir) in os.path.normcase(replaced_path):
+            if local_exclude_dir and _path_is_under(replaced_path, local_exclude_dir):
                 continue
             for name in files:
                 root_files.append(os.path.join(replaced_path, name))
@@ -1298,13 +1308,11 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
 
 def load_json(file):
     """Load json file if exists"""
-    if os.path.isfile(truncate_filename(file)):
-        file = open(file)
-        data = json.load(file)
-        file.close()
-    else:
-        data = {}
-    return data
+    path = truncate_filename(file)
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
 
 
 def truncate_filename(filename, max_length=255, offset=0):

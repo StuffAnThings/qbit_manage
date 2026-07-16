@@ -44,12 +44,12 @@ jobs:
       ENTRY: qbit_manage.py
     steps:
       - name: Check Out Repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ inputs.ref }}
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -67,9 +67,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "SEP=;" >> $GITHUB_OUTPUT
+            echo "SEP=;" >> "$GITHUB_OUTPUT"
           else
-            echo "SEP=:" >> $GITHUB_OUTPUT
+            echo "SEP=:" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build (PyInstaller onefile)
@@ -117,8 +117,41 @@ jobs:
             mv "dist/${APP_NAME}" "out/${APP_NAME}-linux-${{ matrix.arch }}"
           fi
 
+      # gh#1282: the frozen binary crashed at multiprocessing.Manager() because Python
+      # 3.14 changed the Linux default start method to 'forkserver' (incompatible with
+      # the PyInstaller bootloader). Nothing ran the built binary, so it shipped broken.
+      # Exercise the Manager() init path on Linux to catch this class of regression.
+      - name: Smoke test binary (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="out/${APP_NAME}-linux-${{ matrix.arch }}"
+          chmod +x "$BIN"
+          mkdir -p smoke
+          cat > smoke/config.yml <<'EOF'
+          commands:
+            dry_run: true
+          qbt:
+            host: 127.0.0.1:1
+          EOF
+          # -r exits after one run; --web-server=False keeps the process from hanging.
+          # The unreachable qbt host makes the run fail fast, but only *after*
+          # multiprocessing.Manager() has initialized.
+          out="$(timeout 120 "$BIN" -r --web-server=False --config-dir smoke 2>&1)" || true
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qiE 'forkserver|Connection reset by peer|multiprocessing/(managers|forkserver|connection)\.py'; then
+            echo "::error::multiprocessing start-method regression (gh#1282): Manager() failed in the frozen binary"
+            exit 1
+          fi
+          if ! printf '%s\n' "$out" | grep -qi 'Run Mode'; then
+            echo "::error::binary did not reach the run stage (Manager() init may have failed)"
+            exit 1
+          fi
+          echo "Smoke test passed: multiprocessing.Manager() initialized in the frozen binary."
+
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
         env:
@@ -134,7 +167,7 @@ jobs:
 
       - name: Retry Rust toolchain setup on failure
         if: steps.rust-setup.outcome == 'failure'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
         env:
@@ -142,7 +175,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: |
             desktop/tauri/src-tauri -> desktop/tauri/src-tauri/target
@@ -266,10 +299,10 @@ jobs:
       - name: Set BUILD_ARCH for artifact naming
         shell: bash
         run: |
-          echo "BUILD_ARCH=${{ matrix.arch }}" >> $GITHUB_ENV
+          echo "BUILD_ARCH=${{ matrix.arch }}" >> "$GITHUB_ENV"
 
       - name: Upload build outputs (binary + Tauri bundles)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: build-outputs-${{ runner.os }}-${{ env.BUILD_ARCH }}
           path: |
@@ -287,7 +320,7 @@ jobs:
       contents: read
     steps:
       - name: Download and collect all build outputs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: build-outputs-*
           path: collected
@@ -376,7 +409,7 @@ jobs:
           echo "Desktop installers: $(find release-assets -name "*desktop-installer*" | wc -l)"
 
       - name: Upload final release assets
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: qbit-manage-release-assets
           path: release-assets/*
@@ -384,7 +417,7 @@ jobs:
           compression-level: 6
 
       - name: Clean up temporary build artifacts
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({

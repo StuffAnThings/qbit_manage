@@ -1,0 +1,75 @@
+# Auto-closes issues asking for qBittorrent version support/compatibility bumps.
+#
+# The entire pipeline for this is already automated: Renovate auto-merges
+# qbittorrent-api updates (.github/renovate.json), which triggers
+# update-supported-versions.yml to open+automerge a PR updating
+# SUPPORTED_VERSIONS.json. No issue is ever actionable for this - opening one
+# just waits on qbittorrent-api upstream, same as everyone else.
+#
+# Matches on issue TITLE only (not body) to keep false positives near zero:
+#   - the literal error qbit_manage itself emits ("is only compatible with
+#     ... You are currently on ..."), see modules/qbittorrent.py
+#   - OR a version-support-style ask: a qBittorrent/qbit mention + a
+#     support/compat keyword + a version number, e.g. "[FR]: Support for
+#     qbittorrent 5.1.0", "[Bug]: Support qbit 4.5.5"
+name: Auto-close qBittorrent Version Issues
+
+on:
+  issues:
+    types:
+      - opened
+
+permissions:
+  issues: write
+
+jobs:
+  auto-close:
+    name: Auto-close qBittorrent version-support issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Upstream-only: the status:not-a-bug label only exists on upstream's tracker.
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    steps:
+      - name: Detect and close
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const title = context.payload.issue.title || '';
+
+            const compatError = /is only compatible with .* you are currently on/i;
+            const versionNum = /v?\d+\.\d+(?:\.\d+)?/;
+            const client = /\bqbittorrent\b|\bqbit\b/i;
+            const intent = /\bsupport(?:s|ing|ed)?\b|\bcompat(?:ible|ibility)?\b/i;
+
+            const isVersionSupportAsk =
+              compatError.test(title) ||
+              (versionNum.test(title) && client.test(title) && intent.test(title));
+
+            if (!isVersionSupportAsk) {
+              core.info('Title does not match the qBittorrent version-support pattern, skipping.');
+              return;
+            }
+
+            const issue_number = context.payload.issue.number;
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number,
+              body:
+                'This is expected and automated: qBittorrent version support is added automatically once ' +
+                '[qbittorrent-api](https://pypi.org/project/qbittorrent-api/) adds support for the new version, ' +
+                'picked up here by an automated dependency update + CI workflow. No issue or PR is needed to request this.\n\n' +
+                'See https://github.com/StuffAnThings/qbit_manage#supported-qbittorrent-versions for the currently ' +
+                'supported version ranges.\n\n' +
+                "If you're still hitting this after qbittorrent-api adds support for your version (check the badges " +
+                'in the README), comment here and we\'ll reopen.',
+            });
+
+            try {
+              await github.rest.issues.addLabels({ ...context.repo, issue_number, labels: ['status:not-a-bug'] });
+            } catch (e) {
+              core.warning(`Could not label #${issue_number}: ${e.message}`);
+            }
+
+            await github.rest.issues.update({ ...context.repo, issue_number, state: 'closed', state_reason: 'not_planned' });
+            core.info(`Auto-closed #${issue_number} as a qBittorrent version-support ask.`);

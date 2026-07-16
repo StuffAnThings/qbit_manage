@@ -316,8 +316,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
@@ -403,6 +403,11 @@ body {
 .main-content {
   /* Removed grid layout for main content as sidebar is now fixed */
   overflow: hidden;
+  /* Grid item defaults to min-width:auto, so wide content (e.g. long torrent
+     paths in the log viewer) forces the #app grid past the viewport and scrolls
+     the whole page. Allow it to shrink so descendant overflow-x:auto boxes
+     (log viewer) contain their own scroll instead. */
+  min-width: 0;
 }
 
 /* Content Actions at top of main content - aligned with sidebar header */
@@ -798,20 +803,6 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}\n
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: var(--z-modal-backdrop);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
 }
 
 

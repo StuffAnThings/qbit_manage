@@ -5,7 +5,7 @@
 [![Docker Image Version (latest semver)](https://img.shields.io/docker/v/bobokun/qbit_manage?label=docker&sort=semver&style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
 [![PyPi (latest semver)](https://img.shields.io/pypi/v/qbit-manage?label=PyPI&sort=semver&style=plastic)](https://pypi.org/project/qbit-manage)
 [![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/StuffAnThings/qbit_manage/version.yml?style=plastic)](https://github.com/StuffAnThings/qbit_manage/actions/workflows/version.yml)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/StuffAnThings/qbit_manage/master.svg)](https://results.pre-commit.ci/latest/github/StuffAnThings/qbit_manage/master)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/StuffAnThings/qbit_manage/develop.svg)](https://results.pre-commit.ci/latest/github/StuffAnThings/qbit_manage/develop)
 [![Ghcr packages](https://img.shields.io/badge/ghcr.io-packages?style=plastic&label=packages)](https://ghcr.io/StuffAnThings/qbit_manage)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bobokun/qbit_manage?style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
 [![Sponsor or Donate](https://img.shields.io/badge/-Sponsor_or_Donate-blueviolet?style=plastic)](https://github.com/sponsors/bobokun)
@@ -30,6 +30,14 @@ This is a program used to manage your qBittorrent instance such as:
 We rely on [qbittorrent-api](https://pypi.org/project/qbittorrent-api/) to interact with qBittorrent.
 
 Generally expect new releases of qBittorrent to not immediately be supported. Support CANNOT be added until qbittorrent-api adds support for the version. Any material changed and impact must then be assessed prior to Qbit Manage supporting it.
+
+**Version bumps are automated — no issue or PR needed.** [Renovate](https://docs.renovatebot.com/) watches
+`qbittorrent-api` on PyPI and always auto-merges its updates (major, minor, patch — see `.github/renovate.json`) as
+soon as a new release is 3+ days old. Merging that bump changes `pyproject.toml`, which triggers CI
+(`update-supported-versions.yml`) to refresh `SUPPORTED_VERSIONS.json` and the badges below — the whole chain runs
+without a human touching it. Issues asking us to "add support for qBittorrent vX.Y" will be auto-closed and point
+back here; if qbit_manage still doesn't work on a version already shown as supported below, that's a real bug —
+please file one.
 
 ### Master
 

@@ -55,7 +55,7 @@ class LogViewer {
                 this.currentLogFile = null;
             }
         } catch (error) {
-            this.showToast('Failed to load log files', 'error');
+            showToast('Failed to load log files', 'error');
             this.currentLogFile = null;
         }
     }
@@ -175,7 +175,7 @@ class LogViewer {
         if (refreshButton) {
             refreshButton.addEventListener('click', () => {
                 this.loadRecentLogs();
-                this.showToast('Logs refreshed', 'info');
+                showToast('Logs refreshed', 'info');
             });
         }
 
@@ -188,9 +188,9 @@ class LogViewer {
                 localStorage.setItem('qbm-log-refresh-interval', this.autoRefreshInterval);
                 this.startAutoRefresh(); // Restart timer with new interval
                 if (this.autoRefreshInterval > 0) {
-                    this.showToast(`Logs will refresh every ${this.autoRefreshInterval} seconds`, 'info');
+                    showToast(`Logs will refresh every ${this.autoRefreshInterval} seconds`, 'info');
                 } else {
-                    this.showToast('Log auto-refresh is off', 'info');
+                    showToast('Log auto-refresh is off', 'info');
                 }
             });
         }
@@ -419,13 +419,6 @@ class LogViewer {
         } else {
             statusElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
             statusElement.classList.remove('error');
-        }
-    }
-
-    showToast(message, type = 'info') {
-        // If there's a global toast function available, use it
-        if (window.qbitManageApp && window.qbitManageApp.showToast) {
-            window.qbitManageApp.showToast(message, type);
         }
     }
 }

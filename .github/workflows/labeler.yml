@@ -18,8 +18,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/labeler@v6
+      - uses: actions/labeler@b8dd2d9be0f68b860e7dae5dae7d772984eacd6d # v6
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           sync-labels: true
           configuration-path: .github/labeler.yml
+
+  # Separate, one-way (add-only) from the synced labeler above: `build` also
+  # doubles as a manual maintainer trigger for pr-build.yml's full build
+  # matrix (see that workflow's header comment), so it must never be
+  # auto-removed the way sync-labels would on a later push that doesn't touch
+  # Cargo files. Bot-authored PRs (e.g. Renovate) don't get pr-build.yml's
+  # automatic OWNER/MEMBER build, so a Cargo bump - exactly the case that can
+  # break silently, see #1304/#1312 - needs this to get the real cargo check
+  # / cargo tauri build, not just CodeQL static analysis.
+  auto-build-label:
+    name: Auto-apply build label for Cargo changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Add build label if Cargo.toml/Cargo.lock changed
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo, pull_number: context.payload.pull_request.number, per_page: 100,
+            });
+            const cargoTouched = files.some(f =>
+              f.filename === 'desktop/tauri/src-tauri/Cargo.toml' || f.filename === 'desktop/tauri/src-tauri/Cargo.lock');
+            if (!cargoTouched) {
+              core.info('No Cargo.toml/Cargo.lock changes, skipping.');
+              return;
+            }
+            await github.rest.issues.addLabels({
+              ...context.repo, issue_number: context.payload.pull_request.number, labels: ['build'],
+            });
+            core.info('Added build label (Cargo.toml/Cargo.lock changed).');

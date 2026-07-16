@@ -36,8 +36,8 @@ ifdef UV_INSTALL
 	@echo "uv installed to $(HOME)/.local/bin/uv"
 	$(eval UV_PATH := $(HOME)/.local/bin/uv)
 else
-	@echo "Updating uv..."
-	@$(UV_PATH) self update
+	@echo "Auto-updating uv..."
+	@$(UV_PATH) self update || echo "uv self update unavailable or failed; continuing with installed uv."
 endif
 
 .PHONY: venv

@@ -6,13 +6,23 @@ name: Bump Develop VERSION
 # contributor PRs no longer carry VERSION bumps and stop hitting rebase
 # conflicts on VERSION.
 #
+# Skips pushes that only touch .github/** (CI/workflow/Renovate-only changes) -
+# no app code changed, so no version bump or downstream Docker rebuild is needed.
+#
 # Skips itself: bump commits include `[skip-version-bump]` in the message,
 # so the job condition below will not re-run another bump.
+#
+# On completion, develop.yml chains automatically via workflow_run.
 
 on:
   push:
     branches: [develop]
-
+    paths-ignore:
+      - ".github/**"
+      - "docs/**"
+      - "**/*.md"
+      - "CHANGELOG"
+      - "LICENSE"
 concurrency:
   group: bump-version-develop
   cancel-in-progress: false
@@ -31,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout develop
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: develop
           fetch-depth: 0
@@ -68,5 +78,5 @@ jobs:
           git config user.name 'qbit-manage-bot'
           git config user.email 'qbit-manage-bot@users.noreply.github.com'
           git add VERSION
-          git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip-version-bump]"
+          git commit -m "chore: bump VERSION to ${{ steps.bump.outputs.after }} [skip ci][skip-version-bump]"
           git push origin develop
