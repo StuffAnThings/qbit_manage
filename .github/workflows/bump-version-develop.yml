@@ -19,7 +19,10 @@ on:
     branches: [develop]
     paths-ignore:
       - ".github/**"
-
+      - "docs/**"
+      - "**/*.md"
+      - "CHANGELOG"
+      - "LICENSE"
 concurrency:
   group: bump-version-develop
   cancel-in-progress: false
