@@ -37,39 +37,111 @@ def canonical_log_name(log_file):
     return f"{stem}.txt"
 
 
-def migrate_rotated_logs(log_file):
-    """Migrate every supported legacy log name without overwriting data."""
+def _write_combined_log(source_files, destination):
+    """Combine oldest-to-newest log files into one retained archive."""
+    temporary = f"{destination}.migrating-{os.getpid()}"
+    suffix = 0
+    while os.path.exists(temporary):
+        suffix += 1
+        temporary = f"{destination}.migrating-{os.getpid()}-{suffix}"
+    try:
+        with open(temporary, "wb") as output:
+            for source_file in source_files:
+                with open(source_file, "rb") as source:
+                    data = source.read()
+                output.write(data)
+                if data and not data.endswith(b"\n"):
+                    output.write(b"\n")
+        os.replace(temporary, destination)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
+
+def migrate_rotated_logs(log_file, backup_count):
+    """Normalize one log stem while preserving order and retention."""
     canonical_name = canonical_log_name(log_file)
     stem, _ = os.path.splitext(canonical_name)
     legacy_active = f"{stem}.log"
-    legacy_files = []
+    archive_files = []
+    migration_needed = os.path.isfile(legacy_active)
 
     if os.path.isfile(legacy_active):
         if not os.path.exists(canonical_name):
             os.replace(legacy_active, canonical_name)
         else:
-            legacy_files.append((1, legacy_active))
+            archive_files.append((1, 0, legacy_active))
 
     directory = os.path.dirname(canonical_name) or "."
     stem_name = os.path.basename(stem)
-    legacy_pattern = re.compile(
+    archive_pattern = re.compile(
         rf"^{re.escape(stem_name)}(?:(?:\.log\.(?P<suffix_rotation>\d+))|(?:\.(?P<prefix_rotation>\d+)\.log)|"
-        rf"(?:\.txt\.(?P<txt_rotation>\d+)))$"
+        rf"(?:\.txt\.(?P<txt_rotation>\d+))|(?:\.(?P<canonical_rotation>\d+)\.txt))$"
     )
     for filename in os.listdir(directory):
-        match = legacy_pattern.fullmatch(filename)
+        match = archive_pattern.fullmatch(filename)
         if not match:
             continue
         rotation = int(next(value for value in match.groupdict().values() if value is not None))
-        legacy_files.append((rotation, os.path.join(directory, filename)))
+        if match.group("canonical_rotation") is None:
+            migration_needed = True
+        archive_files.append((rotation, 1, os.path.join(directory, filename)))
 
-    for preferred_rotation, legacy_name in sorted(legacy_files, key=lambda item: (item[0], item[1])):
-        rotation = preferred_rotation
-        rotation_name = f"{stem}.{rotation}.txt"
-        while os.path.exists(rotation_name):
-            rotation += 1
-            rotation_name = f"{stem}.{rotation}.txt"
-        os.replace(legacy_name, rotation_name)
+    if not migration_needed:
+        return
+
+    ordered_archives = sorted(archive_files, key=lambda item: (item[0], item[1], -os.stat(item[2]).st_mtime_ns, item[2]))
+    staged_archives = []
+    for index, (_, _, archive_name) in enumerate(ordered_archives):
+        temporary = f"{stem}.migrating-{os.getpid()}-{index}"
+        suffix = 0
+        while os.path.exists(temporary):
+            suffix += 1
+            temporary = f"{stem}.migrating-{os.getpid()}-{index}-{suffix}"
+        os.replace(archive_name, temporary)
+        staged_archives.append(temporary)
+
+    if backup_count <= 0 and staged_archives:
+        sources = list(reversed(staged_archives))
+        if os.path.isfile(canonical_name):
+            sources.append(canonical_name)
+        _write_combined_log(sources, canonical_name)
+        for source in staged_archives:
+            os.remove(source)
+        return
+
+    retained = staged_archives[: max(backup_count - 1, 0)]
+    overflow = staged_archives[len(retained) :]
+    for rotation, staged_name in enumerate(retained, start=1):
+        os.replace(staged_name, f"{stem}.{rotation}.txt")
+    if overflow:
+        oldest_rotation = len(retained) + 1
+        destination = f"{stem}.{oldest_rotation}.txt"
+        if len(overflow) == 1:
+            os.replace(overflow[0], destination)
+        else:
+            _write_combined_log(list(reversed(overflow)), destination)
+            for source in overflow:
+                os.remove(source)
+
+
+def migrate_log_directory(log_dir, backup_count):
+    """Migrate every legacy log stem in the configured logs directory."""
+    legacy_patterns = (
+        re.compile(r"^(?P<stem>.+)\.log\.\d+$"),
+        re.compile(r"^(?P<stem>.+)\.\d+\.log$"),
+        re.compile(r"^(?P<stem>.+)\.txt\.\d+$"),
+        re.compile(r"^(?P<stem>.+)\.log$"),
+    )
+    stems = set()
+    for filename in os.listdir(log_dir):
+        for pattern in legacy_patterns:
+            match = pattern.fullmatch(filename)
+            if match:
+                stems.add(match.group("stem"))
+                break
+    for stem in sorted(stems):
+        migrate_rotated_logs(os.path.join(log_dir, f"{stem}.txt"), backup_count)
 
 
 def fmt_filter(record):
@@ -133,6 +205,9 @@ class MyLogger:
         self.log_count = log_count
         self.log_format = log_format
         os.makedirs(self.log_dir, exist_ok=True)
+        migrate_log_directory(self.log_dir, self.log_count)
+        if os.path.dirname(self.main_log) != self.log_dir:
+            migrate_rotated_logs(self.main_log, self.log_count)
         self._logger = logging.getLogger(self.logger_name)
         logging.DRYRUN = DRYRUN
         logging.addLevelName(DRYRUN, "DRYRUN")
@@ -167,7 +242,7 @@ class MyLogger:
         """Get handler for log file"""
         log_file = canonical_log_name(log_file)
         max_bytes = 1024 * 1024 * self.log_size
-        migrate_rotated_logs(log_file)
+        migrate_rotated_logs(log_file, self.log_count)
         _handler = RotatingFileHandler(
             log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=self.log_count, encoding="utf-8"
         )

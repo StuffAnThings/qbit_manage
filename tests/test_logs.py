@@ -10,6 +10,7 @@ from logging.handlers import RotatingFileHandler
 from modules.logs import JsonFormatter
 from modules.logs import MyLogger
 from modules.logs import canonical_log_name
+from modules.logs import migrate_log_directory
 from modules.logs import migrate_rotated_logs
 from modules.logs import rotated_log_name
 
@@ -177,7 +178,7 @@ def test_migrate_rotated_logs_renames_legacy_archives(tmp_path):
     (tmp_path / "qbit_manage.log.1").write_text("newer\n", encoding="utf-8")
     (tmp_path / "qbit_manage.2.log").write_text("older\n", encoding="utf-8")
 
-    migrate_rotated_logs(str(log_path))
+    migrate_rotated_logs(str(log_path), backup_count=2)
 
     assert log_path.read_text(encoding="utf-8") == "active\n"
     assert (tmp_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "newer\n"
@@ -194,7 +195,7 @@ def test_migrate_rotated_logs_moves_collision_to_next_txt_archive(tmp_path):
     legacy_path.write_text("legacy\n", encoding="utf-8")
     canonical_path.write_text("canonical\n", encoding="utf-8")
 
-    migrate_rotated_logs(str(log_path))
+    migrate_rotated_logs(str(log_path), backup_count=2)
 
     assert canonical_path.read_text(encoding="utf-8") == "canonical\n"
     assert (tmp_path / "qbit_manage.2.txt").read_text(encoding="utf-8") == "legacy\n"
@@ -210,7 +211,7 @@ def test_migrate_rotated_logs_cleans_all_legacy_names_despite_collisions(tmp_pat
     (tmp_path / "qbit_manage.1.log").write_text("prefix archive\n", encoding="utf-8")
     (tmp_path / "qbit_manage.txt.8").write_text("old txt rotation\n", encoding="utf-8")
 
-    migrate_rotated_logs(str(log_path))
+    migrate_rotated_logs(str(log_path), backup_count=5)
 
     txt_logs = sorted(path.name for path in tmp_path.iterdir())
     assert txt_logs == [
@@ -218,7 +219,7 @@ def test_migrate_rotated_logs_cleans_all_legacy_names_despite_collisions(tmp_pat
         "qbit_manage.2.txt",
         "qbit_manage.3.txt",
         "qbit_manage.4.txt",
-        "qbit_manage.8.txt",
+        "qbit_manage.5.txt",
         "qbit_manage.txt",
     ]
     assert {path.read_text(encoding="utf-8") for path in tmp_path.iterdir()} == {
@@ -229,6 +230,34 @@ def test_migrate_rotated_logs_cleans_all_legacy_names_despite_collisions(tmp_pat
         "prefix archive\n",
         "old txt rotation\n",
     }
+
+
+def test_migrate_rotated_logs_preserves_order_within_retention(tmp_path):
+    log_path = tmp_path / "qbit_manage.txt"
+    log_path.write_text("current\n", encoding="utf-8")
+    for rotation in range(1, 6):
+        (tmp_path / f"qbit_manage.{rotation}.txt").write_text(f"archive {rotation}\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.log").write_text("legacy active\n", encoding="utf-8")
+
+    migrate_rotated_logs(str(log_path), backup_count=5)
+
+    assert (tmp_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "legacy active\n"
+    assert (tmp_path / "qbit_manage.2.txt").read_text(encoding="utf-8") == "archive 1\n"
+    assert (tmp_path / "qbit_manage.5.txt").read_text(encoding="utf-8") == "archive 5\narchive 4\n"
+    assert not (tmp_path / "qbit_manage.6.txt").exists()
+
+
+def test_migrate_log_directory_converts_inactive_stems(tmp_path):
+    (tmp_path / "qbit_manage.log").write_text("main\n", encoding="utf-8")
+    (tmp_path / "retired-config.log").write_text("retired\n", encoding="utf-8")
+    (tmp_path / "retired-config.log.1").write_text("retired archive\n", encoding="utf-8")
+
+    migrate_log_directory(str(tmp_path), backup_count=3)
+
+    assert (tmp_path / "qbit_manage.txt").read_text(encoding="utf-8") == "main\n"
+    assert (tmp_path / "retired-config.txt").read_text(encoding="utf-8") == "retired\n"
+    assert (tmp_path / "retired-config.1.txt").read_text(encoding="utf-8") == "retired archive\n"
+    assert all(path.suffix == ".txt" for path in tmp_path.iterdir())
 
 
 def test_main_handler_normalizes_name_and_migrates_before_open(tmp_path):
