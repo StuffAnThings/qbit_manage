@@ -528,7 +528,9 @@ class Config:
             # Extract global_options defaults if present (dict form or list-with-global_options-entry form)
             global_opts = {}
             if isinstance(nohardlinks_data, dict):
-                raw_global_opts = nohardlinks_data.get("global_options", {}) or {}
+                raw_global_opts = nohardlinks_data.get("global_options", {})
+                if raw_global_opts is None:
+                    raw_global_opts = {}
                 if not isinstance(raw_global_opts, dict):
                     err = f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
                     self.notify(err, "Config")
@@ -538,7 +540,9 @@ class Config:
                 # Bug 3 fix: extract global_options from list-form when present as a dict entry
                 for _entry in nohardlinks_data:
                     if isinstance(_entry, dict) and "global_options" in _entry:
-                        raw_global_opts = _entry["global_options"] or {}
+                        raw_global_opts = _entry["global_options"]
+                        if raw_global_opts is None:
+                            raw_global_opts = {}
                         if not isinstance(raw_global_opts, dict):
                             err = (
                                 f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
@@ -547,7 +551,9 @@ class Config:
                             raise Failed(err)
                         global_opts = raw_global_opts
                         break
-            global_exclude_tags = global_opts.get("exclude_tags", []) or []
+            global_exclude_tags = global_opts.get("exclude_tags", [])
+            if global_exclude_tags is None:
+                global_exclude_tags = []
             # Bug 2 fix: validate global exclude_tags is a list
             if not isinstance(global_exclude_tags, list):
                 err = (
@@ -566,6 +572,7 @@ class Config:
                     )
                     self.notify(err, "Config")
                     raise Failed(err)
+            global_exclude_tags = list(dict.fromkeys(global_exclude_tags))
             global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
             if not isinstance(global_ignore_root_dir, bool):
                 err = "Config Error: nohardlinks global_options ignore_root_dir must be a boolean type"

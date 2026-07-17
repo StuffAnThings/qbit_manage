@@ -199,6 +199,12 @@ class TestGlobalOptionsTypeValidation:
         with pytest.raises(Failed, match="global_options must be a dict"):
             cfg.process_config_nohardlinks()
 
+    @pytest.mark.parametrize("invalid_value", [False, 0, "", []])
+    def test_falsy_global_options_wrong_types_raise_failed(self, invalid_value):
+        cfg = _make_config({"global_options": invalid_value, "cat1": {}})
+        with pytest.raises(Failed, match="global_options must be a dict"):
+            cfg.process_config_nohardlinks()
+
 
 # ---------------------------------------------------------------------------
 # Per-category exclude_tags type validation (pre-existing, kept real)
@@ -279,6 +285,22 @@ class TestGlobalExcludeTagsTypeValidation:
         )
         with pytest.raises(Failed, match="exclude_tags must be a list"):
             cfg.process_config_nohardlinks()
+
+    @pytest.mark.parametrize("invalid_value", [False, 0, ""])
+    def test_falsy_global_exclude_tags_wrong_types_raise_failed(self, invalid_value):
+        cfg = _make_config({"global_options": {"exclude_tags": invalid_value}, "cat1": {}})
+        with pytest.raises(Failed, match="exclude_tags must be a list"):
+            cfg.process_config_nohardlinks()
+
+    def test_duplicate_global_tags_are_deduplicated_in_order(self):
+        cfg = _make_config(
+            {
+                "global_options": {"exclude_tags": ["a", "a"]},
+                "cat1": {"exclude_tags": ["a", "b"]},
+            }
+        )
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["cat1"]["exclude_tags"] == ["a", "b"]
 
     def test_global_exclude_tags_as_list_is_valid(self):
         """global_options: {exclude_tags: ['tag1']} (list) must not raise."""
