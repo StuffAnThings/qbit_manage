@@ -32,7 +32,8 @@ export const catChangeSchema = {
                     label: 'Delay (minutes)',
                     description: 'Whole minutes after torrent completion to wait before changing category. Set to 0 for no delay.',
                     default: 0,
-                    minimum: 0
+                    min: 0,
+                    step: 1
                 }
             },
             required: ['new_cat'],
@@ -53,7 +54,8 @@ export const catChangeSchema = {
                 label: 'Delay (minutes)',
                 description: 'Whole minutes after torrent completion to wait before changing category. Set to 0 for no delay.',
                 default: 0,
-                minimum: 0
+                min: 0,
+                step: 1
             }
         },
         required: ['new_cat'],
