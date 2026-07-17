@@ -166,6 +166,11 @@ class TestIgnoreRootDirOverride:
 
 
 class TestGlobalOptionsTypeValidation:
+    def test_null_global_options_uses_defaults(self):
+        cfg = _make_config({"global_options": None, "cat1": {}})
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["cat1"] == {"exclude_tags": [], "ignore_root_dir": True}
+
     def test_global_options_as_string_raises_failed(self):
         """global_options: 'yes please' (string) must raise Failed."""
         cfg = _make_config(
@@ -264,6 +269,11 @@ class TestOuterNohardlinksTypeValidation:
 
 
 class TestGlobalExcludeTagsTypeValidation:
+    def test_null_global_exclude_tags_uses_empty_default(self):
+        cfg = _make_config({"global_options": {"exclude_tags": None}, "cat1": {}})
+        cfg.process_config_nohardlinks()
+        assert cfg.nohardlinks["cat1"]["exclude_tags"] == []
+
     def test_global_exclude_tags_as_string_raises_failed(self):
         """global_options: {exclude_tags: 'tag1'} (string) must raise Failed."""
         cfg = _make_config(
