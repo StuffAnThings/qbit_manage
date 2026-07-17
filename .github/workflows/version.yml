@@ -10,7 +10,7 @@ on:
       - v*
 
 concurrency:
-  group: production-release-${{ github.ref }}
+  group: production-release
   cancel-in-progress: false
 
 # Least-privilege default: docker-release only needs to read the repo.
