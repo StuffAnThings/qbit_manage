@@ -68,7 +68,7 @@ class _LoggerProxy:
 
 logger = _LoggerProxy()
 
-LOG_FILE_PATTERN = re.compile(r"^(.+\.log)(?:\.(\d+))?$")
+LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:(?:\.(?P<rotation>\d+))?\.log|\.log\.(?P<legacy_rotation>\d+))$")
 
 
 class CommandRequest(BaseModel):
@@ -1243,8 +1243,9 @@ class WebAPI:
         match = LOG_FILE_PATTERN.fullmatch(filename)
         if match is None:
             return filename.casefold(), -1
-        rotation = int(match.group(2)) if match.group(2) is not None else -1
-        return match.group(1).casefold(), rotation
+        rotation_text = match.group("rotation") or match.group("legacy_rotation")
+        rotation = int(rotation_text) if rotation_text is not None else -1
+        return match.group("base").casefold(), rotation
 
     async def backup_config(self, filename: str) -> dict:
         """Create a manual backup of a configuration file."""

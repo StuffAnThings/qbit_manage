@@ -22,6 +22,24 @@ DEBUG = 10
 TRACE = 1
 
 
+def rotated_log_name(default_name):
+    """Keep the original extension after the rotation number."""
+    base_name, separator, rotation = default_name.rpartition(".")
+    stem, extension = os.path.splitext(base_name)
+    if not separator or not rotation.isdigit() or not extension:
+        return default_name
+    return f"{stem}.{rotation}{extension}"
+
+
+def migrate_rotated_logs(log_file, backup_count):
+    """Rename legacy extension-first rotations without overwriting archives."""
+    for rotation in range(1, backup_count + 1):
+        legacy_name = f"{log_file}.{rotation}"
+        canonical_name = rotated_log_name(legacy_name)
+        if canonical_name != legacy_name and os.path.isfile(legacy_name) and not os.path.exists(canonical_name):
+            os.replace(legacy_name, canonical_name)
+
+
 def fmt_filter(record):
     """Filter log message"""
     record.levelname = f"[{record.levelname}]"
@@ -115,9 +133,11 @@ class MyLogger:
     def _get_handler(self, log_file):
         """Get handler for log file"""
         max_bytes = 1024 * 1024 * self.log_size
+        migrate_rotated_logs(log_file, self.log_count)
         _handler = RotatingFileHandler(
             log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=self.log_count, encoding="utf-8"
         )
+        _handler.namer = rotated_log_name
         self._formatter(handler=_handler)
         return _handler
 

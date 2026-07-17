@@ -55,22 +55,22 @@ def test_get_logs_returns_404_for_missing_log(log_api):
 
 
 def test_get_logs_reads_rotated_log_and_preserves_limit_order(log_api):
-    (log_api.logs_path / "activity.log.2").write_text("one\ntwo\nthree\n", encoding="utf-8")
+    (log_api.logs_path / "activity.2.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
 
-    result = get_logs(log_api, limit=2, log_filename="activity.log.2")
+    result = get_logs(log_api, limit=2, log_filename="activity.2.log")
 
     assert result == {"logs": ["two", "three"]}
 
 
 def test_list_log_files_includes_rotations_in_natural_order(log_api):
-    for filename in ["activity.log.10", "activity.log.2", "activity.log", "other.log.1"]:
+    for filename in ["activity.10.log", "activity.log.2", "activity.log", "other.1.log"]:
         (log_api.logs_path / filename).touch()
     (log_api.logs_path / "ignored.txt").touch()
     (log_api.logs_path / "activity.log.backup").touch()
 
     result = list_log_files(log_api)
 
-    assert result == {"log_files": ["activity.log", "activity.log.2", "activity.log.10", "other.log.1"]}
+    assert result == {"log_files": ["activity.log", "activity.log.2", "activity.10.log", "other.1.log"]}
 
 
 def test_list_log_files_excludes_symlink_escape(log_api, tmp_path):
