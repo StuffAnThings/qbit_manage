@@ -50,6 +50,7 @@ pre-commit run --all-files
 
 ## GitHub Actions and releases
 
+- This is a public repository. Use GitHub-hosted runners and never execute public pull request code on private or self-hosted infrastructure.
 - Pin third-party actions to full commit SHAs and retain the version comment.
 - Use least-privilege job permissions.
 - Do not suppress GitHub CLI or API errors when checking whether a release, tag, or artifact exists. Handle an explicit not-found response separately from authentication, rate-limit, or transient failures.
