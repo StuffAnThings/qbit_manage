@@ -66,6 +66,15 @@ def _passes(data: dict) -> None:
 
 
 class TestWebhooksFunctionKeys:
+    def test_legacy_root_function_key_warns_with_migration_hint(self):
+        data = _valid_base()
+        data["webhooks"] = {"recheck": "http://example.com"}
+        warnings = _warnings(data)
+        assert warnings == [
+            "Unrecognized key 'recheck' in 'webhooks'. "
+            "Hint: function hooks moved under 'webhooks.function.recheck' in newer versions."
+        ]
+
     def test_unknown_function_key_warns(self):
         data = _valid_base()
         data["webhooks"] = {
@@ -273,6 +282,7 @@ class TestFullValidConfig:
                     "priority": 1,
                     "max_ratio": 2.0,
                     "cleanup": True,
+                    "share_limit_action": "Stop",
                 }
             },
         }

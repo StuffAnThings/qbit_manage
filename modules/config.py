@@ -153,6 +153,7 @@ KNOWN_SHARE_LIMITS_KEYS = {
     "add_group_to_tag",
     "custom_tag",
     "reset_upload_speed_on_unmet_minimums",
+    "share_limit_action",
 }
 
 # Known keys within the recyclebin section
@@ -263,9 +264,9 @@ class Config:
         Loads and processes the configuration settings for the application.
         """
         self.commands = self.process_config_commands()
-        self.data = self.process_config_data()
-        # Validate keys early so warnings appear before section processing output.
+        # Validate the source structure before legacy options are normalized away.
         self.validate_config_keys()
+        self.data = self.process_config_data()
         self.process_config_settings()
         self.process_config_webhooks()
         self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
