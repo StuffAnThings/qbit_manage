@@ -7,6 +7,9 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
+import pytest
+
+import modules.logs as logs_module
 from modules.logs import JsonFormatter
 from modules.logs import MyLogger
 from modules.logs import canonical_log_name
@@ -258,6 +261,29 @@ def test_migrate_log_directory_converts_inactive_stems(tmp_path):
     assert (tmp_path / "retired-config.txt").read_text(encoding="utf-8") == "retired\n"
     assert (tmp_path / "retired-config.1.txt").read_text(encoding="utf-8") == "retired archive\n"
     assert all(path.suffix == ".txt" for path in tmp_path.iterdir())
+
+
+def test_migrate_rotated_logs_rolls_back_partial_staging_failure(tmp_path, monkeypatch):
+    log_path = tmp_path / "qbit_manage.txt"
+    first_archive = tmp_path / "qbit_manage.log.1"
+    second_archive = tmp_path / "qbit_manage.log.2"
+    first_archive.write_text("first\n", encoding="utf-8")
+    second_archive.write_text("second\n", encoding="utf-8")
+    real_replace = logs_module.os.replace
+
+    def fail_on_second_archive(source, destination):
+        if str(source) == str(second_archive):
+            raise OSError("simulated staging failure")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(logs_module.os, "replace", fail_on_second_archive)
+
+    with pytest.raises(OSError, match="simulated staging failure"):
+        migrate_rotated_logs(str(log_path), backup_count=3)
+
+    assert first_archive.read_text(encoding="utf-8") == "first\n"
+    assert second_archive.read_text(encoding="utf-8") == "second\n"
+    assert not list(tmp_path.glob("*.migrating-*"))
 
 
 def test_main_handler_normalizes_name_and_migrates_before_open(tmp_path):

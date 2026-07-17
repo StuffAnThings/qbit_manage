@@ -91,15 +91,22 @@ def migrate_rotated_logs(log_file, backup_count):
         return
 
     ordered_archives = sorted(archive_files, key=lambda item: (item[0], item[1], -os.stat(item[2]).st_mtime_ns, item[2]))
-    staged_archives = []
-    for index, (_, _, archive_name) in enumerate(ordered_archives):
-        temporary = f"{stem}.migrating-{os.getpid()}-{index}"
-        suffix = 0
-        while os.path.exists(temporary):
-            suffix += 1
-            temporary = f"{stem}.migrating-{os.getpid()}-{index}-{suffix}"
-        os.replace(archive_name, temporary)
-        staged_archives.append(temporary)
+    staged_pairs = []
+    try:
+        for index, (_, _, archive_name) in enumerate(ordered_archives):
+            temporary = f"{stem}.migrating-{os.getpid()}-{index}"
+            suffix = 0
+            while os.path.exists(temporary):
+                suffix += 1
+                temporary = f"{stem}.migrating-{os.getpid()}-{index}-{suffix}"
+            os.replace(archive_name, temporary)
+            staged_pairs.append((archive_name, temporary))
+    except OSError:
+        for archive_name, temporary in reversed(staged_pairs):
+            if os.path.exists(temporary) and not os.path.exists(archive_name):
+                os.replace(temporary, archive_name)
+        raise
+    staged_archives = [temporary for _, temporary in staged_pairs]
 
     if backup_count <= 0 and staged_archives:
         sources = list(reversed(staged_archives))
