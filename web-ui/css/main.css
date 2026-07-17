@@ -119,6 +119,7 @@ body {
 .sidebar-toggle {
     width: 2.25rem;
     height: 2.25rem;
+    overflow: hidden;
     padding: 0;
     border: none;
     background: transparent;
@@ -232,6 +233,7 @@ body {
   position: relative;
   width: 2.25rem;
   height: 2.25rem;
+  overflow: hidden;
   padding: 0;
   border: none;
   background: transparent;
@@ -374,17 +376,14 @@ body {
 }
 
 
-@media (max-width: 640px) {
-  .header-actions .btn-icon-only {
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-  }
-
+.header-actions .btn-icon-only {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
 }
 
 /* Ensure buttons restore properly when transitioning from icon-only to full size */
-@media (min-width: 641px) {
+@media (min-width: 640px) {
   .header-actions .btn:not(.btn-icon) {
     width: auto;
     height: auto;
