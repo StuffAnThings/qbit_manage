@@ -27,7 +27,7 @@ def list_log_files(api):
 
 @pytest.mark.parametrize(
     "filename",
-    ["../outside.log", "/tmp/outside.log", r"..\outside.log", "activity.txt", "activity.log.backup"],
+    ["../outside.txt", "/tmp/outside.txt", r"..\outside.txt", "activity.json", "activity.log.backup"],
 )
 def test_get_logs_rejects_invalid_filename(log_api, filename):
     with pytest.raises(HTTPException) as exc_info:
@@ -39,44 +39,44 @@ def test_get_logs_rejects_invalid_filename(log_api, filename):
 def test_get_logs_rejects_symlink_escape(log_api, tmp_path):
     outside_log = tmp_path / "outside.log"
     outside_log.write_text("secret\n", encoding="utf-8")
-    (log_api.logs_path / "linked.log").symlink_to(outside_log)
+    (log_api.logs_path / "linked.txt").symlink_to(outside_log)
 
     with pytest.raises(HTTPException) as exc_info:
-        get_logs(log_api, log_filename="linked.log")
+        get_logs(log_api, log_filename="linked.txt")
 
     assert exc_info.value.status_code == 400
 
 
 def test_get_logs_returns_404_for_missing_log(log_api):
     with pytest.raises(HTTPException) as exc_info:
-        get_logs(log_api, log_filename="missing.log")
+        get_logs(log_api, log_filename="missing.txt")
 
     assert exc_info.value.status_code == 404
 
 
 def test_get_logs_reads_rotated_log_and_preserves_limit_order(log_api):
-    (log_api.logs_path / "activity.2.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
+    (log_api.logs_path / "activity.2.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
 
-    result = get_logs(log_api, limit=2, log_filename="activity.2.log")
+    result = get_logs(log_api, limit=2, log_filename="activity.2.txt")
 
     assert result == {"logs": ["two", "three"]}
 
 
 def test_list_log_files_includes_rotations_in_natural_order(log_api):
-    for filename in ["activity.10.log", "activity.log.2", "activity.log", "other.1.log"]:
+    for filename in ["activity.10.txt", "activity.log.2", "activity.txt", "other.1.txt"]:
         (log_api.logs_path / filename).touch()
-    (log_api.logs_path / "ignored.txt").touch()
+    (log_api.logs_path / "ignored.json").touch()
     (log_api.logs_path / "activity.log.backup").touch()
 
     result = list_log_files(log_api)
 
-    assert result == {"log_files": ["activity.log", "activity.log.2", "activity.10.log", "other.1.log"]}
+    assert result == {"log_files": ["activity.txt", "activity.log.2", "activity.10.txt", "other.1.txt"]}
 
 
 def test_list_log_files_excludes_symlink_escape(log_api, tmp_path):
     outside_log = tmp_path / "outside.log"
     outside_log.touch()
-    (log_api.logs_path / "linked.log").symlink_to(outside_log)
-    (log_api.logs_path / "inside.log").touch()
+    (log_api.logs_path / "linked.txt").symlink_to(outside_log)
+    (log_api.logs_path / "inside.txt").touch()
 
-    assert list_log_files(log_api) == {"log_files": ["inside.log"]}
+    assert list_log_files(log_api) == {"log_files": ["inside.txt"]}

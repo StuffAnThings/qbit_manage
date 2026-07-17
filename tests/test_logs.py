@@ -9,6 +9,7 @@ from logging.handlers import RotatingFileHandler
 
 from modules.logs import JsonFormatter
 from modules.logs import MyLogger
+from modules.logs import canonical_log_name
 from modules.logs import migrate_rotated_logs
 from modules.logs import rotated_log_name
 
@@ -28,7 +29,7 @@ def _make_record(msg="test message", level=logging.INFO, exc_info=None):
 
 def _make_logger(tmp_path, log_format="json"):
     name = f"test-logs-{tmp_path.name}"
-    return MyLogger(name, "test.log", "INFO", str(tmp_path), 100, "=", True, 10, 5, log_format=log_format)
+    return MyLogger(name, "test.txt", "INFO", str(tmp_path), 100, "=", True, 10, 5, log_format=log_format)
 
 
 def _capture_stream():
@@ -147,11 +148,16 @@ class TestMyLoggerJsonMode:
 
 
 def test_rotated_log_name_keeps_log_suffix():
-    assert rotated_log_name("/config/logs/qbit_manage.log.3") == "/config/logs/qbit_manage.3.log"
+    assert rotated_log_name("/config/logs/qbit_manage.txt.3") == "/config/logs/qbit_manage.3.txt"
+
+
+def test_canonical_log_name_always_uses_txt_extension():
+    assert canonical_log_name("/config/logs/qbit_manage.log") == "/config/logs/qbit_manage.txt"
+    assert canonical_log_name("/config/logs/custom") == "/config/logs/custom.txt"
 
 
 def test_rotating_handler_uses_suffix_preserving_name(tmp_path):
-    log_path = tmp_path / "qbit_manage.log"
+    log_path = tmp_path / "qbit_manage.txt"
     log_path.write_text("first\n", encoding="utf-8")
     handler = RotatingFileHandler(log_path, maxBytes=1, backupCount=2, encoding="utf-8")
     handler.namer = rotated_log_name
@@ -161,27 +167,30 @@ def test_rotating_handler_uses_suffix_preserving_name(tmp_path):
     finally:
         handler.close()
 
-    assert (tmp_path / "qbit_manage.1.log").read_text(encoding="utf-8") == "first\n"
-    assert not (tmp_path / "qbit_manage.log.1").exists()
+    assert (tmp_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "first\n"
+    assert not (tmp_path / "qbit_manage.txt.1").exists()
 
 
 def test_migrate_rotated_logs_renames_legacy_archives(tmp_path):
-    log_path = tmp_path / "qbit_manage.log"
+    log_path = tmp_path / "qbit_manage.txt"
+    (tmp_path / "qbit_manage.log").write_text("active\n", encoding="utf-8")
     (tmp_path / "qbit_manage.log.1").write_text("newer\n", encoding="utf-8")
-    (tmp_path / "qbit_manage.log.2").write_text("older\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.2.log").write_text("older\n", encoding="utf-8")
 
     migrate_rotated_logs(str(log_path), backup_count=2)
 
-    assert (tmp_path / "qbit_manage.1.log").read_text(encoding="utf-8") == "newer\n"
-    assert (tmp_path / "qbit_manage.2.log").read_text(encoding="utf-8") == "older\n"
+    assert log_path.read_text(encoding="utf-8") == "active\n"
+    assert (tmp_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "newer\n"
+    assert (tmp_path / "qbit_manage.2.txt").read_text(encoding="utf-8") == "older\n"
+    assert not (tmp_path / "qbit_manage.log").exists()
     assert not (tmp_path / "qbit_manage.log.1").exists()
-    assert not (tmp_path / "qbit_manage.log.2").exists()
+    assert not (tmp_path / "qbit_manage.2.log").exists()
 
 
 def test_migrate_rotated_logs_does_not_overwrite_existing_archive(tmp_path):
-    log_path = tmp_path / "qbit_manage.log"
+    log_path = tmp_path / "qbit_manage.txt"
     legacy_path = tmp_path / "qbit_manage.log.1"
-    canonical_path = tmp_path / "qbit_manage.1.log"
+    canonical_path = tmp_path / "qbit_manage.1.txt"
     legacy_path.write_text("legacy\n", encoding="utf-8")
     canonical_path.write_text("canonical\n", encoding="utf-8")
 

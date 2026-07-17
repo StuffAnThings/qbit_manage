@@ -80,7 +80,7 @@ Every CLI flag (and a few internal settings) can be set via environment variable
 | `QBT_STARTUP_DELAY` | `-sd`/`--startup-delay` | CLI default | Delay in seconds before first scheduled run |
 | `QBT_CONFIG` | `-c`/`--config-file` | — | Path to `config.yml`; hidden from `--help` (argparse.SUPPRESS) |
 | `QBT_CONFIG_DIR` | `-cd`/`--config-dir` | CLI default | Directory containing `config.yml` |
-| `QBT_LOGFILE` | `-lf`/`--log-file` | CLI default | Log file name (default: `qbit_manage.log`) |
+| `QBT_LOGFILE` | `-lf`/`--log-file` | CLI default | Log file name (always `.txt`; default: `qbit_manage.txt`) |
 | `QBT_RECHECK` | `-re`/`--recheck` | CLI default | Run the recheck command |
 | `QBT_CAT_UPDATE` | `-cu`/`--cat-update` | CLI default | Run the cat-update command |
 | `QBT_TAG_UPDATE` | `-tu`/`--tag-update` | CLI default | Run the tag-update command |

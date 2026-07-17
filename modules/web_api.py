@@ -68,7 +68,7 @@ class _LoggerProxy:
 
 logger = _LoggerProxy()
 
-LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:(?:\.(?P<rotation>\d+))?\.log|\.log\.(?P<legacy_rotation>\d+))$")
+LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:(?:\.(?P<rotation>\d+))?\.(?:txt|log)|\.log\.(?P<legacy_rotation>\d+))$")
 
 
 class CommandRequest(BaseModel):
@@ -507,7 +507,7 @@ class WebAPI:
             last_log_time = None
             if logs_dir_exists:
                 try:
-                    log_file_path = self.logs_path / "qbit_manage.log"
+                    log_file_path = self.logs_path / "qbit_manage.txt"
                     if log_file_path.exists():
                         # Get last few lines to check recent activity
                         with open(log_file_path, encoding="utf-8", errors="ignore") as f:
@@ -1144,9 +1144,9 @@ class WebAPI:
             logger.warning(f"Log directory not found: {self.logs_path}")
             return {"logs": []}
 
-        # If no specific log_filename is provided, default to qbit_manage.log
+        # If no specific log_filename is provided, default to qbit_manage.txt
         if log_filename is None:
-            log_filename = "qbit_manage.log"
+            log_filename = "qbit_manage.txt"
 
         log_file_path = self._validate_log_filename(log_filename)
 

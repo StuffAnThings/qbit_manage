@@ -137,9 +137,9 @@ parser.add_argument(
     "--log-file",
     dest="logfile",
     action="store",
-    default="qbit_manage.log",
+    default="qbit_manage.txt",
     type=str,
-    help="This is used if you want to use a different name for your log file. Example: tv.log",
+    help="This is used if you want to use a different name for your log file. All log filenames use the .txt extension.",
 )
 parser.add_argument(
     "-re",

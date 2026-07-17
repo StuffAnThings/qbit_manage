@@ -31,13 +31,27 @@ def rotated_log_name(default_name):
     return f"{stem}.{rotation}{extension}"
 
 
+def canonical_log_name(log_file):
+    """Return the canonical text-log filename for any configured name."""
+    stem, _ = os.path.splitext(log_file)
+    return f"{stem}.txt"
+
+
 def migrate_rotated_logs(log_file, backup_count):
-    """Rename legacy extension-first rotations without overwriting archives."""
+    """Migrate active and rotated .log names to canonical .txt names."""
+    canonical_name = canonical_log_name(log_file)
+    stem, _ = os.path.splitext(canonical_name)
+    legacy_active = f"{stem}.log"
+    if os.path.isfile(legacy_active) and not os.path.exists(canonical_name):
+        os.replace(legacy_active, canonical_name)
+
     for rotation in range(1, backup_count + 1):
-        legacy_name = f"{log_file}.{rotation}"
-        canonical_name = rotated_log_name(legacy_name)
-        if canonical_name != legacy_name and os.path.isfile(legacy_name) and not os.path.exists(canonical_name):
-            os.replace(legacy_name, canonical_name)
+        rotation_name = f"{stem}.{rotation}.txt"
+        legacy_names = (f"{legacy_active}.{rotation}", f"{stem}.{rotation}.log", f"{canonical_name}.{rotation}")
+        for legacy_name in legacy_names:
+            if os.path.isfile(legacy_name) and not os.path.exists(rotation_name):
+                os.replace(legacy_name, rotation_name)
+                break
 
 
 def fmt_filter(record):
@@ -89,7 +103,8 @@ class MyLogger:
         self.separating_character = separating_character
         self.ignore_ghost = ignore_ghost
         self.log_dir = os.path.join(default_dir, LOG_DIR)
-        self.main_log = log_file if os.path.exists(os.path.dirname(log_file)) else os.path.join(self.log_dir, log_file)
+        configured_log = log_file if os.path.exists(os.path.dirname(log_file)) else os.path.join(self.log_dir, log_file)
+        self.main_log = canonical_log_name(configured_log)
         self.main_handler = None
         self.save_errors = False
         self.saved_errors = []
@@ -132,6 +147,7 @@ class MyLogger:
 
     def _get_handler(self, log_file):
         """Get handler for log file"""
+        log_file = canonical_log_name(log_file)
         max_bytes = 1024 * 1024 * self.log_size
         migrate_rotated_logs(log_file, self.log_count)
         _handler = RotatingFileHandler(
@@ -170,7 +186,7 @@ class MyLogger:
         if config_key in self.config_handlers:
             self._logger.addHandler(self.config_handlers[config_key])
         else:
-            self.config_handlers[config_key] = self._get_handler(os.path.join(self.log_dir, config_key + ".log"))
+            self.config_handlers[config_key] = self._get_handler(os.path.join(self.log_dir, config_key + ".txt"))
             self._logger.addHandler(self.config_handlers[config_key])
 
     def remove_config_handler(self, config_key):
