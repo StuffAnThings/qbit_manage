@@ -198,3 +198,22 @@ def test_migrate_rotated_logs_does_not_overwrite_existing_archive(tmp_path):
 
     assert legacy_path.read_text(encoding="utf-8") == "legacy\n"
     assert canonical_path.read_text(encoding="utf-8") == "canonical\n"
+
+
+def test_main_handler_normalizes_name_and_migrates_before_open(tmp_path):
+    logs_path = tmp_path / "logs"
+    logs_path.mkdir()
+    (logs_path / "qbit_manage.log").write_text("active\n", encoding="utf-8")
+    (logs_path / "qbit_manage.log.1").write_text("archive\n", encoding="utf-8")
+    logger = MyLogger("migration-integration", "qbit_manage.log", "INFO", str(tmp_path), 100, "=", True, 10, 5)
+
+    logger.add_main_handler()
+    try:
+        assert logger.main_log == str(logs_path / "qbit_manage.txt")
+        assert (logs_path / "qbit_manage.txt").read_text(encoding="utf-8") == "active\n"
+        assert (logs_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "archive\n"
+        assert not (logs_path / "qbit_manage.log").exists()
+        assert not (logs_path / "qbit_manage.log.1").exists()
+    finally:
+        logger.remove_main_handler()
+        logger.main_handler.close()

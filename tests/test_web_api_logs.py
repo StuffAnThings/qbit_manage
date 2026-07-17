@@ -54,6 +54,18 @@ def test_get_logs_returns_404_for_missing_log(log_api):
     assert exc_info.value.status_code == 404
 
 
+def test_get_logs_defaults_to_canonical_txt_file(log_api):
+    (log_api.logs_path / "qbit_manage.txt").write_text("canonical\n", encoding="utf-8")
+
+    assert get_logs(log_api) == {"logs": ["canonical"]}
+
+
+def test_get_logs_retains_legacy_rotation_compatibility(log_api):
+    (log_api.logs_path / "qbit_manage.log.1").write_text("legacy\n", encoding="utf-8")
+
+    assert get_logs(log_api, log_filename="qbit_manage.log.1") == {"logs": ["legacy"]}
+
+
 def test_get_logs_reads_rotated_log_and_preserves_limit_order(log_api):
     (log_api.logs_path / "activity.2.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
 
