@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: develop-release
+  cancel-in-progress: false
 
 jobs:
   build-release-assets:
@@ -70,16 +70,23 @@ jobs:
           VERSION="$(cat VERSION)"
           TAG="latest-develop"
           HEAD_SHA="${{ steps.head.outputs.sha }}"
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
 
           # The GitHub API cannot move an existing tag to a new commit, so delete
           # the rolling release + its tag and recreate both at the current HEAD.
           # This keeps a single, always-current develop pre-release instead of one
           # per merge. The tag is intentionally non-`v*` so it never trips
           # tag.yml / version.yml / pypi-publish.yml.
-          # Delete only when it exists, so a real auth/permission error surfaces
-          # instead of being masked by `|| true`.
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          # Only a missing release may skip deletion. Authentication, rate-limit,
+          # and transient API failures must stop the job with their original error.
+          if gh release view "$TAG" >/dev/null 2>"$RELEASE_ERROR"; then
             gh release delete "$TAG" --cleanup-tag --yes
+          elif grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+            :
+          else
+            cat "$RELEASE_ERROR" >&2
+            exit 1
           fi
           gh release create "$TAG" \
             --target "$HEAD_SHA" \

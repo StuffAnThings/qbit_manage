@@ -181,6 +181,22 @@ chore(deps): bump ruff from 0.14.5 to 0.14.6
 For the release process (merging `develop → master`, tagging, PyPI publish),
 see [`DEVELOPER.md`](../DEVELOPER.md).
 
+### Release workflow changes
+
+Changes to `.github/workflows/develop.yml` must preserve the rolling develop
+release invariants:
+
+- All runs use the fixed `develop-release` concurrency group and queue rather
+  than cancel in progress. The workflow must not be interrupted between deleting
+  and recreating `latest-develop`.
+- The rolling release and its tag are deleted together, then recreated at the
+  current `develop` HEAD with the prepared build assets.
+- Only an explicit not-found response may skip deletion. Authentication,
+  rate-limit, and transient GitHub API errors must fail with their original
+  message instead of being treated as a missing release.
+- The `latest-develop` tag remains non-`v*` so it cannot trigger stable-release
+  workflows.
+
 ---
 
 ## Project Structure

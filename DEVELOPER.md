@@ -104,6 +104,15 @@ and `latest-develop` match the bumped `VERSION`.
    current develop HEAD (`gh release delete latest-develop --cleanup-tag`, then
    `gh release create latest-develop --prerelease --latest=false ...`).
 
+All develop-release runs share the fixed `develop-release` concurrency group and
+queue instead of cancelling in progress. This prevents two runs from deleting or
+creating the rolling release at the same time, and avoids cancellation between the
+delete and create operations. Before deletion, the workflow checks whether the
+release exists. Only an explicit not-found response skips deletion; authentication,
+rate-limit, and transient GitHub API failures stop the job with the original error.
+This distinction prevents an API outage from being misread as an absent release and
+then reported misleadingly as a duplicate-tag failure during creation.
+
 The `latest-develop` tag is intentionally non-`v*` so it never triggers `tag.yml`,
 `version.yml`, or `pypi-publish.yml`. Use it to grab a development binary without
 waiting for a full release.
