@@ -196,6 +196,10 @@ release invariants:
   message instead of being treated as a missing release.
 - The `latest-develop` tag remains non-`v*` so it cannot trigger stable-release
   workflows.
+- Production release changes must preserve API errors in both the pre-merge draft
+  guard (`release-pr.yml`) and the post-merge publisher (`version.yml`). Only an
+  explicit not-found response may be handled as an absent release, and publication
+  runs for the same version tag must queue instead of cancelling in progress.
 
 ---
 

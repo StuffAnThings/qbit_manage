@@ -84,6 +84,13 @@ After `tag.yml` pushes the `v<X.Y.Z>` tag, `version.yml` fires: it builds and
 pushes the Docker image, then publishes the draft release (binaries and notes
 were already attached by `release-pr.yml` in Step 1).
 
+Production release runs queue per version tag instead of cancelling in progress.
+Both the pre-merge published-release guard in `release-pr.yml` and the post-merge
+draft lookup in `version.yml` distinguish an explicit not-found response from
+authentication, rate-limit, and transient GitHub API failures. Unexpected API
+failures stop with their original message instead of being reported as a missing
+release or allowing a published release to reach the draft-update action.
+
 ---
 
 ## Develop Builds & PR Artifacts

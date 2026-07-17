@@ -227,8 +227,19 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           TAG: "v${{ needs.prepare-release-branch.outputs.new_version }}"
         run: |
-          if gh release view "$TAG" --json isDraft -q '.isDraft' 2>/dev/null | grep -qx 'false'; then
-            echo "::error::Release $TAG already exists and is published. Delete it before re-running."
+          set -euo pipefail
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
+
+          if RELEASE_IS_DRAFT="$(gh release view "$TAG" --json isDraft -q '.isDraft' 2>"$RELEASE_ERROR")"; then
+            if [[ "$RELEASE_IS_DRAFT" == "false" ]]; then
+              echo "::error::Release $TAG already exists and is published. Delete it before re-running."
+              exit 1
+            fi
+          elif grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+            :
+          else
+            cat "$RELEASE_ERROR" >&2
             exit 1
           fi
 
