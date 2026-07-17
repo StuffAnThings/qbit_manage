@@ -1,4 +1,4 @@
-"""Unit tests for validate_config_keys() — Gap coverage per Copilot review.
+"""Unit tests for warning about unrecognized configuration keys.
 
 Tests exercise the four gaps closed in feat/589-warn-unrecognized-config:
   Gap 1  — early invocation (structural; tested indirectly via validate_config_keys API)
@@ -13,14 +13,11 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from modules import config as config_mod  # noqa: E402
-from modules.util import Failed  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Minimal Config instance — bypasses __init__ but is a real Config so methods
@@ -53,16 +50,14 @@ def _valid_base() -> dict:
 # ---------------------------------------------------------------------------
 
 
-def _raises_failed(data: dict) -> Failed:
+def _warnings(data: dict) -> list[str]:
     cfg = _make_config(data)
-    with pytest.raises(Failed) as exc_info:
-        cfg.validate_config_keys()
-    return exc_info.value
+    return cfg.validate_config_keys()
 
 
 def _passes(data: dict) -> None:
     cfg = _make_config(data)
-    cfg.validate_config_keys()  # must not raise
+    assert cfg.validate_config_keys() == []
 
 
 # ===========================================================================
@@ -71,12 +66,12 @@ def _passes(data: dict) -> None:
 
 
 class TestWebhooksFunctionKeys:
-    def test_unknown_function_key_raises(self):
+    def test_unknown_function_key_warns(self):
         data = _valid_base()
         data["webhooks"] = {
             "function": {"not_a_real_command": "http://example.com"},
         }
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "not_a_real_command" in str(err)
 
     def test_all_known_function_keys_pass(self):
@@ -96,10 +91,10 @@ class TestWebhooksFunctionKeys:
         }
         _passes(data)
 
-    def test_webhooks_top_level_unknown_key_raises(self):
+    def test_webhooks_top_level_unknown_key_warns(self):
         data = _valid_base()
         data["webhooks"] = {"bogus_top_key": "http://x.com"}
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "bogus_top_key" in str(err)
 
     def test_webhooks_function_none_does_not_raise(self):
@@ -127,10 +122,10 @@ class TestNohardlinksListShape:
         data["nohardlinks"] = [{"movies": {"exclude_tags": ["noHL"], "ignore_root_dir": True}}]
         _passes(data)
 
-    def test_list_of_dicts_with_unknown_key_raises(self):
+    def test_list_of_dicts_with_unknown_key_warns(self):
         data = _valid_base()
         data["nohardlinks"] = [{"movies": {"unknown_key": True}}]
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "unknown_key" in str(err)
 
     def test_dict_shape_still_works(self):
@@ -138,10 +133,10 @@ class TestNohardlinksListShape:
         data["nohardlinks"] = {"movies": {"exclude_tags": [], "ignore_root_dir": True}}
         _passes(data)
 
-    def test_dict_shape_unknown_key_raises(self):
+    def test_dict_shape_unknown_key_warns(self):
         data = _valid_base()
         data["nohardlinks"] = {"movies": {"not_valid": True}}
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "not_valid" in str(err)
 
 
@@ -151,10 +146,10 @@ class TestNohardlinksListShape:
 
 
 class TestAppriseKeys:
-    def test_unknown_apprise_key_raises(self):
+    def test_unknown_apprise_key_warns(self):
         data = _valid_base()
         data["apprise"] = {"api_url": "http://apprise", "notify_url": ["x"], "typo_key": "oops"}
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "typo_key" in str(err)
 
     def test_known_apprise_keys_pass(self):
@@ -172,10 +167,10 @@ class TestAppriseKeys:
 
 
 class TestNotifiarrKeys:
-    def test_unknown_notifiarr_key_raises(self):
+    def test_unknown_notifiarr_key_warns(self):
         data = _valid_base()
         data["notifiarr"] = {"apikey": "abc123", "bad_key": "nope"}
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "bad_key" in str(err)
 
     def test_known_notifiarr_keys_pass(self):
@@ -193,10 +188,10 @@ class TestNotifiarrKeys:
 
 
 class TestQbtKeys:
-    def test_unknown_qbt_key_raises(self):
+    def test_unknown_qbt_key_warns(self):
         data = _valid_base()
         data["qbt"]["extra_key"] = "whoops"
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "extra_key" in str(err)
 
     def test_known_qbt_keys_pass(self):
@@ -213,10 +208,10 @@ class TestQbtKeys:
 
 
 class TestCommandsKeys:
-    def test_unknown_commands_key_raises(self):
+    def test_unknown_commands_key_warns(self):
         data = _valid_base()
         data["commands"] = {"recheck": True, "ghost_command": True}
-        err = _raises_failed(data)
+        err = _warnings(data)
         assert "ghost_command" in str(err)
 
     def test_all_known_commands_pass(self):

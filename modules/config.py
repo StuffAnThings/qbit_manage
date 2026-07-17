@@ -264,8 +264,7 @@ class Config:
         """
         self.commands = self.process_config_commands()
         self.data = self.process_config_data()
-        # Validate keys early — after normalization but before any process_config_*
-        # so users get a clean error message rather than a cryptic mid-processing crash.
+        # Validate keys early so warnings appear before section processing output.
         self.validate_config_keys()
         self.process_config_settings()
         self.process_config_webhooks()
@@ -470,7 +469,8 @@ class Config:
     def validate_config_keys(self):
         """
         Validate that all configuration keys are recognized.
-        Raises Failed for any unrecognized keys to catch typos and misconfiguration early.
+        Warn for unrecognized keys so deprecated options and typos are visible
+        without preventing the application from starting.
         """
         errors = []
 
@@ -559,12 +559,7 @@ class Config:
         if errors:
             for err in errors:
                 logger.warning(f"Config Warning: {err}")
-            err_msg = (
-                f"Config Error: {len(errors)} unrecognized config option(s) found. "
-                "This usually indicates a typo. Please check your config file.\n" + "\n".join(f"  - {e}" for e in errors)
-            )
-            self.notify(err_msg, "Config")
-            raise Failed(err_msg)
+        return errors
 
     def process_config_settings(self):
         """
