@@ -37,21 +37,39 @@ def canonical_log_name(log_file):
     return f"{stem}.txt"
 
 
-def migrate_rotated_logs(log_file, backup_count):
-    """Migrate active and rotated .log names to canonical .txt names."""
+def migrate_rotated_logs(log_file):
+    """Migrate every supported legacy log name without overwriting data."""
     canonical_name = canonical_log_name(log_file)
     stem, _ = os.path.splitext(canonical_name)
     legacy_active = f"{stem}.log"
-    if os.path.isfile(legacy_active) and not os.path.exists(canonical_name):
-        os.replace(legacy_active, canonical_name)
+    legacy_files = []
 
-    for rotation in range(1, backup_count + 1):
+    if os.path.isfile(legacy_active):
+        if not os.path.exists(canonical_name):
+            os.replace(legacy_active, canonical_name)
+        else:
+            legacy_files.append((1, legacy_active))
+
+    directory = os.path.dirname(canonical_name) or "."
+    stem_name = os.path.basename(stem)
+    legacy_pattern = re.compile(
+        rf"^{re.escape(stem_name)}(?:(?:\.log\.(?P<suffix_rotation>\d+))|(?:\.(?P<prefix_rotation>\d+)\.log)|"
+        rf"(?:\.txt\.(?P<txt_rotation>\d+)))$"
+    )
+    for filename in os.listdir(directory):
+        match = legacy_pattern.fullmatch(filename)
+        if not match:
+            continue
+        rotation = int(next(value for value in match.groupdict().values() if value is not None))
+        legacy_files.append((rotation, os.path.join(directory, filename)))
+
+    for preferred_rotation, legacy_name in sorted(legacy_files, key=lambda item: (item[0], item[1])):
+        rotation = preferred_rotation
         rotation_name = f"{stem}.{rotation}.txt"
-        legacy_names = (f"{legacy_active}.{rotation}", f"{stem}.{rotation}.log", f"{canonical_name}.{rotation}")
-        for legacy_name in legacy_names:
-            if os.path.isfile(legacy_name) and not os.path.exists(rotation_name):
-                os.replace(legacy_name, rotation_name)
-                break
+        while os.path.exists(rotation_name):
+            rotation += 1
+            rotation_name = f"{stem}.{rotation}.txt"
+        os.replace(legacy_name, rotation_name)
 
 
 def fmt_filter(record):
@@ -149,7 +167,7 @@ class MyLogger:
         """Get handler for log file"""
         log_file = canonical_log_name(log_file)
         max_bytes = 1024 * 1024 * self.log_size
-        migrate_rotated_logs(log_file, self.log_count)
+        migrate_rotated_logs(log_file)
         _handler = RotatingFileHandler(
             log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=self.log_count, encoding="utf-8"
         )

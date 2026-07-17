@@ -177,7 +177,7 @@ def test_migrate_rotated_logs_renames_legacy_archives(tmp_path):
     (tmp_path / "qbit_manage.log.1").write_text("newer\n", encoding="utf-8")
     (tmp_path / "qbit_manage.2.log").write_text("older\n", encoding="utf-8")
 
-    migrate_rotated_logs(str(log_path), backup_count=2)
+    migrate_rotated_logs(str(log_path))
 
     assert log_path.read_text(encoding="utf-8") == "active\n"
     assert (tmp_path / "qbit_manage.1.txt").read_text(encoding="utf-8") == "newer\n"
@@ -187,17 +187,48 @@ def test_migrate_rotated_logs_renames_legacy_archives(tmp_path):
     assert not (tmp_path / "qbit_manage.2.log").exists()
 
 
-def test_migrate_rotated_logs_does_not_overwrite_existing_archive(tmp_path):
+def test_migrate_rotated_logs_moves_collision_to_next_txt_archive(tmp_path):
     log_path = tmp_path / "qbit_manage.txt"
     legacy_path = tmp_path / "qbit_manage.log.1"
     canonical_path = tmp_path / "qbit_manage.1.txt"
     legacy_path.write_text("legacy\n", encoding="utf-8")
     canonical_path.write_text("canonical\n", encoding="utf-8")
 
-    migrate_rotated_logs(str(log_path), backup_count=1)
+    migrate_rotated_logs(str(log_path))
 
-    assert legacy_path.read_text(encoding="utf-8") == "legacy\n"
     assert canonical_path.read_text(encoding="utf-8") == "canonical\n"
+    assert (tmp_path / "qbit_manage.2.txt").read_text(encoding="utf-8") == "legacy\n"
+    assert not legacy_path.exists()
+
+
+def test_migrate_rotated_logs_cleans_all_legacy_names_despite_collisions(tmp_path):
+    log_path = tmp_path / "qbit_manage.txt"
+    log_path.write_text("canonical active\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.1.txt").write_text("canonical archive\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.log").write_text("legacy active\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.log.1").write_text("suffix archive\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.1.log").write_text("prefix archive\n", encoding="utf-8")
+    (tmp_path / "qbit_manage.txt.8").write_text("old txt rotation\n", encoding="utf-8")
+
+    migrate_rotated_logs(str(log_path))
+
+    txt_logs = sorted(path.name for path in tmp_path.iterdir())
+    assert txt_logs == [
+        "qbit_manage.1.txt",
+        "qbit_manage.2.txt",
+        "qbit_manage.3.txt",
+        "qbit_manage.4.txt",
+        "qbit_manage.8.txt",
+        "qbit_manage.txt",
+    ]
+    assert {path.read_text(encoding="utf-8") for path in tmp_path.iterdir()} == {
+        "canonical active\n",
+        "canonical archive\n",
+        "legacy active\n",
+        "suffix archive\n",
+        "prefix archive\n",
+        "old txt rotation\n",
+    }
 
 
 def test_main_handler_normalizes_name_and_migrates_before_open(tmp_path):
