@@ -68,6 +68,8 @@ class _LoggerProxy:
 
 logger = _LoggerProxy()
 
+LOG_FILE_PATTERN = re.compile(r"^(.+\.log)(?:\.(\d+))?$")
+
 
 class CommandRequest(BaseModel):
     """Command request model."""
@@ -1146,11 +1148,7 @@ class WebAPI:
         if log_filename is None:
             log_filename = "qbit_manage.log"
 
-        log_file_path = self.logs_path / log_filename
-
-        if not log_file_path.exists():
-            logger.warning(f"Log file not found: {log_file_path}")
-            return {"logs": []}
+        log_file_path = self._validate_log_filename(log_filename)
 
         logs = []
         try:
@@ -1204,13 +1202,49 @@ class WebAPI:
         log_files = []
         try:
             for file_path in self.logs_path.iterdir():
-                if file_path.is_file() and file_path.suffix == ".log":
-                    log_files.append(file_path.name)
-            return {"log_files": sorted(log_files)}
+                try:
+                    self._validate_log_filename(file_path.name)
+                except HTTPException:
+                    continue
+                log_files.append(file_path.name)
+            return {"log_files": sorted(log_files, key=self._log_file_sort_key)}
         except Exception as e:
             logger.error(f"Error listing log files in {self.logs_path}: {str(e)}")
             logger.stacktrace()
             raise HTTPException(status_code=500, detail=f"Error listing log files: {str(e)}")
+
+    def _validate_log_filename(self, filename: str) -> Path:
+        """Return a contained, existing log path for an active or rotated log."""
+        if (
+            not filename
+            or not isinstance(filename, str)
+            or Path(filename).is_absolute()
+            or Path(filename).name != filename
+            or "\\" in filename
+            or not LOG_FILE_PATTERN.fullmatch(filename)
+        ):
+            raise HTTPException(status_code=400, detail="Invalid log filename")
+
+        logs_root = self.logs_path.resolve()
+        try:
+            log_file_path = (logs_root / filename).resolve()
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid log filename")
+
+        if not log_file_path.is_relative_to(logs_root):
+            raise HTTPException(status_code=400, detail="Invalid log filename: path outside logs directory")
+        if not log_file_path.is_file():
+            raise HTTPException(status_code=404, detail=f"Log file '{filename}' not found")
+        return log_file_path
+
+    @staticmethod
+    def _log_file_sort_key(filename: str) -> tuple[str, int]:
+        """Sort active logs before their numbered rotations."""
+        match = LOG_FILE_PATTERN.fullmatch(filename)
+        if match is None:
+            return filename.casefold(), -1
+        rotation = int(match.group(2)) if match.group(2) is not None else -1
+        return match.group(1).casefold(), rotation
 
     async def backup_config(self, filename: str) -> dict:
         """Create a manual backup of a configuration file."""
