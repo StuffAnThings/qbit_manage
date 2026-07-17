@@ -567,6 +567,10 @@ class Config:
                     self.notify(err, "Config")
                     raise Failed(err)
             global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
+            if not isinstance(global_ignore_root_dir, bool):
+                err = "Config Error: nohardlinks global_options ignore_root_dir must be a boolean type"
+                self.notify(err, "Config")
+                raise Failed(err)
             for cat in nohardlinks_data:
                 # Only the dict-form `nohardlinks: {global_options: {...}}` reserves this key.
                 # In list-form, a category legitimately named "global_options" must not be

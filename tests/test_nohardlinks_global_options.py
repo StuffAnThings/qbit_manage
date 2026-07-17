@@ -355,6 +355,18 @@ class TestLegacyListInheritsGlobalOptions:
         cfg.process_config_nohardlinks()
         assert cfg.nohardlinks["tv-series"]["ignore_root_dir"] is False
 
+    @pytest.mark.parametrize("invalid_value", ["false", 0, None])
+    def test_list_of_strings_rejects_invalid_global_ignore_root_dir(self, invalid_value):
+        """List-form categories must not bypass global ignore_root_dir validation."""
+        cfg = _make_config(
+            [
+                {"global_options": {"ignore_root_dir": invalid_value}},
+                "tv-series",
+            ]
+        )
+        with pytest.raises(Failed, match="global_options ignore_root_dir must be a boolean type"):
+            cfg.process_config_nohardlinks()
+
     def test_list_of_strings_no_global_options_uses_defaults(self):
         """Legacy list-of-strings without global_options gets default values."""
         cfg = _make_config(["movies-completed"])
