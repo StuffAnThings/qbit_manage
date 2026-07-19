@@ -325,7 +325,7 @@ List all available log files in the logs directory.
 **Response:**
 
 ```json
-{ "log_files": ["qbit_manage.log", "qbit_manage.log.1"] }
+{ "log_files": ["qbit_manage.log", "qbit_manage.1.log"] }
 ```
 
 ---

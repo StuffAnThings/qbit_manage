@@ -68,7 +68,7 @@ class _LoggerProxy:
 
 logger = _LoggerProxy()
 
-LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)\.log(?:\.(?P<rotation>\d+))?$")
+LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:\.(?P<rotation>\d+))?\.log$")
 
 
 class CommandRequest(BaseModel):

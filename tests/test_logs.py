@@ -36,6 +36,21 @@ def _capture_stream():
     return handler, sio
 
 
+class TestRotationNamer:
+    def test_renames_stdlib_default_to_number_dot_log(self):
+        assert MyLogger._rotation_namer("qbit_manage.log.1") == "qbit_manage.1.log"
+        assert MyLogger._rotation_namer("activity.log.10") == "activity.10.log"
+
+    def test_leaves_non_rotated_name_unchanged(self):
+        assert MyLogger._rotation_namer("qbit_manage.log") == "qbit_manage.log"
+
+    def test_handler_uses_custom_namer(self, tmp_path):
+        logger = _make_logger(tmp_path)
+        handler = logger._get_handler(str(tmp_path / "test.log"))
+        assert isinstance(handler, RotatingFileHandler)
+        assert handler.namer is MyLogger._rotation_namer
+
+
 class TestJsonFormatter:
     def test_basic_fields(self):
         record = _make_record("hello world", logging.INFO)
