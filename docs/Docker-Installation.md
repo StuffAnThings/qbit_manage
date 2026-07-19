@@ -45,7 +45,7 @@ services:
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
       - QBT_CONFIG_DIR=/config
-      - QBT_LOGFILE=qbit_manage.txt
+      - QBT_LOGFILE=qbit_manage.log
 
       # Command Flags
       - QBT_RECHECK=false
@@ -118,7 +118,7 @@ services:
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
       - QBT_CONFIG_DIR=/config
-      - QBT_LOGFILE=qbit_manage.txt
+      - QBT_LOGFILE=qbit_manage.log
 
       # Commands to run each cycle (all false = web-API-only mode)
       - QBT_RECHECK=false

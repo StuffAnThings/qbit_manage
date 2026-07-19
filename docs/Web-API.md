@@ -296,7 +296,7 @@ Fetch recent log content from the log files directory.
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `limit` | int | none (all) | Maximum number of lines to return (most recent N lines) |
-| `log_filename` | str | `qbit_manage.txt` | Name of the log file to read |
+| `log_filename` | str | `qbit_manage.log` | Name of the log file to read |
 
 **Response:**
 
@@ -314,7 +314,7 @@ Lines are returned in **chronological order** (oldest first). Use `limit` to cap
 **Example:**
 
 ```bash
-curl -s "http://localhost:8181/api/logs?limit=50&log_filename=qbit_manage.txt" \
+curl -s "http://localhost:8181/api/logs?limit=50&log_filename=qbit_manage.log" \
   -H "X-API-Key: your_api_key_here"
 ```
 
@@ -325,7 +325,7 @@ List all available log files in the logs directory.
 **Response:**
 
 ```json
-{ "log_files": ["qbit_manage.txt", "qbit_manage.1.txt"] }
+{ "log_files": ["qbit_manage.log", "qbit_manage.log.1"] }
 ```
 
 ---
