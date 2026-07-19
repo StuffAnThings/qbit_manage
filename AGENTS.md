@@ -44,18 +44,18 @@ pre-commit install
 Key targets:
 
 ```bash
-make lint        # ruff check --fix
-make format      # ruff format
-make test        # pytest tests/
+make lint        # ruff check --fix .
+make format      # ruff format .
+make test        # python -m pytest
 make pre-commit  # run all hooks on all files
 ```
 
 Equivalent raw commands (useful when `make` isn't available):
 
 ```bash
-ruff check .
-ruff format --check .
-pytest tests/
+ruff check --fix .
+ruff format .
+pytest
 pre-commit run --all-files
 ```
 
