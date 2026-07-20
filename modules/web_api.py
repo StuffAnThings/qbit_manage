@@ -1141,10 +1141,6 @@ class WebAPI:
 
     async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:
         """Get recent logs from the log file."""
-        if not self.logs_path.exists():
-            logger.warning(f"Log directory not found: {self.logs_path}")
-            return {"logs": []}
-
         # If no specific log_filename is provided, default to qbit_manage.log
         if log_filename is None:
             log_filename = "qbit_manage.log"
@@ -1215,13 +1211,15 @@ class WebAPI:
 
     def _validate_log_filename(self, filename: str) -> Path:
         """Return a contained, existing log path for an active or rotated log."""
+        match = LOG_FILE_PATTERN.fullmatch(filename) if isinstance(filename, str) else None
         if (
             not filename
             or not isinstance(filename, str)
             or Path(filename).is_absolute()
             or Path(filename).name != filename
             or "\\" in filename
-            or not LOG_FILE_PATTERN.fullmatch(filename)
+            or not match
+            or match.group("base").endswith(".log")
         ):
             raise HTTPException(status_code=400, detail="Invalid log filename")
 

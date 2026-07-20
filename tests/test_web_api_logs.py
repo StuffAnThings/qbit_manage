@@ -27,13 +27,42 @@ def list_log_files(api):
 
 @pytest.mark.parametrize(
     "filename",
-    ["../outside.log", "/tmp/outside.log", r"..\outside.log", "activity.json", "activity.log.backup"],
+    [
+        "../outside.log",
+        "/tmp/outside.log",
+        r"..\outside.log",
+        "activity.json",
+        "activity.log.backup",
+        "qbit_manage.log.1.log",
+        "activity.log.log",
+    ],
 )
 def test_get_logs_rejects_invalid_filename(log_api, filename):
     with pytest.raises(HTTPException) as exc_info:
         get_logs(log_api, log_filename=filename)
 
     assert exc_info.value.status_code == 400
+
+
+def test_get_logs_returns_400_for_invalid_filename_when_logs_dir_missing(tmp_path):
+    """Filename validation must run before any logs-dir existence check, not be bypassed by it."""
+    api = object.__new__(WebAPI)
+    object.__setattr__(api, "logs_path", tmp_path / "does-not-exist")
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_logs(api, log_filename="../outside.log")
+
+    assert exc_info.value.status_code == 400
+
+
+def test_get_logs_returns_404_for_valid_filename_when_logs_dir_missing(tmp_path):
+    api = object.__new__(WebAPI)
+    object.__setattr__(api, "logs_path", tmp_path / "does-not-exist")
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_logs(api, log_filename="qbit_manage.log")
+
+    assert exc_info.value.status_code == 404
 
 
 def test_get_logs_rejects_symlink_escape(log_api, tmp_path):
