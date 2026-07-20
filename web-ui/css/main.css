@@ -233,7 +233,6 @@ body {
   position: relative;
   width: 2.25rem;
   height: 2.25rem;
-  overflow: hidden;
   padding: 0;
   border: none;
   background: transparent;
@@ -251,6 +250,9 @@ body {
 
 .theme-toggle .material-icons {
   font-size: 1.125rem;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
   transition: all var(--transition-fast);
 }
 

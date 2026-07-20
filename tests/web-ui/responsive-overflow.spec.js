@@ -10,6 +10,9 @@ const webUiRoot = path.join(repositoryRoot, "web-ui");
 const cssRoot = path.join(repositoryRoot, "web-ui/css");
 const viewportWidths = [320, 375, 390, 430, 768, 1024, 1280, 1920];
 const longTorrentPath = `/downloads/${"nested-directory/".repeat(20)}torrent-file-with-an-intentionally-long-name.mkv`;
+// Sub-pixel layout can put a bound a fraction of a pixel past its container
+// (e.g. 640.0001) with no visible overflow; ignore differences below this.
+const overflowEpsilonPx = 0.5;
 
 async function loadRealApplication(page) {
   await page.route("http://qbm.test/**", async (route) => {
@@ -108,7 +111,7 @@ for (const width of viewportWidths) {
     await page.setContent(representativeApplicationMarkup(width));
     await loadApplicationStyles(page);
 
-    const dimensions = await page.evaluate(() => ({
+    const dimensions = await page.evaluate((epsilon) => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
       overflowingElements: [...document.querySelectorAll("body *")]
@@ -117,9 +120,9 @@ for (const width of viewportWidths) {
           const closedSidebar = element.closest(".sidebar:not(.mobile-open)");
           if (closedSidebar) {
             const sidebarBounds = closedSidebar.getBoundingClientRect();
-            return bounds.left < sidebarBounds.left || bounds.right > sidebarBounds.right;
+            return bounds.left < sidebarBounds.left - epsilon || bounds.right > sidebarBounds.right + epsilon;
           }
-          return bounds.left < 0 || bounds.right > document.documentElement.clientWidth;
+          return bounds.left < -epsilon || bounds.right > document.documentElement.clientWidth + epsilon;
         })
         .slice(0, 10)
         .map((element) => ({
@@ -127,7 +130,7 @@ for (const width of viewportWidths) {
           tag: element.tagName,
           width: element.getBoundingClientRect().width,
         })),
-    }));
+    }), overflowEpsilonPx);
 
     expect(dimensions.scrollWidth, JSON.stringify(dimensions)).toBe(dimensions.clientWidth);
     expect(dimensions.overflowingElements, JSON.stringify(dimensions)).toEqual([]);
@@ -148,7 +151,7 @@ for (const width of viewportWidths) {
       drawer.innerHTML = `<div class="command-panel-content"><div class="log-viewer-content"><div class="log-entry"><span class="log-message">${longPath}</span></div></div></div>`;
     }, longTorrentPath);
 
-    const dimensions = await page.evaluate(() => ({
+    const dimensions = await page.evaluate((epsilon) => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
       overflowingElements: [...document.querySelectorAll("body *")]
@@ -164,9 +167,9 @@ for (const width of viewportWidths) {
           const closedSidebar = element.closest(".sidebar:not(.mobile-open)");
           if (closedSidebar) {
             const sidebarBounds = closedSidebar.getBoundingClientRect();
-            return bounds.left < sidebarBounds.left || bounds.right > sidebarBounds.right;
+            return bounds.left < sidebarBounds.left - epsilon || bounds.right > sidebarBounds.right + epsilon;
           }
-          return bounds.left < 0 || bounds.right > document.documentElement.clientWidth;
+          return bounds.left < -epsilon || bounds.right > document.documentElement.clientWidth + epsilon;
         })
         .slice(0, 10)
         .map((element) => ({
@@ -175,7 +178,7 @@ for (const width of viewportWidths) {
           right: element.getBoundingClientRect().right,
           width: element.getBoundingClientRect().width,
         })),
-    }));
+    }), overflowEpsilonPx);
     expect(dimensions.scrollWidth, JSON.stringify(dimensions)).toBe(dimensions.clientWidth);
     expect(dimensions.overflowingElements, JSON.stringify(dimensions)).toEqual([]);
   });
