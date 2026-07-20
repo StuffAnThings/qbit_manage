@@ -419,6 +419,7 @@ jobs:
       - name: Clean up temporary build artifacts
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
+          retries: "3"
           script: |
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,

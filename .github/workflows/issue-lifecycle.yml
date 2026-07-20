@@ -35,6 +35,7 @@ jobs:
       - name: Add status:added-to-develop to issues this PR fixes
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
+          retries: "3"
           script: |
             // Strip HTML comments so PR-template boilerplate ("Fixes # (issue)") can't match.
             const body = (context.payload.pull_request.body || '').replace(/<!--[\s\S]*?-->/g, '');
@@ -77,6 +78,7 @@ jobs:
       - name: Close all open issues labeled status:added-to-develop
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
+          retries: "3"
           script: |
             const pr = context.payload.pull_request;
             const version = pr.head.ref.replace('release/', '');
