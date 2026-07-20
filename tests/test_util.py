@@ -493,3 +493,43 @@ class TestCheckForAttributeSubparentSave:
         saved = config_file.read_text(encoding="utf-8")
         assert "example.com:" in saved
         assert "other.com:" in saved
+
+
+class TestCheckForAttributeSubparentPreservesExisting:
+    def test_new_attribute_on_existing_subparent_is_added_not_replaced(self, tmp_path):
+        """A second attribute on an already-configured subparent must be added
+        alongside the existing one, not replace it."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("tracker:\n  passthepopcorn:\n    tag: PassThePopcorn\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        checker.check_for_attribute(
+            {}, "cat", parent="tracker", subparent="passthepopcorn", default="AutoCat", var_type="str", do_print=False
+        )
+
+        saved = config_file.read_text(encoding="utf-8")
+        assert "tag: PassThePopcorn" in saved
+        assert "cat: AutoCat" in saved
+
+    def test_already_set_attribute_is_not_overwritten(self, tmp_path):
+        """Regression test: a subparent attribute that's already configured
+        (e.g. a user-customized tracker tag) must survive a later
+        check_for_attribute call for that same attribute, not get silently
+        reset back to the computed default."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("tracker:\n  passthepopcorn:\n    tag: PassThePopcorn\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        checker.check_for_attribute(
+            {},
+            "tag",
+            parent="tracker",
+            subparent="passthepopcorn",
+            default="OVERWRITTEN-DEFAULT",
+            var_type="str",
+            do_print=False,
+        )
+
+        saved = config_file.read_text(encoding="utf-8")
+        assert "tag: PassThePopcorn" in saved
+        assert "OVERWRITTEN-DEFAULT" not in saved

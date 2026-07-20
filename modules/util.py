@@ -731,9 +731,9 @@ class check:
                         yaml.data[parent] = {}
                     if subparent not in yaml.data[parent] or not yaml.data[parent][subparent]:
                         yaml.data[parent][subparent] = {attribute: default}
-                    elif attribute not in yaml.data[parent]:
-                        if isinstance(yaml.data[parent][subparent], str):
-                            yaml.data[parent][subparent] = {attribute: default}
+                    elif isinstance(yaml.data[parent][subparent], str):
+                        yaml.data[parent][subparent] = {attribute: default}
+                    elif attribute not in yaml.data[parent][subparent]:
                         yaml.data[parent][subparent][attribute] = default
                     else:
                         endline = ""
