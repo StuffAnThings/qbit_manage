@@ -17,7 +17,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: label-conflicts-${{ github.ref }}
+  # pull_request_target uses the base branch for github.ref, so use the PR
+  # number to avoid unrelated PRs cancelling one another's conflict check.
+  group: label-conflicts-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

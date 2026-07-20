@@ -15,12 +15,34 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: develop-release
+  cancel-in-progress: false
 
 jobs:
+  resolve-develop:
+    name: Resolve develop commit
+    if: >-
+      github.repository == 'StuffAnThings/qbit_manage' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.head.outputs.sha }}
+    steps:
+      - name: Check Out develop tip
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: develop
+
+      - name: Record develop HEAD
+        id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   build-release-assets:
     name: Build develop assets
+    needs: resolve-develop
     # Upstream-only: forks shouldn't burn ~5 OS-runners on every develop push.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
@@ -31,13 +53,11 @@ jobs:
       actions: write
     uses: ./.github/workflows/build-binaries.yml
     with:
-      # workflow_run.head_sha is the *triggering* commit (pre-bump merge); checkout
-      # the develop branch tip so we build after bump-version-develop.yml has pushed.
-      ref: develop
+      ref: ${{ needs.resolve-develop.outputs.sha }}
 
   develop-prerelease:
     name: Update rolling develop pre-release
-    needs: build-release-assets
+    needs: [resolve-develop, build-release-assets]
     # Upstream-only: rolling pre-release lives on the upstream repo.
     if: >-
       github.repository == 'StuffAnThings/qbit_manage' &&
@@ -47,14 +67,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Check Out develop tip
+      - name: Check out pinned develop SHA
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: develop
-
-      - name: Record develop HEAD
-        id: head
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          ref: ${{ needs.resolve-develop.outputs.sha }}
 
       - name: Download prepared release assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -69,17 +85,24 @@ jobs:
           set -euo pipefail
           VERSION="$(cat VERSION)"
           TAG="latest-develop"
-          HEAD_SHA="${{ steps.head.outputs.sha }}"
+          HEAD_SHA="${{ needs.resolve-develop.outputs.sha }}"
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
 
           # The GitHub API cannot move an existing tag to a new commit, so delete
           # the rolling release + its tag and recreate both at the current HEAD.
           # This keeps a single, always-current develop pre-release instead of one
           # per merge. The tag is intentionally non-`v*` so it never trips
           # tag.yml / version.yml / pypi-publish.yml.
-          # Delete only when it exists, so a real auth/permission error surfaces
-          # instead of being masked by `|| true`.
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          # Only a missing release may skip deletion. Authentication, rate-limit,
+          # and transient API failures must stop the job with their original error.
+          if gh release view "$TAG" >/dev/null 2>"$RELEASE_ERROR"; then
             gh release delete "$TAG" --cleanup-tag --yes
+          elif grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+            :
+          else
+            cat "$RELEASE_ERROR" >&2
+            exit 1
           fi
           gh release create "$TAG" \
             --target "$HEAD_SHA" \
@@ -90,6 +113,7 @@ jobs:
             release-assets/*
 
   docker-develop:
+    needs: resolve-develop
     runs-on: ubuntu-latest
     # Upstream-only: DOCKER_HUB_USERNAME / GHCR_TOKEN aren't configured on forks.
     if: >-
@@ -102,14 +126,14 @@ jobs:
     steps:
       - name: set lower case owner name
         run: |
-          echo "OWNER_LC=${OWNER,,}" >>${GITHUB_ENV}
+          echo "OWNER_LC=${OWNER,,}" >>"${GITHUB_ENV}"
         env:
           OWNER: "${{ github.repository_owner }}"
 
-      - name: Check Out develop tip
+      - name: Check out pinned develop SHA
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: develop
+          ref: ${{ needs.resolve-develop.outputs.sha }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
@@ -135,13 +159,13 @@ jobs:
 
       - name: Read version from VERSION file
         id: get_version
-        run: echo "APP_VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: echo "APP_VERSION=$(cat VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Set build metadata
         id: build_meta
         run: |
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-          echo "VCS_REF=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "VCS_REF=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         id: docker_build
