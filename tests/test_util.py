@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules.util import check
 from modules.util import format_stats_summary
 from modules.util import get_list
 from modules.util import guess_branch
@@ -437,3 +438,98 @@ class TestPathReplace:
         result = path_replace(["/data/file.txt"], ["/data/"], ["/mnt/"])
         assert "mnt" in result
         assert "file.txt" in result
+
+
+# ── check.check_for_attribute ───────────────────────────────────────────────
+
+
+class _FakeConfig:
+    def __init__(self, config_path):
+        self.config_path = config_path
+
+
+class TestCheckForAttributeSubparentSave:
+    def test_missing_top_level_parent_does_not_raise(self, tmp_path):
+        """Regression test for qbit_manage#1327: a subparent write under a
+        parent key absent from the on-disk YAML (e.g. no top-level `tracker:`
+        section) must not raise KeyError when persisting the generated value."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("qbt:\n  host: localhost:8080\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        result = checker.check_for_attribute(
+            {},
+            "tag",
+            parent="tracker",
+            subparent="example.com",
+            default="example",
+            var_type="list",
+            do_print=False,
+        )
+
+        assert result == "example"
+        saved = config_file.read_text(encoding="utf-8")
+        assert "tracker:" in saved
+        assert "example.com:" in saved
+
+    def test_existing_parent_without_subparent_key(self, tmp_path):
+        """Same regression, but `tracker:` already exists with a sibling
+        subparent key — the new subparent must be added alongside it."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("qbt:\n  host: localhost:8080\ntracker:\n  other.com:\n    tag: [other]\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        result = checker.check_for_attribute(
+            {},
+            "tag",
+            parent="tracker",
+            subparent="example.com",
+            default="example",
+            var_type="list",
+            do_print=False,
+        )
+
+        assert result == "example"
+        saved = config_file.read_text(encoding="utf-8")
+        assert "example.com:" in saved
+        assert "other.com:" in saved
+
+
+class TestCheckForAttributeSubparentPreservesExisting:
+    def test_new_attribute_on_existing_subparent_is_added_not_replaced(self, tmp_path):
+        """A second attribute on an already-configured subparent must be added
+        alongside the existing one, not replace it."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("tracker:\n  passthepopcorn:\n    tag: PassThePopcorn\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        checker.check_for_attribute(
+            {}, "cat", parent="tracker", subparent="passthepopcorn", default="AutoCat", var_type="str", do_print=False
+        )
+
+        saved = config_file.read_text(encoding="utf-8")
+        assert "tag: PassThePopcorn" in saved
+        assert "cat: AutoCat" in saved
+
+    def test_already_set_attribute_is_not_overwritten(self, tmp_path):
+        """Regression test: a subparent attribute that's already configured
+        (e.g. a user-customized tracker tag) must survive a later
+        check_for_attribute call for that same attribute, not get silently
+        reset back to the computed default."""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text("tracker:\n  passthepopcorn:\n    tag: PassThePopcorn\n", encoding="utf-8")
+
+        checker = check(_FakeConfig(str(config_file)))
+        checker.check_for_attribute(
+            {},
+            "tag",
+            parent="tracker",
+            subparent="passthepopcorn",
+            default="OVERWRITTEN-DEFAULT",
+            var_type="str",
+            do_print=False,
+        )
+
+        saved = config_file.read_text(encoding="utf-8")
+        assert "tag: PassThePopcorn" in saved
+        assert "OVERWRITTEN-DEFAULT" not in saved

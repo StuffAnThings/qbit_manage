@@ -727,11 +727,13 @@ class check:
                 yaml = YAML(self.config.config_path)
                 if subparent:
                     endline = f"\n{subparent} sub-attribute {attribute} added to config"
+                    if parent not in yaml.data or not isinstance(yaml.data[parent], dict):
+                        yaml.data[parent] = {}
                     if subparent not in yaml.data[parent] or not yaml.data[parent][subparent]:
                         yaml.data[parent][subparent] = {attribute: default}
-                    elif attribute not in yaml.data[parent]:
-                        if isinstance(yaml.data[parent][subparent], str):
-                            yaml.data[parent][subparent] = {attribute: default}
+                    elif isinstance(yaml.data[parent][subparent], str):
+                        yaml.data[parent][subparent] = {attribute: default}
+                    elif attribute not in yaml.data[parent][subparent]:
                         yaml.data[parent][subparent][attribute] = default
                     else:
                         endline = ""
