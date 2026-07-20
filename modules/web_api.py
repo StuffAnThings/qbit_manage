@@ -13,6 +13,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
@@ -1150,16 +1151,15 @@ class WebAPI:
 
         log_file_path = self._validate_log_filename(log_filename)
 
-        logs = []
+        effective_limit = limit if limit is not None and limit > 0 else None
         try:
             with open(log_file_path, encoding="utf-8", errors="ignore") as f:
-                # Read lines in reverse to get recent logs efficiently
-                for line in reversed(f.readlines()):
-                    logs.append(line.strip())
-                    if limit is not None and len(logs) >= limit:
-                        break
-            logs.reverse()  # Put them in chronological order
-            return {"logs": logs}
+                # Bounded deque keeps memory usage proportional to the limit
+                # instead of loading the whole file when only the tail is needed.
+                tail = deque(maxlen=effective_limit)
+                for line in f:
+                    tail.append(line.strip())
+            return {"logs": list(tail)}
         except Exception as e:
             logger.error(f"Error reading log file {log_file_path}: {str(e)}")
             logger.stacktrace()

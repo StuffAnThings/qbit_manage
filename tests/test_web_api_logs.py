@@ -74,6 +74,19 @@ def test_get_logs_reads_rotated_log_and_preserves_limit_order(log_api):
     assert result == {"logs": ["two", "three"]}
 
 
+def test_get_logs_zero_limit_returns_all_lines(log_api):
+    """A non-positive limit is treated as unlimited, not a surprising 1-line result."""
+    (log_api.logs_path / "qbit_manage.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
+
+    assert get_logs(log_api, limit=0, log_filename="qbit_manage.log") == {"logs": ["one", "two", "three"]}
+
+
+def test_get_logs_negative_limit_returns_all_lines(log_api):
+    (log_api.logs_path / "qbit_manage.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
+
+    assert get_logs(log_api, limit=-5, log_filename="qbit_manage.log") == {"logs": ["one", "two", "three"]}
+
+
 def test_list_log_files_includes_rotations_in_natural_order(log_api):
     for filename in ["activity.10.log", "activity.2.log", "activity.log", "other.1.log"]:
         (log_api.logs_path / filename).touch()
