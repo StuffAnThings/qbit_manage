@@ -1,5 +1,6 @@
 """Tests for modules/logs.py — JSON log format mode."""
 
+import inspect
 import io
 import json
 import logging
@@ -33,6 +34,21 @@ def _capture_stream():
     handler = logging.StreamHandler(sio)
     handler.setFormatter(JsonFormatter())
     return handler, sio
+
+
+class TestRotationNamer:
+    def test_renames_stdlib_default_to_number_dot_log(self):
+        assert MyLogger._rotation_namer("qbit_manage.log.1") == "qbit_manage.1.log"
+        assert MyLogger._rotation_namer("activity.log.10") == "activity.10.log"
+
+    def test_leaves_non_rotated_name_unchanged(self):
+        assert MyLogger._rotation_namer("qbit_manage.log") == "qbit_manage.log"
+
+    def test_handler_uses_custom_namer(self, tmp_path):
+        logger = _make_logger(tmp_path)
+        handler = logger._get_handler(str(tmp_path / "test.log"))
+        assert isinstance(handler, RotatingFileHandler)
+        assert handler.namer is MyLogger._rotation_namer
 
 
 class TestJsonFormatter:
@@ -82,11 +98,12 @@ class TestMyLoggerJsonMode:
         for handler in logger._logger.handlers:
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
                 handler.stream = sio
+        expected_line = inspect.currentframe().f_lineno + 1
         logger.info("from default handler")
         parsed = json.loads(sio.getvalue().strip())
         assert parsed["message"] == "from default handler"
         assert parsed["level"] == "INFO"
-        assert parsed["source"].endswith("test_logs.py:85")
+        assert parsed["source"].endswith(f"test_logs.py:{expected_line}")
 
     def test_source_field_uses_caller_pathname(self, tmp_path):
         """JSON source must reflect the real caller, not a mangled func/pathname tuple."""

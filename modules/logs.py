@@ -118,8 +118,15 @@ class MyLogger:
         _handler = RotatingFileHandler(
             log_file, delay=True, mode="w", maxBytes=max_bytes, backupCount=self.log_count, encoding="utf-8"
         )
+        _handler.namer = self._rotation_namer
         self._formatter(handler=_handler)
         return _handler
+
+    @staticmethod
+    def _rotation_namer(default_name):
+        """Rename rotated logs from stdlib's '<stem>.log.<N>' to '<stem>.<N>.log'."""
+        base, sep, rotation = default_name.rpartition(".log.")
+        return f"{base}.{rotation}.log" if sep else default_name
 
     def _formatter(self, handler=None, border=True, log_only=False, space=False):
         """Format log message"""
