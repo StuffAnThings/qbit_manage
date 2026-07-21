@@ -32,3 +32,8 @@ entities.json
 .coverage.*
 htmlcov/
 .pytest_cache/
+
+# Playwright runtime artifacts
+node_modules/
+playwright-report/
+test-results/
