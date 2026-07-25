@@ -84,6 +84,15 @@ After `tag.yml` pushes the `v<X.Y.Z>` tag, `version.yml` fires: it builds and
 pushes the Docker image, then publishes the draft release (binaries and notes
 were already attached by `release-pr.yml` in Step 1).
 
+All production release runs share the fixed `production-release` concurrency
+group and queue instead of cancelling in progress, serializing every release
+run regardless of version tag. Both the pre-merge published-release guard in
+`release-pr.yml` and the post-merge draft lookup in `version.yml` distinguish
+an explicit not-found response from authentication, rate-limit, and transient
+GitHub API failures. Unexpected API failures stop with their original message
+instead of being reported as a missing release or allowing a published
+release to reach the draft-update action.
+
 ---
 
 ## Develop Builds & PR Artifacts
@@ -103,6 +112,15 @@ and `latest-develop` match the bumped `VERSION`.
 3. Deletes and recreates the `latest-develop` rolling GitHub pre-release at the
    current develop HEAD (`gh release delete latest-develop --cleanup-tag`, then
    `gh release create latest-develop --prerelease --latest=false ...`).
+
+All develop-release runs share the fixed `develop-release` concurrency group and
+queue instead of cancelling in progress. This prevents two runs from deleting or
+creating the rolling release at the same time, and avoids cancellation between the
+delete and create operations. Before deletion, the workflow checks whether the
+release exists. Only an explicit not-found response skips deletion; authentication,
+rate-limit, and transient GitHub API failures stop the job with the original error.
+This distinction prevents an API outage from being misread as an absent release and
+then reported misleadingly as a duplicate-tag failure during creation.
 
 The `latest-develop` tag is intentionally non-`v*` so it never triggers `tag.yml`,
 `version.yml`, or `pypi-publish.yml`. Use it to grab a development binary without

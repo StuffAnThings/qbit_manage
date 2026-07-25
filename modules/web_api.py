@@ -13,6 +13,7 @@ import re
 import shutil
 import tempfile
 import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from dataclasses import field
@@ -67,6 +68,8 @@ class _LoggerProxy:
 
 
 logger = _LoggerProxy()
+
+LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:\.(?P<rotation>\d+))?\.log$")
 
 
 class CommandRequest(BaseModel):
@@ -1138,30 +1141,21 @@ class WebAPI:
 
     async def get_logs(self, limit: Optional[int] = None, log_filename: Optional[str] = None) -> dict[str, Any]:
         """Get recent logs from the log file."""
-        if not self.logs_path.exists():
-            logger.warning(f"Log directory not found: {self.logs_path}")
-            return {"logs": []}
-
         # If no specific log_filename is provided, default to qbit_manage.log
         if log_filename is None:
             log_filename = "qbit_manage.log"
 
-        log_file_path = self.logs_path / log_filename
+        log_file_path = self._validate_log_filename(log_filename)
 
-        if not log_file_path.exists():
-            logger.warning(f"Log file not found: {log_file_path}")
-            return {"logs": []}
-
-        logs = []
+        effective_limit = limit if limit is not None and limit > 0 else None
         try:
             with open(log_file_path, encoding="utf-8", errors="ignore") as f:
-                # Read lines in reverse to get recent logs efficiently
-                for line in reversed(f.readlines()):
-                    logs.append(line.strip())
-                    if limit is not None and len(logs) >= limit:
-                        break
-            logs.reverse()  # Put them in chronological order
-            return {"logs": logs}
+                # Bounded deque keeps memory usage proportional to the limit
+                # instead of loading the whole file when only the tail is needed.
+                tail = deque(maxlen=effective_limit)
+                for line in f:
+                    tail.append(line.strip())
+            return {"logs": list(tail)}
         except Exception as e:
             logger.error(f"Error reading log file {log_file_path}: {str(e)}")
             logger.stacktrace()
@@ -1204,13 +1198,52 @@ class WebAPI:
         log_files = []
         try:
             for file_path in self.logs_path.iterdir():
-                if file_path.is_file() and file_path.suffix == ".log":
-                    log_files.append(file_path.name)
-            return {"log_files": sorted(log_files)}
+                try:
+                    self._validate_log_filename(file_path.name)
+                except HTTPException:
+                    continue
+                log_files.append(file_path.name)
+            return {"log_files": sorted(log_files, key=self._log_file_sort_key)}
         except Exception as e:
             logger.error(f"Error listing log files in {self.logs_path}: {str(e)}")
             logger.stacktrace()
             raise HTTPException(status_code=500, detail=f"Error listing log files: {str(e)}")
+
+    def _validate_log_filename(self, filename: str) -> Path:
+        """Return a contained, existing log path for an active or rotated log."""
+        match = LOG_FILE_PATTERN.fullmatch(filename) if isinstance(filename, str) else None
+        if (
+            not filename
+            or not isinstance(filename, str)
+            or Path(filename).is_absolute()
+            or Path(filename).name != filename
+            or "\\" in filename
+            or not match
+            or match.group("base").endswith(".log")
+        ):
+            raise HTTPException(status_code=400, detail="Invalid log filename")
+
+        logs_root = self.logs_path.resolve()
+        try:
+            log_file_path = (logs_root / filename).resolve()
+        except (OSError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid log filename")
+
+        if not log_file_path.is_relative_to(logs_root):
+            raise HTTPException(status_code=400, detail="Invalid log filename: path outside logs directory")
+        if not log_file_path.is_file():
+            raise HTTPException(status_code=404, detail=f"Log file '{filename}' not found")
+        return log_file_path
+
+    @staticmethod
+    def _log_file_sort_key(filename: str) -> tuple[str, int]:
+        """Sort active logs before their numbered rotations."""
+        match = LOG_FILE_PATTERN.fullmatch(filename)
+        if match is None:
+            return filename.casefold(), -1
+        rotation_text = match.group("rotation")
+        rotation = int(rotation_text) if rotation_text is not None else -1
+        return match.group("base").casefold(), rotation
 
     async def backup_config(self, filename: str) -> dict:
         """Create a manual backup of a configuration file."""

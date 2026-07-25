@@ -1,0 +1,58 @@
+name: Web UI Tests
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+    paths:
+      - "web-ui/**"
+      - "tests/web-ui/**"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.js"
+      - ".github/workflows/web-ui-tests.yml"
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+    paths:
+      - "web-ui/**"
+      - "tests/web-ui/**"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.js"
+      - ".github/workflows/web-ui-tests.yml"
+
+concurrency:
+  group: web-ui-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-overflow:
+    name: Responsive overflow
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Run responsive overflow tests
+        run: npm run test:web-ui

@@ -10,8 +10,8 @@ on:
       - v*
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: production-release
+  cancel-in-progress: false
 
 # Least-privilege default: docker-release only needs to read the repo.
 # publish-release overrides this at the job level with contents: write.
@@ -108,13 +108,20 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           TAG="${{ steps.get_version.outputs.VERSION }}"
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
 
           # release-pr.yml created this draft with the standalone binaries +
           # auto-generated changelog already attached. Just flip it to published;
           # do NOT touch the body or assets.
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error::No release found for tag $TAG — expected a draft created by release-pr.yml."
+          if ! gh release view "$TAG" >/dev/null 2>"$RELEASE_ERROR"; then
+            if grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+              echo "::error::No release found for tag $TAG; expected a draft created by release-pr.yml."
+            else
+              cat "$RELEASE_ERROR" >&2
+            fi
             exit 1
           fi
 

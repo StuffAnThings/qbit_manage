@@ -311,6 +311,8 @@ Fetch recent log content from the log files directory.
 
 Lines are returned in **chronological order** (oldest first). Use `limit` to cap output for large log files.
 
+`log_filename` accepts the active log (`<stem>.log`, e.g. `qbit_manage.log`) or a rotated log (`<stem>.<N>.log`, e.g. `qbit_manage.1.log`). Any other name returns `400`.
+
 **Example:**
 
 ```bash
@@ -325,7 +327,7 @@ List all available log files in the logs directory.
 **Response:**
 
 ```json
-{ "log_files": ["qbit_manage.log", "qbit_manage.log.1"] }
+{ "log_files": ["qbit_manage.log", "qbit_manage.1.log"] }
 ```
 
 ---

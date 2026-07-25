@@ -1,4 +1,10 @@
-/* Mobile First Responsive Design */
+/* Mobile First Responsive Design
+ *
+ * Target viewport breakpoints: 640px, 768px, 1024px, and 1280px.
+ * Migrate one layout family at a time and verify each change with the
+ * responsive overflow tests. Existing queries remain until their family is
+ * migrated so this scale does not silently change established layouts.
+ */
 
 /* Global touch improvements */
 @media (pointer: coarse) {
