@@ -1079,6 +1079,9 @@ class Config:
                 "password": self.util.check_for_attribute(
                     self.data, "pass", parent="qbt", default_is_none=True, save=False, do_print=False
                 ),
+                "api_key": self.util.check_for_attribute(
+                    self.data, "apikey", parent="qbt", default_is_none=True, save=False, do_print=False
+                ),
             },
         )
 

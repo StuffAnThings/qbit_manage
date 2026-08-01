@@ -35,15 +35,20 @@ class Qbt:
         self.host = params["host"]
         self.username = params["username"]
         self.password = params["password"]
+        self.api_key = params.get("api_key")
         logger.secret(self.username)
         logger.secret(self.password)
+        logger.secret(self.api_key)
         logger.debug(f"Host: {self.host}")
+        if self.api_key and (self.username or self.password):
+            logger.warning("qBittorrent API key is set; it takes precedence over username and password.")
         ex = ""
         try:
             self.client = Client(
                 host=self.host,
                 username=self.username,
                 password=self.password,
+                api_key=self.api_key,
                 VERIFY_WEBUI_CERTIFICATE=False,
                 REQUESTS_ARGS={"timeout": (45, 60)},
             )
@@ -76,7 +81,7 @@ class Qbt:
                     sys.exit(1)
             logger.info("Qbt Connection Successful")
         except LoginFailed:
-            ex = "Qbittorrent Error: Failed to login. Invalid username/password."
+            ex = "Qbittorrent Error: Failed to login. Invalid username/password or API key."
             self.config.notify(ex, "Qbittorrent")
             raise Failed(ex)
         except APIConnectionError as exc:

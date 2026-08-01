@@ -64,6 +64,7 @@ This section defines your qBittorrent instance.
 | `host`   | IP address of your qB installation. | <center>✅</center> |
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
 | `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
+| `apikey` | API key for qBittorrent v5.2.0+; takes precedence over `user` and `pass`. | <center>❌</center> |
 
 ### Environment variable override
 
@@ -102,7 +103,7 @@ Every CLI flag (and a few internal settings) can be set via environment variable
 | `QBM_DOCKER` | Internal only | — | Detected automatically via `in_docker()`; set to force Docker mode |
 | `BRANCH_NAME` | Internal only | — | Used to select the correct version string at startup (default: `"master"`) |
 
-**Keys with NO env-var override:** `qbt.user` and `qbt.pass` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
+**Keys with NO env-var override:** `qbt.user`, `qbt.pass`, and `qbt.apikey` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
 
 ## **settings:**
 
