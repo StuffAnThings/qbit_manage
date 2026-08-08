@@ -253,6 +253,7 @@ If you're needing information regarding hardlinks here are some excellent resour
 
 This functionality will tag any torrent's whose file (or largest file if multi-file) does not have any hardlinks outside the qbm root_dir.
 Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected in the same root_dir.
+Set `ignore_root_dir` to `false` and `ignore_category_dir` to `true` to ignore links in the torrent's configured category while still counting links outside that category. `ignore_root_dir` takes precedence when both settings are true.
 
 > [!TIP]
 > Use `No Hardlinks` with [sharelimits](#sharelimits) to remove torrents whose largest file is no longer hardlinked based on seedtime and/or seed ratio.
@@ -268,6 +269,7 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :------------------ |
 | `exclude_tags`    | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes | None           | <center>❌</center> |
 | `ignore_root_dir` | Ignore any hardlinks detected in the same [root_dir](#directory)                                                                                                                      | True           | <center>❌</center> |
+| `ignore_category_dir` | Ignore hardlinks in the torrent's configured category while still counting hardlinks outside it. Only applies when `ignore_root_dir` is `false`                                                          | False          | <center>❌</center> |
 
 ## **share_limits:**
 

@@ -778,6 +778,7 @@ class ConfigForm {
             if (this.currentSection === 'nohardlinks') {
                 newEntry.exclude_tags = [];
                 newEntry.ignore_root_dir = true;
+                newEntry.ignore_category_dir = false;
             } else {
                 const defaultSchema = sectionConfig.additionalProperties || sectionConfig.patternProperties["^(?!other$).*$"];
                 if (defaultSchema && defaultSchema.properties) {
@@ -1100,15 +1101,17 @@ class ConfigForm {
                             // Simple string category name
                             newNohardlinksCategories[categoryItem] = {
                                 exclude_tags: [],
-                                ignore_root_dir: true
+                                ignore_root_dir: true,
+                                ignore_category_dir: false
                             };
                         } else if (typeof categoryItem === 'object') {
                             // Object with category name as key and properties as value
-                            // Format: [{ "RadarrComplete": { exclude_tags: [...], ignore_root_dir: true } }]
+                            // Format: [{ "RadarrComplete": { exclude_tags: [...], ignore_root_dir: true, ignore_category_dir: false } }]
                             for (const [categoryName, categoryProps] of Object.entries(categoryItem)) {
                                 newNohardlinksCategories[categoryName] = {
                                     exclude_tags: categoryProps?.exclude_tags || [],
-                                    ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                                    ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true,
+                                    ignore_category_dir: categoryProps?.ignore_category_dir !== undefined ? categoryProps.ignore_category_dir : false
                                 };
                             }
                         }
@@ -1120,7 +1123,8 @@ class ConfigForm {
                     Object.entries(sectionData).forEach(([categoryName, categoryProps]) => {
                         newNohardlinksCategories[categoryName] = {
                             exclude_tags: categoryProps?.exclude_tags || [],
-                            ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                            ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true,
+                            ignore_category_dir: categoryProps?.ignore_category_dir !== undefined ? categoryProps.ignore_category_dir : false
                         };
                     });
                     processedData[mainFieldName] = newNohardlinksCategories;
@@ -1149,14 +1153,16 @@ class ConfigForm {
                             // Simple string category name
                             newNohardlinksData[categoryItem] = {
                                 exclude_tags: [],
-                                ignore_root_dir: true
+                                ignore_root_dir: true,
+                                ignore_category_dir: false
                             };
                         } else if (typeof categoryItem === 'object') {
                             // Object with category name as key and properties as value
                             for (const [categoryName, categoryProps] of Object.entries(categoryItem)) {
                                 newNohardlinksData[categoryName] = {
                                     exclude_tags: categoryProps?.exclude_tags || [],
-                                    ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                                    ignore_root_dir: categoryProps?.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true,
+                                    ignore_category_dir: categoryProps?.ignore_category_dir !== undefined ? categoryProps.ignore_category_dir : false
                                 };
                             }
                         }
@@ -1169,12 +1175,14 @@ class ConfigForm {
                         if (categoryProps === null || categoryProps === undefined || (typeof categoryProps === 'object' && Object.keys(categoryProps).length === 0)) {
                             processedData[categoryName] = {
                                 exclude_tags: [],
-                                ignore_root_dir: true
+                                ignore_root_dir: true,
+                                ignore_category_dir: false
                             };
                         } else if (typeof categoryProps === 'object') {
                             processedData[categoryName] = {
                                 exclude_tags: categoryProps.exclude_tags || [],
-                                ignore_root_dir: categoryProps.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true
+                                ignore_root_dir: categoryProps.ignore_root_dir !== undefined ? categoryProps.ignore_root_dir : true,
+                                ignore_category_dir: categoryProps.ignore_category_dir !== undefined ? categoryProps.ignore_category_dir : false
                             };
                         }
                     });

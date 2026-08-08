@@ -19,8 +19,17 @@ class _FakeCheckHardLinks:
 
     def __init__(self, has_nohardlinks: bool = True):
         self._has = has_nohardlinks
+        self.calls = []
 
-    def nohardlink(self, file, notify, ignore_root_dir):
+    def nohardlink(self, file, notify, ignore_root_dir, category=None, ignore_category_dir=False):
+        self.calls.append(
+            {
+                "file": file,
+                "ignore_root_dir": ignore_root_dir,
+                "category": category,
+                "ignore_category_dir": ignore_category_dir,
+            }
+        )
         return self._has
 
 
@@ -197,3 +206,28 @@ def test_process_torrent_removes_tag_when_hardlinks_appear(monkeypatch):
     removes = _calls_of(t, "remove_tags")
     assert removes and removes[0][1]["tags"] == "noHL"
     assert tnhl.stats_untagged == 1
+
+
+def test_process_torrent_forwards_category_ignore_setting():
+    t = FakeTorrent(category="Movies", tags="")
+    qbt = _make_qbt(torrents=[t])
+    tnhl = make_tag_nohardlinks(qbt)
+    fake_hl = _FakeCheckHardLinks()
+
+    tnhl._process_torrent_for_nohardlinks(
+        torrent=t,
+        check_hardlinks=fake_hl,
+        ignore_root_dir=False,
+        exclude_tags=[],
+        category="Movies",
+        ignore_category_dir=True,
+    )
+
+    assert fake_hl.calls == [
+        {
+            "file": t.content_path,
+            "ignore_root_dir": False,
+            "category": "Movies",
+            "ignore_category_dir": True,
+        }
+    ]
