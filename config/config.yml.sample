@@ -162,10 +162,10 @@ nohardlinks:
       - Beyond-HD
       - BroadcasTheNet
     # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir (Default True).
-    ignore_root_dir: false
+    ignore_root_dir: true
     # <OPTIONAL> ignore_category_dir var: Will ignore hardlinks in this category's save path (Default False).
     # Only takes effect when ignore_root_dir is false. Hardlinks outside this category still count.
-    ignore_category_dir: true
+    ignore_category_dir: false
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping
