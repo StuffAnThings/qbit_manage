@@ -279,64 +279,69 @@ class TestHandleOrphanedFilesLogic:
 
 
 class TestFilterTooNew:
-    """Age protection and the inode-aware hardlink exception (gh#1095)."""
+    """Age protection for orphaned files (mtime-based, gh#1289 regression fix)."""
 
     def _ro(self, min_age_minutes):
         cfg = FakeConfig()
         cfg.orphaned["min_file_age_minutes"] = min_age_minutes
         return make_remove_orphaned(_make_qbt(config=cfg))
 
-    def test_hardlinked_orphan_with_tracked_sibling_is_not_protected(self, tmp_path):
-        """A too-new orphan that shares an inode with a tracked file is cleaned anyway."""
+    def test_new_orphan_protected_old_orphan_eligible(self, tmp_path):
         now = time.time()
-        # Tracked torrent file, freshly seeded (mtime = now).
-        tracked = tmp_path / "tracked.mkv"
-        tracked.write_text("data")
-        # Orphan hardlink to the tracked inode — shares the fresh mtime, so the
-        # age filter would otherwise protect it forever (the gh#1095 bug).
-        orphan_hardlink = tmp_path / "orphan_hardlink.mkv"
-        os.link(tracked, orphan_hardlink)
-        os.utime(tracked, (now, now))  # shared inode → updates both links
-        # A genuinely new, non-hardlinked orphan (stays protected).
         orphan_new = tmp_path / "orphan_new.mkv"
         orphan_new.write_text("x")
         os.utime(orphan_new, (now, now))
-        # An old, non-hardlinked orphan (old enough to delete).
         orphan_old = tmp_path / "orphan_old.mkv"
         orphan_old.write_text("y")
         old = now - 30 * 24 * 60 * 60
         os.utime(orphan_old, (old, old))
 
         ro = self._ro(min_age_minutes=14400)  # 10 days
-        orphaned = {str(orphan_hardlink), str(orphan_new), str(orphan_old)}
+        result = ro._filter_too_new({str(orphan_new), str(orphan_old)}, now)
 
-        result = ro._filter_too_new(orphaned, {str(tracked)}, now)
-
-        assert str(orphan_hardlink) in result  # stale hardlink of a tracked file → cleaned
         assert str(orphan_old) in result  # old enough → eligible
-        assert str(orphan_new) not in result  # genuinely too new → protected
+        assert str(orphan_new) not in result  # too new → protected
 
-    def test_hardlinked_orphan_without_tracked_sibling_stays_protected(self, tmp_path):
-        """nlink>1 alone is not enough — only a TRACKED sibling bypasses protection."""
+    def test_recent_hardlinked_orphan_is_protected(self, tmp_path):
+        """gh#1289 regression: a recently-appeared hardlinked orphan must be protected.
+
+        #1289 deleted any hardlinked orphan whose inode matched a tracked file,
+        ignoring age — which swept up cross-seed hardlinks before their torrent
+        registered. Plain age protection keeps it: the file is recent, so it's
+        skipped like any other new orphan, hardlink or not.
+        """
         now = time.time()
-        a = tmp_path / "a.mkv"
-        a.write_text("data")
-        b = tmp_path / "b.mkv"
-        os.link(a, b)  # two orphan hardlinks, neither tracked
-        os.utime(a, (now, now))
+        tracked = tmp_path / "tracked.mkv"
+        tracked.write_text("data")
+        orphan_hardlink = tmp_path / "orphan_hardlink.mkv"
+        os.link(tracked, orphan_hardlink)
+        recent = now - 60 * 60  # 1h old, under the threshold
+        os.utime(tracked, (recent, recent))  # shared inode → both links
 
-        ro = self._ro(min_age_minutes=14400)
+        ro = self._ro(min_age_minutes=360)  # 6h
+        result = ro._filter_too_new({str(orphan_hardlink)}, now)
 
-        result = ro._filter_too_new({str(a), str(b)}, set(), now)
-
-        assert result == set()  # both too new, no tracked inode → both protected
+        assert result == set()  # recent → protected regardless of hardlink status
 
     def test_age_protection_disabled_is_noop(self, tmp_path):
+        now = time.time()
         f = tmp_path / "f.mkv"
         f.write_text("z")
-        ro = self._ro(min_age_minutes=0)
+        os.utime(f, (now, now))
 
-        assert ro._filter_too_new({str(f)}, set(), time.time()) == {str(f)}
+        ro = self._ro(min_age_minutes=0)
+        result = ro._filter_too_new({str(f)}, now)
+
+        assert result == {str(f)}  # disabled → eligible even though brand new
+
+    def test_unreadable_file_is_left_eligible(self, tmp_path):
+        """A stat failure must not protect a file on bad data (fail toward normal handling)."""
+        ro = self._ro(min_age_minutes=14400)
+        missing = str(tmp_path / "does_not_exist.mkv")
+
+        result = ro._filter_too_new({missing}, time.time())
+
+        assert result == {missing}
 
     def test_too_new_orphan_protected_with_mapped_remote_dir(self, tmp_path):
         """Age protection must stat the remote_dir path, not the root_dir namespace."""
@@ -354,32 +359,6 @@ class TestFilterTooNew:
         cfg.orphaned["min_file_age_minutes"] = 14400
 
         ro = make_remove_orphaned(_make_qbt(config=cfg))
-        result = ro._filter_too_new({orphan_root}, set(), now)
+        result = ro._filter_too_new({orphan_root}, now)
 
         assert result == set()
-
-    def test_hardlinked_orphan_cleaned_with_mapped_remote_dir(self, tmp_path):
-        """Inode matching must stat the remote_dir path when root_dir differs."""
-        now = time.time()
-        root_dir = "/data/torrents"
-        movies_dir = tmp_path / "Movies"
-        movies_dir.mkdir()
-
-        tracked_host = movies_dir / "tracked.mkv"
-        tracked_host.write_text("data")
-        orphan_host = movies_dir / "orphan_hardlink.mkv"
-        os.link(tracked_host, orphan_host)
-        os.utime(tracked_host, (now, now))
-
-        tracked_root = f"{root_dir}/Movies/tracked.mkv"
-        orphan_root = f"{root_dir}/Movies/orphan_hardlink.mkv"
-
-        cfg = FakeConfig()
-        cfg.root_dir = root_dir
-        cfg.remote_dir = str(tmp_path)
-        cfg.orphaned["min_file_age_minutes"] = 14400
-
-        ro = make_remove_orphaned(_make_qbt(config=cfg))
-        result = ro._filter_too_new({orphan_root}, {tracked_root}, now)
-
-        assert orphan_root in result
