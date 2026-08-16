@@ -1105,36 +1105,95 @@ class CheckHardLinks:
             + get_root_files(self.orphaned_dir, "")
             + get_root_files(self.recycle_dir, "")
         )
+        self.category_paths = self._build_category_paths(config)
         self.get_inode_count()
+
+    @staticmethod
+    def _build_category_paths(config):
+        """Map category names to normalised, accessible save path patterns."""
+        category_paths = {}
+        for category, configured_paths in (config.data.get("cat") or {}).items():
+            paths = configured_paths if isinstance(configured_paths, (list, tuple)) else [configured_paths]
+            normalised_paths = []
+            for configured_path in paths:
+                if not isinstance(configured_path, str) or not configured_path:
+                    continue
+                accessible_path = path_replace(configured_path, config.root_dir, config.remote_dir)
+                normalised_paths.append(os.path.normcase(os.path.normpath(accessible_path)))
+            if normalised_paths:
+                category_paths[category] = normalised_paths
+        return category_paths
+
+    @staticmethod
+    def _category_match_specificity(file_path, category_path):
+        if glob.has_magic(category_path):
+            candidate = file_path
+            candidates = []
+            while candidate:
+                candidates.append(candidate)
+                parent = os.path.dirname(candidate)
+                if parent == candidate:
+                    break
+                candidate = parent
+            for candidate in reversed(candidates):
+                if fnmatch.fnmatch(candidate, category_path):
+                    return len(candidate), len(category_path)
+            return None
+        category_path = category_path.rstrip("/\\")
+        if file_path == category_path or any(
+            file_path.startswith(category_path + separator) for separator in {os.sep, "/", "\\"}
+        ):
+            return len(category_path), len(category_path)
+        return None
+
+    @staticmethod
+    def _path_matches_category(file_path, category_path):
+        return CheckHardLinks._category_match_specificity(file_path, category_path) is not None
+
+    def _match_category(self, mapped_path):
+        """Return category owning path, preferring most-specific match."""
+        mapped_path = os.path.normcase(os.path.normpath(mapped_path))
+        best_category = None
+        best_specificity = (-1, -1)
+        for category, category_paths in self.category_paths.items():
+            for category_path in category_paths:
+                specificity = self._category_match_specificity(mapped_path, category_path)
+                if specificity is not None and specificity > best_specificity:
+                    best_category = category
+                    best_specificity = specificity
+        return best_category
 
     def get_inode_count(self):
         self.inode_count = {}
+        self.category_inode_count = {}
         for file in self.root_files:
-            # Only check hardlinks for files that are symlinks
-            if os.path.isfile(file) and os.path.islink(file):
+            mapped_path = path_replace(file, self.root_dir, self.remote_dir)
+            if os.path.isfile(mapped_path) and os.path.islink(mapped_path):
                 continue
-            else:
-                try:
-                    inode_no = os.stat(path_replace(file, self.root_dir, self.remote_dir)).st_ino
-                except PermissionError as perm:
-                    logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
-                    continue
-                except FileNotFoundError as file_not_found_error:
-                    logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
-                    continue
-                except Exception as ex:
-                    logger.stacktrace()
-                    logger.error(ex)
-                    continue
-                if inode_no in self.inode_count:
-                    self.inode_count[inode_no] += 1
-                else:
-                    self.inode_count[inode_no] = 1
+            try:
+                file_stat = os.stat(mapped_path)
+            except PermissionError as perm:
+                logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
+                continue
+            except FileNotFoundError as file_not_found_error:
+                logger.warning(f"{file_not_found_error} : File {file} not found. Skipping...")
+                continue
+            except Exception as ex:
+                logger.stacktrace()
+                logger.error(ex)
+                continue
+
+            identity = (file_stat.st_dev, file_stat.st_ino)
+            self.inode_count[identity] = self.inode_count.get(identity, 0) + 1
+            category = self._match_category(mapped_path)
+            if category is not None:
+                category_counts = self.category_inode_count.setdefault(category, {})
+                category_counts[identity] = category_counts.get(identity, 0) + 1
         logger.debug(
             f"Built inode count from {len(self.root_files)} file(s) in root_dir ({len(self.inode_count)} unique inode(s))."
         )
 
-    def nohardlink(self, file, notify, ignore_root_dir):
+    def nohardlink(self, file, notify, ignore_root_dir, category=None, ignore_category_dir=False):
         """
         Check if there are any hard links
         Will check if there are any hard links if it passes a file or folder
@@ -1143,21 +1202,30 @@ class CheckHardLinks:
         This fixes the bug in #192
         """
 
-        def has_hardlinks(file_stat, ignore_root_dir):
+        def ignored_link_count(file_stat):
+            identity = (file_stat.st_dev, file_stat.st_ino)
+            if ignore_root_dir:
+                return self.inode_count.get(identity, 1)
+            if ignore_category_dir:
+                return self.category_inode_count.get(category, {}).get(identity, 0)
+            return 0
+
+        def has_hardlinks(file_stat):
             """
             Check if a file has hard links.
 
             Args:
                 file_stat (os.stat_result): The cached stat result of the file.
-                ignore_root_dir (bool): Whether to ignore links that live inside root_dir.
 
             Returns:
                 bool: True if the file has hard links, False otherwise.
             """
             if ignore_root_dir:
-                return file_stat.st_nlink - self.inode_count.get(file_stat.st_ino, 1) > 0
-            else:
-                return file_stat.st_nlink > 1
+                return file_stat.st_nlink - ignored_link_count(file_stat) > 0
+            if ignore_category_dir:
+                category_links = ignored_link_count(file_stat)
+                return file_stat.st_nlink - category_links > 0 if category_links else file_stat.st_nlink > 1
+            return file_stat.st_nlink > 1
 
         check_for_hl = True
         try:
@@ -1166,18 +1234,19 @@ class CheckHardLinks:
                     logger.warning(f"Symlink found in {file}, unable to determine hardlinks. Skipping...")
                     return False
                 file_stat = os.stat(file)
-                inode_count = self.inode_count.get(file_stat.st_ino, 1)
+                inode_count = ignored_link_count(file_stat)
+                ignored_scope = "root_dir" if ignore_root_dir else category if ignore_category_dir else "none"
                 # Single compact trace line per file instead of one line per attribute (was too spammy).
                 logger.trace(
                     f"Checking file '{file}' | inode: {file_stat.st_ino} | nlink: {file_stat.st_nlink} | "
-                    f"links inside root_dir: {inode_count} | ignore_root_dir: {ignore_root_dir}"
+                    f"ignored links: {inode_count} | ignored scope: {ignored_scope}"
                 )
                 # https://github.com/StuffAnThings/qbit_manage/issues/291 for more details
-                if has_hardlinks(file_stat, ignore_root_dir):
+                if has_hardlinks(file_stat):
                     check_for_hl = False
                     logger.debug(
-                        f"Hardlinks found for '{file}': nlink={file_stat.st_nlink}, links inside root_dir={inode_count}, "
-                        f"ignore_root_dir={ignore_root_dir}."
+                        f"Hardlinks found for '{file}': nlink={file_stat.st_nlink}, ignored links={inode_count}, "
+                        f"ignored scope={ignored_scope}."
                     )
                 else:
                     logger.debug(f"No hardlinks found for '{file}' (nlink={file_stat.st_nlink}).")
@@ -1213,17 +1282,18 @@ class CheckHardLinks:
                                 f"are below the {threshold:.0%} size threshold."
                             )
                             break
-                        inode_count = self.inode_count.get(file_stat.st_ino, 1)
+                        inode_count = ignored_link_count(file_stat)
+                        ignored_scope = "root_dir" if ignore_root_dir else category if ignore_category_dir else "none"
                         logger.trace(
                             f"Checking file '{files}' | size: {file_size} | inode: {file_stat.st_ino} | "
-                            f"nlink: {file_stat.st_nlink} | links inside root_dir: {inode_count} | "
-                            f"ignore_root_dir: {ignore_root_dir}"
+                            f"nlink: {file_stat.st_nlink} | ignored links: {inode_count} | "
+                            f"ignored scope: {ignored_scope}"
                         )
-                        if has_hardlinks(file_stat, ignore_root_dir):
+                        if has_hardlinks(file_stat):
                             check_for_hl = False
                             logger.debug(
                                 f"Hardlinks found in folder '{file}' for file '{files}': nlink={file_stat.st_nlink}, "
-                                f"links inside root_dir={inode_count}, ignore_root_dir={ignore_root_dir}."
+                                f"ignored links={inode_count}, ignored scope={ignored_scope}."
                             )
                             break
                     if check_for_hl:

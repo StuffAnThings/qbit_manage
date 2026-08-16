@@ -495,6 +495,7 @@ class QbitManageApp {
                     if (value === null || (typeof value === 'object' && Object.keys(value).length === 0)) {
                         fullConfigData.nohardlinks[key] = {
                             ignore_root_dir: true,
+                            ignore_category_dir: false,
                             exclude_tags: []
                         };
                     }
