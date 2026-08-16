@@ -578,11 +578,81 @@ class Config:
         self.nohardlinks = None
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
-            for cat in self.data["nohardlinks"]:
-                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
+            nohardlinks_data = self.data["nohardlinks"]
+            # Bug 1 fix: validate outer container type before iterating
+            if not isinstance(nohardlinks_data, (dict, list)):
+                err = (
+                    f"Config Error: nohardlinks must be a dict (with optional global_options) or a list of category "
+                    f"names/dicts (got {type(nohardlinks_data).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+            # Extract global_options defaults if present (dict form or list-with-global_options-entry form)
+            global_opts = {}
+            if isinstance(nohardlinks_data, dict):
+                raw_global_opts = nohardlinks_data.get("global_options", {})
+                if raw_global_opts is None:
+                    raw_global_opts = {}
+                if not isinstance(raw_global_opts, dict):
+                    err = f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                global_opts = raw_global_opts
+            elif isinstance(nohardlinks_data, list):
+                # Bug 3 fix: extract global_options from list-form when present as a dict entry
+                for _entry in nohardlinks_data:
+                    if isinstance(_entry, dict) and "global_options" in _entry:
+                        raw_global_opts = _entry["global_options"]
+                        if raw_global_opts is None:
+                            raw_global_opts = {}
+                        if not isinstance(raw_global_opts, dict):
+                            err = (
+                                f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                        global_opts = raw_global_opts
+                        break
+            global_exclude_tags = global_opts.get("exclude_tags", [])
+            if global_exclude_tags is None:
+                global_exclude_tags = []
+            # Bug 2 fix: validate global exclude_tags is a list
+            if not isinstance(global_exclude_tags, list):
+                err = (
+                    f"Config Error: nohardlinks global_options exclude_tags must be a list"
+                    f" (got {type(global_exclude_tags).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+            # Entries must be strings — a non-string (e.g. nested list/dict) would raise an
+            # unhashable-type TypeError in the per-category dedup below instead of a clear error.
+            for _tag in global_exclude_tags:
+                if not isinstance(_tag, str):
+                    err = (
+                        f"Config Error: nohardlinks global_options exclude_tags entries must be strings"
+                        f" (got {type(_tag).__name__})"
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+            global_exclude_tags = list(dict.fromkeys(global_exclude_tags))
+            global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
+            if not isinstance(global_ignore_root_dir, bool):
+                err = "Config Error: nohardlinks global_options ignore_root_dir must be a boolean type"
+                self.notify(err, "Config")
+                raise Failed(err)
+            for cat in nohardlinks_data:
+                # Only the dict-form `nohardlinks: {global_options: {...}}` reserves this key.
+                # In list-form, a category legitimately named "global_options" must not be
+                # silently dropped (the list-form global entry is the dict-item case below).
+                if isinstance(nohardlinks_data, dict) and cat == "global_options":
+                    continue
+                # Bug 3 fix: skip the global_options dict entry when iterating a list-form nohardlinks
+                if isinstance(nohardlinks_data, list) and isinstance(cat, dict) and "global_options" in cat:
+                    continue
+                if isinstance(nohardlinks_data, list) and isinstance(cat, str):
                     self.nohardlinks[cat] = {
-                        "exclude_tags": [],
-                        "ignore_root_dir": True,
+                        "exclude_tags": list(global_exclude_tags),
+                        "ignore_root_dir": global_ignore_root_dir,
                         "ignore_category_dir": False,
                     }
                     continue
@@ -590,16 +660,35 @@ class Config:
                     cat_str = list(cat.keys())[0]
                 elif isinstance(cat, str):
                     cat_str = cat
-                    cat = self.data["nohardlinks"]
+                    cat = nohardlinks_data
                 if cat[cat_str] is None:
                     cat[cat_str] = {}
+                cat_exclude_tags = cat[cat_str].get("exclude_tags", None)
+                cat_ignore_root_dir = cat[cat_str].get("ignore_root_dir", None)
+                # Per-category exclude_tags merge (union) with global_options; ignore_root_dir overrides
+                merged_exclude_tags = list(global_exclude_tags)
+                if cat_exclude_tags is not None:
+                    if not isinstance(cat_exclude_tags, list):
+                        err = f"Config Error: nohardlinks category {cat_str} attribute exclude_tags must be a list"
+                        self.notify(err, "Config")
+                        raise Failed(err)
+                    seen: set[str] = set(merged_exclude_tags)
+                    for _tag in cat_exclude_tags:
+                        if not isinstance(_tag, str):
+                            err = (
+                                f"Config Error: nohardlinks category {cat_str} exclude_tags entries must be strings"
+                                f" (got {type(_tag).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                        if _tag not in seen:
+                            seen.add(_tag)
+                            merged_exclude_tags.append(_tag)
                 self.nohardlinks[cat_str] = {
-                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
-                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                    "exclude_tags": merged_exclude_tags,
+                    "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
                     "ignore_category_dir": cat[cat_str].get("ignore_category_dir", False),
                 }
-                if self.nohardlinks[cat_str]["exclude_tags"] is None:
-                    self.nohardlinks[cat_str]["exclude_tags"] = []
                 if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
                     err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
                     self.notify(err, "Config")
@@ -610,7 +699,7 @@ class Config:
                     raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks must be a list of categories"
+                err = "Config Error: nohardlinks must be a dict (with optional global_options) or a list of category names/dicts"
                 self.notify(err, "Config")
                 raise Failed(err)
 
