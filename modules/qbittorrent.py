@@ -42,6 +42,8 @@ class Qbt:
         logger.debug(f"Host: {self.host}")
         if self.api_key and (self.username or self.password):
             logger.warning("qBittorrent API key is set; it takes precedence over username and password.")
+            self.username = None
+            self.password = None
         ex = ""
         try:
             self.client = Client(
