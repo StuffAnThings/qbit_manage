@@ -216,9 +216,17 @@ class RemoveOrphaned:
                 logger.error(f"Error checking file age for {file}: {e}")
             return None  # unreadable — leave eligible rather than protect on bad data
 
+        _STAT_TIMEOUT = 30  # seconds per file; treats hung mounts as unreadable
+
         if self.executor:
             futures = {file: self.executor.submit(age_minutes, file) for file in orphaned_files}
-            ages = {file: fut.result() for file, fut in futures.items()}
+            ages = {}
+            for file, fut in futures.items():
+                try:
+                    ages[file] = fut.result(timeout=_STAT_TIMEOUT)
+                except TimeoutError:
+                    logger.warning(f"Timed out checking file age for {file}; leaving eligible")
+                    ages[file] = None
         else:
             ages = {file: age_minutes(file) for file in orphaned_files}
 
