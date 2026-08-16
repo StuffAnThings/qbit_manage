@@ -24,6 +24,7 @@ qbt:
   host: "localhost:8080"
   user: !ENV QBIT_USER
   pass: !ENV QBIT_PASS
+  # apikey: !ENV QBIT_APIKEY # qBittorrent v5.2.0+ alternative to user/pass.
 
 settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.
@@ -78,9 +79,14 @@ cat:
 cat_change:
   # This moves all the torrents from one category to another category. This executes on --cat-update
   # WARNING: if the paths are different and Default Torrent Management Mode is set to automatic the files could be moved !!!
-  # <Old Category Name> : <New Category>
+  # Simple format: <Old Category Name> : <New Category>
   CatA.cross-seed: CatA
-  CatB.cross-seed: CatB
+  # Extended format with delay: wait N minutes after torrent completion before changing category
+  CatB.cross-seed:
+    new_cat: CatB
+    # <OPTIONAL> delay_minutes <int>: Number of minutes after torrent completion to wait before changing the category.
+    # Will default to 0 (no delay) if not specified.
+    delay_minutes: 30
 
 tracker:
   # Mandatory
@@ -171,6 +177,9 @@ nohardlinks:
       - BroadcasTheNet
     # <OPTIONAL> ignore_root_dir var: Will ignore any hardlinks detected in the same root_dir.
     ignore_root_dir: true
+    # <OPTIONAL> ignore_category_dir var: Will ignore hardlinks in this category's save path (Default False).
+    # Only takes effect when ignore_root_dir is false. Hardlinks outside this category still count.
+    ignore_category_dir: false
 
 share_limits:
   # Control how torrent share limits are set depending on the priority of your grouping

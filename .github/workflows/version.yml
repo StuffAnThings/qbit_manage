@@ -10,8 +10,8 @@ on:
       - v*
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: production-release
+  cancel-in-progress: false
 
 # Least-privilege default: docker-release only needs to read the repo.
 # publish-release overrides this at the job level with contents: write.
@@ -32,16 +32,16 @@ jobs:
           OWNER: "${{ github.repository_owner }}"
 
       - name: Check Out Repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Login to Docker Hub
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
       - name: Login to ghcr.io
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ env.OWNER_LC }}
@@ -108,13 +108,20 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           TAG="${{ steps.get_version.outputs.VERSION }}"
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
 
           # release-pr.yml created this draft with the standalone binaries +
           # auto-generated changelog already attached. Just flip it to published;
           # do NOT touch the body or assets.
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error::No release found for tag $TAG — expected a draft created by release-pr.yml."
+          if ! gh release view "$TAG" >/dev/null 2>"$RELEASE_ERROR"; then
+            if grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+              echo "::error::No release found for tag $TAG; expected a draft created by release-pr.yml."
+            else
+              cat "$RELEASE_ERROR" >&2
+            fi
             exit 1
           fi
 

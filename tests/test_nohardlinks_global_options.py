@@ -169,7 +169,7 @@ class TestGlobalOptionsTypeValidation:
     def test_null_global_options_uses_defaults(self):
         cfg = _make_config({"global_options": None, "cat1": {}})
         cfg.process_config_nohardlinks()
-        assert cfg.nohardlinks["cat1"] == {"exclude_tags": [], "ignore_root_dir": True}
+        assert cfg.nohardlinks["cat1"] == {"exclude_tags": [], "ignore_root_dir": True, "ignore_category_dir": False}
 
     def test_global_options_as_string_raises_failed(self):
         """global_options: 'yes please' (string) must raise Failed."""

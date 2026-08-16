@@ -1,0 +1,14 @@
+{
+    "name": "qbit-manage-web-ui-tests",
+    "private": true,
+    "type": "module",
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "test:web-ui": "playwright test"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.61.1"
+    }
+}
