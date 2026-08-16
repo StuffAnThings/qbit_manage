@@ -320,6 +320,15 @@ class FakeConfig:
     # webhooks_factory stand-in
     webhooks_factory: Any = field(default_factory=_FakeWebhooksFactory)
 
+    def __post_init__(self):
+        # Normalize via the production validator (modules.config.normalize_cat_change)
+        # so the test factory and Config stay in lockstep — no stale local mirror that
+        # silently coerces invalid values (e.g. str(True)) or KeyErrors on a missing
+        # new_cat instead of raising the real Config Error.
+        from modules.config import normalize_cat_change
+
+        self.cat_change = normalize_cat_change(self.cat_change)
+
     def send_notifications(self, attr):
         self.notifications_sent.append(copy.deepcopy(attr))
 
