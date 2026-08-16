@@ -24,6 +24,7 @@ qbt:
   host: "localhost:8080"
   user: !ENV QBIT_USER
   pass: !ENV QBIT_PASS
+  # apikey: !ENV QBIT_APIKEY # qBittorrent v5.2.0+ alternative to user/pass.
 
 settings:
   force_auto_tmm: False # Will force qBittorrent to enable Automatic Torrent Management for each torrent.

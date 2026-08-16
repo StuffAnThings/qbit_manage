@@ -32,6 +32,14 @@ export const qbtSchema = {
             description: 'The password for your qBittorrent WebUI.',
             required: false,
             placeholder: 'Enter password'
+        },
+        {
+            name: 'apikey',
+            type: 'password',
+            label: 'API Key',
+            description: 'The qBittorrent v5.2.0+ API key, used instead of a username and password.',
+            required: false,
+            placeholder: 'qbt_...'
         }
     ]
 };

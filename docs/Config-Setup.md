@@ -64,6 +64,7 @@ This section defines your qBittorrent instance.
 | `host`   | IP address of your qB installation. | <center>✅</center> |
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
 | `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
+| `apikey` | API key for qBittorrent v5.2.0+; takes precedence over `user` and `pass`. | <center>❌</center> |
 
 ### Environment variable override
 
@@ -102,7 +103,7 @@ Every CLI flag (and a few internal settings) can be set via environment variable
 | `QBM_DOCKER` | Internal only | — | Detected automatically via `in_docker()`; set to force Docker mode |
 | `BRANCH_NAME` | Internal only | — | Used to select the correct version string at startup (default: `"master"`) |
 
-**Keys with NO env-var override:** `qbt.user` and `qbt.pass` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
+**Keys with NO env-var override:** `qbt.user`, `qbt.pass`, and `qbt.apikey` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
 
 ## **settings:**
 
@@ -434,7 +435,7 @@ This is handy when you have automatically generated files that certain OSs decid
 | `empty_after_x_days`           | Will delete Orphaned data contents if the files have been in the Orphaned data for more than x days. (Uses date modified to track the time)                                                                                     | None           | <center>❌</center> |
 | `exclude_patterns`             | List of [patterns](https://commandbox.ortusbooks.com/usage/parameters/globbing-patterns) to exclude certain files from orphaned                                                                                                 | None           | <center>❌</center> |
 | `max_orphaned_files_to_delete` | This will help reduce the number of accidental large amount orphaned deletions in a single run. Set your desired threshold for the maximum number of orphaned files qbm will delete in a single run. (-1 to disable safeguards) | 50             | <center>❌</center> |
-| `min_file_age_minutes`         | Minimum age in minutes for files to be considered orphaned. Files newer than this will be protected from deletion to prevent removal of actively uploading files. Set to 0 to disable age protection.                           | 0              | <center>❌</center> |
+| `min_file_age_minutes`         | Minimum age in minutes (by file mtime) before an orphaned file is eligible for deletion. Protects files still being written (recent mtime) from premature removal. Note: a hardlink inherits its source's mtime, so a newly-created hardlink to older content (e.g. some cross-seed links) is not shielded by this alone. Set to 0 to disable age protection.                           | 0              | <center>❌</center> |
 
 > [!TIP]
 > The more time you place for the `empty_after_x_days:` variable the better, allowing you more time to catch any mistakes by the script. If the variable is set to `0` it will delete contents immediately after every script run. If the variable is not set it will never delete the contents of the Orphaned Data.

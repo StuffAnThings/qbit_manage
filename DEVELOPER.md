@@ -186,11 +186,21 @@ Version strings live in a single file: `VERSION` at the repo root.
   removed from `.pre-commit-config.yaml`; bumping is now CI-driven.
 - After a master merge, `update-develop-branch.yml` sets the next version:
   it strips the release suffix, bumps the patch segment by 1, and appends
-  `-develop1`. Example: `4.7.2` → `4.7.3-develop1`.
+  `-develop1`. Example: `4.7.2` → `4.7.3-develop1`. This keeps develop's
+  version at a higher SemVer precedence than the release it follows, since
+  it's an in-progress prerelease of *at least* the next patch.
 
-**Major/minor bumps** are handled by the Release PR workflow's `version_bump_type`
-input — the workflow computes the new base version, writes it to the `release/v<NEW>`
-branch, and opens the PR from that branch. `develop` is not modified during this step.
+**Bump types** are handled by the Release PR workflow's `version_bump_type`
+input, which computes the new base version and writes it to the `release/v<NEW>`
+branch (`develop` is not modified during this step):
+
+- `patch` publishes develop's pre-guessed base **as-is** (no further
+  increment) — e.g. develop at `4.7.3-develop5` → release `4.7.3`. Adding
+  another `+1` here would skip a version number, since develop's base is
+  already the next-patch candidate.
+- `minor`/`major` intentionally discard the guessed patch and reset lower
+  segments — e.g. develop at `4.7.3-develop5` → `minor` release `4.8.0`,
+  `major` release `5.0.0`.
 
 ---
 
