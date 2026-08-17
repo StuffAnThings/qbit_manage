@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser(prog="Qbit Mover", description="Stop torrents a
 parser.add_argument("--host", help="qbittorrent host including port", required=True)
 parser.add_argument("-u", "--user", help="qbittorrent user", default="admin")
 parser.add_argument("-p", "--password", help="qbittorrent password", default="adminadmin")
+parser.add_argument("-t", "--api-key", help="qBittorrent WebUI API key", default=None)
 parser.add_argument(
     "--ca-bundle",
     help="Path to a CA bundle used to verify the qBittorrent WebUI HTTPS certificate",
@@ -217,6 +218,7 @@ if __name__ == "__main__":
                 "host": args.host,
                 "username": args.user,
                 "password": args.password,
+                "api_key": args.api_key,
             }
 
             if args.ca_bundle:
