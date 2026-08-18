@@ -398,6 +398,9 @@ class Config:
             "tracker_error_tag": self.util.check_for_attribute(
                 self.data, "tracker_error_tag", parent="settings", default="issue"
             ),
+            "unregistered_tag": self.util.check_for_attribute(
+                self.data, "unregistered_tag", parent="settings", default="unregisteredCheck"
+            ),
             "nohardlinks_tag": self.util.check_for_attribute(self.data, "nohardlinks_tag", parent="settings", default="noHL"),
             "stalled_tag": self.util.check_for_attribute(self.data, "stalled_tag", parent="settings", default="stalledDL"),
             "private_tag": self.util.check_for_attribute(self.data, "private_tag", parent="settings", default_is_none=True),
@@ -446,9 +449,13 @@ class Config:
             "rem_unregistered_max_torrents": self.util.check_for_attribute(
                 self.data, "rem_unregistered_max_torrents", parent="settings", var_type="int", default=10, min_int=0
             ),
+            "rem_unregistered_confirm_minutes": self.util.check_for_attribute(
+                self.data, "rem_unregistered_confirm_minutes", parent="settings", var_type="int", default=0, min_int=0
+            ),
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
+        self.unregistered_tag = self.settings["unregistered_tag"]
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.stalled_tag = self.settings["stalled_tag"]
         self.private_tag = self.settings["private_tag"]
@@ -461,6 +468,7 @@ class Config:
         self.default_ignore_tags = [
             self.nohardlinks_tag,
             self.tracker_error_tag,
+            self.unregistered_tag,
             self.share_limits_min_seeding_time_tag,
             self.share_limits_min_num_seeds_tag,
             self.share_limits_last_active_tag,
