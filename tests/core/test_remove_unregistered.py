@@ -593,7 +593,8 @@ def test_process_issues_deletes_when_sibling_tracker_times_out():
 
     A single-snapshot message cannot distinguish a temporary outage from a
     permanently-dead host, so message-based reachability is NOT used to defer.
-    Grace, max_torrents and the recyclebin remain the safety net.
+    The opt-in dwell timer (rem_unregistered_confirm_minutes) is the mechanism
+    that protects against transient false-unregistered.
     """
     cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
     cfg.commands["tag_tracker_error"] = False
@@ -698,6 +699,191 @@ def test_process_issues_bhd_scan_defers_get_tags_until_match():
 
     assert mock_del.called
     assert mock_get_tags.call_count == 1
+
+
+# ── dwell-timer confirmation (rem_unregistered_confirm_minutes) ───────────────
+
+
+def _confirm_cfg():
+    cfg = FakeConfig(
+        settings={
+            **FakeConfig().settings,
+            "rem_unregistered_grace_minutes": 0,
+            "rem_unregistered_confirm_minutes": 60,
+        }
+    )
+    cfg.commands["tag_tracker_error"] = False
+    return cfg
+
+
+def test_confirm_first_sighting_flags_and_does_not_delete():
+    """First time seen unregistered: stamp a timestamped flag, do not remove."""
+    cfg = _confirm_cfg()
+    t = FakeTorrent(
+        name="T.Confirm1",
+        hash="hc1",
+        category="Test",
+        tags="",
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    add_tag_calls = [c for c in t.calls if c[0] == "add_tags"]
+    assert any(str(c[1].get("tags", "")).startswith("unregisteredCheck_") for c in add_tag_calls)
+    assert not qbt.config.notify_calls
+
+
+def test_confirm_deletes_after_dwell_elapsed():
+    """Flagged long enough ago (> confirm_minutes) and still unregistered → removed."""
+    cfg = _confirm_cfg()
+    flagged_at = int(time.time()) - 2 * 3600  # 2h ago, well past the 60 min window
+    t = FakeTorrent(
+        name="T.Confirm2",
+        hash="hc2",
+        category="Test",
+        tags=f"unregisteredCheck_{flagged_at}",
+        added_on=int(time.time()) - 3 * 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_confirm_waits_when_dwell_not_elapsed():
+    """Flagged only recently (< confirm_minutes) → still waits, no new flag, no delete.
+
+    This is the case bare 'seen twice' got wrong: a fast scheduler must not delete
+    before the tracker has had time to re-announce.
+    """
+    cfg = _confirm_cfg()
+    flagged_at = int(time.time()) - 120  # 2 min ago, under the 60 min window
+    t = FakeTorrent(
+        name="T.Confirm3",
+        hash="hc3",
+        category="Test",
+        tags=f"unregisteredCheck_{flagged_at}",
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    assert not any(c[0] == "add_tags" for c in t.calls)  # already flagged; no duplicate stamp
+
+
+def test_confirm_malformed_marker_does_not_short_circuit_delete():
+    """A prefix-sharing tag with no valid timestamp must not bypass the dwell.
+
+    Fail-safe: an unparseable marker is ignored, so the torrent is treated as a
+    first sighting (fresh stamp, no removal) rather than deleted immediately.
+    """
+    cfg = _confirm_cfg()
+    t = FakeTorrent(
+        name="T.Malformed",
+        hash="hmal",
+        category="Test",
+        tags="unregisteredCheck_manual",  # hand-edited / foreign, no epoch
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    add_tag_calls = [c for c in t.calls if c[0] == "add_tags"]
+    assert any(str(c[1].get("tags", "")).startswith("unregisteredCheck_") for c in add_tag_calls)
+
+
+def test_confirm_off_deletes_on_first_run():
+    """Default (confirm_minutes=0) preserves immediate removal."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.NoConfirm",
+        hash="hnc",
+        category="Test",
+        tags="",
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert not any(c[0] == "add_tags" for c in t.calls)  # no flag written when off
+
+
+def test_confirm_clears_flag_when_no_longer_unregistered():
+    """A flagged torrent that recovers to a non-unregistered error loses its flag."""
+    cfg = _confirm_cfg()
+    flagged_at = int(time.time()) - 120
+    marker = f"unregisteredCheck_{flagged_at}"
+    t = FakeTorrent(
+        name="T.Recover",
+        hash="hrec",
+        category="Test",
+        tags=marker,
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="some transient tracker error")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
+
+
+def test_confirm_clears_flag_on_working_tracker_in_remove_previous_errors():
+    """remove_previous_errors() strips the pending flag once a tracker works again."""
+    cfg = _confirm_cfg()
+    marker = f"unregisteredCheck_{int(time.time()) - 120}"
+    t = FakeTorrent(
+        name="T.WorkingAgain",
+        hash="hwork",
+        category="Test",
+        tags=marker,
+        trackers=[_Tracker(url="http://a.example/announce", status=2)],  # WORKING
+    )
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentvalid_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    ru.remove_previous_errors()
+
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
 
 
 def test_grace_period_blocks_deletion():

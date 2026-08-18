@@ -26,12 +26,14 @@ class RemoveUnregistered:
         self.stats_untagged = 0
         self.tor_error_summary = ""
         self.tag_error = self.config.tracker_error_tag
+        self.unregistered_tag = self.config.unregistered_tag
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
         self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
         self.rem_unregistered_grace_minutes = self.config.settings["rem_unregistered_grace_minutes"]
         self.rem_unregistered_max_torrents = self.config.settings["rem_unregistered_max_torrents"]
+        self.confirm_minutes = self.config.settings["rem_unregistered_confirm_minutes"]
         self.hashes = hashes
         self.tracker_del_count = {}
 
@@ -87,7 +89,36 @@ class RemoveUnregistered:
                 torrents_updated.append(t_name)
                 notify_attr.append(attr)
 
+            # A working tracker clears a pending-removal flag from a prior run.
+            pending_tag, _ = self.get_pending_removal(check_tags)
+            if self.confirm_minutes and pending_tag:
+                if not self.config.dry_run:
+                    torrent.remove_tags(tags=pending_tag)
+                logger.print_line(
+                    logger.insert_space(
+                        f"Cleared pending-removal flag (tracker working again): {t_name}",
+                        3,
+                    ),
+                    self.config.loglevel,
+                )
+
         self.config.webhooks_factory.notify(torrents_updated, notify_attr, group_by="tag")
+
+    def get_pending_removal(self, check_tags):
+        """Return (marker_tag, first_seen_epoch) for a valid pending-removal flag, else (None, None).
+
+        A marker whose timestamp is unparseable (e.g. hand-edited, or an unrelated
+        tag that shares the prefix) is ignored, so a malformed tag can never
+        short-circuit the dwell window into an immediate deletion.
+        """
+        prefix = f"{self.unregistered_tag}_"
+        for tag in check_tags:
+            if tag.startswith(prefix):
+                try:
+                    return tag, int(tag[len(prefix) :])
+                except ValueError:
+                    continue
+        return None, None
 
     def check_for_unregistered_torrents_in_bhd(self, tracker, msg_up, torrent_hash):
         """
@@ -194,6 +225,14 @@ class RemoveUnregistered:
                         unreg_tracker = trk
                         break
 
+                pending_tag, first_seen = self.get_pending_removal(check_tags)
+                confirmed = first_seen is not None and (time.time() - first_seen) >= self.confirm_minutes * 60
+                # A torrent that stopped reporting unregistered loses its pending
+                # flag, so a transient blip that recovers can't be removed later.
+                if self.confirm_minutes and unreg_tracker is None and pending_tag:
+                    if not self.config.dry_run:
+                        torrent.remove_tags(tags=pending_tag)
+
                 if self.cfg_rem_unregistered and unreg_tracker is not None:
                     msg = unreg_tracker.msg
                     msg_up = (msg or "").upper()
@@ -211,6 +250,20 @@ class RemoveUnregistered:
                                     f"Skipping removal (within grace "
                                     f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
                                     f"{self.t_name}",
+                                    3,
+                                ),
+                                self.config.loglevel,
+                            )
+                        elif self.confirm_minutes and not confirmed:
+                            # Require the torrent to stay unregistered for
+                            # confirm_minutes before removing it, so a single
+                            # transient "unregistered" response can never delete it.
+                            # First sighting stamps a marker tag with the current time.
+                            if pending_tag is None and not self.config.dry_run:
+                                torrent.add_tags(tags=f"{self.unregistered_tag}_{int(time.time())}")
+                            logger.print_line(
+                                logger.insert_space(
+                                    f"Skipping removal (pending confirmation for {self.confirm_minutes} min): {self.t_name}",
                                     3,
                                 ),
                                 self.config.loglevel,
