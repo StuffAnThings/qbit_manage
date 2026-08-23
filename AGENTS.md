@@ -189,9 +189,31 @@ the commit in auto-generated release notes.
 - Resolve filesystem paths and verify containment before reading or writing
   user-selected files.
 - Register configuration keys through the existing `check_for_attribute`
-  patterns in `modules/config.py`.
+  patterns in `modules/config.py`, then propagate them to every config surface
+  (see "Adding a Configuration Key" below).
 - Keep text-mode logging behavior compatible unless the requested change
   explicitly updates it.
+
+---
+
+## Adding a Configuration Key
+
+A single config key has four surfaces that must stay in sync. Registering it in
+`config.py` alone leaves it invisible in the Web UI. When you add or rename a
+settings key, update all four:
+
+1. `modules/config.py` — register it with `check_for_attribute()` (type,
+   default, required). This is the backend source of truth.
+2. `config/config.yml.sample` — add a sample entry with an inline comment.
+3. `docs/Config-Setup.md` — add a row to the relevant settings table.
+4. `web-ui/js/config-schemas/<section>.js` — add the field to the matching
+   section schema. The Web UI config editor is schema-driven
+   (`web-ui/js/components/config-form.js` maps each section to its schema), so a
+   key missing here cannot be edited in the UI.
+
+The ordinary REST config endpoints read and write settings generically, so a
+plain settings key needs no per-key change in `modules/web_api.py`. A new
+top-level section, or a key with custom server-side handling, does.
 
 ---
 
