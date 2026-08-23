@@ -886,6 +886,31 @@ def test_confirm_clears_flag_on_working_tracker_in_remove_previous_errors():
     assert any(c[1].get("tags") == marker for c in remove_calls)
 
 
+def test_confirm_clears_stale_flag_when_disabled_in_remove_previous_errors():
+    """A stale pending-removal marker is cleared even with confirm_minutes back to 0.
+
+    Regression: cleanup was gated on confirm_minutes being truthy, so disabling
+    the feature after it had already tagged a torrent stranded that marker.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_confirm_minutes": 0})
+    marker = f"unregisteredCheck_{int(time.time()) - 120}"
+    t = FakeTorrent(
+        name="T.StaleDisabled",
+        hash="hstaledisabled",
+        category="Test",
+        tags=marker,
+        trackers=[_Tracker(url="http://a.example/announce", status=2)],  # WORKING
+    )
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentvalid_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    ru.remove_previous_errors()
+
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
+
+
 def test_grace_period_blocks_deletion():
     """Grace period prevents deletion of recently added torrent."""
     cfg = FakeConfig(
