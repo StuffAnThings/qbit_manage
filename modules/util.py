@@ -528,6 +528,15 @@ def parse_version(version, text="develop"):
     return version, split_version[0], int(split_version[1]) if len(split_version) > 1 else 0
 
 
+def branch_from_version(version):
+    """Return the release branch encoded in a VERSION value."""
+    if re.fullmatch(r"\d+\.\d+\.\d+-develop\d+", version):
+        return "develop"
+    if re.fullmatch(r"\d+\.\d+\.\d+", version):
+        return "master"
+    return None
+
+
 def get_current_version():
     """
     Get the current qBit Manage version using the same logic as qbit_manage.py:400-411.
@@ -557,7 +566,7 @@ def get_current_version():
             if repo_relative.exists():
                 version_path = repo_relative
 
-        # If we found a version file, parse it
+        # If we found a version file, parse its first non-empty line
         if version_path is not None:
             with open(version_path, encoding="utf-8") as handle:
                 for line in handle:
@@ -570,27 +579,26 @@ def get_current_version():
         # Non-fatal in frozen apps; keep noise low if VERSION is missing
         logger.debug(f"VERSION read fallback hit: {e}")
 
+    # A wheel stores VERSION alongside the modules package.
+    if version[0] == "Unknown":
+        packaged_version_path = Path(__file__).resolve().parent / "VERSION"
+        try:
+            with open(packaged_version_path, encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if line:
+                        version = parse_version(line)
+                        break
+        except Exception as e:
+            logger.debug(f"Packaged VERSION read fallback hit: {e}")
+
     # Get environment version (same as qbit_manage.py:282)
     env_version = os.environ.get("BRANCH_NAME", "master")
 
-    # Get git branch (same logic as qbit_manage.py:275-280)
-    git_branch = None
-    try:
-        from git import InvalidGitRepositoryError
-        from git import Repo
+    version_branch = branch_from_version(version[0]) if version[0] != "Unknown" else None
 
-        try:
-            git_branch = Repo(path=".").head.ref.name  # noqa
-        except (InvalidGitRepositoryError, TypeError, ValueError):
-            # TypeError/ValueError is raised when HEAD is a detached reference
-            # (e.g. when running from a specific commit checkout in CI or a
-            # PyInstaller-built binary run against a detached-HEAD clone).
-            git_branch = None
-    except ImportError:
-        git_branch = None
-
-    # Guess branch and format version (same logic as qbit_manage.py:407-410)
-    branch = guess_branch(version, env_version, git_branch)
+    # VERSION is authoritative; retain legacy fallbacks when it is unavailable.
+    branch = version_branch or guess_branch(version, env_version, None)
     if branch is None:
         branch = "Unknown"
     version = (version[0].replace("develop", branch), version[1].replace("develop", branch), version[2])

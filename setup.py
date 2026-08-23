@@ -2,6 +2,16 @@ import os
 
 from setuptools import find_packages
 from setuptools import setup
+from setuptools.command.build_py import build_py
+
+
+class BuildPyWithVersion(build_py):
+    def run(self):
+        super().run()
+        target = os.path.join(self.build_lib, "modules", "VERSION")
+        self.mkpath(os.path.dirname(target))
+        self.copy_file("VERSION", target)
+
 
 # Read version from VERSION file
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")) as f:
@@ -24,9 +34,10 @@ setup(
     packages=find_packages("."),
     py_modules=["qbit_manage"],
     package_data={
-        "modules": ["../web-ui/**/*", "../VERSION"],
+        "modules": ["VERSION", "../web-ui/**/*"],
     },
     include_package_data=True,
+    cmdclass={"build_py": BuildPyWithVersion},
     # Start with a small number and increase it with
     # every change you make https://semver.org
     version=version,
