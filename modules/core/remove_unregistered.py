@@ -160,11 +160,8 @@ class RemoveUnregistered:
                 if any(TrackerStatus(trk.status) == TrackerStatus.WORKING for trk in real_trackers):
                     return
 
-                # A tracker still updating or not yet contacted is inconclusive --
-                # it may still come back working -- so never conclude "dead" on
-                # incomplete information; defer until every tracker has reported.
-                # These states are self-resolving, so this cannot strand a torrent
-                # the way a permanent-failure message could.
+                # UPDATING/NOT_CONTACTED is inconclusive and self-resolving;
+                # never conclude "dead" until every tracker has reported.
                 if any(
                     TrackerStatus(trk.status) in (TrackerStatus.UPDATING, TrackerStatus.NOT_CONTACTED) for trk in real_trackers
                 ):
@@ -181,9 +178,8 @@ class RemoveUnregistered:
                     # entries remain); nothing actionable.
                     return
 
-                # Scan ALL failing trackers for an unregistered message instead of
-                # only the last one -- a torrent whose unregistered tracker is not
-                # last in the list was previously never detected (issue #1358).
+                # Scan every failing tracker, not just the last one, so an
+                # unregistered tracker earlier in the list isn't missed.
                 unreg_tracker = None
                 for trk in failing_trackers:
                     trk_msg_up = (trk.msg or "").upper()
@@ -192,9 +188,9 @@ class RemoveUnregistered:
                     ):
                         unreg_tracker = trk
                         break
-                    if self.check_for_unregistered_torrents_in_bhd(
-                        self.qbt.get_tags(self.qbt.get_tracker_urls([trk])), trk_msg_up, torrent.hash
-                    ):
+                    # Pass the raw URL only; get_tags() runs config lookups we don't
+                    # need per-tracker here, so defer it until a match is found.
+                    if self.check_for_unregistered_torrents_in_bhd({"url": trk.url}, trk_msg_up, torrent.hash):
                         unreg_tracker = trk
                         break
 
