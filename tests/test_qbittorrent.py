@@ -326,6 +326,31 @@ class TestGetTorrentInfo:
         assert hasattr(qbt, "torrentvalid")
 
     @patch("modules.qbittorrent.logger")
+    def test_none_tracker_msg_does_not_crash(self, mock_logger):
+        """A tracker with msg=None must not crash torrentinfo population (#1358)."""
+        torrent = FakeTorrent(
+            name="NoneMsgTorrent",
+            hash="hashnone",
+            trackers=[_Tracker(url="http://tracker1.example/announce", status=4, msg=None)],
+        )
+
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = MagicMock()
+        qbt.config.settings = {
+            "force_auto_tmm": False,
+            "force_auto_tmm_ignore_tags": [],
+        }
+        qbt.config.dry_run = False
+        qbt.config.notify = MagicMock()
+        qbt.torrent_list = [torrent]
+        qbt.torrentfiles = {}
+        qbt.add_torrent_files = MagicMock()
+
+        Qbt.get_torrent_info(qbt)
+
+        assert isinstance(qbt.torrentinfo, dict)
+
+    @patch("modules.qbittorrent.logger")
     def test_populates_torrentissue_list(self, mock_logger):
         """Torrents with broken trackers go to torrentissue list."""
         qbt = MagicMock(spec=Qbt)

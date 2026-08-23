@@ -469,7 +469,7 @@ def _make_issue_qbt(torrent, *, config):
     torrentinfo = {
         torrent.name: {
             "Category": torrent.category,
-            "msg": [t.msg.upper() for t in torrent.trackers],
+            "msg": [(t.msg or "").upper() for t in torrent.trackers],
             "status": [t.status for t in torrent.trackers],
         }
     }
@@ -498,6 +498,33 @@ def test_process_issues_detects_unregistered_when_not_last_tracker():
         ],
     )
     cfg.commands["tag_tracker_error"] = False
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert "UNREGISTERED" in mock_del.call_args[0][0].upper()
+    assert not qbt.config.notify_calls  # no swallowed exception
+
+
+def test_process_issues_none_msg_earlier_tracker_still_detects():
+    """A failing tracker with a None message before an unregistered one must not
+    abort detection or crash. Regression for #1358 None-msg handling."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.NoneMsg",
+        hash="hnonemsg",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg=None),
+            _Tracker(url="http://b.example/announce", status=4, msg="err: unregistered torrent"),
+        ],
+    )
     qbt = _make_issue_qbt(t, config=cfg)
     qbt._torrentissue_override = [t]
     ru = make_remove_unregistered(qbt)
