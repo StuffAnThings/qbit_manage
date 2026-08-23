@@ -139,8 +139,12 @@ the commit in auto-generated release notes.
 - Avoid mutating caller-owned objects. Return new values or copies when state
   must change.
 - Keep functions focused, avoid deep nesting, and use descriptive names.
-- Comments explain non-obvious constraints or rationale, not what the code
-  already states.
+- Keep comments minimal. Reserve long prose for docstrings and module
+  headers. On regular code lines, comment only non-obvious rationale or
+  constraints, never what the code already states, and never a
+  narrative/changelog of what changed.
+- Do not put issue or PR numbers (`#1234`) in code comments. Git history and
+  the PR record are the trail; inline `#NNN` references rot.
 
 ---
 
