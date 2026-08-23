@@ -31,6 +31,13 @@ export const settingsSchema = {
             default: 'issue'
         },
         {
+            name: 'unregistered_tag',
+            type: 'text',
+            label: 'Unregistered Tag',
+            description: 'Tag used to mark a torrent pending removal while Remove Unregistered Confirm Period is enabled (a timestamp is appended). Used by the `rem_unregistered` command.',
+            default: 'unregisteredCheck'
+        },
+        {
             name: 'nohardlinks_tag',
             type: 'text',
             label: 'No Hard Links Tag',
@@ -149,6 +156,14 @@ export const settingsSchema = {
             label: 'Remove Unregistered Max Torrents',
             description: 'Maximum number of torrents to remove per tracker per run. Set to 0 to disable.',
             default: 10,
+            min: 0
+        },
+        {
+            name: 'rem_unregistered_confirm_minutes',
+            type: 'number',
+            label: 'Remove Unregistered Confirm Period (minutes)',
+            description: 'Require a torrent to stay unregistered for this many minutes before removal. First sighting tags it with the Unregistered Tag; a later run removes it if still unregistered. Set above your tracker announce interval to survive transient outages. Set to 0 to disable (remove immediately).',
+            default: 0,
             min: 0
         }
     ]
