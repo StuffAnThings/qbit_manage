@@ -476,7 +476,7 @@ def _make_issue_qbt(torrent, *, config):
     return _make_qbt(torrents=[torrent], config=config, torrentinfo=torrentinfo)
 
 
-# ── process_torrent_issues (multi-tracker detection, issue #1358) ─────────────
+# ── process_torrent_issues (multi-tracker detection) ─────────────────────────
 
 
 def test_process_issues_detects_unregistered_when_not_last_tracker():
@@ -666,6 +666,38 @@ def test_process_issues_skips_when_any_tracker_working():
 
     assert not mock_del.called
     assert not qbt.config.notify_calls
+
+
+def test_process_issues_bhd_scan_defers_get_tags_until_match():
+    """get_tags() is only called once, for the matched tracker.
+
+    A non-BHD, non-unregistered failing tracker scanned before the BHD match
+    must not trigger a get_tags() lookup of its own.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.BhdScan",
+        hash="hbhdscan",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg="Connection timed out"),
+            _Tracker(url=_BHD_TRACKER_URL, status=4, msg="Dead"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with (
+        patch.object(ru, "check_max_limit_and_delete") as mock_del,
+        patch.object(qbt, "get_tags", wraps=qbt.get_tags) as mock_get_tags,
+    ):
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert mock_get_tags.call_count == 1
 
 
 def test_grace_period_blocks_deletion():
