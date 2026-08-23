@@ -85,7 +85,7 @@ class FakeClient:
 class _Tracker:
     url: str
     status: int = 2  # 2 = working
-    msg: str = ""
+    msg: str | None = ""  # qbittorrentapi can return None
     num_seeds: int = 0
     num_peers: int = 0
     num_leeches: int = 0

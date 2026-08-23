@@ -460,6 +460,246 @@ def test_full_flow_remove_unregistered_no_cross_seed():
         assert mock_del.called
 
 
+def _make_issue_qbt(torrent, *, config):
+    """Build a FakeQbtManager where *torrent* is the sole torrentissue entry.
+
+    process_torrent_issues() reads Category/msg/status out of torrentinfo keyed by
+    name, so mirror the torrent's own trackers into that structure.
+    """
+    torrentinfo = {
+        torrent.name: {
+            "Category": torrent.category,
+            "msg": [(t.msg or "").upper() for t in torrent.trackers],
+            "status": [t.status for t in torrent.trackers],
+        }
+    }
+    return _make_qbt(torrents=[torrent], config=config, torrentinfo=torrentinfo)
+
+
+# ── process_torrent_issues (multi-tracker detection) ─────────────────────────
+
+
+def test_process_issues_detects_unregistered_when_not_last_tracker():
+    """Unregistered tracker anywhere in the list is detected, not just the last one.
+
+    Regression for #1358: a torrent whose unregistered tracker is followed by
+    another failing tracker was previously missed because only the last tracker
+    was evaluated.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    t = FakeTorrent(
+        name="Sugar.2024.S01",
+        hash="hashsugar",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg="some other tracker error"),
+            _Tracker(url="http://b.example/announce", status=4, msg="err: unregistered torrent"),
+        ],
+    )
+    cfg.commands["tag_tracker_error"] = False
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert "UNREGISTERED" in mock_del.call_args[0][0].upper()
+    assert not qbt.config.notify_calls  # no swallowed exception
+
+
+def test_process_issues_none_msg_earlier_tracker_still_detects():
+    """A failing tracker with a None message before an unregistered one must not
+    abort detection or crash. Regression for #1358 None-msg handling."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.NoneMsg",
+        hash="hnonemsg",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg=None),
+            _Tracker(url="http://b.example/announce", status=4, msg="err: unregistered torrent"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert "UNREGISTERED" in mock_del.call_args[0][0].upper()
+    assert not qbt.config.notify_calls  # no swallowed exception
+
+
+def test_process_issues_single_unregistered_still_deletes():
+    """The basic single-tracker unregistered case still triggers deletion."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.Single",
+        hash="hsingle",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_process_issues_deletes_despite_host_not_found_sibling():
+    """Reporter's exact case: 'Host not found' + 'unregistered' still deletes.
+
+    A permanent authoritative DNS failure is not a temporary outage, so it must
+    not defer the removal.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.HostNotFound",
+        hash="hhnf",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg="Host not found (authoritative)"),
+            _Tracker(url="http://b.example/announce", status=4, msg="err: unregistered torrent"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_process_issues_deletes_when_sibling_tracker_times_out():
+    """A failed sibling tracker (e.g. timed out) does not block detection.
+
+    A single-snapshot message cannot distinguish a temporary outage from a
+    permanently-dead host, so message-based reachability is NOT used to defer.
+    Grace, max_torrents and the recyclebin remain the safety net.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.Timeout",
+        hash="htimeout",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg="Connection timed out"),
+            _Tracker(url="http://b.example/announce", status=4, msg="Unregistered torrent"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_process_issues_defers_when_tracker_still_updating():
+    """A tracker still UPDATING is inconclusive, so removal is deferred."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.Updating",
+        hash="hupdating",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=3, msg=""),  # UPDATING
+            _Tracker(url="http://b.example/announce", status=4, msg="Unregistered torrent"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_process_issues_skips_when_any_tracker_working():
+    """A working tracker means the torrent is alive; never removed."""
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.Working",
+        hash="hworking",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=2, msg=""),  # WORKING
+            _Tracker(url="http://b.example/announce", status=4, msg="Unregistered torrent"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+
+    assert not mock_del.called
+    assert not qbt.config.notify_calls
+
+
+def test_process_issues_bhd_scan_defers_get_tags_until_match():
+    """get_tags() is only called once, for the matched tracker.
+
+    A non-BHD, non-unregistered failing tracker scanned before the BHD match
+    must not trigger a get_tags() lookup of its own.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_grace_minutes": 0})
+    cfg.commands["tag_tracker_error"] = False
+    t = FakeTorrent(
+        name="T.BhdScan",
+        hash="hbhdscan",
+        category="Test",
+        added_on=int(time.time()) - 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=4, msg="Connection timed out"),
+            _Tracker(url=_BHD_TRACKER_URL, status=4, msg="Dead"),
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with (
+        patch.object(ru, "check_max_limit_and_delete") as mock_del,
+        patch.object(qbt, "get_tags", wraps=qbt.get_tags) as mock_get_tags,
+    ):
+        ru.process_torrent_issues()
+
+    assert mock_del.called
+    assert mock_get_tags.call_count == 1
+
+
 def test_grace_period_blocks_deletion():
     """Grace period prevents deletion of recently added torrent."""
     cfg = FakeConfig(
