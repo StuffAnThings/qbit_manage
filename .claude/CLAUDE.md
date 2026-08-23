@@ -2,6 +2,17 @@
 
 Python tool for managing qBittorrent. Automates tagging, categorization, orphan cleanup, and more.
 
+**Read [`AGENTS.md`](../AGENTS.md) first.** It is the canonical instructions
+file and holds most of the context: branch model, dev environment, test
+commands, file layout, commit conventions, code style, and the comment policy.
+This file only adds the quick-reference below.
+
+## Comments
+- Keep them minimal. Long prose belongs in docstrings and module headers, not
+  on regular code lines.
+- Comment only non-obvious rationale, never what the code already states.
+- No issue/PR numbers (`#1234`) in code comments.
+
 ## Project
 - Python 3.10+, setuptools + pyproject.toml
 - Ruff: line-length=130 (see ruff.toml)
