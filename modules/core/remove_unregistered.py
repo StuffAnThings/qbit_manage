@@ -89,9 +89,10 @@ class RemoveUnregistered:
                 torrents_updated.append(t_name)
                 notify_attr.append(attr)
 
-            # A working tracker clears a pending-removal flag from a prior run.
+            # Clearing is unconditional so a stale marker still gets cleaned up
+            # even after confirm_minutes is later disabled.
             pending_tag, _ = self.get_pending_removal(check_tags)
-            if self.confirm_minutes and pending_tag:
+            if pending_tag:
                 if not self.config.dry_run:
                     torrent.remove_tags(tags=pending_tag)
                 logger.print_line(
@@ -205,8 +206,6 @@ class RemoveUnregistered:
                 )
                 failing_trackers = [trk for trk in real_trackers if TrackerStatus(trk.status) in terminal_failures]
                 if not failing_trackers:
-                    # No tracker reported a terminal failure (only DISABLED/pseudo
-                    # entries remain); nothing actionable.
                     return
 
                 # Scan every failing tracker, not just the last one, so an
@@ -227,9 +226,9 @@ class RemoveUnregistered:
 
                 pending_tag, first_seen = self.get_pending_removal(check_tags)
                 confirmed = first_seen is not None and (time.time() - first_seen) >= self.confirm_minutes * 60
-                # A torrent that stopped reporting unregistered loses its pending
-                # flag, so a transient blip that recovers can't be removed later.
-                if self.confirm_minutes and unreg_tracker is None and pending_tag:
+                # Clearing is unconditional so a stale marker still gets cleaned up
+                # even after confirm_minutes is later disabled.
+                if unreg_tracker is None and pending_tag:
                     if not self.config.dry_run:
                         torrent.remove_tags(tags=pending_tag)
 
@@ -255,9 +254,6 @@ class RemoveUnregistered:
                                 self.config.loglevel,
                             )
                         elif self.confirm_minutes and not confirmed:
-                            # Require the torrent to stay unregistered for
-                            # confirm_minutes before removing it, so a single
-                            # transient "unregistered" response can never delete it.
                             # First sighting stamps a marker tag with the current time.
                             if pending_tag is None and not self.config.dry_run:
                                 torrent.add_tags(tags=f"{self.unregistered_tag}_{int(time.time())}")
