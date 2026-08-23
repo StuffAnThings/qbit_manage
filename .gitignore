@@ -5,6 +5,9 @@ __pycache__/
 
 *.log*
 *.yml
+!.devcontainer/docker-compose.yml
+.devcontainer/docker-compose.override.yml
+.devcontainer/docker-compose.override.yaml
 .vscode/*
 !.github/**
 *.svg
@@ -37,3 +40,4 @@ htmlcov/
 node_modules/
 playwright-report/
 test-results/
+.DS_Store
