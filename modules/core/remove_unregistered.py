@@ -95,9 +95,10 @@ class RemoveUnregistered:
             if pending_tag:
                 if not self.config.dry_run:
                     torrent.remove_tags(tags=pending_tag)
+                action = "Would clear" if self.config.dry_run else "Cleared"
                 logger.print_line(
                     logger.insert_space(
-                        f"Cleared pending-removal flag (tracker working again): {t_name}",
+                        f"{action} pending-removal flag (tracker working again): {t_name}",
                         3,
                     ),
                     self.config.loglevel,
