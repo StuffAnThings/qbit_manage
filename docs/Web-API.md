@@ -652,8 +652,8 @@ response = requests.post(
         "dry_run": False,
         "skip_cleanup": False,
         "skip_qb_version_check": False,
-        "log_level": "info"
-    }
+        "log_level": "info",
+    },
 )
 print(response.json())
 ```
@@ -675,8 +675,8 @@ response = requests.post(
         "dry_run": False,
         "skip_cleanup": False,
         "skip_qb_version_check": False,
-        "log_level": "info"
-    }
+        "log_level": "info",
+    },
 )
 print(response.json())
 ```
@@ -697,8 +697,8 @@ response = requests.post(
         "dry_run": False,
         "skip_cleanup": False,
         "skip_qb_version_check": False,
-        "log_level": "info"
-    }
+        "log_level": "info",
+    },
 )
 print(response.json())
 ```
