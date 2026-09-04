@@ -1,0 +1,14 @@
+---
+services:
+  app:
+    container_name: qbit-manage-devcontainer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    volumes: [..:/workspace:cached, uv-cache:/home/dev/.cache/uv]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges]
+    command: /bin/sh -c "while sleep 1000; do :; done"
+volumes:
+  uv-cache:

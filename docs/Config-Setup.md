@@ -186,15 +186,30 @@ This moves all the torrents from one category to another category if the torrent
 > [!CAUTION]
 > If the paths are different and Default Torrent Management Mode is set to Automatic the files could be moved !!!
 
-| Configuration | Definition                    | Required            |
-| :------------ | :---------------------------- | :------------------ |
-| `key`         | Name of the original category | <center>✅</center> |
-| `value`       | Name of the new category      | <center>✅</center> |
+| Configuration | Definition                                                                                                          | Required            |
+| :------------ | :------------------------------------------------------------------------------------------------------------------ | :------------------ |
+| `key`         | Name of the original category                                                                                       | <center>✅</center> |
+| `value`       | Name of the new category (simple format) or an object with `new_cat` and optional `delay_minutes` (extended format) | <center>✅</center> |
 
-The syntax for the categories are as follows
+### Simple format
 
 ```yaml
 old_category_name: new_category_name
+```
+
+### Extended format with delay
+
+You can optionally delay the category change until a specified number of minutes after the torrent has completed downloading. Torrents that have not yet waited long enough will be skipped and picked up on the next run.
+
+| Variable        | Definition                                                                      | Default | Type | Required            |
+| :-------------- | :------------------------------------------------------------------------------ | :------ | :--- | :------------------ |
+| `new_cat`       | Name of the new category                                                        | N/A     | str  | <center>✅</center> |
+| `delay_minutes` | Number of minutes after torrent completion to wait before changing the category | 0       | int  | <center>❌</center> |
+
+```yaml
+old_category_name:
+  new_cat: new_category_name
+  delay_minutes: 30
 ```
 
 ## **tracker:**
@@ -253,6 +268,7 @@ If you're needing information regarding hardlinks here are some excellent resour
 
 This functionality will tag any torrent's whose file (or largest file if multi-file) does not have any hardlinks outside the qbm root_dir.
 Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected in the same root_dir.
+Set `ignore_root_dir` to `false` and `ignore_category_dir` to `true` to ignore links in the torrent's configured category while still counting links outside that category. `ignore_root_dir` takes precedence when both settings are true.
 
 > [!TIP]
 > Use `No Hardlinks` with [sharelimits](#sharelimits) to remove torrents whose largest file is no longer hardlinked based on seedtime and/or seed ratio.
@@ -268,6 +284,28 @@ Note that `ignore_root_dir` (Default: True) will ignore any hardlinks detected i
 | :---------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------- | :------------------ |
 | `exclude_tags`    | List of tags to exclude from the check. Torrents with any of these tags will not be processed. This is useful to exclude certain trackers from being scanned for hardlinking purposes | None           | <center>❌</center> |
 | `ignore_root_dir` | Ignore any hardlinks detected in the same [root_dir](#directory)                                                                                                                      | True           | <center>❌</center> |
+| `ignore_category_dir` | Ignore hardlinks in the torrent's configured category while still counting hardlinks outside it. Only applies when `ignore_root_dir` is `false`                                                          | False          | <center>❌</center> |
+
+### Global Options
+
+You can set defaults for all categories using the optional `global_options` key, with these merge semantics:
+
+- **`exclude_tags`** — per-category list is **merged (union)** with the global list. A category-level `exclude_tags` adds to the global set, it does not replace it.
+- **`ignore_root_dir`** — per-category boolean **overrides** the global value when set. Categories without the key inherit the global default.
+
+```yaml
+nohardlinks:
+  global_options:
+    exclude_tags:
+      - AnimeBytes
+    ignore_root_dir: true
+  movies-completed-4k:        # inherits: exclude_tags=[AnimeBytes], ignore_root_dir=true
+  movies-completed:
+    exclude_tags:              # merged with global → [AnimeBytes, Beyond-HD, MaM]
+      - Beyond-HD
+      - MaM
+    ignore_root_dir: false     # overrides global → false
+```
 
 ## **share_limits:**
 

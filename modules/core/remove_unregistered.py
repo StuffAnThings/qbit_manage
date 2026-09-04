@@ -149,65 +149,80 @@ class RemoveUnregistered:
                     return
                 if not torrent.trackers:
                     return
-                tracker_working = False
-                for trk in torrent.trackers:
-                    if (
-                        trk.url.split(":")[0] in ["http", "https", "udp", "ws", "wss"]
-                        and TrackerStatus(trk.status) == TrackerStatus.WORKING
-                    ):
-                        tracker_working = True
-                if tracker_working:
+
+                real_trackers = [
+                    trk for trk in torrent.trackers if trk.url.split(":")[0] in ["http", "https", "udp", "ws", "wss"]
+                ]
+                if not real_trackers:
                     return
-                tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([trk]))
-                msg_up = trk.msg.upper()
-                msg = trk.msg
-                if TrackerStatus(trk.status) in (
+
+                # A working tracker means the torrent is alive; nothing to remove.
+                if any(TrackerStatus(trk.status) == TrackerStatus.WORKING for trk in real_trackers):
+                    return
+
+                # UPDATING/NOT_CONTACTED is inconclusive and self-resolving;
+                # never conclude "dead" until every tracker has reported.
+                if any(
+                    TrackerStatus(trk.status) in (TrackerStatus.UPDATING, TrackerStatus.NOT_CONTACTED) for trk in real_trackers
+                ):
+                    return
+
+                terminal_failures = (
                     TrackerStatus.NOT_WORKING,
                     TrackerStatus.TRACKER_ERROR,
                     TrackerStatus.UNREACHABLE,
-                ):
-                    # Check for unregistered torrents
-                    if self.cfg_rem_unregistered:
-                        if list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
-                            msg_up, TorrentMessages.IGNORE_MSGS
-                        ):
-                            if list_in_text(msg_up, self.rem_unregistered_ignore_list):
-                                logger.print_line(
-                                    f"Ignoring unregistered torrent {self.t_name} due to matching phrase found in ignore list.",
-                                    self.config.loglevel,
-                                )
-                            else:
-                                skip, age = self.is_within_grace(torrent)
-                                if skip:
-                                    logger.print_line(
-                                        logger.insert_space(
-                                            f"Skipping removal (within grace "
-                                            f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
-                                            f"{self.t_name}",
-                                            3,
-                                        ),
-                                        self.config.loglevel,
-                                    )
-                                else:
-                                    self.check_max_limit_and_delete(msg, tracker, torrent)
+                )
+                failing_trackers = [trk for trk in real_trackers if TrackerStatus(trk.status) in terminal_failures]
+                if not failing_trackers:
+                    # No tracker reported a terminal failure (only DISABLED/pseudo
+                    # entries remain); nothing actionable.
+                    return
+
+                # Scan every failing tracker, not just the last one, so an
+                # unregistered tracker earlier in the list isn't missed.
+                unreg_tracker = None
+                for trk in failing_trackers:
+                    trk_msg_up = (trk.msg or "").upper()
+                    if list_in_text(trk_msg_up, TorrentMessages.UNREGISTERED_MSGS) and not list_in_text(
+                        trk_msg_up, TorrentMessages.IGNORE_MSGS
+                    ):
+                        unreg_tracker = trk
+                        break
+                    # Pass the raw URL only; get_tags() runs config lookups we don't
+                    # need per-tracker here, so defer it until a match is found.
+                    if self.check_for_unregistered_torrents_in_bhd({"url": trk.url}, trk_msg_up, torrent.hash):
+                        unreg_tracker = trk
+                        break
+
+                if self.cfg_rem_unregistered and unreg_tracker is not None:
+                    msg = unreg_tracker.msg
+                    msg_up = (msg or "").upper()
+                    tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([unreg_tracker]))
+                    if list_in_text(msg_up, self.rem_unregistered_ignore_list):
+                        logger.print_line(
+                            f"Ignoring unregistered torrent {self.t_name} due to matching phrase found in ignore list.",
+                            self.config.loglevel,
+                        )
+                    else:
+                        skip, age = self.is_within_grace(torrent)
+                        if skip:
+                            logger.print_line(
+                                logger.insert_space(
+                                    f"Skipping removal (within grace "
+                                    f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
+                                    f"{self.t_name}",
+                                    3,
+                                ),
+                                self.config.loglevel,
+                            )
                         else:
-                            if self.check_for_unregistered_torrents_in_bhd(tracker, msg_up, torrent.hash):
-                                skip, age = self.is_within_grace(torrent)
-                                if skip:
-                                    logger.print_line(
-                                        logger.insert_space(
-                                            f"Skipping removal (within grace "
-                                            f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
-                                            f"{self.t_name}",
-                                            3,
-                                        ),
-                                        self.config.loglevel,
-                                    )
-                                else:
-                                    self.check_max_limit_and_delete(msg, tracker, torrent)
-                    # Tag any error torrents
-                    if self.cfg_tag_error and self.tag_error not in check_tags:
-                        self.tag_tracker_error(msg, tracker, torrent)
+                            self.check_max_limit_and_delete(msg, tracker, torrent)
+
+                # Tag any error torrents.
+                if self.cfg_tag_error and self.tag_error not in check_tags:
+                    error_tracker = unreg_tracker if unreg_tracker is not None else failing_trackers[0]
+                    tracker = self.qbt.get_tags(self.qbt.get_tracker_urls([error_tracker]))
+                    self.tag_tracker_error(error_tracker.msg, tracker, torrent)
 
             try:
                 process_single_torrent()

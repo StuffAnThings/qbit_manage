@@ -1,0 +1,105 @@
+{
+    "name": "qbit-manage",
+    "dockerComposeFile": [
+        "docker-compose.yml",
+        "docker-compose.override.yml"
+    ],
+    "service": "app",
+    "workspaceFolder": "/workspace",
+    "remoteUser": "dev",
+    "containerUser": "dev",
+    "updateRemoteUserUID": false,
+    "containerEnv": {
+        "PUID": "99",
+        "PGID": "100",
+        "UMASK": "000",
+        "UV_LINK_MODE": "copy",
+        "VIRTUAL_ENV": "/workspace/.venv",
+        "UV_VENV_CLEAR": "1"
+    },
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": true,
+            "upgradePackages": true,
+            "username": "dev",
+            "userUid": "99",
+            "userGid": "100"
+        },
+        "ghcr.io/devcontainers/features/rust:1": {
+            "version": "latest",
+            "profile": "minimal"
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "lts",
+            "nodeGypDependencies": true
+        }
+    },
+    "forwardPorts": [
+        8181,
+        8080
+    ],
+    "portsAttributes": {
+        "8181": {
+            "label": "qbit-manage API",
+            "onAutoForward": "notify"
+        },
+        "8080": {
+            "label": "Web server",
+            "onAutoForward": "silent"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.debugpy",
+                "ms-python.vscode-pylance",
+                "charliermarsh.ruff",
+                "ms-python.pytest",
+                "rust-lang.rust-analyzer",
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "eamodio.gitlens",
+                "mhutchie.git-graph",
+                "redhat.vscode-yaml",
+                "ms-azuretools.vscode-docker",
+                "yzhang.markdown-all-in-one",
+                "DavidAnson.vscode-markdownlint",
+                "streetsidesoftware.code-spell-checker",
+                "usernamehw.errorlens"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+                "python.terminal.activateEnvironment": true,
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.fixAll": "explicit",
+                        "source.organizeImports": "explicit"
+                    }
+                },
+                "ruff.enable": true,
+                "ruff.organizeImports": true,
+                "python.testing.pytestEnabled": true,
+                "python.testing.pytestArgs": [
+                    "tests"
+                ],
+                "editor.rulers": [
+                    130
+                ],
+                "editor.bracketPairColorization.enabled": true,
+                "editor.guides.bracketPairs": "active",
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                "files.associations": {
+                    "config.yml": "yaml",
+                    "*.yml": "yaml"
+                }
+            }
+        }
+    },
+    "postCreateCommand": "make venv && make install-hooks"
+}

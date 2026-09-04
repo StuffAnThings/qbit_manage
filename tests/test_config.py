@@ -21,6 +21,12 @@ def _make_config(data: dict) -> Config:
     return cfg
 
 
+def _make_nohardlinks_config(nohardlinks) -> Config:
+    cfg = _make_config({"nohardlinks": nohardlinks})
+    cfg.commands = {"tag_nohardlinks": True}
+    return cfg
+
+
 class TestValidateRequiredSections:
     """validate_required_sections() requires at least one of cat or tracker."""
 
@@ -79,3 +85,40 @@ class TestValidateRequiredSections:
             cfg.validate_required_sections()
         assert len(cfg._notify_calls) == 1
         assert "Both" in cfg._notify_calls[0]
+
+
+class TestProcessConfigNohardlinks:
+    def test_legacy_list_defaults_ignore_category_dir_to_false(self):
+        cfg = _make_nohardlinks_config(["Movies"])
+
+        cfg.process_config_nohardlinks()
+
+        assert cfg.nohardlinks["Movies"]["ignore_category_dir"] is False
+
+    @pytest.mark.parametrize("category_config", [None, {}])
+    def test_empty_category_defaults_ignore_category_dir_to_false(self, category_config):
+        cfg = _make_nohardlinks_config({"Movies": category_config})
+
+        cfg.process_config_nohardlinks()
+
+        assert cfg.nohardlinks["Movies"]["ignore_category_dir"] is False
+
+    def test_explicit_ignore_category_dir_is_preserved(self):
+        cfg = _make_nohardlinks_config({"Movies": {"ignore_category_dir": True}})
+
+        cfg.process_config_nohardlinks()
+
+        assert cfg.nohardlinks["Movies"]["ignore_category_dir"] is True
+
+    def test_legacy_list_of_objects_preserves_ignore_category_dir(self):
+        cfg = _make_nohardlinks_config([{"Movies": {"ignore_category_dir": True}}])
+
+        cfg.process_config_nohardlinks()
+
+        assert cfg.nohardlinks["Movies"]["ignore_category_dir"] is True
+
+    def test_non_boolean_ignore_category_dir_is_rejected(self):
+        cfg = _make_nohardlinks_config({"Movies": {"ignore_category_dir": "true"}})
+
+        with pytest.raises(Failed, match="ignore_category_dir must be a boolean type"):
+            cfg.process_config_nohardlinks()

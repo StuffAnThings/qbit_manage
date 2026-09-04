@@ -269,20 +269,6 @@ parser.add_argument("-v", "--version", dest="version", action="store_true", defa
 args, _unknown_cli = parser.parse_known_args()
 
 
-try:
-    from git import InvalidGitRepositoryError
-    from git import Repo
-
-    try:
-        git_branch = Repo(path=".").head.ref.name  # noqa
-    except (InvalidGitRepositoryError, TypeError, ValueError):
-        # TypeError/ValueError is raised when HEAD is a detached reference
-        # (e.g. when running from a specific commit checkout in CI or a
-        # PyInstaller-built binary run against a detached-HEAD clone).
-        git_branch = None
-except ImportError:
-    git_branch = None
-
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True) or in_docker()
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
@@ -429,6 +415,7 @@ def my_except_hook(exctype, value, tbi):
 sys.excepthook = my_except_hook
 
 version, branch = util.get_current_version()
+git_branch = branch
 
 
 def _open_browser_when_ready(url: str, logger):

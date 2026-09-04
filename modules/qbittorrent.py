@@ -198,7 +198,7 @@ class Qbt:
             for trk in torrent_trackers:
                 if trk.url.split(":")[0] in ["http", "https", "udp", "ws", "wss"]:
                     status = trk.status
-                    msg = trk.msg.upper()
+                    msg = (trk.msg or "").upper()
                     if TrackerStatus(trk.status) == TrackerStatus.WORKING:
                         working_tracker = True
                         break

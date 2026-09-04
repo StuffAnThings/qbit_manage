@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from modules.util import branch_from_version
 from modules.util import check
 from modules.util import format_stats_summary
 from modules.util import get_list
@@ -23,6 +24,18 @@ from modules.util import parse_size_to_bytes
 from modules.util import parse_version
 from modules.util import path_replace
 from modules.util import trunc_val
+
+
+class TestBranchFromVersion:
+    def test_develop_version(self):
+        assert branch_from_version("4.12.1-develop8") == "develop"
+
+    def test_release_version(self):
+        assert branch_from_version("4.12.1") == "master"
+
+    def test_invalid_version(self):
+        assert branch_from_version("4.12.1-beta1") is None
+
 
 # ── get_list ─────────────────────────────────────────────────────────────────
 

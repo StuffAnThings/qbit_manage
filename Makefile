@@ -36,8 +36,7 @@ ifdef UV_INSTALL
 	@echo "uv installed to $(HOME)/.local/bin/uv"
 	$(eval UV_PATH := $(HOME)/.local/bin/uv)
 else
-	@echo "Auto-updating uv..."
-	@$(UV_PATH) self update || echo "uv self update unavailable or failed; continuing with installed uv."
+	@$(UV_PATH) self update 2>/dev/null || true
 endif
 
 .PHONY: venv
@@ -76,6 +75,7 @@ pre-commit: venv
 .PHONY: install-hooks
 install-hooks: venv
 	@echo "Installing pre-commit hooks..."
+	@rm -f .git/hooks/pre-commit .git/hooks/pre-commit.legacy 2>/dev/null || true
 	@. $(VENV_ACTIVATE) && $(VENV_PRE_COMMIT) install -f --install-hooks
 
 .PHONY: clean

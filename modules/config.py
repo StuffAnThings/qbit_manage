@@ -85,6 +85,49 @@ def validate_share_limit_action(raw, cleanup, group):
     return resolved
 
 
+def normalize_cat_change(raw):
+    """Validate and normalize cat_change config into the canonical mapping
+    ``{old_cat: {"new_cat": str, "delay_minutes": int}}``.
+
+    Accepts the simple form (``old_cat: new_cat``) and the extended form
+    (``old_cat: {new_cat: str, delay_minutes: int}``); raises Failed on invalid
+    input. Pure function — shared by Config._process_cat_change and the test
+    FakeConfig factory so test assertions track production validation rather
+    than a stale local mirror.
+    """
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise Failed(f"Config Error: cat_change must be a mapping (dict), got {type(raw).__name__}")
+    result = {}
+    for old_cat, value in raw.items():
+        if isinstance(value, str):
+            result[old_cat] = {"new_cat": value, "delay_minutes": 0}
+        elif isinstance(value, dict):
+            new_cat = value.get("new_cat")
+            if not new_cat:
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' is missing required 'new_cat' key")
+            if not isinstance(new_cat, str):
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' new_cat must be a string, got {type(new_cat).__name__}")
+            delay = value.get("delay_minutes", 0)
+            if isinstance(delay, bool) or not isinstance(delay, (int, float)) or delay < 0:
+                raise Failed(f"Config Error: cat_change entry '{old_cat}' has invalid delay_minutes: {delay}")
+            # Reject floats with a non-zero fractional part: int(0.9)=0 would silently
+            # disable the delay; int(30.9)=30 fires ~54s early. PR #1161 advertises
+            # integer minutes — be strict (Copilot review).
+            if isinstance(delay, float) and not delay.is_integer():
+                raise Failed(
+                    f"Config Error: cat_change entry '{old_cat}' has fractional "
+                    f"delay_minutes={delay}; must be a whole number of minutes."
+                )
+            result[old_cat] = {"new_cat": new_cat, "delay_minutes": int(delay)}
+        else:
+            raise Failed(
+                f"Config Error: cat_change entry '{old_cat}' has invalid type {type(value).__name__}; must be string or dict"
+            )
+    return result
+
+
 class Config:
     """Config class for qBittorrent-Manage"""
 
@@ -121,10 +164,14 @@ class Config:
         self.data = self.process_config_data()
         self.process_config_settings()
         self.process_config_webhooks()
-        self.cat_change = self.data["cat_change"] if "cat_change" in self.data else {}
         self.process_config_apprise()
         self.process_config_notifiarr()
         self.process_config_all_webhooks()
+        # Must run AFTER process_config_all_webhooks() wraps webhooks_factory into a
+        # Webhooks object: _process_cat_change() calls self.notify() on config errors,
+        # which would raise AttributeError on the still-dict webhooks_factory and mask
+        # the real config error (Copilot review).
+        self.cat_change = self._process_cat_change()
         self.validate_required_sections()
         self.process_config_nohardlinks()
         self.process_config_share_limits()
@@ -318,6 +365,21 @@ class Config:
             )
             self.notify(err, "Config")
             raise Failed(err)
+
+    def _process_cat_change(self):
+        """
+        Process cat_change config, supporting both simple and extended formats.
+
+        Simple format: old_cat: new_cat
+        Extended format: old_cat: {new_cat: "name", delay_minutes: 30}
+
+        Returns dict mapping old_cat -> {"new_cat": str, "delay_minutes": int}
+        """
+        try:
+            return normalize_cat_change(self.data.get("cat_change"))
+        except Failed as e:
+            self.notify(str(e), "Config")
+            raise
 
     def process_config_settings(self):
         """
@@ -516,30 +578,128 @@ class Config:
         self.nohardlinks = None
         if "nohardlinks" in self.data and self.commands["tag_nohardlinks"] and self.data["nohardlinks"] is not None:
             self.nohardlinks = {}
-            for cat in self.data["nohardlinks"]:
-                if isinstance(self.data["nohardlinks"], list) and isinstance(cat, str):
-                    self.nohardlinks[cat] = {"exclude_tags": [], "ignore_root_dir": True}
+            nohardlinks_data = self.data["nohardlinks"]
+            # Bug 1 fix: validate outer container type before iterating
+            if not isinstance(nohardlinks_data, (dict, list)):
+                err = (
+                    f"Config Error: nohardlinks must be a dict (with optional global_options) or a list of category "
+                    f"names/dicts (got {type(nohardlinks_data).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+            # Extract global_options defaults if present (dict form or list-with-global_options-entry form)
+            global_opts = {}
+            if isinstance(nohardlinks_data, dict):
+                raw_global_opts = nohardlinks_data.get("global_options", {})
+                if raw_global_opts is None:
+                    raw_global_opts = {}
+                if not isinstance(raw_global_opts, dict):
+                    err = f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                    self.notify(err, "Config")
+                    raise Failed(err)
+                global_opts = raw_global_opts
+            elif isinstance(nohardlinks_data, list):
+                # Bug 3 fix: extract global_options from list-form when present as a dict entry
+                for _entry in nohardlinks_data:
+                    if isinstance(_entry, dict) and "global_options" in _entry:
+                        raw_global_opts = _entry["global_options"]
+                        if raw_global_opts is None:
+                            raw_global_opts = {}
+                        if not isinstance(raw_global_opts, dict):
+                            err = (
+                                f"Config Error: nohardlinks global_options must be a dict (got {type(raw_global_opts).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                        global_opts = raw_global_opts
+                        break
+            global_exclude_tags = global_opts.get("exclude_tags", [])
+            if global_exclude_tags is None:
+                global_exclude_tags = []
+            # Bug 2 fix: validate global exclude_tags is a list
+            if not isinstance(global_exclude_tags, list):
+                err = (
+                    f"Config Error: nohardlinks global_options exclude_tags must be a list"
+                    f" (got {type(global_exclude_tags).__name__})"
+                )
+                self.notify(err, "Config")
+                raise Failed(err)
+            # Entries must be strings — a non-string (e.g. nested list/dict) would raise an
+            # unhashable-type TypeError in the per-category dedup below instead of a clear error.
+            for _tag in global_exclude_tags:
+                if not isinstance(_tag, str):
+                    err = (
+                        f"Config Error: nohardlinks global_options exclude_tags entries must be strings"
+                        f" (got {type(_tag).__name__})"
+                    )
+                    self.notify(err, "Config")
+                    raise Failed(err)
+            global_exclude_tags = list(dict.fromkeys(global_exclude_tags))
+            global_ignore_root_dir = global_opts.get("ignore_root_dir", True)
+            if not isinstance(global_ignore_root_dir, bool):
+                err = "Config Error: nohardlinks global_options ignore_root_dir must be a boolean type"
+                self.notify(err, "Config")
+                raise Failed(err)
+            for cat in nohardlinks_data:
+                # Only the dict-form `nohardlinks: {global_options: {...}}` reserves this key.
+                # In list-form, a category legitimately named "global_options" must not be
+                # silently dropped (the list-form global entry is the dict-item case below).
+                if isinstance(nohardlinks_data, dict) and cat == "global_options":
+                    continue
+                # Bug 3 fix: skip the global_options dict entry when iterating a list-form nohardlinks
+                if isinstance(nohardlinks_data, list) and isinstance(cat, dict) and "global_options" in cat:
+                    continue
+                if isinstance(nohardlinks_data, list) and isinstance(cat, str):
+                    self.nohardlinks[cat] = {
+                        "exclude_tags": list(global_exclude_tags),
+                        "ignore_root_dir": global_ignore_root_dir,
+                        "ignore_category_dir": False,
+                    }
                     continue
                 if isinstance(cat, dict):
                     cat_str = list(cat.keys())[0]
                 elif isinstance(cat, str):
                     cat_str = cat
-                    cat = self.data["nohardlinks"]
+                    cat = nohardlinks_data
                 if cat[cat_str] is None:
                     cat[cat_str] = {}
+                cat_exclude_tags = cat[cat_str].get("exclude_tags", None)
+                cat_ignore_root_dir = cat[cat_str].get("ignore_root_dir", None)
+                # Per-category exclude_tags merge (union) with global_options; ignore_root_dir overrides
+                merged_exclude_tags = list(global_exclude_tags)
+                if cat_exclude_tags is not None:
+                    if not isinstance(cat_exclude_tags, list):
+                        err = f"Config Error: nohardlinks category {cat_str} attribute exclude_tags must be a list"
+                        self.notify(err, "Config")
+                        raise Failed(err)
+                    seen: set[str] = set(merged_exclude_tags)
+                    for _tag in cat_exclude_tags:
+                        if not isinstance(_tag, str):
+                            err = (
+                                f"Config Error: nohardlinks category {cat_str} exclude_tags entries must be strings"
+                                f" (got {type(_tag).__name__})"
+                            )
+                            self.notify(err, "Config")
+                            raise Failed(err)
+                        if _tag not in seen:
+                            seen.add(_tag)
+                            merged_exclude_tags.append(_tag)
                 self.nohardlinks[cat_str] = {
-                    "exclude_tags": cat[cat_str].get("exclude_tags", []),
-                    "ignore_root_dir": cat[cat_str].get("ignore_root_dir", True),
+                    "exclude_tags": merged_exclude_tags,
+                    "ignore_root_dir": cat_ignore_root_dir if cat_ignore_root_dir is not None else global_ignore_root_dir,
+                    "ignore_category_dir": cat[cat_str].get("ignore_category_dir", False),
                 }
-                if self.nohardlinks[cat_str]["exclude_tags"] is None:
-                    self.nohardlinks[cat_str]["exclude_tags"] = []
                 if not isinstance(self.nohardlinks[cat_str]["ignore_root_dir"], bool):
                     err = f"Config Error: nohardlinks category {cat_str} attribute ignore_root_dir must be a boolean type"
                     self.notify(err, "Config")
                     raise Failed(err)
+                if not isinstance(self.nohardlinks[cat_str]["ignore_category_dir"], bool):
+                    err = f"Config Error: nohardlinks category {cat_str} attribute ignore_category_dir must be a boolean type"
+                    self.notify(err, "Config")
+                    raise Failed(err)
         else:
             if self.commands["tag_nohardlinks"]:
-                err = "Config Error: nohardlinks must be a list of categories"
+                err = "Config Error: nohardlinks must be a dict (with optional global_options) or a list of category names/dicts"
                 self.notify(err, "Config")
                 raise Failed(err)
 
