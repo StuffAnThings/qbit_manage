@@ -6,7 +6,7 @@ __pycache__/
 *.log*
 *.yml
 !.devcontainer/docker-compose.yml
-.devcontainer/docker-compose.override.yml
+!.devcontainer/docker-compose.override.yml
 .devcontainer/docker-compose.override.yaml
 .vscode/*
 !.github/**
