@@ -1,3 +1,4 @@
+---
 # Add host-specific mounts, networks, or environment variables here.
 # Keep this file portable when committing changes.
 services:
