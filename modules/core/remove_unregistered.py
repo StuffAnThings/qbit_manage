@@ -26,14 +26,17 @@ class RemoveUnregistered:
         self.stats_untagged = 0
         self.tor_error_summary = ""
         self.tag_error = self.config.tracker_error_tag
+        self.unregistered_tag = self.config.unregistered_tag
         self.cfg_rem_unregistered = self.config.commands["rem_unregistered"]
         self.cfg_tag_error = self.config.commands["tag_tracker_error"]
         self.rem_unregistered_ignore_list = self.config.settings["rem_unregistered_ignore_list"]
         self.filter_completed = self.config.settings["rem_unregistered_filter_completed"]
         self.rem_unregistered_grace_minutes = self.config.settings["rem_unregistered_grace_minutes"]
         self.rem_unregistered_max_torrents = self.config.settings["rem_unregistered_max_torrents"]
+        self.confirm_minutes = self.config.settings["rem_unregistered_confirm_minutes"]
         self.hashes = hashes
         self.tracker_del_count = {}
+        self.confirmed_unregistered_hashes = set()
 
         tag_error_msg = "Tagging Torrents with Tracker Errors" if self.cfg_tag_error else ""
         rem_unregistered_msg = "Removing Unregistered Torrents" if self.cfg_rem_unregistered else ""
@@ -89,6 +92,22 @@ class RemoveUnregistered:
 
         self.config.webhooks_factory.notify(torrents_updated, notify_attr, group_by="tag")
 
+    def get_pending_removal(self, check_tags):
+        """Return (marker_tag, first_seen_epoch) for a valid pending-removal flag, else (None, None).
+
+        A marker whose timestamp is unparseable (e.g. hand-edited, or an unrelated
+        tag that shares the prefix) is ignored, so a malformed tag can never
+        short-circuit the dwell window into an immediate deletion.
+        """
+        prefix = f"{self.unregistered_tag}_"
+        for tag in check_tags:
+            if tag.startswith(prefix):
+                try:
+                    return tag, int(tag[len(prefix) :])
+                except ValueError:
+                    continue
+        return None, None
+
     def check_for_unregistered_torrents_in_bhd(self, tracker, msg_up, torrent_hash):
         """
         Checks if a torrent is unregistered in BHD using their deletion reasons.
@@ -132,6 +151,7 @@ class RemoveUnregistered:
         self.notify_attr_issue = []  # List of single torrent attributes to send to notifiarr
         self.torrents_updated_unreg = []  # List of torrents updated
         self.notify_attr_unreg = []  # List of single torrent attributes to send to notifiarr
+        self.confirmed_unregistered_hashes = set()  # torrents reconfirmed unregistered this run
 
         torrent_issue_list = self.qbt.torrentissue
         if self.hashes:
@@ -174,8 +194,6 @@ class RemoveUnregistered:
                 )
                 failing_trackers = [trk for trk in real_trackers if TrackerStatus(trk.status) in terminal_failures]
                 if not failing_trackers:
-                    # No tracker reported a terminal failure (only DISABLED/pseudo
-                    # entries remain); nothing actionable.
                     return
 
                 # Scan every failing tracker, not just the last one, so an
@@ -194,6 +212,12 @@ class RemoveUnregistered:
                         unreg_tracker = trk
                         break
 
+                # Reconfirmed unregistered this run: its dwell marker is legitimate.
+                # Every other marker is cleared afterwards by clear_stale_pending_markers,
+                # so the dwell window only survives continuous unregistration.
+                if unreg_tracker is not None:
+                    self.confirmed_unregistered_hashes.add(torrent.hash)
+
                 if self.cfg_rem_unregistered and unreg_tracker is not None:
                     msg = unreg_tracker.msg
                     msg_up = (msg or "").upper()
@@ -204,6 +228,8 @@ class RemoveUnregistered:
                             self.config.loglevel,
                         )
                     else:
+                        pending_tag, first_seen = self.get_pending_removal(check_tags)
+                        confirmed = first_seen is not None and (time.time() - first_seen) >= self.confirm_minutes * 60
                         skip, age = self.is_within_grace(torrent)
                         if skip:
                             logger.print_line(
@@ -211,6 +237,17 @@ class RemoveUnregistered:
                                     f"Skipping removal (within grace "
                                     f"{self.rem_unregistered_grace_minutes} min, age {age:.1f} min): "
                                     f"{self.t_name}",
+                                    3,
+                                ),
+                                self.config.loglevel,
+                            )
+                        elif self.confirm_minutes and not confirmed:
+                            # First sighting stamps a marker tag with the current time.
+                            if pending_tag is None and not self.config.dry_run:
+                                torrent.add_tags(tags=f"{self.unregistered_tag}_{int(time.time())}")
+                            logger.print_line(
+                                logger.insert_space(
+                                    f"Skipping removal (pending confirmation for {self.confirm_minutes} min): {self.t_name}",
                                     3,
                                 ),
                                 self.config.loglevel,
@@ -230,6 +267,38 @@ class RemoveUnregistered:
                 logger.stacktrace()
                 self.config.notify(ex, "Remove Unregistered Torrents", False)
                 logger.error(f"Remove Unregistered Torrents Error: {ex}")
+
+    def clear_stale_pending_markers(self):
+        """Drop pending-removal markers on torrents not reconfirmed unregistered this run.
+
+        process_torrent_issues() and remove_previous_errors() only iterate torrents
+        that get_torrent_info() classified as unregistered (torrentissue) or working
+        (torrentvalid). A torrent whose current snapshot is inconclusive - every real
+        tracker UPDATING/NOT_CONTACTED, or no actionable tracker - lands in neither
+        list, so without this sweep its marker would persist across the interruption
+        and later short-circuit the dwell window into an immediate deletion. Clearing
+        every marker except those reconfirmed this run makes the dwell timer require
+        continuous unregistration.
+        """
+        torrent_list = self.qbt.torrent_list
+        if self.hashes:
+            torrent_list = [t for t in torrent_list if t.hash in self.hashes]
+        for torrent in torrent_list:
+            if torrent.hash in self.confirmed_unregistered_hashes:
+                continue
+            pending_tag, _ = self.get_pending_removal(util.get_list(torrent.tags))
+            if not pending_tag:
+                continue
+            if not self.config.dry_run:
+                torrent.remove_tags(tags=pending_tag)
+            action = "Would clear" if self.config.dry_run else "Cleared"
+            logger.print_line(
+                logger.insert_space(
+                    f"{action} pending-removal flag (no longer unregistered): {torrent.name}",
+                    3,
+                ),
+                self.config.loglevel,
+            )
 
     def check_max_limit_and_delete(self, msg, tracker, torrent):
         """Checks if the max limit of torrents to remove has been reached for the tracker."""
@@ -255,6 +324,7 @@ class RemoveUnregistered:
         start_time = time.time()
         self.remove_previous_errors()
         self.process_torrent_issues()
+        self.clear_stale_pending_markers()
 
         self.config.webhooks_factory.notify(self.torrents_updated_issue, self.notify_attr_issue, group_by="status")
         self.config.webhooks_factory.notify(self.torrents_updated_unreg, self.notify_attr_unreg, group_by="status")
