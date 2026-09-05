@@ -38,7 +38,8 @@ runs:
         OUTFILE: ${{ inputs.outfile }}
       run: |
         OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
-        HEAD_LINE="${HEADING:-## What's Changed in v${NEW_VERSION}}"
+        DEFAULT_HEADING="## What's Changed in v${NEW_VERSION}"
+        HEAD_LINE="${HEADING:-$DEFAULT_HEADING}"
 
         if [[ -n "$OVERRIDE" ]]; then
           NOTES="$OVERRIDE"
@@ -58,7 +59,13 @@ runs:
             || true)
 
           if [[ -z "$LOG" && "$DEPS" -eq 0 ]]; then
-            NOTES="${HEAD_LINE}"$'\n'$'\n'"${EMPTY_MESSAGE}"
+            # Prepend a heading only when the caller set one, so the default
+            # (release-pr.yml) empty-range output stays just the message.
+            if [[ -n "$HEADING" ]]; then
+              NOTES="${HEADING}"$'\n'$'\n'"${EMPTY_MESSAGE}"
+            else
+              NOTES="${EMPTY_MESSAGE}"
+            fi
           else
             FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
             FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
