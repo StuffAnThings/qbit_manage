@@ -1,14 +1,26 @@
 name: Generate release notes
-description: Build categorized release notes from git log (origin/master..HEAD).
+description: Build categorized release notes from a git log range (default origin/master..HEAD).
 
 inputs:
   new-version:
-    description: Version being released, without the leading v.
+    description: Version being released, without the leading v. Used for the default heading.
     required: true
   override:
     description: If non-empty, used verbatim instead of the git-log changelog.
     required: false
     default: ""
+  range:
+    description: git log revision range the changelog is built from.
+    required: false
+    default: origin/master..HEAD
+  heading:
+    description: Markdown heading for the section. Empty falls back to "## What's Changed in v<new-version>".
+    required: false
+    default: ""
+  empty-message:
+    description: Text shown when the range contains no notable commits.
+    required: false
+    default: "No new commits since last release."
   outfile:
     description: Path the generated notes are written to.
     required: true
@@ -20,14 +32,19 @@ runs:
       env:
         RELEASE_NOTES_OVERRIDE: ${{ inputs.override }}
         NEW_VERSION: ${{ inputs.new-version }}
+        RANGE: ${{ inputs.range }}
+        HEADING: ${{ inputs.heading }}
+        EMPTY_MESSAGE: ${{ inputs.empty-message }}
         OUTFILE: ${{ inputs.outfile }}
       run: |
         OVERRIDE="${RELEASE_NOTES_OVERRIDE}"
+        DEFAULT_HEADING="## What's Changed in v${NEW_VERSION}"
+        HEAD_LINE="${HEADING:-$DEFAULT_HEADING}"
 
         if [[ -n "$OVERRIDE" ]]; then
           NOTES="$OVERRIDE"
         else
-          RAW=$(git log origin/master..HEAD --oneline --no-merges 2>/dev/null || true)
+          RAW=$(git log "$RANGE" --oneline --no-merges 2>/dev/null || true)
 
           # Collapse dependency bumps to a single count instead of one line each.
           DEPS=$(printf '%s\n' "$RAW" | grep -ciE 'chore\(deps' || true)
@@ -37,12 +54,18 @@ runs:
           # notes become the master commit message and a literal [skip ci] there
           # would make GitHub skip the whole release chain.
           LOG=$(printf '%s\n' "$RAW" \
-            | grep -viE 'chore(\(release\))?: bump VERSION|chore\(deps|\[pre-commit\.ci\]|pre-commit autoupdate|Update SUPPORTED_VERSIONS' \
+            | grep -viE 'chore(\(release\))?: bump VERSION|\[skip-version-bump\]|Update VERSION to|chore\(deps|\[pre-commit\.ci\]|pre-commit autoupdate|Update SUPPORTED_VERSIONS' \
             | sed -E 's/\[(skip ci|ci skip|no ci|skip actions|actions skip)\]/(\1)/Ig; s/\*\*\*NO_CI\*\*\*/(no ci)/Ig' \
             || true)
 
           if [[ -z "$LOG" && "$DEPS" -eq 0 ]]; then
-            NOTES="No new commits since last release."
+            # Prepend a heading only when the caller set one, so the default
+            # (release-pr.yml) empty-range output stays just the message.
+            if [[ -n "$HEADING" ]]; then
+              NOTES="${HEADING}"$'\n'$'\n'"${EMPTY_MESSAGE}"
+            else
+              NOTES="${EMPTY_MESSAGE}"
+            fi
           else
             FEAT=$(echo "$LOG"     | grep -E '^[a-f0-9]+ feat(\(.*\))?:'     || true)
             FIX=$(echo "$LOG"      | grep -E '^[a-f0-9]+ fix(\(.*\))?:'      || true)
@@ -50,7 +73,7 @@ runs:
             PERF=$(echo "$LOG"     | grep -E '^[a-f0-9]+ perf(\(.*\))?:'     || true)
             DOCS=$(echo "$LOG"     | grep -E '^[a-f0-9]+ docs(\(.*\))?:'     || true)
 
-            NOTES="## What's Changed in v${NEW_VERSION}"$'\n'$'\n'
+            NOTES="${HEAD_LINE}"$'\n'$'\n'
 
             [[ -n "$FEAT" ]]     && NOTES+="### Features"$'\n'"$FEAT"$'\n'$'\n'
             [[ -n "$FIX" ]]      && NOTES+="### Bug Fixes"$'\n'"$FIX"$'\n'$'\n'

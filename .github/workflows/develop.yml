@@ -71,6 +71,55 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.resolve-develop.outputs.sha }}
+          # Full history + tags so the changelog ranges below can be computed.
+          fetch-depth: 0
+
+      - name: Fetch changelog reference points
+        run: git fetch --tags --force origin master
+
+      - name: Resolve changelog boundaries
+        id: bounds
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Last stable tag reachable from master, used only for the section heading.
+          LAST_STABLE="$(git describe --tags --abbrev=0 --match 'v*' origin/master 2>/dev/null || echo '')"
+          echo "stable_heading=## Changes since last stable release${LAST_STABLE:+ ($LAST_STABLE)}" >> "$GITHUB_OUTPUT"
+
+          # Target of the current rolling develop pre-release, captured BEFORE it is
+          # deleted+recreated below, so "since the previous develop build" has a
+          # start point. Skipped when the release is missing, or the recorded commit
+          # is not in this checkout (a force-reset develop can orphan the old build).
+          PREV_SHA="$(gh release view latest-develop --json targetCommitish -q '.targetCommitish' 2>/dev/null || echo '')"
+          if [[ -n "$PREV_SHA" ]] && git rev-parse -q --verify "${PREV_SHA}^{commit}" >/dev/null 2>&1; then
+            echo "prev_sha=$PREV_SHA" >> "$GITHUB_OUTPUT"
+            echo "dev_heading=## Changes since the previous develop build (\`${PREV_SHA:0:7}\`)" >> "$GITHUB_OUTPUT"
+          else
+            echo "prev_sha=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Changelog since last stable release
+        uses: ./.github/actions/release-notes
+        with:
+          new-version: ${{ steps.bounds.outputs.version }}
+          range: origin/master..${{ needs.resolve-develop.outputs.sha }}
+          heading: ${{ steps.bounds.outputs.stable_heading }}
+          empty-message: "No new commits since the last stable release."
+          outfile: /tmp/since_stable.md
+
+      - name: Changelog since previous develop build
+        if: steps.bounds.outputs.prev_sha != ''
+        uses: ./.github/actions/release-notes
+        with:
+          new-version: ${{ steps.bounds.outputs.version }}
+          range: ${{ steps.bounds.outputs.prev_sha }}..${{ needs.resolve-develop.outputs.sha }}
+          heading: ${{ steps.bounds.outputs.dev_heading }}
+          empty-message: "No new commits since the previous develop build."
+          outfile: /tmp/since_dev.md
 
       - name: Download prepared release assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -87,7 +136,21 @@ jobs:
           TAG="latest-develop"
           HEAD_SHA="${{ needs.resolve-develop.outputs.sha }}"
           RELEASE_ERROR="$(mktemp)"
-          trap 'rm -f "$RELEASE_ERROR"' EXIT
+          NOTES_FILE="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR" "$NOTES_FILE"' EXIT
+
+          # Assemble the rolling notes: build preamble + a "since last stable" and
+          # (when available) a "since the previous develop build" changelog section.
+          {
+            printf 'Rolling pre-release built from the latest `develop` commit (`%s`).\n' "$HEAD_SHA"
+            printf 'Auto-updated on every merge to develop — this is a development build, not a stable release.\n\n'
+            cat /tmp/since_stable.md
+            if [[ -f /tmp/since_dev.md ]]; then
+              printf '\n\n'
+              cat /tmp/since_dev.md
+            fi
+            printf '\n'
+          } > "$NOTES_FILE"
 
           # The GitHub API cannot move an existing tag to a new commit, so delete
           # the rolling release + its tag and recreate both at the current HEAD.
@@ -107,7 +170,7 @@ jobs:
           gh release create "$TAG" \
             --target "$HEAD_SHA" \
             --title "Develop build ($VERSION)" \
-            --notes "Rolling pre-release built from the latest \`develop\` commit (\`$HEAD_SHA\`). Auto-updated on every merge to develop — this is a development build, not a stable release." \
+            --notes-file "$NOTES_FILE" \
             --prerelease \
             --latest=false \
             release-assets/*
