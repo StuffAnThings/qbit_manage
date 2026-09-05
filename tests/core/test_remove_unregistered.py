@@ -859,14 +859,15 @@ def test_confirm_clears_flag_when_no_longer_unregistered():
 
     with patch.object(ru, "check_max_limit_and_delete") as mock_del:
         ru.process_torrent_issues()
+        ru.clear_stale_pending_markers()
 
     assert not mock_del.called
     remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
     assert any(c[1].get("tags") == marker for c in remove_calls)
 
 
-def test_confirm_clears_flag_on_working_tracker_in_remove_previous_errors():
-    """remove_previous_errors() strips the pending flag once a tracker works again."""
+def test_confirm_clears_flag_on_working_tracker():
+    """The stale-marker sweep strips the pending flag once a tracker works again."""
     cfg = _confirm_cfg()
     marker = f"unregisteredCheck_{int(time.time()) - 120}"
     t = FakeTorrent(
@@ -881,16 +882,18 @@ def test_confirm_clears_flag_on_working_tracker_in_remove_previous_errors():
     ru = make_remove_unregistered(qbt)
 
     ru.remove_previous_errors()
+    ru.clear_stale_pending_markers()
 
     remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
     assert any(c[1].get("tags") == marker for c in remove_calls)
 
 
-def test_confirm_clears_stale_flag_when_disabled_in_remove_previous_errors():
+def test_confirm_clears_stale_flag_when_disabled():
     """A stale pending-removal marker is cleared even with confirm_minutes back to 0.
 
     Regression: cleanup was gated on confirm_minutes being truthy, so disabling
-    the feature after it had already tagged a torrent stranded that marker.
+    the feature after it had already tagged a torrent stranded that marker. The
+    sweep clears markers independent of the confirm_minutes setting.
     """
     cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_confirm_minutes": 0})
     marker = f"unregisteredCheck_{int(time.time()) - 120}"
@@ -906,9 +909,130 @@ def test_confirm_clears_stale_flag_when_disabled_in_remove_previous_errors():
     ru = make_remove_unregistered(qbt)
 
     ru.remove_previous_errors()
+    ru.clear_stale_pending_markers()
 
     remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
     assert any(c[1].get("tags") == marker for c in remove_calls)
+
+
+def test_sweep_clears_marker_on_inconclusive_neither_bucket():
+    """A marked torrent whose snapshot is all-UPDATING lands in neither torrentissue
+    nor torrentvalid; the sweep still clears its stale marker."""
+    cfg = _confirm_cfg()
+    marker = f"unregisteredCheck_{int(time.time()) - 120 * 60}"
+    t = FakeTorrent(
+        name="T.Inconclusive",
+        hash="hincon",
+        category="Test",
+        tags=marker,
+        added_on=int(time.time()) - 24 * 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=3, msg="")],  # UPDATING
+    )
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentissue_override = []  # inconclusive -> classified into neither list
+    qbt._torrentvalid_override = []
+    ru = make_remove_unregistered(qbt)
+
+    ru.process_torrent_issues()
+    ru.clear_stale_pending_markers()
+
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
+
+
+def test_sweep_clears_marker_on_mixed_tracker_early_return():
+    """A torrentissue torrent with an UPDATING sibling tracker hits the inconclusive
+    early-return in process_torrent_issues; the sweep clears its stale marker so the
+    dwell restarts instead of counting the interruption toward the deadline."""
+    cfg = _confirm_cfg()
+    marker = f"unregisteredCheck_{int(time.time()) - 120 * 60}"
+    t = FakeTorrent(
+        name="T.Mixed",
+        hash="hmixed",
+        category="Test",
+        tags=marker,
+        added_on=int(time.time()) - 24 * 3600,
+        trackers=[
+            _Tracker(url="http://a.example/announce", status=3, msg=""),  # UPDATING
+            _Tracker(url="http://b.example/announce", status=4, msg="Unregistered torrent"),  # NOT_WORKING
+        ],
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+        ru.clear_stale_pending_markers()
+
+    assert not mock_del.called  # inconclusive: not deleted this run
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
+
+
+def test_sweep_keeps_marker_when_still_unregistered():
+    """A torrent reconfirmed unregistered this run keeps its dwell marker (not swept)."""
+    cfg = _confirm_cfg()
+    marker = f"unregisteredCheck_{int(time.time()) - 30 * 60}"  # dwell not yet elapsed (60 min)
+    t = FakeTorrent(
+        name="T.StillUnreg",
+        hash="hstill",
+        category="Test",
+        tags=marker,
+        added_on=int(time.time()) - 24 * 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],  # NOT_WORKING
+    )
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete") as mock_del:
+        ru.process_torrent_issues()
+        ru.clear_stale_pending_markers()
+
+    assert not mock_del.called  # dwell not elapsed
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert not any(c[1].get("tags") == marker for c in remove_calls)  # marker preserved
+
+
+def test_inconclusive_state_resets_dwell_no_immediate_delete():
+    """Regression: unregistered -> updating -> unregistered must NOT delete on the
+    second sighting. The inconclusive snapshot clears the marker so the dwell timer
+    restarts rather than counting wall-clock across the interruption."""
+    cfg = _confirm_cfg()  # confirm_minutes = 60
+    # Marker old enough that, if it survived, the dwell would read as elapsed.
+    stale = int(time.time()) - 120 * 60
+    t = FakeTorrent(
+        name="T.Flap",
+        hash="hflap",
+        category="Test",
+        tags=f"unregisteredCheck_{stale}",
+        added_on=int(time.time()) - 24 * 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=3, msg="")],  # UPDATING
+    )
+
+    # Run 1: inconclusive snapshot -> neither bucket -> sweep clears the stale marker.
+    qbt1 = _make_qbt(torrents=[t], config=cfg)
+    qbt1._torrentissue_override = []
+    qbt1._torrentvalid_override = []
+    ru1 = make_remove_unregistered(qbt1)
+    ru1.process_torrent_issues()
+    ru1.clear_stale_pending_markers()
+    assert not any(tag.startswith("unregisteredCheck_") for tag in (t.tags or "").split(", ") if tag)
+
+    # Run 2: unregistered again. With the marker cleared this is a fresh first
+    # sighting, so it is re-flagged and NOT deleted despite the original deadline.
+    t.trackers = [_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")]
+    qbt2 = _make_issue_qbt(t, config=cfg)
+    qbt2._torrentissue_override = [t]
+    ru2 = make_remove_unregistered(qbt2)
+    with patch.object(ru2, "check_max_limit_and_delete") as mock_del:
+        ru2.process_torrent_issues()
+        ru2.clear_stale_pending_markers()
+
+    assert not mock_del.called  # NOT deleted immediately
+    add_calls = [c for c in t.calls if c[0] == "add_tags"]
+    assert any(str(c[1].get("tags", "")).startswith("unregisteredCheck_") for c in add_calls)  # re-flagged
 
 
 def test_grace_period_blocks_deletion():

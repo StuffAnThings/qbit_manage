@@ -617,6 +617,7 @@ def make_remove_unregistered(qbt_manager, hashes=None):
     instance.rem_unregistered_max_torrents = qbt_manager.config.settings.get("rem_unregistered_max_torrents", 0)
     instance.hashes = hashes
     instance.tracker_del_count = {}
+    instance.confirmed_unregistered_hashes = set()
     instance.torrents_updated_issue = []
     instance.notify_attr_issue = []
     instance.torrents_updated_unreg = []
