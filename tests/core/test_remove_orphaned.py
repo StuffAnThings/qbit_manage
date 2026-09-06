@@ -11,6 +11,7 @@ import os
 import time
 from types import SimpleNamespace
 
+from modules.core.remove_orphaned import find_orphaned_files
 from tests.factories import FakeConfig
 from tests.factories import FakeQbtManager
 from tests.factories import FakeTorrent
@@ -362,3 +363,64 @@ class TestFilterTooNew:
         result = ro._filter_too_new({orphan_root}, now)
 
         assert result == set()
+
+
+class TestFindOrphanedFiles:
+    """Test the Unicode-normalized (NFC) diff between disk files and torrent files."""
+
+    def test_nfd_disk_file_matches_nfc_torrent_file(self):
+        """A file stored in NFD on disk must not be flagged when tracked in NFC."""
+        # "í" precomposed (NFC, torrent metadata) vs decomposed (NFD, APFS walk):
+        # visually identical, different byte sequences — raw diff would orphan it.
+        nfc_path = "/data/torrents/Album/06 - Para\u00edsos Quemados.flac"
+        nfd_path = "/data/torrents/Album/06 - Parai\u0301sos Quemados.flac"
+        assert nfc_path != nfd_path  # sanity: raw set difference would flag it
+
+        assert find_orphaned_files({nfd_path}, {nfc_path}) == set()
+
+    def test_nfc_disk_file_matches_nfd_torrent_file(self):
+        """Reverse direction: NFC on disk, NFD reported by qBittorrent."""
+        nfc_path = "/data/torrents/Album/Album-N\u00e9.flac"
+        nfd_path = "/data/torrents/Album/Album-N" + "e\u0301" + ".flac"
+
+        assert find_orphaned_files({nfc_path}, {nfd_path}) == set()
+
+    def test_true_orphan_still_detected(self):
+        """A file not tracked by any torrent is still flagged, ASCII or not."""
+        torrent_files = {"/data/torrents/Album/track1.flac"}
+        root_files = {
+            "/data/torrents/Album/track1.flac",
+            "/data/torrents/Album/Parai\u0301sos Quemados.flac",  # untracked, NFD
+            "/data/torrents/Album/untracked.txt",
+        }
+
+        result = find_orphaned_files(root_files, torrent_files)
+
+        assert result == {
+            "/data/torrents/Album/Parai\u0301sos Quemados.flac",
+            "/data/torrents/Album/untracked.txt",
+        }
+
+    def test_original_disk_paths_preserved(self):
+        """Returned orphan paths keep their on-disk (NFD) form for stat/move/delete."""
+        nfd_orphan = "/data/torrents/Album/N" + "e\u0301" + "w Orphan.flac"
+        nfc_tracked = "/data/torrents/Album/Tr" + "a\u00ed" + "cked.flac"
+        nfd_tracked = "/data/torrents/Album/Tr" + "ai\u0301" + "cked.flac"
+
+        result = find_orphaned_files({nfd_orphan, nfd_tracked}, {nfc_tracked})
+
+        assert result == {nfd_orphan}  # NFD form kept, not the NFC-normalized form
+
+    def test_empty_inputs(self):
+        """Empty inputs produce an empty result set."""
+        assert find_orphaned_files(set(), set()) == set()
+        assert find_orphaned_files({"a.flac"}, set()) == {"a.flac"}
+        assert find_orphaned_files(set(), {"a.flac"}) == set()
+
+    def test_japanese_and_cyrillic_paths(self):
+        """CJK (dakuten) and Cyrillic filenames are also normalized correctly."""
+        # "ド" precomposed vs decomposed (kana + combining dakuten)
+        nfc_path = "/data/torrents/\u30c9\u30e9\u30a4\u30d6/track.flac"
+        nfd_path = "/data/torrents/\u30c8\u3099\u30e9\u30a4\u30d5\u3099/track.flac"
+
+        assert find_orphaned_files({nfd_path}, {nfc_path}) == set()
