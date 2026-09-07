@@ -271,6 +271,7 @@ class FakeConfig:
     share_limits_min_num_seeds_tag: str = "MinSeedsNotMet"
     share_limits_last_active_tag: str = "LastActiveLimitNotReached"
     tracker_error_tag: str = "TrackerError"
+    unregistered_tag: str = "unregisteredCheck"
     stalled_tag: str = "Stalled"
     private_tag: str = "Private"
     settings: dict = field(
@@ -285,6 +286,7 @@ class FakeConfig:
             "rem_unregistered_grace_minutes": 0,
             "rem_unregistered_max_torrents": 0,
             "rem_unregistered_ignore_list": [],
+            "rem_unregistered_confirm_minutes": 0,
         }
     )
     root_dir: str = "/data/torrents/"
@@ -605,6 +607,8 @@ def make_remove_unregistered(qbt_manager, hashes=None):
     instance.stats_untagged = 0
     instance.tor_error_summary = ""
     instance.tag_error = qbt_manager.config.tracker_error_tag
+    instance.unregistered_tag = qbt_manager.config.unregistered_tag
+    instance.confirm_minutes = qbt_manager.config.settings.get("rem_unregistered_confirm_minutes", 0)
     instance.cfg_rem_unregistered = qbt_manager.config.commands.get("rem_unregistered", True)
     instance.cfg_tag_error = qbt_manager.config.commands.get("tag_tracker_error", True)
     instance.rem_unregistered_ignore_list = qbt_manager.config.settings.get("rem_unregistered_ignore_list", [])
@@ -613,6 +617,7 @@ def make_remove_unregistered(qbt_manager, hashes=None):
     instance.rem_unregistered_max_torrents = qbt_manager.config.settings.get("rem_unregistered_max_torrents", 0)
     instance.hashes = hashes
     instance.tracker_del_count = {}
+    instance.confirmed_unregistered_hashes = set()
     instance.torrents_updated_issue = []
     instance.notify_attr_issue = []
     instance.torrents_updated_unreg = []
