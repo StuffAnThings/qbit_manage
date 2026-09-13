@@ -16,6 +16,8 @@ import time
 from unittest.mock import patch
 
 from modules.core.remove_unregistered import BHD_TRACKER_DOMAIN
+from modules.util import TorrentMessages
+from modules.util import list_in_text
 from tests.factories import FakeConfig
 from tests.factories import FakeQbtManager
 from tests.factories import FakeTorrent
@@ -719,3 +721,13 @@ def test_grace_period_blocks_deletion():
     skip, age = ru.is_within_grace(t)
     assert skip is True
     assert 4 < age < 6
+
+
+def test_french_torrent_introuvable_detected_as_unregistered():
+    """French torr9 tracker message must match UNREGISTERED_MSGS (issue #1374).
+
+    The observed qBittorrent tracker message was 'torrent introuvable'; the
+    production matcher upper-cases it before calling list_in_text.
+    """
+    msg_up = "torrent introuvable".upper()
+    assert list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
