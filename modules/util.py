@@ -376,6 +376,7 @@ class TorrentMessages:
         "TRACKER NICHT REGISTRIERT.",
         "TORRENT EXISTIERT NICHT",
         "TORRENT NICHT GEFUNDEN",
+        "TORRENT INTROUVABLE",  # torr9 (French)
         "TORRENT DELETED",  # NexusPHP
         "TORRENT BANNED",  # NexusPHP
     ]
