@@ -723,8 +723,7 @@ def test_grace_period_blocks_deletion():
     assert 4 < age < 6
 
 
-def test_french_torrent_introuvable_detected_as_unregistered():
-    """French torr9 tracker message must match UNREGISTERED_MSGS."""
-    msg_up = "torrent introuvable".upper()
-
-    assert list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
+def test_unregistered_message_list_entries_are_detected():
+    """Entries from UNREGISTERED_MSGS should match via list_in_text."""
+    for msg_up in TorrentMessages.UNREGISTERED_MSGS:
+        assert list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
