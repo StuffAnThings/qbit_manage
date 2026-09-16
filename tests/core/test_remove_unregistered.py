@@ -724,7 +724,7 @@ def test_grace_period_blocks_deletion():
 
 
 def test_french_torrent_introuvable_detected_as_unregistered():
-    """French torr9 tracker message must match UNREGISTERED_MSGS (issue #1374).
+    """French torr9 tracker message must match UNREGISTERED_MSGS."""
 
     The observed qBittorrent tracker message was 'torrent introuvable'; the
     production matcher upper-cases it before calling list_in_text.
