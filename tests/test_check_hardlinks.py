@@ -194,10 +194,63 @@ def test_missing_category_does_not_create_false_positive(tmp_path):
     assert checker.nohardlink(source, _notify, False, "Missing", True) is True
 
 
-def test_missing_file_preserves_empty_folder_result(tmp_path):
+def test_missing_file_fails_closed(tmp_path):
     checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
 
-    assert checker.nohardlink(tmp_path / "missing.mkv", _notify, False, "Root", True) is True
+    assert checker.nohardlink(tmp_path / "missing.mkv", _notify, False, "Root", True) is False
+
+
+def test_nonexistent_path_fails_closed(tmp_path):
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(tmp_path / "does" / "not" / "exist", _notify, False, "Root", True) is False
+
+
+def test_empty_directory_fails_closed(tmp_path):
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(empty_dir, _notify, False, "Root", True) is False
+
+
+def test_directory_with_only_symlinks_fails_closed(tmp_path):
+    target_dir = tmp_path / "with_symlinks"
+    target_dir.mkdir()
+    real_target = tmp_path / "outside" / "video.mkv"
+    _file(real_target, size=2048)
+    (target_dir / "video.mkv").symlink_to(real_target)
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(target_dir, _notify, False, "Root", True) is False
+
+
+@pytest.mark.skipif(os.getuid() == 0, reason="root bypasses directory permission checks")
+def test_unreadable_directory_fails_closed(tmp_path):
+    unreadable_dir = tmp_path / "unreadable"
+    unreadable_dir.mkdir()
+    _file(unreadable_dir / "video.mkv", size=2048)
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+    os.chmod(unreadable_dir, 0o000)
+    try:
+        assert checker.nohardlink(unreadable_dir, _notify, False, "Root", True) is False
+    finally:
+        os.chmod(unreadable_dir, 0o755)
+
+
+def test_single_file_without_hardlinks_returns_true(tmp_path):
+    source = _file(tmp_path / "video.mkv")
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(source, _notify, False, "Root", False) is True
+
+
+def test_single_hardlinked_file_returns_false(tmp_path):
+    source = _file(tmp_path / "video.mkv")
+    _link(source, tmp_path / "outside" / "video.mkv")
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(source, _notify, False, "Root", False) is False
 
 
 def test_inode_indexes_are_built_in_one_pass(tmp_path, monkeypatch):
