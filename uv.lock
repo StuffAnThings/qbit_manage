@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -931,7 +931,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==9.1.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = "==7.1.0" },
     { name = "pytimeparse2", specifier = "==1.7.1" },
-    { name = "qbittorrent-api", specifier = "==2026.7.0" },
+    { name = "qbittorrent-api", specifier = "==2026.10.0" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "retrying", specifier = "==1.4.2" },
     { name = "ruamel-yaml", specifier = "==0.19.1" },
@@ -943,16 +943,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "qbittorrent-api"
-version = "2026.7.0"
+version = "2026.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/49/73123503771d0610a27bf2e5c73995ddce15e8d8cac6babef8eef51097bb/qbittorrent_api-2026.7.0.tar.gz", hash = "sha256:9f0a6e33ee4dba290d155de3ad59c191de02e4d9639d424bf02ec4a00ecf3205", size = 1427366, upload-time = "2026-07-08T00:54:39.78Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/7f/b13f95d7409882e05912379f088b49c999914d5669ddaa956b102559403a/qbittorrent_api-2026.10.0.tar.gz", hash = "sha256:2b4c9a6be2f6476c35d10bdb149f357f03781a72506e9deca2bccef8c327e97b", size = 1457850, upload-time = "2026-10-03T16:20:49.073Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/79/e1ee523dd8b14a4e8b8ddd474a93803855b8170a10240a65997c21d69fe2/qbittorrent_api-2026.7.0-py3-none-any.whl", hash = "sha256:189ff96c2c08f999d82b3b4970c4d3e0da1c32ae9c36e9da2fdec7847e5f37a5", size = 69450, upload-time = "2026-07-08T00:54:38.377Z" },
+    { url = "https://files.pythonhosted.org/packages/82/63/a10d1c7ae6211845e2c099f778443d77c6460afb71860a841e90ae78369d/qbittorrent_api-2026.10.0-py3-none-any.whl", hash = "sha256:4db35298ffd469bc09f45e8ee3ae1385fabf833971150aacacd5bce43d4cb94f", size = 73898, upload-time = "2026-10-03T16:20:47.573Z" },
 ]
 
 [[package]]
