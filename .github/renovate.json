@@ -59,7 +59,7 @@
             ]
         },
         {
-            "description": "Always automerge qbittorrent-api (major bumps track qBittorrent releases); kept after python-major so it is never bundled into that group",
+            "description": "Always automerge qbittorrent-api at any time after minimum release age (major bumps track qBittorrent releases); kept after python-major so it is never bundled into that group",
             "matchPackageNames": [
                 "qbittorrent-api"
             ],
@@ -71,6 +71,9 @@
             ],
             "groupName": "qbittorrent-api",
             "groupSlug": "qbittorrent-api",
+            "schedule": [
+                "at any time"
+            ],
             "automerge": true,
             "platformAutomerge": true
         },
