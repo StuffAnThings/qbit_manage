@@ -401,6 +401,7 @@ from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.util import Failed  # noqa
 from modules.util import GracefulKiller  # noqa
+from modules.util import UnsupportedVersion  # noqa
 from modules.web_api import CommandRequest  # noqa
 
 
@@ -615,6 +616,8 @@ def start():
                 with is_running_lock:
                     is_running.value = False
                 logger.info("Released lock for web API requests despite webhook error")
+    except UnsupportedVersion:
+        sys.exit(1)
     except Failed as ex:
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")

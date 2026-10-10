@@ -909,6 +909,9 @@ class WebAPI:
             temp_args["time"] = now.strftime("%H:%M")
             temp_args["time_obj"] = now
             temp_args["run"] = True
+            commands = processed_data.get("commands")
+            if isinstance(commands, dict) and commands.get("skip_qb_version_check") is not None:
+                temp_args["skip_qb_version_check"] = str(commands["skip_qb_version_check"]).lower() == "true"
 
             try:
                 logger.separator("Configuration Validation Check", space=False, border=False)

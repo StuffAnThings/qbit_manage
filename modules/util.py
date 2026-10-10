@@ -895,6 +895,12 @@ class Failed(Exception):
     pass
 
 
+class UnsupportedVersion(Failed):
+    """Exception raised when the qBittorrent version is outside the supported range."""
+
+    pass
+
+
 def list_in_text(text, search_list, match_all=False):
     """
     Check if elements from a search list are present in a given text.

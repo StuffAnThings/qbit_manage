@@ -16,6 +16,7 @@ from modules import util
 from modules.qbit_error_handler import handle_qbit_api_errors
 from modules.util import Failed
 from modules.util import TorrentMessages
+from modules.util import UnsupportedVersion
 from modules.util import list_in_text
 
 logger = util.logger
@@ -80,8 +81,10 @@ class Qbt:
                 else:
                     self.config.notify(ex, "Qbittorrent")
                     logger.print_line(ex, "CRITICAL")
-                    sys.exit(1)
+                    raise UnsupportedVersion(ex)
             logger.info("Qbt Connection Successful")
+        except UnsupportedVersion:
+            raise
         except LoginFailed:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password or API key."
             self.config.notify(ex, "Qbittorrent")
