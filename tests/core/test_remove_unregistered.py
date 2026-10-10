@@ -15,6 +15,8 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
+import pytest
+
 from modules.core.remove_unregistered import BHD_TRACKER_DOMAIN
 from modules.util import TorrentMessages
 from modules.util import list_in_text
@@ -995,6 +997,37 @@ def test_sweep_keeps_marker_when_still_unregistered():
     assert not mock_del.called  # dwell not elapsed
     remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
     assert not any(c[1].get("tags") == marker for c in remove_calls)  # marker preserved
+
+
+@pytest.mark.parametrize("confirm_minutes,rem_enabled", [(0, True), (60, False)])
+def test_sweep_clears_marker_when_removal_or_confirm_timer_disabled(confirm_minutes, rem_enabled):
+    """A still-unregistered torrent keeps its marker only while removal and the dwell timer are both on.
+
+    Otherwise a stale timestamp would survive and later delete immediately once
+    the timer is re-enabled.
+    """
+    cfg = FakeConfig(settings={**FakeConfig().settings, "rem_unregistered_confirm_minutes": confirm_minutes})
+    cfg.commands["rem_unregistered"] = rem_enabled
+    marker = f"unregisteredCheck_{int(time.time()) - 120 * 60}"
+    t = FakeTorrent(
+        name="T.StaleStillUnreg",
+        hash="hstalestill",
+        category="Test",
+        tags=marker,
+        added_on=int(time.time()) - 24 * 3600,
+        trackers=[_Tracker(url="http://a.example/announce", status=4, msg="Unregistered torrent")],  # NOT_WORKING
+    )
+    cfg.commands["tag_tracker_error"] = False
+    qbt = _make_issue_qbt(t, config=cfg)
+    qbt._torrentissue_override = [t]
+    ru = make_remove_unregistered(qbt)
+
+    with patch.object(ru, "check_max_limit_and_delete"):
+        ru.process_torrent_issues()
+        ru.clear_stale_pending_markers()
+
+    remove_calls = [c for c in t.calls if c[0] == "remove_tags"]
+    assert any(c[1].get("tags") == marker for c in remove_calls)
 
 
 def test_inconclusive_state_resets_dwell_no_immediate_delete():
