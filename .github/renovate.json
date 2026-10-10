@@ -28,6 +28,14 @@
     "pre-commit": {
         "enabled": true
     },
+    "lockFileMaintenance": {
+        "description": "Refresh uv.lock daily so transitive dependencies (not tracked by the pep621 manager) pick up security fixes",
+        "enabled": true,
+        "schedule": [
+            "* 0-3 * * *"
+        ],
+        "automerge": true
+    },
     "packageRules": [
         {
             "description": "Group Python (uv/pep621) non-major dependencies",
