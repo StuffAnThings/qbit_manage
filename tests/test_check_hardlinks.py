@@ -236,6 +236,18 @@ def test_nested_symlink_only_tree_fails_closed(tmp_path):
     assert checker.nohardlink(torrent, _notify, False, "Root", True) is False
 
 
+def test_small_file_below_large_directory_is_still_checked(tmp_path):
+    torrent = tmp_path / "torrent"
+    for i in range(200):
+        (torrent / "sub" / f"padding-dir-{i:03d}").mkdir(parents=True)
+    _file(torrent / "sub" / "small.nfo", size=1)
+    if os.stat(torrent / "sub").st_size <= 10:
+        pytest.skip("filesystem reports directory sizes too small to exercise the threshold")
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(torrent, _notify, False, "Root", True) is True
+
+
 @pytest.mark.skipif(
     not hasattr(os, "getuid") or os.getuid() == 0,
     reason="root bypasses directory permission checks; chmod semantics differ on Windows",
