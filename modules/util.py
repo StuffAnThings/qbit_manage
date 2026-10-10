@@ -1819,6 +1819,7 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
     from modules.core.recheck import ReCheck
     from modules.core.remove_orphaned import RemoveOrphaned
     from modules.core.remove_unregistered import RemoveUnregistered
+    from modules.core.remove_unregistered import clear_pending_markers
     from modules.core.share_limits import ShareLimits
     from modules.core.tag_nohardlinks import TagNoHardLinks
     from modules.core.tags import Tags
@@ -1884,6 +1885,11 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
             stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
         else:
             logger.warning("Remove Unregistered Torrents operation skipped due to API errors")
+    else:
+        # RemoveUnregistered (and its marker sweep) is skipped; drop any dwell markers left from a prior run.
+        safe_execute_with_qbit_error_handling(
+            lambda: clear_pending_markers(qbit_manager, hashes), "Clear Stale Unregistered Markers"
+        )
 
     # Recheck Torrents
     if commands.get("recheck"):
