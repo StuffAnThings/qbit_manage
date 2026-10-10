@@ -15,6 +15,44 @@ BHD_TRACKER_DOMAIN = "tracker.beyond-hd.me"
 logger = util.logger
 
 
+def find_pending_marker(unregistered_tag, check_tags):
+    """Return (marker_tag, first_seen_epoch) for a valid pending-removal flag, else (None, None).
+
+    A marker whose timestamp is unparseable (e.g. hand-edited, or an unrelated
+    tag that shares the prefix) is ignored, so a malformed tag can never
+    short-circuit the dwell window into an immediate deletion.
+    """
+    prefix = f"{unregistered_tag}_"
+    for tag in check_tags:
+        if tag.startswith(prefix):
+            try:
+                return tag, int(tag[len(prefix) :])
+            except ValueError:
+                continue
+    return None, None
+
+
+def clear_pending_markers(qbt, hashes=None, keep_hashes=frozenset()):
+    """Drop pending-removal markers from torrents not in keep_hashes; honors dry_run."""
+    config = qbt.config
+    torrent_list = qbt.torrent_list
+    if hashes:
+        torrent_list = [t for t in torrent_list if t.hash in hashes]
+    for torrent in torrent_list:
+        if torrent.hash in keep_hashes:
+            continue
+        pending_tag, _ = find_pending_marker(config.unregistered_tag, util.get_list(torrent.tags))
+        if not pending_tag:
+            continue
+        if not config.dry_run:
+            torrent.remove_tags(tags=pending_tag)
+        action = "Would clear" if config.dry_run else "Cleared"
+        logger.print_line(
+            logger.insert_space(f"{action} pending-removal flag (no longer unregistered): {torrent.name}", 3),
+            config.loglevel,
+        )
+
+
 class RemoveUnregistered:
     def __init__(self, qbit_manager, hashes: list[str] = None):
         self.qbt = qbit_manager
@@ -93,20 +131,8 @@ class RemoveUnregistered:
         self.config.webhooks_factory.notify(torrents_updated, notify_attr, group_by="tag")
 
     def get_pending_removal(self, check_tags):
-        """Return (marker_tag, first_seen_epoch) for a valid pending-removal flag, else (None, None).
-
-        A marker whose timestamp is unparseable (e.g. hand-edited, or an unrelated
-        tag that shares the prefix) is ignored, so a malformed tag can never
-        short-circuit the dwell window into an immediate deletion.
-        """
-        prefix = f"{self.unregistered_tag}_"
-        for tag in check_tags:
-            if tag.startswith(prefix):
-                try:
-                    return tag, int(tag[len(prefix) :])
-                except ValueError:
-                    continue
-        return None, None
+        """Return (marker_tag, first_seen_epoch) for a valid pending-removal flag, else (None, None)."""
+        return find_pending_marker(self.unregistered_tag, check_tags)
 
     def check_for_unregistered_torrents_in_bhd(self, tracker, msg_up, torrent_hash):
         """
@@ -281,25 +307,7 @@ class RemoveUnregistered:
         every marker except those reconfirmed this run makes the dwell timer require
         continuous unregistration.
         """
-        torrent_list = self.qbt.torrent_list
-        if self.hashes:
-            torrent_list = [t for t in torrent_list if t.hash in self.hashes]
-        for torrent in torrent_list:
-            if torrent.hash in self.confirmed_unregistered_hashes:
-                continue
-            pending_tag, _ = self.get_pending_removal(util.get_list(torrent.tags))
-            if not pending_tag:
-                continue
-            if not self.config.dry_run:
-                torrent.remove_tags(tags=pending_tag)
-            action = "Would clear" if self.config.dry_run else "Cleared"
-            logger.print_line(
-                logger.insert_space(
-                    f"{action} pending-removal flag (no longer unregistered): {torrent.name}",
-                    3,
-                ),
-                self.config.loglevel,
-            )
+        clear_pending_markers(self.qbt, self.hashes, self.confirmed_unregistered_hashes)
 
     def check_max_limit_and_delete(self, msg, tracker, torrent):
         """Checks if the max limit of torrents to remove has been reached for the tracker."""

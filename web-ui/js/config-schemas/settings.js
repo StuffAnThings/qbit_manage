@@ -162,7 +162,7 @@ export const settingsSchema = {
             name: 'rem_unregistered_confirm_minutes',
             type: 'number',
             label: 'Remove Unregistered Confirm Period (minutes)',
-            description: 'Require a torrent to stay unregistered for this many minutes before removal. First sighting tags it with the Unregistered Tag; a later run removes it if still unregistered. Set above your tracker announce interval to survive transient outages. Set to 0 to disable (remove immediately).',
+            description: 'Require a torrent to stay unregistered for this many minutes before removal. The first sighting after the grace period tags it with the Unregistered Tag; a later run removes it if still unregistered. Set above your tracker announce interval to survive transient outages. Set to 0 to disable (remove immediately).',
             default: 0,
             min: 0
         }

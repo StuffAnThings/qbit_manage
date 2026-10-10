@@ -1095,3 +1095,34 @@ def test_unregistered_message_list_entries_are_detected():
     """Entries from UNREGISTERED_MSGS should match via list_in_text."""
     for msg_up in TorrentMessages.UNREGISTERED_MSGS:
         assert list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)
+
+
+# ── orchestration: markers cleared when RemoveUnregistered is skipped ────────
+
+
+def _orchestrate(dry_run=False, hashes=None):
+    from modules.util import execute_qbit_commands
+
+    marker = f"unregisteredCheck_{int(time.time()) - 120 * 60}"
+    t = FakeTorrent(name="T.Orch", hash="horch", category="Test", tags=f"keep,{marker}")
+    cfg = FakeConfig(dry_run=dry_run)
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    commands = {"rem_unregistered": False, "tag_tracker_error": False}
+    execute_qbit_commands(qbt, commands, {}, hashes=hashes)
+    return t, marker
+
+
+def test_execute_commands_clears_stale_marker_when_removal_and_tagging_disabled():
+    """Both commands off skips RemoveUnregistered; the orchestration must still drop stale dwell markers."""
+    t, marker = _orchestrate()
+    assert [c for c in t.calls if c[0] == "remove_tags" and c[1].get("tags") == marker]
+
+
+def test_execute_commands_dry_run_does_not_clear_marker_when_disabled():
+    t, _ = _orchestrate(dry_run=True)
+    assert not [c for c in t.calls if c[0] == "remove_tags"]
+
+
+def test_execute_commands_respects_hashes_filter_when_disabled():
+    t, _ = _orchestrate(hashes=["someotherhash"])
+    assert not [c for c in t.calls if c[0] == "remove_tags"]
