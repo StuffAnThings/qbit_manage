@@ -910,8 +910,9 @@ class WebAPI:
             temp_args["time_obj"] = now
             temp_args["run"] = True
             commands = processed_data.get("commands")
-            if isinstance(commands, dict) and commands.get("skip_qb_version_check") is not None:
-                temp_args["skip_qb_version_check"] = str(commands["skip_qb_version_check"]).lower() == "true"
+            # A commands section replaces env/CLI commands in a normal run, with missing keys defaulting to False.
+            if isinstance(commands, dict):
+                temp_args["skip_qb_version_check"] = str(commands.get("skip_qb_version_check")).lower() == "true"
 
             try:
                 logger.separator("Configuration Validation Check", space=False, border=False)

@@ -59,3 +59,17 @@ def test_validate_honors_skip_version_check_from_config_commands(api):
 
     assert response.valid is True
     assert seen["skip_qb_version_check"] is True
+
+
+def test_validate_commands_section_resets_server_skip_flag(api):
+    api.args["skip_qb_version_check"] = True
+    seen = {}
+
+    def capture(default_dir, args):
+        seen.update(args)
+        return MagicMock()
+
+    with patch("modules.web_api.Config", side_effect=capture):
+        validate(api, {"qbt": {"host": "localhost:8080"}, "commands": {"dry_run": True}})
+
+    assert seen["skip_qb_version_check"] is False

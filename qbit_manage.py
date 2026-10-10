@@ -616,9 +616,10 @@ def start():
                 with is_running_lock:
                     is_running.value = False
                 logger.info("Released lock for web API requests despite webhook error")
-    except UnsupportedVersion:
-        sys.exit(1)
     except Failed as ex:
+        # One-shot runs exit non-zero; scheduled runs return so the scheduler thread keeps future runs.
+        if run and isinstance(ex, UnsupportedVersion):
+            sys.exit(1)
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
