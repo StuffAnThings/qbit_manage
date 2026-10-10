@@ -212,10 +212,11 @@ class RemoveUnregistered:
                         unreg_tracker = trk
                         break
 
-                # Reconfirmed unregistered this run: its dwell marker is legitimate.
-                # Every other marker is cleared afterwards by clear_stale_pending_markers,
-                # so the dwell window only survives continuous unregistration.
-                if unreg_tracker is not None:
+                # Reconfirmed unregistered this run: its dwell marker is legitimate, but
+                # only while removal and the dwell timer are both enabled. Every other
+                # marker is cleared afterwards by clear_stale_pending_markers, so the
+                # dwell window only survives continuous unregistration.
+                if unreg_tracker is not None and self.cfg_rem_unregistered and self.confirm_minutes:
                     self.confirmed_unregistered_hashes.add(torrent.hash)
 
                 if self.cfg_rem_unregistered and unreg_tracker is not None:
