@@ -1285,7 +1285,8 @@ class CheckHardLinks:
                         if os.path.islink(files):
                             logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
                             continue
-                        checked_any_file = True
+                        if not os.path.isfile(files):
+                            continue
                         file_stat = os.stat(files)
                         file_size = file_stat.st_size
                         # sorted_files is sorted by size descending, so once we drop below the threshold no
@@ -1296,6 +1297,7 @@ class CheckHardLinks:
                                 f"are below the {threshold:.0%} size threshold."
                             )
                             break
+                        checked_any_file = True
                         inode_count = ignored_link_count(file_stat)
                         ignored_scope = "root_dir" if ignore_root_dir else category if ignore_category_dir else "none"
                         logger.trace(

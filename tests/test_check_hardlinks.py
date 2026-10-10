@@ -225,7 +225,21 @@ def test_directory_with_only_symlinks_fails_closed(tmp_path):
     assert checker.nohardlink(target_dir, _notify, False, "Root", True) is False
 
 
-@pytest.mark.skipif(os.getuid() == 0, reason="root bypasses directory permission checks")
+def test_nested_symlink_only_tree_fails_closed(tmp_path):
+    torrent = tmp_path / "torrent"
+    (torrent / "sub").mkdir(parents=True)
+    real_target = tmp_path / "outside" / "video.mkv"
+    _file(real_target, size=1024 * 1024)
+    (torrent / "sub" / "video.mkv").symlink_to(real_target)
+    checker = CheckHardLinks(_config(tmp_path, {"Root": str(tmp_path)}))
+
+    assert checker.nohardlink(torrent, _notify, False, "Root", True) is False
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "getuid") or os.getuid() == 0,
+    reason="root bypasses directory permission checks; chmod semantics differ on Windows",
+)
 def test_unreadable_directory_fails_closed(tmp_path):
     unreadable_dir = tmp_path / "unreadable"
     unreadable_dir.mkdir()
