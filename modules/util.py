@@ -1260,9 +1260,18 @@ class CheckHardLinks:
                 else:
                     logger.debug(f"No hardlinks found for '{file}' (nlink={file_stat.st_nlink}).")
             else:
-                sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+                entries = list(Path(file).rglob("*"))
                 threshold = 0.1
-                if not sorted_files:
+                for link in (p for p in entries if p.is_symlink()):
+                    logger.warning(f"Symlink found in {link}, unable to determine hardlinks. Skipping...")
+                # The size threshold must come from a regular file: a directory or symlink target
+                # can be larger than every real file and would skip all of them.
+                sorted_files = sorted(
+                    (p for p in entries if not p.is_symlink() and p.is_file()),
+                    key=lambda x: os.stat(x).st_size,
+                    reverse=True,
+                )
+                if not entries:
                     msg = (
                         f"Nohardlink Error: Unable to open the folder {file}. "
                         "Please make sure folder exists and qbit_manage has access to this directory."
@@ -1272,6 +1281,11 @@ class CheckHardLinks:
                     # Path could not be read (missing, empty, or unreadable dir). Fail closed:
                     # this is not evidence of an absent hardlink.
                     check_for_hl = False
+                elif not sorted_files:
+                    msg = f"Nohardlink Error: No regular files found in {file}. Unable to determine hardlinks."
+                    notify(msg, "nohardlink")
+                    logger.warning(msg)
+                    check_for_hl = False
                 else:
                     largest_file_size = os.stat(sorted_files[0]).st_size
                     size_threshold = largest_file_size * threshold
@@ -1280,13 +1294,7 @@ class CheckHardLinks:
                         f"largest file: '{sorted_files[0]}' ({largest_file_size} bytes) | "
                         f"only checking files >= {threshold:.0%} of largest ({size_threshold:.0f} bytes)"
                     )
-                    checked_any_file = False
                     for files in sorted_files:
-                        if os.path.islink(files):
-                            logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
-                            continue
-                        if not os.path.isfile(files):
-                            continue
                         file_stat = os.stat(files)
                         file_size = file_stat.st_size
                         # sorted_files is sorted by size descending, so once we drop below the threshold no
@@ -1297,7 +1305,6 @@ class CheckHardLinks:
                                 f"are below the {threshold:.0%} size threshold."
                             )
                             break
-                        checked_any_file = True
                         inode_count = ignored_link_count(file_stat)
                         ignored_scope = "root_dir" if ignore_root_dir else category if ignore_category_dir else "none"
                         logger.trace(
@@ -1312,14 +1319,7 @@ class CheckHardLinks:
                                 f"ignored links={inode_count}, ignored scope={ignored_scope}."
                             )
                             break
-                    if not checked_any_file:
-                        msg = (
-                            f"Nohardlink Error: No regular files found in {file} (only symlinks). Unable to determine hardlinks."
-                        )
-                        notify(msg, "nohardlink")
-                        logger.warning(msg)
-                        check_for_hl = False
-                    elif check_for_hl:
+                    if check_for_hl:
                         logger.debug(f"No hardlinks found in folder '{file}'.")
         except PermissionError as perm:
             logger.warning(f"{perm} : file {file} has permission issues. Skipping...")
