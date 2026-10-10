@@ -52,7 +52,7 @@ settings:
     - ignore if found
   rem_unregistered_grace_minutes: 10 # Grace period (minutes) to skip removing newly added torrents when unregistered with the tracker (Default is 10)
   rem_unregistered_max_torrents: 10 # Maximum number of torrents to remove per tracker per run. (Default is 10)
-  rem_unregistered_confirm_minutes: 0 # Require a torrent to stay unregistered for this many minutes before removing it (set above your announce interval to survive transient tracker outages). First sighting tags it, a later run removes it if still unregistered. 0 disables. (Default is 0)
+  rem_unregistered_confirm_minutes: 0 # Require a torrent to stay unregistered for this many minutes before removing it (set above your announce interval to survive transient tracker outages). First sighting after the grace period tags it, a later run removes it if still unregistered. 0 disables. (Default is 0)
 
 directory:
   # Do not remove these
