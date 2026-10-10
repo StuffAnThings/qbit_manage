@@ -371,6 +371,56 @@ def test_reset_upload_speed_false_still_adds_tag(share_limits_factory, torrent_f
     assert add_tag and add_tag[0][1]["tags"] == sl.min_num_seeds_tag
 
 
+def test_reset_upload_speed_false_applies_configured_limit_to_unlimited_torrent(share_limits_factory, torrent_factory):
+    """With reset disabled, an unmet minimum still applies the group's upload cap to an unlimited torrent."""
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=0)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False, limit_upload_speed=100)
+    set_ul = _calls_of(t, "set_upload_limit")
+    assert len(set_ul) == 1
+    assert set_ul[0][1]["limit"] == 100 * 1024
+    # Share limits stay cleared so the minimum still protects the torrent.
+    assert _calls_of(t, "set_share_limits")[0][1]["ratio_limit"] == -1
+
+
+def test_reset_upload_speed_false_applies_limit_when_tag_already_present(share_limits_factory, torrent_factory):
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags=sl.min_num_seeds_tag, up_limit=0)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False, limit_upload_speed=100)
+    set_ul = _calls_of(t, "set_upload_limit")
+    assert len(set_ul) == 1
+    assert set_ul[0][1]["limit"] == 100 * 1024
+
+
+def test_reset_upload_speed_false_skips_limit_already_applied(share_limits_factory, torrent_factory):
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=100 * 1024)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False, limit_upload_speed=100)
+    assert _calls_of(t, "set_upload_limit") == []
+
+
+def test_reset_upload_speed_false_unlimited_group_limit_preserves_existing(share_limits_factory, torrent_factory):
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=50 * 1024)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False, limit_upload_speed=-1)
+    assert _calls_of(t, "set_upload_limit") == []
+
+
+def test_reset_upload_speed_true_ignores_configured_limit(share_limits_factory, torrent_factory):
+    sl = share_limits_factory()
+    t = torrent_factory(num_complete=0, tags="", up_limit=0)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=True, limit_upload_speed=100)
+    set_ul = _calls_of(t, "set_upload_limit")
+    assert [c[1]["limit"] for c in set_ul] == [-1]
+
+
+def test_reset_upload_speed_false_dry_run_does_not_apply_limit(share_limits_factory, torrent_factory):
+    sl = share_limits_factory(config_overrides={"dry_run": True})
+    t = torrent_factory(num_complete=0, tags="", up_limit=0)
+    _seed_limit(sl, t, min_num_seeds=5, reset_upload_speed_on_unmet_minimums=False, limit_upload_speed=100)
+    assert _calls_of(t, "set_upload_limit") == []
+
+
 # ---- empty tracker URL short-circuit ----------------------------------------
 
 

@@ -152,7 +152,7 @@ export const shareLimitsSchema = {
                 reset_upload_speed_on_unmet_minimums: {
                     type: 'boolean',
                     label: 'Reset Upload Speed on Unmet Minimums',
-                    description: 'If true, upload speed limits will be reset to unlimited when minimum conditions (seeding time, number of seeds, last active time) are not met. If false, existing upload speed limits will be preserved.',
+                    description: 'If true, upload speed limits will be reset to unlimited when minimum conditions (seeding time, number of seeds, last active time) are not met. If false, limits are not reset and the upload speed limit of the group is applied instead.',
                     default: true
                 },
                 min_torrent_size: {
