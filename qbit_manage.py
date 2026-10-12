@@ -401,6 +401,7 @@ from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.util import Failed  # noqa
 from modules.util import GracefulKiller  # noqa
+from modules.util import InvalidCategoryConfig  # noqa
 from modules.util import UnsupportedVersion  # noqa
 from modules.web_api import CommandRequest  # noqa
 
@@ -472,6 +473,7 @@ def start():
         stats_summary = []
         logger.separator("Starting Run")
         cfg = None
+        run_result = "failed"
         body = ""
         run_time = ""
         end_time = None
@@ -601,6 +603,7 @@ def start():
 
         stats_summary = format_stats_summary(stats, cfg)
 
+        run_result = "success"
         finished_run(next_scheduled_run_info_shared)
         if cfg:
             try:
@@ -618,7 +621,7 @@ def start():
                 logger.info("Released lock for web API requests despite webhook error")
     except Failed as ex:
         # One-shot runs exit non-zero; scheduled runs return so the scheduler thread keeps future runs.
-        if run and isinstance(ex, UnsupportedVersion):
+        if run and isinstance(ex, (UnsupportedVersion, InvalidCategoryConfig)):
             sys.exit(1)
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
@@ -628,6 +631,10 @@ def start():
         with is_running_lock:
             is_running.value = False
         return None
+    finally:
+        with is_running_lock:
+            is_running.value = False
+        next_scheduled_run_info_shared.update({"last_run": datetime.now().isoformat(), "last_run_result": run_result})
 
 
 def end():
@@ -958,6 +965,10 @@ def main():
                     next_scheduled_run_info_shared.update(next_run_info)
                     if next_run_info["next_run"] != next_run_time:
                         logger.info(f"Next scheduled run updated: {next_run_info['next_run_str']}")
+
+                next_scheduled_run_info_shared.update(
+                    {"scheduler_alive": scheduler.is_alive(), "scheduler_heartbeat": datetime.now().isoformat()}
+                )
 
                 # Sleep for a reasonable interval
                 time.sleep(30)
