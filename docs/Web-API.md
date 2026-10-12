@@ -373,7 +373,10 @@ Liveness and readiness probe. **Always public — no auth required.** Returns fu
     "queue_size": 0,
     "has_queued_requests": false,
     "next_scheduled_run": "2026-05-22T10:00:00.000000",
-    "next_scheduled_run_text": "in 24 hours"
+    "next_scheduled_run_text": "in 24 hours",
+    "scheduler_alive": true,
+    "last_run": "2026-05-21T09:00:00.000000",
+    "last_run_result": "success"
   },
   "directories": {
     "config_dir_exists": true,
@@ -386,7 +389,9 @@ Liveness and readiness probe. **Always public — no auth required.** Returns fu
 }
 ```
 
-`status` values: `"healthy"` | `"degraded"` (config/log dir missing) | `"busy"` (run in progress) | `"unhealthy"` (health check itself failed).
+`status` values: `"healthy"` | `"degraded"` (config/log dir missing) | `"busy"` (run in progress) | `"unhealthy"` (health check itself failed, the scheduler thread is not running, or the scheduler heartbeat is older than 5 minutes). The HTTP status stays 200 in every case; check the `status` field.
+
+`application.scheduler_alive` is `true`/`false` once the scheduler has reported, otherwise `null`. `application.last_run` is the ISO timestamp of the last finished run and `application.last_run_result` is its outcome (for example `"success"`); both are `null` until a run has finished. When the scheduler is down or stale, `issues` contains `"Scheduler is not running"` or `"Scheduler heartbeat is stale"`.
 
 #### GET /api/get_base_url
 

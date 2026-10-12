@@ -65,3 +65,45 @@ def test_first_run_exception_terminates_web_server_and_exits_nonzero(qbm, monkey
     qbm.web_process_mock.terminate.assert_called_once()
     qbm.web_process_mock.join.assert_called_once()
     qbm.sched_mock.stop.assert_called_once()
+
+
+def _prime_start(qbm, monkeypatch, exc, run):
+    cfg = MagicMock()
+    cfg.qbt = MagicMock()
+    monkeypatch.setattr(qbm, "Config", lambda *a, **k: cfg)
+    monkeypatch.setattr(qbm, "execute_qbit_commands", MagicMock(side_effect=exc))
+    monkeypatch.setattr(qbm, "run", run)
+    monkeypatch.setattr(qbm, "is_running", MagicMock(), raising=False)
+    monkeypatch.setattr(qbm, "is_running_lock", MagicMock(), raising=False)
+    monkeypatch.setattr(qbm, "next_scheduled_run_info_shared", {}, raising=False)
+    monkeypatch.setattr(qbm, "stats", {}, raising=False)
+    monkeypatch.setattr(qbm, "finished_run", lambda *a, **k: None, raising=False)
+
+
+@pytest.mark.parametrize("exc_name", ["InvalidCategoryConfig", "UnsupportedVersion"])
+def test_start_one_shot_reraises_config_fatal_errors(qbm, monkeypatch, exc_name):
+    exc_cls = getattr(qbm, exc_name)
+    _prime_start(qbm, monkeypatch, exc_cls("bad config"), run=True)
+
+    with pytest.raises(exc_cls):
+        qbm.start()
+
+    assert qbm.next_scheduled_run_info_shared["last_run_result"] == "failed"
+
+
+def test_start_scheduled_mode_swallows_config_fatal_errors(qbm, monkeypatch):
+    _prime_start(qbm, monkeypatch, qbm.InvalidCategoryConfig("bad config"), run=False)
+
+    assert qbm.start() is None
+
+
+def test_one_shot_config_fatal_error_terminates_web_server_and_exits_nonzero(qbm, monkeypatch):
+    monkeypatch.setattr(qbm, "run", True)
+    monkeypatch.setattr(qbm, "start_loop", MagicMock(side_effect=qbm.InvalidCategoryConfig("bad config")))
+
+    with pytest.raises(SystemExit) as exc:
+        qbm.main()
+
+    assert exc.value.code == 1
+    qbm.web_process_mock.terminate.assert_called_once()
+    qbm.web_process_mock.join.assert_called_once()

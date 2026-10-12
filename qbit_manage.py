@@ -589,6 +589,8 @@ def start():
             # Execute qBittorrent commands using shared function with error handling
             try:
                 execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
+            except (InvalidCategoryConfig, UnsupportedVersion):
+                raise
             except Exception as ex:
                 logger.error(f"Error executing qBittorrent commands: {str(ex)}")
                 logger.stacktrace()
@@ -622,7 +624,7 @@ def start():
     except Failed as ex:
         # One-shot runs exit non-zero; scheduled runs return so the scheduler thread keeps future runs.
         if run and isinstance(ex, (UnsupportedVersion, InvalidCategoryConfig)):
-            sys.exit(1)
+            raise
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
