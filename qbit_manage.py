@@ -768,6 +768,7 @@ def main():
         logger.error(f"Failed to initialize scheduler: {e}")
         raise
 
+    web_process = None
     try:
         manager = Manager()
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
@@ -783,7 +784,6 @@ def main():
         globals()["next_scheduled_run_info_shared"] = next_scheduled_run_info_shared
 
         # Start web server if enabled and not in run mode
-        web_process = None
         if web_server:
             # One-time info message about how the web server was enabled
             try:
@@ -975,6 +975,16 @@ def main():
             web_process.terminate()
             web_process.join()
         end()
+    except Exception:
+        # The non-daemon web server would otherwise keep the interpreter alive with no scheduler running.
+        logger.critical("Unhandled exception, exiting", exc_info=True)
+        if scheduler:
+            scheduler.stop()
+        if web_process:
+            web_process.terminate()
+            web_process.join()
+        logger.remove_main_handler()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
