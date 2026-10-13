@@ -129,7 +129,7 @@ class Webhooks:
                 self.run_start_webhooks,
                 {
                     "function": "run_start",
-                    "title": None,
+                    "title": f"qBit Manage {start_type}Run Started",
                     "body": f"Starting {'WebAPI ' if self.web_api_used else ''}{start_type}Run",
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dry_run": self.config.commands["dry_run"],
@@ -146,7 +146,7 @@ class Webhooks:
                 self.run_end_webhooks,
                 {
                     "function": "run_end",
-                    "title": None,
+                    "title": "qBit Manage Run Completed",
                     "body": body,
                     "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
                     "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
