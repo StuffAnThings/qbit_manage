@@ -498,6 +498,10 @@ class Scheduler:
         """Check if scheduler is currently running."""
         return self._is_running
 
+    def is_alive(self) -> bool:
+        """Check if the scheduler thread is alive."""
+        return self._scheduler_thread is not None and self._scheduler_thread.is_alive()
+
     def get_next_run(self) -> Optional[datetime]:
         """Get the next scheduled run time."""
         with self.lock:
@@ -624,8 +628,8 @@ class Scheduler:
                     if self._callback:
                         try:
                             self._callback()
-                        except Exception as e:
-                            logger.error(f"Error executing scheduled callback: {e}")
+                        except (Exception, SystemExit) as e:
+                            logger.error(f"Error executing scheduled callback: {e!r}")
 
                     # Calculate next run time
                     with self.lock:

@@ -895,6 +895,12 @@ class Failed(Exception):
     pass
 
 
+class InvalidCategoryConfig(Failed):
+    """Exception raised when the cat: section of the config holds an invalid entry."""
+
+    pass
+
+
 class UnsupportedVersion(Failed):
     """Exception raised when the qBittorrent version is outside the supported range."""
 
