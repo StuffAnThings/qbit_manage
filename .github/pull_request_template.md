@@ -20,6 +20,14 @@ Please delete options that are not relevant.
 - [ ] This change requires a documentation update
 
 
+## AI Disclosure
+
+- [ ] No AI tools were used for this PR
+- [ ] AI tools were used (name them): ______
+- [ ] If AI was used: I, the PR opener, reviewed every changed line and can explain it
+
+PRs that use AI without the opener's review may be closed.
+
 ## Checklist:
 
 - [ ] My code follows the style guidelines of this project

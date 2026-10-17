@@ -376,6 +376,7 @@ class TorrentMessages:
         "TRACKER NICHT REGISTRIERT.",
         "TORRENT EXISTIERT NICHT",
         "TORRENT NICHT GEFUNDEN",
+        "TORRENT INTROUVABLE",  # torr9 (French)
         "TORRENT DELETED",  # NexusPHP
         "TORRENT BANNED",  # NexusPHP
     ]
@@ -894,6 +895,18 @@ class Failed(Exception):
     pass
 
 
+class InvalidCategoryConfig(Failed):
+    """Exception raised when the cat: section of the config holds an invalid entry."""
+
+    pass
+
+
+class UnsupportedVersion(Failed):
+    """Exception raised when the qBittorrent version is outside the supported range."""
+
+    pass
+
+
 def list_in_text(text, search_list, match_all=False):
     """
     Check if elements from a search list are present in a given text.
@@ -1259,15 +1272,32 @@ class CheckHardLinks:
                 else:
                     logger.debug(f"No hardlinks found for '{file}' (nlink={file_stat.st_nlink}).")
             else:
-                sorted_files = sorted(Path(file).rglob("*"), key=lambda x: os.stat(x).st_size, reverse=True)
+                entries = list(Path(file).rglob("*"))
                 threshold = 0.1
-                if not sorted_files:
+                for link in (p for p in entries if p.is_symlink()):
+                    logger.warning(f"Symlink found in {link}, unable to determine hardlinks. Skipping...")
+                # The size threshold must come from a regular file: a directory or symlink target
+                # can be larger than every real file and would skip all of them.
+                sorted_files = sorted(
+                    (p for p in entries if not p.is_symlink() and p.is_file()),
+                    key=lambda x: os.stat(x).st_size,
+                    reverse=True,
+                )
+                if not entries:
                     msg = (
                         f"Nohardlink Error: Unable to open the folder {file}. "
                         "Please make sure folder exists and qbit_manage has access to this directory."
                     )
                     notify(msg, "nohardlink")
                     logger.warning(msg)
+                    # Path could not be read (missing, empty, or unreadable dir). Fail closed:
+                    # this is not evidence of an absent hardlink.
+                    check_for_hl = False
+                elif not sorted_files:
+                    msg = f"Nohardlink Error: No regular files found in {file}. Unable to determine hardlinks."
+                    notify(msg, "nohardlink")
+                    logger.warning(msg)
+                    check_for_hl = False
                 else:
                     largest_file_size = os.stat(sorted_files[0]).st_size
                     size_threshold = largest_file_size * threshold
@@ -1277,9 +1307,6 @@ class CheckHardLinks:
                         f"only checking files >= {threshold:.0%} of largest ({size_threshold:.0f} bytes)"
                     )
                     for files in sorted_files:
-                        if os.path.islink(files):
-                            logger.warning(f"Symlink found in {files}, unable to determine hardlinks. Skipping...")
-                            continue
                         file_stat = os.stat(files)
                         file_size = file_stat.st_size
                         # sorted_files is sorted by size descending, so once we drop below the threshold no

@@ -284,6 +284,7 @@ class ShareLimits:
                 resume_torrent=group_config["resume_torrent_after_change"],
                 tracker=tracker["url"],
                 reset_upload_speed_on_unmet_minimums=group_config["reset_upload_speed_on_unmet_minimums"],
+                limit_upload_speed=group_config["limit_upload_speed"],
             )
             logger.trace(f"tor_reached_seed_limit: {tor_reached_seed_limit}")
             # Update share limits tag if needed
@@ -691,6 +692,7 @@ class ShareLimits:
         resume_torrent,
         tracker,
         reset_upload_speed_on_unmet_minimums,
+        limit_upload_speed=None,
     ):
         """Check if torrent has reached seed limit.
 
@@ -729,6 +731,14 @@ class ShareLimits:
                         torrent.set_upload_limit(-1)
                     if resume_torrent:
                         torrent.resume()
+            if not reset_upload_speed_on_unmet_minimums and limit_upload_speed is not None and limit_upload_speed > 0:
+                if round(torrent.up_limit / 1024) != limit_upload_speed:
+                    if not exclusion_tag_added:
+                        logger.print_line(logger.insert_space(f"Torrent Name: {torrent.name}", 3), self.config.loglevel)
+                        logger.print_line(logger.insert_space(f"Tracker: {tracker}", 8), self.config.loglevel)
+                    logger.print_line(logger.insert_space(f"Limit UL Speed: {limit_upload_speed} kB/s", 8), self.config.loglevel)
+                    if not self.config.dry_run:
+                        torrent.set_upload_limit(limit_upload_speed * 1024)
 
         def _has_reached_min_seeding_time_limit():
             if torrent.seeding_time >= min_seeding_time * 60:

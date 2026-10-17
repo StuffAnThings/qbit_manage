@@ -1,11 +1,27 @@
 import os
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
 
 from modules import util
 
 logger = util.logger
+
+
+def find_orphaned_files(root_files, torrent_files):
+    """Diff on-disk files against torrent-tracked files, ignoring Unicode form.
+
+    Filesystems may store names in NFD (e.g. macOS/APFS, commonly surfaced to
+    Docker via virtiofs) while qBittorrent reports torrent content paths in NFC
+    (torrent metadata). A raw set difference then falsely flags every file whose
+    path contains non-ASCII characters (é, ü, 日, …) as orphaned. Both sides are
+    Unicode-normalized (NFC) for the comparison only; the original on-disk paths
+    are returned so downstream stat/delete/move operations keep working against
+    the real filesystem names.
+    """
+    torrent_files_nfc = {unicodedata.normalize("NFC", f) for f in torrent_files}
+    return {f for f in root_files if unicodedata.normalize("NFC", f) not in torrent_files_nfc}
 
 
 class RemoveOrphaned:
@@ -68,8 +84,8 @@ class RemoveOrphaned:
             for torrent in torrent_list:
                 torrent_files.update(self.get_full_path_of_torrent_files(torrent))
 
-        # Find orphaned files efficiently
-        orphaned_files = root_files - torrent_files
+        # Find orphaned files efficiently (Unicode-normalized comparison)
+        orphaned_files = find_orphaned_files(root_files, torrent_files)
         logger.trace(
             f"Resolved {len(torrent_files)} tracked torrent files; {len(orphaned_files)} candidate orphaned files before filters"
         )

@@ -1,7 +1,6 @@
 """Qbittorrent Module"""
 
 import os
-import sys
 from fnmatch import fnmatch
 from functools import cache
 
@@ -15,7 +14,9 @@ from ruamel.yaml import CommentedSeq
 from modules import util
 from modules.qbit_error_handler import handle_qbit_api_errors
 from modules.util import Failed
+from modules.util import InvalidCategoryConfig
 from modules.util import TorrentMessages
+from modules.util import UnsupportedVersion
 from modules.util import list_in_text
 
 logger = util.logger
@@ -80,8 +81,10 @@ class Qbt:
                 else:
                     self.config.notify(ex, "Qbittorrent")
                     logger.print_line(ex, "CRITICAL")
-                    sys.exit(1)
+                    raise UnsupportedVersion(ex)
             logger.info("Qbt Connection Successful")
+        except UnsupportedVersion:
+            raise
         except LoginFailed:
             ex = "Qbittorrent Error: Failed to login. Invalid username/password or API key."
             self.config.notify(ex, "Qbittorrent")
@@ -459,7 +462,7 @@ class Qbt:
                     e = f"Invalid configuration for category {cat}. Check your config.yml file."
                     self.config.notify(e, "Category", True)
                     logger.print_line(e, "CRITICAL")
-                    sys.exit(1)
+                    raise InvalidCategoryConfig(e)
 
         if not category:
             default_cat = path.split(os.sep)[-2]

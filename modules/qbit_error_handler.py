@@ -262,6 +262,8 @@ def safe_execute_with_qbit_error_handling(func: Callable, context: str = "", *ar
         # Apply the decorator dynamically
         wrapped_func = handle_qbit_api_errors(context)(func)
         return wrapped_func(*args, **kwargs)
+    except (util.InvalidCategoryConfig, util.UnsupportedVersion):
+        raise
     except Exception as e:
         logger.error(f"Unexpected error in {context}: {str(e)}")
         logger.stacktrace()

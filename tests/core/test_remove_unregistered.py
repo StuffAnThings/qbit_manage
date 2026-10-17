@@ -16,6 +16,8 @@ import time
 from unittest.mock import patch
 
 from modules.core.remove_unregistered import BHD_TRACKER_DOMAIN
+from modules.util import TorrentMessages
+from modules.util import list_in_text
 from tests.factories import FakeConfig
 from tests.factories import FakeQbtManager
 from tests.factories import FakeTorrent
@@ -719,3 +721,9 @@ def test_grace_period_blocks_deletion():
     skip, age = ru.is_within_grace(t)
     assert skip is True
     assert 4 < age < 6
+
+
+def test_unregistered_message_list_entries_are_detected():
+    """Entries from UNREGISTERED_MSGS should match via list_in_text."""
+    for msg_up in TorrentMessages.UNREGISTERED_MSGS:
+        assert list_in_text(msg_up, TorrentMessages.UNREGISTERED_MSGS)

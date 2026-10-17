@@ -401,6 +401,8 @@ from modules.core.tag_nohardlinks import TagNoHardLinks  # noqa
 from modules.core.tags import Tags  # noqa
 from modules.util import Failed  # noqa
 from modules.util import GracefulKiller  # noqa
+from modules.util import InvalidCategoryConfig  # noqa
+from modules.util import UnsupportedVersion  # noqa
 from modules.web_api import CommandRequest  # noqa
 
 
@@ -471,6 +473,7 @@ def start():
         stats_summary = []
         logger.separator("Starting Run")
         cfg = None
+        run_result = "failed"
         body = ""
         run_time = ""
         end_time = None
@@ -586,6 +589,8 @@ def start():
             # Execute qBittorrent commands using shared function with error handling
             try:
                 execute_qbit_commands(qbit_manager, cfg.commands, stats, hashes=None)
+            except (InvalidCategoryConfig, UnsupportedVersion):
+                raise
             except Exception as ex:
                 logger.error(f"Error executing qBittorrent commands: {str(ex)}")
                 logger.stacktrace()
@@ -600,6 +605,7 @@ def start():
 
         stats_summary = format_stats_summary(stats, cfg)
 
+        run_result = "success"
         finished_run(next_scheduled_run_info_shared)
         if cfg:
             try:
@@ -616,6 +622,9 @@ def start():
                     is_running.value = False
                 logger.info("Released lock for web API requests despite webhook error")
     except Failed as ex:
+        # One-shot runs exit non-zero; scheduled runs return so the scheduler thread keeps future runs.
+        if run and isinstance(ex, (UnsupportedVersion, InvalidCategoryConfig)):
+            raise
         logger.stacktrace()
         logger.print_line(ex, "CRITICAL")
         logger.print_line("Exiting scheduled Run.", "CRITICAL")
@@ -624,6 +633,10 @@ def start():
         with is_running_lock:
             is_running.value = False
         return None
+    finally:
+        with is_running_lock:
+            is_running.value = False
+        next_scheduled_run_info_shared.update({"last_run": datetime.now().isoformat(), "last_run_result": run_result})
 
 
 def end():
@@ -764,6 +777,7 @@ def main():
         logger.error(f"Failed to initialize scheduler: {e}")
         raise
 
+    web_process = None
     try:
         manager = Manager()
         is_running = manager.Value("b", False)  # 'b' for boolean, initialized to False
@@ -779,7 +793,6 @@ def main():
         globals()["next_scheduled_run_info_shared"] = next_scheduled_run_info_shared
 
         # Start web server if enabled and not in run mode
-        web_process = None
         if web_server:
             # One-time info message about how the web server was enabled
             try:
@@ -955,6 +968,10 @@ def main():
                     if next_run_info["next_run"] != next_run_time:
                         logger.info(f"Next scheduled run updated: {next_run_info['next_run_str']}")
 
+                next_scheduled_run_info_shared.update(
+                    {"scheduler_alive": scheduler.is_alive(), "scheduler_heartbeat": datetime.now().isoformat()}
+                )
+
                 # Sleep for a reasonable interval
                 time.sleep(30)
 
@@ -971,6 +988,16 @@ def main():
             web_process.terminate()
             web_process.join()
         end()
+    except Exception:
+        # The non-daemon web server would otherwise keep the interpreter alive with no scheduler running.
+        logger.critical("Unhandled exception, exiting", exc_info=True)
+        if scheduler:
+            scheduler.stop()
+        if web_process:
+            web_process.terminate()
+            web_process.join()
+        logger.remove_main_handler()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

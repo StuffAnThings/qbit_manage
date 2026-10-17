@@ -91,11 +91,13 @@ def fake_logger(monkeypatch):
     from modules import util
 
     monkeypatch.setattr(util, "logger", fake, raising=False)
+    from modules.core import remove_orphaned as remove_orphaned_mod
     from modules.core import remove_unregistered as remove_unregistered_mod
     from modules.core import share_limits as share_limits_mod
 
     monkeypatch.setattr(share_limits_mod, "logger", fake, raising=False)
     monkeypatch.setattr(remove_unregistered_mod, "logger", fake, raising=False)
+    monkeypatch.setattr(remove_orphaned_mod, "logger", fake, raising=False)
     return fake
 
 
