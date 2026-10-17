@@ -136,6 +136,13 @@ resulting `qbit-manage-release-assets` artifact is available for download from t
 before merge. A concurrency group cancels superseded runs when new commits land on
 the same labeled PR.
 
+### Rebuilding assets for an existing release (`rebuild-release-assets.yml`)
+
+If a published release is missing its binaries, run **Actions → Rebuild Release
+Assets → Run workflow** with the existing tag (e.g. `v4.14.0`). It validates the
+tag and release, rebuilds the matrix from that tag via `build-binaries.yml`, and
+uploads the artifacts to the release with `gh release upload --clobber`.
+
 ### Reusable build workflow (`build-binaries.yml`)
 
 `build-binaries.yml` is a `workflow_call` reusable workflow — the single source of

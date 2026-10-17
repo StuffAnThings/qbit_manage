@@ -1,0 +1,81 @@
+# Manually triggered: rebuilds the binaries / desktop bundles for an existing
+# release tag and uploads them to that GitHub release. Use when a published
+# release is missing its assets.
+name: Rebuild Release Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to rebuild assets for (e.g. v4.14.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate tag and release
+    runs-on: ubuntu-latest
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    permissions:
+      contents: read
+    steps:
+      - name: Validate tag format and release existence
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$TAG' must be a stable release tag like v4.14.0."
+            exit 1
+          fi
+          RELEASE_ERROR="$(mktemp)"
+          trap 'rm -f "$RELEASE_ERROR"' EXIT
+          if ! gh release view "$TAG" >/dev/null 2>"$RELEASE_ERROR"; then
+            if grep -Eq 'release not found|HTTP 404' "$RELEASE_ERROR"; then
+              echo "::error::No GitHub release found for $TAG."
+            else
+              cat "$RELEASE_ERROR" >&2
+            fi
+            exit 1
+          fi
+
+  build-release-assets:
+    name: Build release assets
+    needs: [validate]
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    uses: ./.github/workflows/build-binaries.yml
+    with:
+      ref: refs/tags/${{ inputs.tag }}
+
+  upload-assets:
+    name: Upload assets to release
+    needs: [build-release-assets]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.repository == 'StuffAnThings/qbit_manage'
+    permissions:
+      contents: write
+    steps:
+      - name: Download rebuilt release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: qbit-manage-release-assets
+          path: release-assets
+
+      - name: Upload assets to the existing release
+        env:
+          GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" release-assets/* --clobber
