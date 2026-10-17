@@ -202,6 +202,9 @@ class ShareLimits:
     def update_share_limits_for_group(self, group_name, group_config, torrents):
         """Updates share limits for torrents in a group"""
         group_upload_speed = group_config["limit_upload_speed"]
+        speed_divisor = len(torrents)
+        if group_config.get("group_upload_speed_exclude_stopped"):
+            speed_divisor = max(1, sum(1 for t in torrents if not str(t.state).startswith(("paused", "stopped"))))
 
         for torrent in torrents:
             t_name = torrent.name
@@ -224,10 +227,10 @@ class ShareLimits:
                 if group_config["enable_group_upload_speed"]:
                     logger.trace(
                         "enable_group_upload_speed set to True.\n"
-                        f"Setting limit_upload_speed to {group_upload_speed} / {len(torrents)} = "
-                        f"{round(group_upload_speed / len(torrents))} kB/s"
+                        f"Setting limit_upload_speed to {group_upload_speed} / {speed_divisor} = "
+                        f"{round(group_upload_speed / speed_divisor)} kB/s"
                     )
-                    group_config["limit_upload_speed"] = round(group_upload_speed / len(torrents))
+                    group_config["limit_upload_speed"] = round(group_upload_speed / speed_divisor)
             check_limit_upload_speed = group_config["limit_upload_speed"] != torrent_upload_limit
             hash_not_prev_checked = t_hash not in self.torrent_hash_checked
 
