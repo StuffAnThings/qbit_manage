@@ -456,3 +456,16 @@ class TestCrossSeedDetection:
 
         assert qbt.torrentfiles["/data/file1.txt"]["original"] == "hash2"
         assert qbt.torrentfiles["/data/file1.txt"]["cross_seed"] == ["hash3"]
+
+
+class TestGetCategoryInvalidConfig:
+    @patch("modules.qbittorrent.logger")
+    def test_invalid_category_config_raises_failed_not_system_exit(self, _mock_logger):
+        import pytest
+
+        from modules.util import Failed
+
+        fake = SimpleNamespace(config=SimpleNamespace(data={"cat": {"movies": None}}, notify=MagicMock()))
+
+        with pytest.raises(Failed):
+            Qbt.get_category(fake, "/data/movies")

@@ -115,6 +115,9 @@ class ValidationResponse(BaseModel):
     config_modified: bool = False
 
 
+SCHEDULER_HEARTBEAT_MAX_AGE = timedelta(minutes=5)
+
+
 class HealthCheckResponse(BaseModel):
     """Health check response model."""
 
@@ -561,6 +564,21 @@ class WebAPI:
                         # If it's not a datetime object, try to parse it
                         pass
 
+            scheduler_alive = None
+            last_run = None
+            last_run_result = None
+            if self.next_scheduled_run_info:
+                scheduler_alive = self.next_scheduled_run_info.get("scheduler_alive")
+                last_run = self.next_scheduled_run_info.get("last_run")
+                last_run_result = self.next_scheduled_run_info.get("last_run_result")
+                heartbeat = self.next_scheduled_run_info.get("scheduler_heartbeat")
+                if scheduler_alive is False:
+                    status = "unhealthy"
+                    issues.append("Scheduler is not running")
+                elif heartbeat and datetime.now() - datetime.fromisoformat(heartbeat) > SCHEDULER_HEARTBEAT_MAX_AGE:
+                    status = "unhealthy"
+                    issues.append("Scheduler heartbeat is stale")
+
             health_info = {
                 "status": status,
                 "timestamp": current_time,
@@ -573,6 +591,9 @@ class WebAPI:
                     "has_queued_requests": has_queued_requests,
                     "next_scheduled_run": next_run_timestamp,
                     "next_scheduled_run_text": next_run_text,
+                    "scheduler_alive": scheduler_alive,
+                    "last_run": last_run,
+                    "last_run_result": last_run_result,
                 },
                 "directories": {
                     "config_dir_exists": config_dir_exists,
