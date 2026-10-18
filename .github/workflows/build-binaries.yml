@@ -1,7 +1,7 @@
-# Reusable build: standalone PyInstaller binaries + Tauri desktop bundles across
-# the 5-platform matrix, collected into a single `qbit-manage-release-assets`
-# artifact. Called by release-pr.yml, develop.yml, and pr-build.yml so the matrix
-# lives in exactly one place.
+# Standalone PyInstaller binaries + Tauri desktop bundles across the 5-platform
+# matrix, collected into a single `qbit-manage-release-assets` artifact.
+# Called as a reusable workflow by release-pr.yml, develop.yml, and pr-build.yml,
+# or triggered manually via workflow_dispatch with an optional tag/ref parameter.
 name: Build Binaries (reusable)
 
 on:
@@ -11,6 +11,13 @@ on:
         description: "Git ref (branch / tag / sha) to check out and build"
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag (or git ref) to build artifacts for (optional; defaults to the workflow branch/ref)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build-binaries:
@@ -46,7 +53,7 @@ jobs:
       - name: Check Out Repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.tag || inputs.ref || github.ref }}
 
       - name: Setup Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6

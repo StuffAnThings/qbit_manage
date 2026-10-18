@@ -138,11 +138,14 @@ the same labeled PR.
 
 ### Reusable build workflow (`build-binaries.yml`)
 
-`build-binaries.yml` is a `workflow_call` reusable workflow — the single source of
-truth for the PyInstaller + Tauri matrix. All three callers (`release-pr.yml`,
-`develop.yml`, `pr-build.yml`) pass a `ref` input (branch / tag / SHA). The
-workflow produces one consolidated `qbit-manage-release-assets` artifact containing
-the 5 server binaries plus the per-platform desktop installer bundles.
+`build-binaries.yml` is the single source of truth for the PyInstaller + Tauri
+matrix. It can be invoked as a `workflow_call` reusable workflow by callers
+(`release-pr.yml`, `develop.yml`, `pr-build.yml` passing a `ref` input) or run
+manually via `workflow_dispatch` (**Actions → Build Binaries (reusable) → Run
+workflow**) with an optional `tag` input to build artifacts for a specific release
+tag or git ref. The workflow produces one consolidated `qbit-manage-release-assets`
+artifact containing the 5 server binaries plus the per-platform desktop
+installer bundles.
 
 ---
 
@@ -287,5 +290,7 @@ Recover:
 - `gh workflow run tag.yml` and `gh workflow run update-develop-branch.yml` —
   manual `workflow_dispatch` levers to re-create the tag and reset develop.
 - `gh workflow run pypi-publish.yml --ref master` — re-publish to PyPI.
+- `gh workflow run build-binaries.yml -f tag=v<X.Y.Z>` — rebuild artifacts for
+  a specific release tag if draft assets are missing.
 Prevention: rebase-merge release PRs; never put `[skip ci]` in a commit that
 can reach master.
