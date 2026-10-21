@@ -158,7 +158,7 @@ jobs:
           echo "Smoke test passed: multiprocessing.Manager() initialized in the frozen binary."
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
         env:
@@ -174,7 +174,7 @@ jobs:
 
       - name: Retry Rust toolchain setup on failure
         if: steps.rust-setup.outcome == 'failure'
-        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
         env:
