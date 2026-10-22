@@ -23,7 +23,7 @@ dependencies = [
     "fastapi==0.148.0",
     "humanize==4.16.0",
     "pytimeparse2==1.7.1",
-    "qbittorrent-api==2026.10.0",
+    "qbittorrent-api==2026.10.1",
     "requests==2.34.2",
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
