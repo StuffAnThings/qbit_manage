@@ -79,6 +79,7 @@
             ],
             "groupName": "qbittorrent-api",
             "groupSlug": "qbittorrent-api",
+            "minimumReleaseAge": "0 days",
             "schedule": [
                 "at any time"
             ],
