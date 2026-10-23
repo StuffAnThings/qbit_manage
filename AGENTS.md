@@ -130,7 +130,7 @@ the commit in auto-generated release notes.
 
 ## Implementation Standards
 
-- Support Python 3.10 and newer.
+- Support Python 3.11 and newer.
 - Follow existing module patterns and prefer the smallest change that fixes
   the behavior.
 - Validate input at API, CLI, configuration, and filesystem boundaries.

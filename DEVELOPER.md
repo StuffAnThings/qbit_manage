@@ -211,7 +211,7 @@ branch (`develop` is not modified during this step):
 
 Every PR to `develop` (and to `master`) is gated by `tests.yml` (triggered by
 `pull_request` to master/main/develop), which runs pytest across Python
-3.10–3.14. That is the only CI job that must pass before merge.
+3.11–3.14. That is the only CI job that must pass before merge.
 
 Ruff (lint/format) and yamllint are enforced as local pre-commit hooks, not as
 CI jobs. `develop.yml` is a post-merge workflow triggered by
