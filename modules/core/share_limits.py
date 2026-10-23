@@ -6,6 +6,18 @@ from modules import util
 from modules.util import is_tag_in_torrent
 from modules.webhooks import GROUP_NOTIFICATION_LIMIT
 
+# torrents/setShareLimits requires shareLimitsMode from Web API 2.15.3 (WebAPI_Changelog.md).
+SHARE_LIMITS_MODE_MIN_API = (2, 15, 3)
+
+
+def _parse_api_version(version):
+    parts = []
+    for piece in str(version).lstrip("vV").split(".")[:3]:
+        digits = "".join(ch for ch in piece if ch.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts + [0] * (3 - len(parts)))
+
+
 logger = util.logger
 
 
@@ -486,6 +498,7 @@ class ShareLimits:
                             seeding_time_limit=-1,
                             inactive_seeding_time_limit=-1,
                             share_limit_action="Default",
+                            **self._mode_kwargs(),
                         )
                         torrent.set_upload_limit(limit_val)
         else:
@@ -617,6 +630,17 @@ class ShareLimits:
         )
         return None
 
+    def _mode_kwargs(self):
+        """shareLimitsMode kwarg for set_share_limits, only when the connected Web API requires it."""
+        if getattr(self, "_share_limits_mode_kwargs", None) is None:
+            try:
+                api_version = self.client.app.web_api_version
+            except Exception:
+                return {}
+            needs_mode = _parse_api_version(api_version) >= SHARE_LIMITS_MODE_MIN_API
+            self._share_limits_mode_kwargs = {"share_limits_mode": "Default"} if needs_mode else {}
+        return self._share_limits_mode_kwargs
+
     def set_limits(
         self,
         torrent,
@@ -676,6 +700,7 @@ class ShareLimits:
                 seeding_time_limit=max_seeding_time,
                 inactive_seeding_time_limit=-2,
                 share_limit_action=share_limit_action,
+                **self._mode_kwargs(),
             )
         [logger.print_line(msg, self.config.loglevel) for msg in body if do_print]
         return body
@@ -726,6 +751,7 @@ class ShareLimits:
                         seeding_time_limit=-1,
                         inactive_seeding_time_limit=-1,
                         share_limit_action="Default",
+                        **self._mode_kwargs(),
                     )
                     if reset_upload_speed_on_unmet_minimums:
                         torrent.set_upload_limit(-1)
