@@ -902,6 +902,16 @@ class Config:
                     do_print=False,
                     save=False,
                 )
+                self.share_limits[group]["group_upload_speed_exclude_stopped"] = self.util.check_for_attribute(
+                    self.data,
+                    "group_upload_speed_exclude_stopped",
+                    parent="share_limits",
+                    subparent=group,
+                    var_type="bool",
+                    default=False,
+                    do_print=False,
+                    save=False,
+                )
                 self.share_limits[group]["min_num_seeds"] = self.util.check_for_attribute(
                     self.data,
                     "min_num_seeds",
