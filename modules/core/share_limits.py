@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import timedelta
 from time import time
 
@@ -13,8 +14,8 @@ SHARE_LIMITS_MODE_MIN_API = (2, 15, 3)
 def _parse_api_version(version):
     parts = []
     for piece in str(version).lstrip("vV").split(".")[:3]:
-        digits = "".join(ch for ch in piece if ch.isdigit())
-        parts.append(int(digits) if digits else 0)
+        match = re.match(r"\d+", piece)
+        parts.append(int(match.group()) if match else 0)
     return tuple(parts + [0] * (3 - len(parts)))
 
 
@@ -635,9 +636,9 @@ class ShareLimits:
         if getattr(self, "_share_limits_mode_kwargs", None) is None:
             try:
                 api_version = self.client.app.web_api_version
+                needs_mode = _parse_api_version(api_version) >= SHARE_LIMITS_MODE_MIN_API
             except Exception:
-                return {}
-            needs_mode = _parse_api_version(api_version) >= SHARE_LIMITS_MODE_MIN_API
+                needs_mode = False
             self._share_limits_mode_kwargs = {"share_limits_mode": "Default"} if needs_mode else {}
         return self._share_limits_mode_kwargs
 

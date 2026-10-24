@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from modules.core.share_limits import _parse_api_version
 from tests.factories import FakeClient
 
 
@@ -63,3 +64,27 @@ def test_reset_path_omits_mode_on_old_api(share_limits_factory, torrent_factory)
     t = torrent_factory(num_complete=2, tags="")
     _reset_via_min_seeds(sl, t)
     assert _calls_of(t, "set_share_limits")[0][1]["share_limits_mode"] is None
+
+
+@pytest.mark.parametrize("version", ["2.15.2-rc1"])
+def test_parse_api_version_uses_leading_digits(version):
+    assert _parse_api_version(version) == (2, 15, 2)
+
+
+@pytest.mark.parametrize("failure", ["raises", "absent"])
+def test_set_limits_caches_mode_fallback(share_limits_factory, torrent_factory, failure):
+    sl = _sl(share_limits_factory, "2.16.2")
+    if failure == "raises":
+
+        class BrokenApp:
+            @property
+            def web_api_version(self):
+                raise RuntimeError("version unavailable")
+
+        sl.client.app = BrokenApp()
+    else:
+        sl.client.app = object()
+
+    assert sl._mode_kwargs() == {}
+    cached = sl._share_limits_mode_kwargs
+    assert sl._mode_kwargs() is cached
