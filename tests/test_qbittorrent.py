@@ -10,6 +10,7 @@ Coverage:
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -456,6 +457,55 @@ class TestCrossSeedDetection:
 
         assert qbt.torrentfiles["/data/file1.txt"]["original"] == "hash2"
         assert qbt.torrentfiles["/data/file1.txt"]["cross_seed"] == ["hash3"]
+
+
+# ---- tor_delete_recycle tests ------------------------------------------------
+
+
+class TestTorDeleteRecycle:
+    """Test Qbt.tor_delete_recycle() torrent backups in the recycle bin."""
+
+    @patch("modules.qbittorrent.logger")
+    def test_backs_up_torrent_whose_name_contains_path_separator(self, _mock_logger, tmp_path):
+        """A "/" in the torrent name must not be treated as a directory in the backup filenames."""
+        torrent_name = "Some Series [ENG / EPUB]"
+        recycle_dir = tmp_path / ".RecycleBin"
+        torrents_dir = tmp_path / "BT_backup"
+        torrents_dir.mkdir()
+        torrent = FakeTorrent(
+            name=torrent_name,
+            hash="00000000000000000000000000000000abcdef12",
+            save_path=str(tmp_path / "downloads"),
+            export=lambda: b"d4:infod4:name4:testee",
+        )
+
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=str(torrents_dir),
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = [torrent]
+        info = {
+            "torrents": [torrent_name],
+            "torrent_category": "books",
+            "torrent_tracker": "https://tracker.example",
+            "torrents_deleted_and_contents": False,
+        }
+
+        Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        json_file = recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB].json"
+        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [abcdef12].torrent"
+        assert json.loads(json_file.read_text())["torrent_name"] == torrent_name
+        assert export_file.read_bytes() == b"d4:infod4:name4:testee"
+        qbt.config.notify.assert_not_called()
+        assert ("delete", {"delete_files": False}) in torrent.calls
 
 
 class TestGetCategoryInvalidConfig:

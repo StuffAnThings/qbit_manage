@@ -521,6 +521,8 @@ class Qbt:
             torrent_export_path = os.path.join(recycle_path, "torrents_export")
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
             torrent_name = info["torrents"][0]
+            # Torrent names can contain path separators, which are not valid in a filename
+            torrent_file_name = torrent_name.replace("/", "_").replace("\\", "_")
             torrent_exportable = self.current_version >= "v4.5.0"
             os.makedirs(recycle_path, exist_ok=True)
             if self.config.recyclebin["save_torrents"]:
@@ -530,7 +532,7 @@ class Qbt:
                     os.makedirs(torrents_json_path)
                 if torrent_exportable and os.path.isdir(torrent_export_path) is False:
                     os.makedirs(torrent_export_path)
-                torrent_json_file = os.path.join(torrents_json_path, f"{torrent_name}.json")
+                torrent_json_file = os.path.join(torrents_json_path, f"{torrent_file_name}.json")
                 torrent_json = util.load_json(torrent_json_file)
                 if not torrent_json:
                     logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
@@ -543,7 +545,7 @@ class Qbt:
                 if torrent_exportable:
                     # Get the last 8 hash characters of the torrent
                     hash_suffix = f"{info_hash[-8:]}"
-                    torrent_export_file = os.path.join(torrent_export_path, f"{torrent_name} [{hash_suffix}].torrent")
+                    torrent_export_file = os.path.join(torrent_export_path, f"{torrent_file_name} [{hash_suffix}].torrent")
                     truncated_torrent_export_file = util.truncate_filename(torrent_export_file, offset=11)
                     try:
                         with open(f"{truncated_torrent_export_file}", "wb") as file:
