@@ -11,11 +11,13 @@ Coverage:
 from __future__ import annotations
 
 import json
+import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from modules.qbittorrent import Qbt
+from modules.qbittorrent import recycle_backup_name
 from tests.factories import FakeTorrent
 from tests.factories import _Tracker
 
@@ -500,12 +502,34 @@ class TestTorDeleteRecycle:
 
         Qbt.tor_delete_recycle(qbt, torrent, info)
 
-        json_file = recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB].json"
-        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [abcdef12].torrent"
+        json_file = recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB] [d8695fac].json"
+        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [d8695fac] [abcdef12].torrent"
         assert json.loads(json_file.read_text())["torrent_name"] == torrent_name
         assert export_file.read_bytes() == b"d4:infod4:name4:testee"
         qbt.config.notify.assert_not_called()
         assert ("delete", {"delete_files": False}) in torrent.calls
+
+
+class TestRecycleBackupName:
+    """Test recycle_backup_name() filenames for recycle bin backups."""
+
+    def test_name_without_separator_is_unchanged(self):
+        """Existing backups keep their filenames."""
+        assert recycle_backup_name("Some Series [ENG - EPUB]") == "Some Series [ENG - EPUB]"
+
+    def test_name_with_separator_does_not_collide_with_replaced_name(self):
+        """A name with "/" and the same name with "_" get different backup files."""
+        assert recycle_backup_name("Book/EPUB") != recycle_backup_name("Book_EPUB")
+
+    def test_identical_names_share_a_backup_file(self):
+        """Cross-seeds with the same name keep aggregating into one backup file."""
+        assert recycle_backup_name("Book/EPUB") == recycle_backup_name("Book/EPUB")
+
+    def test_only_platform_separators_are_replaced(self, monkeypatch):
+        """On POSIX a backslash is a valid filename character and is kept."""
+        monkeypatch.setattr(os, "sep", "/")
+        monkeypatch.setattr(os, "altsep", None)
+        assert recycle_backup_name("Book\\EPUB") == "Book\\EPUB"
 
 
 class TestGetCategoryInvalidConfig:

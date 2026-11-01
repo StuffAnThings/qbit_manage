@@ -1,5 +1,6 @@
 """Qbittorrent Module"""
 
+import hashlib
 import os
 from fnmatch import fnmatch
 from functools import cache
@@ -20,6 +21,21 @@ from modules.util import UnsupportedVersion
 from modules.util import list_in_text
 
 logger = util.logger
+
+
+def recycle_backup_name(torrent_name):
+    """Return the base filename for a torrent's recycle bin backups.
+
+    Path separators are replaced with "_", and when one was replaced a short hash of the original
+    name is appended, so distinct names never share a backup file. Names without a separator are
+    returned unchanged, which keeps existing backups and same-name aggregation working.
+    """
+    file_name = torrent_name
+    for sep in filter(None, (os.sep, os.altsep)):
+        file_name = file_name.replace(sep, "_")
+    if file_name != torrent_name:
+        file_name += f" [{hashlib.sha1(torrent_name.encode()).hexdigest()[:8]}]"
+    return file_name
 
 
 class Qbt:
@@ -521,8 +537,7 @@ class Qbt:
             torrent_export_path = os.path.join(recycle_path, "torrents_export")
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
             torrent_name = info["torrents"][0]
-            # Torrent names can contain path separators, which are not valid in a filename
-            torrent_file_name = torrent_name.replace("/", "_").replace("\\", "_")
+            torrent_file_name = recycle_backup_name(torrent_name)
             torrent_exportable = self.current_version >= "v4.5.0"
             os.makedirs(recycle_path, exist_ok=True)
             if self.config.recyclebin["save_torrents"]:
