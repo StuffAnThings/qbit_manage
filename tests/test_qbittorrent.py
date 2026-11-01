@@ -555,6 +555,46 @@ class TestTorDeleteRecycle:
         assert all(f.suffix == ".torrent" and len(f.name.encode()) <= 255 for f in export_files)
         qbt.config.notify.assert_not_called()
 
+    @patch("modules.qbittorrent.logger")
+    def test_export_lands_in_a_deep_recycle_bin(self, _mock_logger, tmp_path):
+        """A long recycle bin path must not be cut into, so the export is written inside torrents_export."""
+        torrent_name = "Some Series [ENG / EPUB]"
+        recycle_dir = tmp_path / ("d" * 120) / ("e" * 120) / ".RecycleBin"
+        torrents_dir = tmp_path / "BT_backup"
+        torrents_dir.mkdir()
+        torrent = FakeTorrent(
+            name=torrent_name,
+            hash="00000000000000000000000000000000abcdef12",
+            save_path=str(tmp_path / "downloads"),
+            export=lambda: b"d4:infod4:name4:testee",
+        )
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=str(torrents_dir),
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = []
+        info = {
+            "torrents": [torrent_name],
+            "torrent_category": "books",
+            "torrent_tracker": "https://tracker.example",
+            "torrents_deleted_and_contents": False,
+        }
+
+        Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [d8695fac] [abcdef12].torrent"
+        assert export_file.read_bytes() == b"d4:infod4:name4:testee"
+        torrent_json = json.loads((recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB] [d8695fac].json").read_text())
+        assert torrent_json["tracker_torrent_files"]["https://tracker.example"] == [export_file.name]
+        qbt.config.notify.assert_not_called()
+
 
 class TestRecycleBackupName:
     """Test recycle_backup_name() filenames for recycle bin backups."""

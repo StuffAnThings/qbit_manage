@@ -568,16 +568,16 @@ class Qbt:
                 if torrent_exportable:
                     # Get the last 8 hash characters of the torrent
                     hash_suffix = f"{info_hash[-8:]}"
+                    # recycle_backup_name() keeps this filename within 255 bytes, so the path is never truncated
                     torrent_export_file = os.path.join(torrent_export_path, f"{torrent_file_name} [{hash_suffix}].torrent")
-                    truncated_torrent_export_file = util.truncate_filename(torrent_export_file, offset=11)
                     try:
-                        with open(f"{truncated_torrent_export_file}", "wb") as file:
+                        with open(f"{torrent_export_file}", "wb") as file:
                             file.write(torrent.export())
                     except Exception as ex:
                         logger.stacktrace()
                         self.config.notify(ex, "Deleting Torrent", False)
                         logger.warning(f"RecycleBin Warning: {ex}")
-                    dot_torrent_files.append(os.path.basename(truncated_torrent_export_file))
+                    dot_torrent_files.append(os.path.basename(torrent_export_file))
                 # Exporting torrent via torrent directory (backwards compatibility)
                 for file in os.listdir(self.config.torrents_dir):
                     if file.startswith(info_hash):
