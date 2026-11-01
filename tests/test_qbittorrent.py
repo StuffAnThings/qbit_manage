@@ -17,6 +17,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 from modules.qbittorrent import Qbt
 from modules.qbittorrent import recycle_backup_name
 from tests.factories import FakeTorrent
@@ -510,10 +512,10 @@ class TestTorDeleteRecycle:
         qbt.config.notify.assert_not_called()
         assert ("delete", {"delete_files": False}) in torrent.calls
 
+    @pytest.mark.parametrize("torrent_name", ["A" * 240 + "/EPUB", "é" * 120 + "/EPUB", "é" * 130])
     @patch("modules.qbittorrent.logger")
-    def test_long_name_with_separator_aggregates_into_one_reloadable_backup(self, _mock_logger, tmp_path):
-        """A long name keeps its .json extension and a second removal of the same name merges into it."""
-        torrent_name = "A" * 240 + "/EPUB"
+    def test_long_name_aggregates_into_one_reloadable_backup(self, _mock_logger, tmp_path, torrent_name):
+        """A long name keeps its extensions within 255 bytes and a second removal of the same name merges into it."""
         recycle_dir = tmp_path / ".RecycleBin"
         torrents_dir = tmp_path / "BT_backup"
         torrents_dir.mkdir()
@@ -545,9 +547,12 @@ class TestTorDeleteRecycle:
         json_files = list((recycle_dir / "torrents_json").iterdir())
         assert len(json_files) == 1
         assert json_files[0].suffix == ".json"
-        torrent_json = json.loads(json_files[0].read_text())
+        torrent_json = json.loads(json_files[0].read_text(encoding="utf-8"))
         assert torrent_json["torrent_name"] == torrent_name
         assert set(torrent_json["tracker_torrent_files"]) == {"https://tracker1.example", "https://tracker2.example"}
+        export_files = list((recycle_dir / "torrents_export").iterdir())
+        assert len(export_files) == 2
+        assert all(f.suffix == ".torrent" and len(f.name.encode()) <= 255 for f in export_files)
         qbt.config.notify.assert_not_called()
 
 
@@ -570,15 +575,27 @@ class TestRecycleBackupName:
         """The hash survives on a long name, so long names differing only at the end stay distinct."""
         name_a = recycle_backup_name("A" * 240 + "/EPUB")
         name_b = recycle_backup_name("A" * 240 + "/MOBI")
-        assert len(name_a) <= 250
+        assert len(name_a.encode()) <= 236
         assert name_a.endswith(f" [{hashlib.sha1(('A' * 240 + '/EPUB').encode()).hexdigest()[:8]}]")
         assert name_a != name_b
 
     def test_overlong_name_without_separator_is_bounded(self):
         """A name too long for a filename is shortened with a hash rather than truncated by save_json."""
         name = recycle_backup_name("A" * 300)
-        assert len(name) == 250
+        assert len(name.encode()) == 236
         assert name.endswith(f" [{hashlib.sha1(('A' * 300).encode()).hexdigest()[:8]}]")
+
+    def test_limit_counts_bytes_not_characters(self):
+        """Multibyte names are bounded by their UTF-8 length, the unit filesystems limit."""
+        name = recycle_backup_name("é" * 120 + "/EPUB")
+        assert len(name.encode()) <= 236
+        assert name.endswith(f" [{hashlib.sha1(('é' * 120 + '/EPUB').encode()).hexdigest()[:8]}]")
+
+    def test_byte_cut_never_splits_a_character(self):
+        """An odd byte budget drops the split character instead of leaving a partial one."""
+        name = recycle_backup_name("é" * 200)
+        assert name.startswith("é" * 112 + " [")
+        assert "�" not in name
 
     def test_only_platform_separators_are_replaced(self, monkeypatch):
         """On POSIX a backslash is a valid filename character and is kept."""

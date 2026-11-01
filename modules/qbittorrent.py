@@ -22,24 +22,27 @@ from modules.util import list_in_text
 
 logger = util.logger
 
-# 255-character filename limit minus the ".json" extension
-MAX_BACKUP_NAME_LENGTH = 250
+# 255-byte filename limit minus the longest backup suffix, " [<8-char info hash>].torrent"
+MAX_BACKUP_NAME_BYTES = 236
 
 
 def recycle_backup_name(torrent_name):
     """Return the base filename for a torrent's recycle bin backups.
 
-    Path separators are replaced with "_". When one was replaced, or the name is too long for a
-    filename, the name is shortened as needed and a short hash of the original name is appended, so
-    distinct names never share a backup file and the hash is never truncated away. Other names are
-    returned unchanged, which keeps existing backups and same-name aggregation working.
+    Path separators are replaced with "_". When one was replaced, or the name's UTF-8 encoding is too
+    long for a filename, the name is shortened as needed and a short hash of the original name is
+    appended, so distinct names never share a backup file and the hash is never truncated away.
+    Other names are returned unchanged, which keeps existing backups and same-name aggregation working.
     """
     file_name = torrent_name
     for sep in filter(None, (os.sep, os.altsep)):
         file_name = file_name.replace(sep, "_")
-    if file_name != torrent_name or len(file_name) > MAX_BACKUP_NAME_LENGTH:
-        name_hash = hashlib.sha1(torrent_name.encode()).hexdigest()[:8]
-        file_name = f"{file_name[: MAX_BACKUP_NAME_LENGTH - len(name_hash) - 3]} [{name_hash}]"
+    if file_name != torrent_name or len(file_name.encode("utf-8", "surrogatepass")) > MAX_BACKUP_NAME_BYTES:
+        name_hash = hashlib.sha1(torrent_name.encode("utf-8", "surrogatepass")).hexdigest()[:8]
+        max_base_bytes = MAX_BACKUP_NAME_BYTES - len(name_hash) - 3
+        # Cut on bytes, dropping any character split at the boundary
+        base = file_name.encode("utf-8", "surrogatepass")[:max_base_bytes].decode("utf-8", "ignore")
+        file_name = f"{base} [{name_hash}]"
     return file_name
 
 
