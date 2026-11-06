@@ -20,9 +20,11 @@ from modules.util import guess_branch
 from modules.util import human_readable_size
 from modules.util import is_tag_in_torrent
 from modules.util import list_in_text
+from modules.util import load_json
 from modules.util import parse_size_to_bytes
 from modules.util import parse_version
 from modules.util import path_replace
+from modules.util import save_json
 from modules.util import trunc_val
 
 
@@ -451,6 +453,30 @@ class TestPathReplace:
         result = path_replace(["/data/file.txt"], ["/data/"], ["/mnt/"])
         assert "mnt" in result
         assert "file.txt" in result
+
+
+# ── save_json / load_json ───────────────────────────────────────────────────
+
+
+class TestSaveLoadJson:
+    def test_long_filename_keeps_extension_and_round_trips(self, tmp_path):
+        """A filename over 255 characters is truncated to one path that both save and load use."""
+        dest = tmp_path / ("A" * 300 + ".json")
+        save_json({"torrent_name": "x"}, str(dest))
+        saved = list(tmp_path.iterdir())
+        assert len(saved) == 1
+        assert saved[0].suffix == ".json"
+        assert len(saved[0].name) == 255
+        assert load_json(str(dest)) == {"torrent_name": "x"}
+
+    def test_load_ignores_directory_length(self, tmp_path):
+        """Only the filename is limited, so a short name in a deep directory loads from where it was saved."""
+        deep_dir = tmp_path / ("d" * 200) / ("e" * 200)
+        deep_dir.mkdir(parents=True)
+        dest = deep_dir / "backup.json"
+        save_json({"torrent_name": "x"}, str(dest))
+        assert dest.is_file()
+        assert load_json(str(dest)) == {"torrent_name": "x"}
 
 
 # ── check.check_for_attribute ───────────────────────────────────────────────

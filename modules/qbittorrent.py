@@ -1,5 +1,6 @@
 """Qbittorrent Module"""
 
+import hashlib
 import os
 from fnmatch import fnmatch
 from functools import cache
@@ -20,6 +21,29 @@ from modules.util import UnsupportedVersion
 from modules.util import list_in_text
 
 logger = util.logger
+
+# 255-byte filename limit minus the longest backup suffix, " [<8-char info hash>].torrent"
+MAX_BACKUP_NAME_BYTES = 236
+
+
+def recycle_backup_name(torrent_name):
+    """Return the base filename for a torrent's recycle bin backups.
+
+    Path separators are replaced with "_". When one was replaced, or the name's UTF-8 encoding is too
+    long for a filename, the name is shortened as needed and a short hash of the original name is
+    appended, so distinct names never share a backup file and the hash is never truncated away.
+    Other names are returned unchanged, which keeps existing backups and same-name aggregation working.
+    """
+    file_name = torrent_name
+    for sep in filter(None, (os.sep, os.altsep)):
+        file_name = file_name.replace(sep, "_")
+    if file_name != torrent_name or len(file_name.encode("utf-8", "surrogatepass")) > MAX_BACKUP_NAME_BYTES:
+        name_hash = hashlib.sha1(torrent_name.encode("utf-8", "surrogatepass")).hexdigest()[:8]
+        max_base_bytes = MAX_BACKUP_NAME_BYTES - len(name_hash) - 3
+        # Cut on bytes, dropping any character split at the boundary
+        base = file_name.encode("utf-8", "surrogatepass")[:max_base_bytes].decode("utf-8", "ignore")
+        file_name = f"{base} [{name_hash}]"
+    return file_name
 
 
 class Qbt:
@@ -521,6 +545,7 @@ class Qbt:
             torrent_export_path = os.path.join(recycle_path, "torrents_export")
             torrents_json_path = os.path.join(recycle_path, "torrents_json")
             torrent_name = info["torrents"][0]
+            torrent_file_name = recycle_backup_name(torrent_name)
             torrent_exportable = self.current_version >= "v4.5.0"
             os.makedirs(recycle_path, exist_ok=True)
             if self.config.recyclebin["save_torrents"]:
@@ -530,7 +555,7 @@ class Qbt:
                     os.makedirs(torrents_json_path)
                 if torrent_exportable and os.path.isdir(torrent_export_path) is False:
                     os.makedirs(torrent_export_path)
-                torrent_json_file = os.path.join(torrents_json_path, f"{torrent_name}.json")
+                torrent_json_file = os.path.join(torrents_json_path, f"{torrent_file_name}.json")
                 torrent_json = util.load_json(torrent_json_file)
                 if not torrent_json:
                     logger.info(f"Saving Torrent JSON file to {torrent_json_file}")
@@ -543,16 +568,16 @@ class Qbt:
                 if torrent_exportable:
                     # Get the last 8 hash characters of the torrent
                     hash_suffix = f"{info_hash[-8:]}"
-                    torrent_export_file = os.path.join(torrent_export_path, f"{torrent_name} [{hash_suffix}].torrent")
-                    truncated_torrent_export_file = util.truncate_filename(torrent_export_file, offset=11)
+                    # recycle_backup_name() keeps this filename within 255 bytes, so the path is never truncated
+                    torrent_export_file = os.path.join(torrent_export_path, f"{torrent_file_name} [{hash_suffix}].torrent")
                     try:
-                        with open(f"{truncated_torrent_export_file}", "wb") as file:
+                        with open(f"{torrent_export_file}", "wb") as file:
                             file.write(torrent.export())
                     except Exception as ex:
                         logger.stacktrace()
                         self.config.notify(ex, "Deleting Torrent", False)
                         logger.warning(f"RecycleBin Warning: {ex}")
-                    dot_torrent_files.append(os.path.basename(truncated_torrent_export_file))
+                    dot_torrent_files.append(os.path.basename(torrent_export_file))
                 # Exporting torrent via torrent directory (backwards compatibility)
                 for file in os.listdir(self.config.torrents_dir):
                     if file.startswith(info_hash):
