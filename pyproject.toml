@@ -11,7 +11,7 @@ name = "qbit_manage"
 dynamic = ["version"]
 description = "This tool will help manage tedious tasks in qBittorrent and automate them. Tag, categorize, remove Orphaned data, remove unregistered torrents and much much more."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
     {name = "bobokun"},
@@ -20,15 +20,15 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "bencode.py==4.1.0",
     "croniter==6.2.4",
-    "fastapi==0.139.0",
+    "fastapi==0.148.0",
     "humanize==4.16.0",
     "pytimeparse2==1.7.1",
-    "qbittorrent-api==2026.10.0",
+    "qbittorrent-api==2026.10.1",
     "requests==2.34.2",
     "retrying==1.4.2",
     "ruamel.yaml==0.19.1",
     "slowapi==0.1.10",
-    "uvicorn==0.51.0",
+    "uvicorn==0.54.0",
 ]
 
 [project.scripts]
@@ -40,10 +40,10 @@ Repository = "https://github.com/StuffAnThings/qbit_manage"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit==4.6.2",
+    "pre-commit==4.7.0",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
-    "ruff==0.15.21",
+    "ruff==0.17.1",
 ]
 
 [tool.ruff]

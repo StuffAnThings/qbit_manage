@@ -66,12 +66,12 @@ class _Tags:
 class FakeClient:
     """Stand-in for qbittorrentapi.Client. Only the surface qbit_manage uses."""
 
-    def __init__(self, *, tags=None, preferences=None):
+    def __init__(self, *, tags=None, preferences=None, web_api_version="2.9.3"):
         self.torrent_tags = _Tags(tags or [])
         prefs = preferences or {}
         self.app = SimpleNamespace(
             version="v4.6.0",
-            web_api_version="2.9.3",
+            web_api_version=web_api_version,
             preferences=SimpleNamespace(
                 max_ratio_enabled=prefs.get("max_ratio_enabled", False),
                 max_ratio=prefs.get("max_ratio", -1),
@@ -198,13 +198,21 @@ class FakeTorrent:
         remove = tags if isinstance(tags, list) else [t.strip() for t in str(tags).split(",") if t.strip()]
         self.tags = ", ".join(t for t in existing if t not in remove)
 
-    def set_share_limits(self, ratio_limit, seeding_time_limit, inactive_seeding_time_limit=-2, share_limit_action=None):
+    def set_share_limits(
+        self,
+        ratio_limit,
+        seeding_time_limit,
+        inactive_seeding_time_limit=-2,
+        share_limit_action=None,
+        share_limits_mode=None,
+    ):
         self._record(
             "set_share_limits",
             ratio_limit=ratio_limit,
             seeding_time_limit=seeding_time_limit,
             inactive_seeding_time_limit=inactive_seeding_time_limit,
             share_limit_action=share_limit_action,
+            share_limits_mode=share_limits_mode,
         )
         # Production code + tests reason about per-torrent ratio_limit /
         # seeding_time_limit (the qbittorrent-api field names), not the

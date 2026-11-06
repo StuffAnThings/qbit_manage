@@ -1036,8 +1036,7 @@ def copy_files(src, dest):
 def _move_file_operation(src, dest, mod):
     """Internal function for move operation."""
     if mod is True:
-        mod_time = time.time()
-        os.utime(src, (mod_time, mod_time))
+        os.utime(src, None)
     shutil.move(src, dest)
     return True
 

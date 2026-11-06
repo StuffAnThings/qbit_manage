@@ -38,6 +38,16 @@
     },
     "packageRules": [
         {
+            "description": "Keep Docker Python at 3.14-alpine until the base image supports linux/arm/v7",
+            "matchManagers": [
+                "dockerfile"
+            ],
+            "matchPackageNames": [
+                "python"
+            ],
+            "allowedVersions": "/^3\\.14-alpine$/"
+        },
+        {
             "description": "Group Python (uv/pep621) non-major dependencies",
             "matchManagers": [
                 "pep621"
@@ -79,6 +89,7 @@
             ],
             "groupName": "qbittorrent-api",
             "groupSlug": "qbittorrent-api",
+            "minimumReleaseAge": "0 days",
             "schedule": [
                 "at any time"
             ],
