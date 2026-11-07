@@ -112,6 +112,12 @@ export const shareLimitsSchema = {
                     description: 'If true, the `limit_upload_speed` will be divided equally among all torrents in this group.',
                     default: false
                 },
+                group_upload_speed_exclude_stopped: {
+                    type: 'boolean',
+                    label: 'Exclude Stopped Torrents from Group Upload Speed',
+                    description: 'Only used with Enable Group Upload Speed. If true, paused/stopped torrents are not counted when dividing the limit.',
+                    default: false
+                },
                 resume_torrent_after_change: {
                     type: 'boolean',
                     label: 'Resume Torrent After Change',
@@ -186,7 +192,7 @@ export const shareLimitsSchema = {
             },
             {
                 title: 'Upload Speed Limits',
-                fields: ['limit_upload_speed', 'upload_speed_on_limit_reached', 'enable_group_upload_speed', 'reset_upload_speed_on_unmet_minimums']
+                fields: ['limit_upload_speed', 'upload_speed_on_limit_reached', 'enable_group_upload_speed', 'group_upload_speed_exclude_stopped', 'reset_upload_speed_on_unmet_minimums']
             },
             {
                 title: 'Tag Filters',

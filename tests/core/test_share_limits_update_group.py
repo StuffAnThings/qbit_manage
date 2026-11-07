@@ -203,3 +203,34 @@ def test_multiple_share_limit_tags_triggers_retag(share_limits_factory, torrent_
     # remove_tags called to strip the legacy share_limit tags, then add_tags re-applies
     assert _has_call(t, "remove_tags")
     assert _has_call(t, "add_tags")
+
+
+def _split_limits(share_limits_factory, torrent_factory, group_config_factory, exclude):
+    group_cfg = group_config_factory(
+        priority=1.0,
+        max_ratio=-1.0,
+        max_seeding_time=-1,
+        limit_upload_speed=400,
+        enable_group_upload_speed=True,
+        group_upload_speed_exclude_stopped=exclude,
+    )
+    states = ["uploading", "stoppedUP", "pausedUP", "stoppedDL"]
+    torrents = [torrent_factory(hash=f"{i:040x}", up_limit=0, tags="", state=s) for i, s in enumerate(states)]
+    group_cfg["torrents"] = list(torrents)
+    sl = share_limits_factory(torrents=torrents, share_limits_config=OrderedDict([("noHL", group_cfg)]))
+    sl.update_share_limits_for_group("noHL", group_cfg, torrents)
+    return torrents
+
+
+def test_group_upload_speed_exclude_stopped_gives_active_torrent_full_limit(
+    share_limits_factory, torrent_factory, group_config_factory
+):
+    torrents = _split_limits(share_limits_factory, torrent_factory, group_config_factory, exclude=True)
+    ul = _calls_of(torrents[0], "set_upload_limit")
+    assert ul[0][1]["limit"] == 400 * 1024
+
+
+def test_group_upload_speed_counts_stopped_by_default(share_limits_factory, torrent_factory, group_config_factory):
+    torrents = _split_limits(share_limits_factory, torrent_factory, group_config_factory, exclude=False)
+    ul = _calls_of(torrents[0], "set_upload_limit")
+    assert ul[0][1]["limit"] == 100 * 1024
