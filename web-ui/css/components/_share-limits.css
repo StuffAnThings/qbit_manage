@@ -637,7 +637,7 @@
 }
 
 /* Responsive adjustments for smaller screens */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .share-limit-modal {
     width: 100% !important;
     margin: 0 !important;
