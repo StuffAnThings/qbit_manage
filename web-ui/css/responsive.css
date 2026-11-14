@@ -29,7 +29,7 @@
   }
 }
 
-/* Small devices (landscape phones, 576px and up) */
+/* Small devices (landscape phones, 768px and below) */
 @media (max-width: 768px) {
   :root {
     --header-height: 5.5rem;
@@ -334,7 +334,7 @@
 }
 
 /* Medium devices (tablets, 768px and up) */
-@media (min-width: 576px) and (max-width: 767.98px) {
+@media (640px <= width < 768px) {
   :root {
     --sidebar-width: 14rem;
     --spacing-lg: 1.25rem;
@@ -441,8 +441,8 @@
   }
 }
 
-/* Large devices (desktops, 992px and up) */
-@media (min-width: 768px) and (max-width: 991.98px) {
+/* Medium devices (tablets, 768px up to 1024px) */
+@media (768px <= width < 1024px) {
   :root {
     --sidebar-width: 15rem;
   }
@@ -457,8 +457,8 @@
   }
 }
 
-/* Extra large devices (large desktops, 1200px and up) */
-@media (min-width: 992px) {
+/* Large devices (desktops, 1024px and up) */
+@media (min-width: 1024px) {
   :root {
     --sidebar-width: 16rem;
   }
@@ -476,8 +476,8 @@
   }
 }
 
-/* Ultra wide screens */
-@media (min-width: 1400px) {
+/* Extra large screens (1280px and up) */
+@media (min-width: 1280px) {
   :root {
     --sidebar-width: 18rem;
     --spacing-xl: 2.5rem;
@@ -707,7 +707,7 @@
 }
 
 /* Accessibility improvements for small screens */
-@media (max-width: 767.98px) {
+@media (width < 768px) {
   /* Ensure focus indicators are visible */
   *:focus {
     outline: 2px solid var(--border-focus);
@@ -830,7 +830,7 @@
 }
 
 /* Tablet-specific utility classes */
-@media (min-width: 576px) and (max-width: 991.98px) {
+@media (640px <= width < 1024px) {
   .tablet-hidden {
     display: none !important;
   }
@@ -849,7 +849,7 @@
 }
 
 /* Desktop-specific utility classes */
-@media (min-width: 992px) {
+@media (min-width: 1024px) {
   .desktop-hidden {
     display: none !important;
   }
@@ -869,13 +869,13 @@
 
 /* ==========================================================================
    Small-screen refinements (#1023 "Mobile friendly UI")
-   Fills gaps below ~600px that the main 768px breakpoint didn't cover:
-   - the 480-600px range, dropdown/select overflow, stacked category rows,
+   Fills gaps below 640px that the main 768px breakpoint didn't cover:
+   - the 480-640px range, dropdown/select overflow, stacked category rows,
      and short/landscape viewport heights for tall drawers.
    ========================================================================== */
 
-/* Compact phones in portrait (<= 600px) */
-@media (max-width: 600px) {
+/* Compact phones in portrait (<= 640px) */
+@media (max-width: 640px) {
   /* Header config selector was 12rem min-width; let it shrink */
   .config-select {
     min-width: 0;
@@ -900,8 +900,8 @@
   }
 }
 
-/* Very small phones (<= 480px) */
-@media (max-width: 480px) {
+/* Very small phones (<= 640px) */
+@media (max-width: 640px) {
   /* Category name/path inputs sit side-by-side; stack them */
   .category-inputs .category-inputs-row {
     flex-direction: column;
