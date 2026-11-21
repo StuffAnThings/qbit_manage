@@ -10,11 +10,17 @@ Coverage:
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import pytest
+
 from modules.qbittorrent import Qbt
+from modules.qbittorrent import recycle_backup_name
 from tests.factories import FakeTorrent
 from tests.factories import _Tracker
 
@@ -456,6 +462,186 @@ class TestCrossSeedDetection:
 
         assert qbt.torrentfiles["/data/file1.txt"]["original"] == "hash2"
         assert qbt.torrentfiles["/data/file1.txt"]["cross_seed"] == ["hash3"]
+
+
+# ---- tor_delete_recycle tests ------------------------------------------------
+
+
+class TestTorDeleteRecycle:
+    """Test Qbt.tor_delete_recycle() torrent backups in the recycle bin."""
+
+    @patch("modules.qbittorrent.logger")
+    def test_backs_up_torrent_whose_name_contains_path_separator(self, _mock_logger, tmp_path):
+        """A "/" in the torrent name must not be treated as a directory in the backup filenames."""
+        torrent_name = "Some Series [ENG / EPUB]"
+        recycle_dir = tmp_path / ".RecycleBin"
+        torrents_dir = tmp_path / "BT_backup"
+        torrents_dir.mkdir()
+        torrent = FakeTorrent(
+            name=torrent_name,
+            hash="00000000000000000000000000000000abcdef12",
+            save_path=str(tmp_path / "downloads"),
+            export=lambda: b"d4:infod4:name4:testee",
+        )
+
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=str(torrents_dir),
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = [torrent]
+        info = {
+            "torrents": [torrent_name],
+            "torrent_category": "books",
+            "torrent_tracker": "https://tracker.example",
+            "torrents_deleted_and_contents": False,
+        }
+
+        Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        json_file = recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB] [d8695fac].json"
+        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [d8695fac] [abcdef12].torrent"
+        assert json.loads(json_file.read_text())["torrent_name"] == torrent_name
+        assert export_file.read_bytes() == b"d4:infod4:name4:testee"
+        qbt.config.notify.assert_not_called()
+        assert ("delete", {"delete_files": False}) in torrent.calls
+
+    @pytest.mark.parametrize("torrent_name", ["A" * 240 + "/EPUB", "é" * 120 + "/EPUB", "é" * 130])
+    @patch("modules.qbittorrent.logger")
+    def test_long_name_aggregates_into_one_reloadable_backup(self, _mock_logger, tmp_path, torrent_name):
+        """A long name keeps its extensions within 255 bytes and a second removal of the same name merges into it."""
+        recycle_dir = tmp_path / ".RecycleBin"
+        torrents_dir = tmp_path / "BT_backup"
+        torrents_dir.mkdir()
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=str(torrents_dir),
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = []
+
+        for info_hash, tracker in (("1" * 40, "https://tracker1.example"), ("2" * 40, "https://tracker2.example")):
+            torrent = FakeTorrent(
+                name=torrent_name, hash=info_hash, save_path=str(tmp_path / "downloads"), export=lambda: b"d4:infod4:name4:testee"
+            )
+            info = {
+                "torrents": [torrent_name],
+                "torrent_category": "books",
+                "torrent_tracker": tracker,
+                "torrents_deleted_and_contents": False,
+            }
+            Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        json_files = list((recycle_dir / "torrents_json").iterdir())
+        assert len(json_files) == 1
+        assert json_files[0].suffix == ".json"
+        torrent_json = json.loads(json_files[0].read_text(encoding="utf-8"))
+        assert torrent_json["torrent_name"] == torrent_name
+        assert set(torrent_json["tracker_torrent_files"]) == {"https://tracker1.example", "https://tracker2.example"}
+        export_files = list((recycle_dir / "torrents_export").iterdir())
+        assert len(export_files) == 2
+        assert all(f.suffix == ".torrent" and len(f.name.encode()) <= 255 for f in export_files)
+        qbt.config.notify.assert_not_called()
+
+    @patch("modules.qbittorrent.logger")
+    def test_export_lands_in_a_deep_recycle_bin(self, _mock_logger, tmp_path):
+        """A long recycle bin path must not be cut into, so the export is written inside torrents_export."""
+        torrent_name = "Some Series [ENG / EPUB]"
+        recycle_dir = tmp_path / ("d" * 120) / ("e" * 120) / ".RecycleBin"
+        torrents_dir = tmp_path / "BT_backup"
+        torrents_dir.mkdir()
+        torrent = FakeTorrent(
+            name=torrent_name,
+            hash="00000000000000000000000000000000abcdef12",
+            save_path=str(tmp_path / "downloads"),
+            export=lambda: b"d4:infod4:name4:testee",
+        )
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=str(torrents_dir),
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = []
+        info = {
+            "torrents": [torrent_name],
+            "torrent_category": "books",
+            "torrent_tracker": "https://tracker.example",
+            "torrents_deleted_and_contents": False,
+        }
+
+        Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        export_file = recycle_dir / "torrents_export" / "Some Series [ENG _ EPUB] [d8695fac] [abcdef12].torrent"
+        assert export_file.read_bytes() == b"d4:infod4:name4:testee"
+        torrent_json = json.loads((recycle_dir / "torrents_json" / "Some Series [ENG _ EPUB] [d8695fac].json").read_text())
+        assert torrent_json["tracker_torrent_files"]["https://tracker.example"] == [export_file.name]
+        qbt.config.notify.assert_not_called()
+
+
+class TestRecycleBackupName:
+    """Test recycle_backup_name() filenames for recycle bin backups."""
+
+    def test_name_without_separator_is_unchanged(self):
+        """Existing backups keep their filenames."""
+        assert recycle_backup_name("Some Series [ENG - EPUB]") == "Some Series [ENG - EPUB]"
+
+    def test_name_with_separator_does_not_collide_with_replaced_name(self):
+        """A name with "/" and the same name with "_" get different backup files."""
+        assert recycle_backup_name("Book/EPUB") != recycle_backup_name("Book_EPUB")
+
+    def test_identical_names_share_a_backup_file(self):
+        """Cross-seeds with the same name keep aggregating into one backup file."""
+        assert recycle_backup_name("Book/EPUB") == recycle_backup_name("Book/EPUB")
+
+    def test_long_name_with_separator_keeps_hash_within_limit(self):
+        """The hash survives on a long name, so long names differing only at the end stay distinct."""
+        name_a = recycle_backup_name("A" * 240 + "/EPUB")
+        name_b = recycle_backup_name("A" * 240 + "/MOBI")
+        assert len(name_a.encode()) <= 236
+        assert name_a.endswith(f" [{hashlib.sha1(('A' * 240 + '/EPUB').encode()).hexdigest()[:8]}]")
+        assert name_a != name_b
+
+    def test_overlong_name_without_separator_is_bounded(self):
+        """A name too long for a filename is shortened with a hash rather than truncated by save_json."""
+        name = recycle_backup_name("A" * 300)
+        assert len(name.encode()) == 236
+        assert name.endswith(f" [{hashlib.sha1(('A' * 300).encode()).hexdigest()[:8]}]")
+
+    def test_limit_counts_bytes_not_characters(self):
+        """Multibyte names are bounded by their UTF-8 length, the unit filesystems limit."""
+        name = recycle_backup_name("é" * 120 + "/EPUB")
+        assert len(name.encode()) <= 236
+        assert name.endswith(f" [{hashlib.sha1(('é' * 120 + '/EPUB').encode()).hexdigest()[:8]}]")
+
+    def test_byte_cut_never_splits_a_character(self):
+        """An odd byte budget drops the split character instead of leaving a partial one."""
+        name = recycle_backup_name("é" * 200)
+        assert name.startswith("é" * 112 + " [")
+        assert "�" not in name
+
+    def test_only_platform_separators_are_replaced(self, monkeypatch):
+        """On POSIX a backslash is a valid filename character and is kept."""
+        monkeypatch.setattr(os, "sep", "/")
+        monkeypatch.setattr(os, "altsep", None)
+        assert recycle_backup_name("Book\\EPUB") == "Book\\EPUB"
 
 
 class TestGetCategoryInvalidConfig:
