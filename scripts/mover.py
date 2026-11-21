@@ -81,6 +81,18 @@ parser.add_argument(
     default=False,
 )
 parser.add_argument(
+    "--resume-batch-size",
+    help="Resume this many torrents at a time, then wait --resume-batch-delay seconds. 0 resumes all at once (default: 0)",
+    type=int,
+    default=0,
+)
+parser.add_argument(
+    "--resume-batch-delay",
+    help="Seconds to wait between resume batches. Only used when --resume-batch-size is set (default: 0)",
+    type=float,
+    default=0,
+)
+parser.add_argument(
     "--move",
     help="Start the Unraid mover process",
     action="store_true",
@@ -116,14 +128,18 @@ def exists_in_cache(cache_mount, content_path):
     return os.path.exists(cache_path)
 
 
-def stop_start_torrents(torrent_list, pause=True):
-    for torrent in torrent_list:
+def stop_start_torrents(torrent_list, pause=True, batch_size=0, batch_delay=0):
+    """Pause or resume torrents. Batching applies to resume only: wait batch_delay seconds after every batch_size torrents."""
+    for index, torrent in enumerate(torrent_list, start=1):
         if pause:
             logging.info(f"Pausing: {torrent.name} [{torrent.added_on}]")
             torrent.pause()
         else:
             logging.info(f"Resuming: {torrent.name} [{torrent.added_on}]")
             torrent.resume()
+            if batch_size > 0 and batch_delay > 0 and index % batch_size == 0 and index < len(torrent_list):
+                logging.info(f"Waiting {batch_delay}s before the next resume batch")
+                time.sleep(batch_delay)
 
 
 def get_unraid_version_tuple():
@@ -251,4 +267,4 @@ if __name__ == "__main__":
     # Resume Torrents
     if args.resume:
         logging.info(f"Resuming [{len(torrents)}] torrents from {args.days_from} - {args.days_to} days ago")
-        stop_start_torrents(torrents, False)
+        stop_start_torrents(torrents, False, args.resume_batch_size, args.resume_batch_delay)
