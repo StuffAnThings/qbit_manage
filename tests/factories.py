@@ -651,6 +651,7 @@ def make_group_config(**overrides):
         "limit_upload_speed": 0,
         "upload_speed_on_limit_reached": 0,
         "enable_group_upload_speed": False,
+        "group_upload_speed_exclude_stopped": False,
         "min_num_seeds": 0,
         "min_last_active": 0,
         "resume_torrent_after_change": True,
