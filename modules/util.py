@@ -1414,7 +1414,7 @@ def get_root_files(root_dir, remote_dir, exclude_dir=None):
 
 def load_json(file):
     """Load json file if exists"""
-    path = truncate_filename(file)
+    path = json_file_path(file)
     if not os.path.isfile(path):
         return {}
     with open(path, encoding="utf-8") as fh:
@@ -1445,19 +1445,20 @@ def truncate_filename(filename, max_length=255, offset=0):
     return truncated_filename
 
 
+def json_file_path(dest):
+    """Return dest with its filename (not the whole path) truncated to 255 characters, keeping the extension."""
+    directory, filename = os.path.split(dest)
+    return os.path.join(directory, truncate_filename(filename))
+
+
 def save_json(torrent_json, dest):
     """Save json file to destination, truncating filename if necessary."""
-    max_filename_length = 255  # Typical maximum filename length on many filesystems
-    directory, filename = os.path.split(dest)
-    filename, ext = os.path.splitext(filename)
-
-    if len(filename) > (max_filename_length - len(ext)):
-        truncated_filename = truncate_filename(filename, max_filename_length)
-        dest = os.path.join(directory, truncated_filename)
-        logger.warning(f"Filename too long, truncated to: {dest}")
+    path = json_file_path(dest)
+    if path != dest:
+        logger.warning(f"Filename too long, truncated to: {path}")
 
     try:
-        with open(dest, "w", encoding="utf-8") as file:
+        with open(path, "w", encoding="utf-8") as file:
             json.dump(torrent_json, file, ensure_ascii=False, indent=4)
     except FileNotFoundError as e:
         logger.error(f"Failed to save JSON file: {e.filename} - {e.strerror}.")
