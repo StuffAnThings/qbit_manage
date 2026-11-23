@@ -301,6 +301,7 @@ class FakeConfig:
     remote_dir: str = "/data/torrents/"
     orphaned_dir: str = "/data/torrents/.orphaned/"
     dry_run: bool = False
+    web_api_enabled: bool = False
     loglevel: str = "INFO"
     commands: dict = field(
         default_factory=lambda: {

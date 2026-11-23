@@ -333,7 +333,9 @@ class RemoveUnregistered:
         start_time = time.time()
         self.remove_previous_errors()
         self.process_torrent_issues()
-        self.clear_stale_pending_markers()
+        # A web request that omits rem_unregistered must not reset in-flight dwell timers.
+        if self.cfg_rem_unregistered or not self.config.web_api_enabled:
+            self.clear_stale_pending_markers()
 
         self.config.webhooks_factory.notify(self.torrents_updated_issue, self.notify_attr_issue, group_by="status")
         self.config.webhooks_factory.notify(self.torrents_updated_unreg, self.notify_attr_unreg, group_by="status")

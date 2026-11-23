@@ -1100,14 +1100,14 @@ def test_unregistered_message_list_entries_are_detected():
 # ── orchestration: markers cleared when RemoveUnregistered is skipped ────────
 
 
-def _orchestrate(dry_run=False, hashes=None):
+def _orchestrate(dry_run=False, hashes=None, web_api=False, commands=None):
     from modules.util import execute_qbit_commands
 
     marker = f"unregisteredCheck_{int(time.time()) - 120 * 60}"
     t = FakeTorrent(name="T.Orch", hash="horch", category="Test", tags=f"keep,{marker}")
-    cfg = FakeConfig(dry_run=dry_run)
+    cfg = FakeConfig(dry_run=dry_run, web_api_enabled=web_api)
     qbt = _make_qbt(torrents=[t], config=cfg)
-    commands = {"rem_unregistered": False, "tag_tracker_error": False}
+    commands = commands or {"rem_unregistered": False, "tag_tracker_error": False}
     execute_qbit_commands(qbt, commands, {}, hashes=hashes)
     return t, marker
 
@@ -1126,3 +1126,39 @@ def test_execute_commands_dry_run_does_not_clear_marker_when_disabled():
 def test_execute_commands_respects_hashes_filter_when_disabled():
     t, _ = _orchestrate(hashes=["someotherhash"])
     assert not [c for c in t.calls if c[0] == "remove_tags"]
+
+
+def test_execute_commands_web_api_recheck_only_preserves_marker():
+    """A web request that omits removal must not reset an active dwell marker."""
+    t, _ = _orchestrate(web_api=True, commands={"recheck": False})
+    assert not [c for c in t.calls if c[0] == "remove_tags"]
+
+
+def test_web_api_tagging_only_preserves_marker():
+    """A web request running tag_tracker_error without rem_unregistered keeps dwell markers."""
+    cfg = _confirm_cfg()
+    cfg.web_api_enabled = True
+    cfg.commands["rem_unregistered"] = False
+    cfg.commands["tag_tracker_error"] = True
+    marker = f"unregisteredCheck_{int(time.time()) - 120}"
+    t = FakeTorrent(name="T.WebTag", hash="hwebtag", category="Test", tags=marker)
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentissue_override = []
+    qbt._torrentvalid_override = []
+    ru = make_remove_unregistered(qbt)
+    ru.rem_unregistered()
+    assert not [c for c in t.calls if c[0] == "remove_tags"]
+
+
+def test_scheduled_tagging_only_still_clears_marker():
+    cfg = _confirm_cfg()
+    cfg.commands["rem_unregistered"] = False
+    cfg.commands["tag_tracker_error"] = True
+    marker = f"unregisteredCheck_{int(time.time()) - 120}"
+    t = FakeTorrent(name="T.SchedTag", hash="hschedtag", category="Test", tags=marker)
+    qbt = _make_qbt(torrents=[t], config=cfg)
+    qbt._torrentissue_override = []
+    qbt._torrentvalid_override = []
+    ru = make_remove_unregistered(qbt)
+    ru.rem_unregistered()
+    assert [c for c in t.calls if c[0] == "remove_tags" and c[1].get("tags") == marker]

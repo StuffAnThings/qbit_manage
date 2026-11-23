@@ -1912,8 +1912,9 @@ def execute_qbit_commands(qbit_manager, commands, stats, hashes=None):
             stats["executed_commands"].extend([cmd for cmd in ["rem_unregistered", "tag_tracker_error"] if commands.get(cmd)])
         else:
             logger.warning("Remove Unregistered Torrents operation skipped due to API errors")
-    else:
+    elif not qbit_manager.config.web_api_enabled:
         # RemoveUnregistered (and its marker sweep) is skipped; drop any dwell markers left from a prior run.
+        # A web request that merely omits the commands leaves in-flight dwell timers alone.
         safe_execute_with_qbit_error_handling(
             lambda: clear_pending_markers(qbit_manager, hashes), "Clear Stale Unregistered Markers"
         )

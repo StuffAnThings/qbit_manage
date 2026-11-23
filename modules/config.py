@@ -128,6 +128,14 @@ def normalize_cat_change(raw):
     return result
 
 
+def normalize_unregistered_tag(tag, confirm_minutes):
+    """Strip the tag; with the dwell timer on, require a name get_list() can read back (no commas)."""
+    tag = str(tag).strip()
+    if confirm_minutes and (not tag or "," in tag):
+        raise Failed("Config Error: unregistered_tag must be non-empty with no commas when rem_unregistered_confirm_minutes > 0")
+    return tag
+
+
 class Config:
     """Config class for qBittorrent-Manage"""
 
@@ -455,7 +463,9 @@ class Config:
         }
 
         self.tracker_error_tag = self.settings["tracker_error_tag"]
-        self.unregistered_tag = self.settings["unregistered_tag"]
+        self.unregistered_tag = normalize_unregistered_tag(
+            self.settings["unregistered_tag"], self.settings["rem_unregistered_confirm_minutes"]
+        )
         self.nohardlinks_tag = self.settings["nohardlinks_tag"]
         self.stalled_tag = self.settings["stalled_tag"]
         self.private_tag = self.settings["private_tag"]

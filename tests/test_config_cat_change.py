@@ -182,3 +182,18 @@ def test_cat_change_multiple_entries():
         "old1": {"new_cat": "new1", "delay_minutes": 0},
         "old2": {"new_cat": "new2", "delay_minutes": 60},
     }
+
+
+@pytest.mark.parametrize("tag", ["pending,check", "", "  "])
+def test_unregistered_tag_rejected_with_confirm_timer(tag):
+    from modules.config import normalize_unregistered_tag
+
+    with pytest.raises(Failed, match="unregistered_tag"):
+        normalize_unregistered_tag(tag, 30)
+
+
+def test_unregistered_tag_stripped_and_timer_off_allows_any():
+    from modules.config import normalize_unregistered_tag
+
+    assert normalize_unregistered_tag(" pending ", 30) == "pending"
+    assert normalize_unregistered_tag("a,b", 0) == "a,b"
