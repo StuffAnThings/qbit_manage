@@ -3,6 +3,7 @@
 # run mover (in Unraid) and start torrents again once completed
 import argparse
 import logging
+import math
 import os
 import re
 import sys
@@ -17,6 +18,21 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
+
+
+def non_negative_int(value):
+    number = int(value)
+    if number < 0:
+        raise argparse.ArgumentTypeError("must be 0 or greater")
+    return number
+
+
+def non_negative_finite_float(value):
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise argparse.ArgumentTypeError("must be a finite number, 0 or greater")
+    return number
+
 
 parser = argparse.ArgumentParser(prog="Qbit Mover", description="Stop torrents and kick off Unraid mover process")
 parser.add_argument("--host", help="qbittorrent host including port", required=True)
@@ -83,13 +99,13 @@ parser.add_argument(
 parser.add_argument(
     "--resume-batch-size",
     help="Resume this many torrents at a time, then wait --resume-batch-delay seconds. 0 resumes all at once (default: 0)",
-    type=int,
+    type=non_negative_int,
     default=0,
 )
 parser.add_argument(
     "--resume-batch-delay",
     help="Seconds to wait between resume batches. Only used when --resume-batch-size is set (default: 0)",
-    type=float,
+    type=non_negative_finite_float,
     default=0,
 )
 parser.add_argument(

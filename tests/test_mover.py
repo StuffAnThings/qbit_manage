@@ -15,8 +15,8 @@ MOVER_PATH = Path(__file__).resolve().parent.parent / "scripts" / "mover.py"
 def mover():
     spec = importlib.util.spec_from_file_location("mover_script", MOVER_PATH)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    logging.getLogger().handlers.clear()
+    with patch.object(logging, "basicConfig"):
+        spec.loader.exec_module(module)
     return module
 
 
@@ -60,3 +60,16 @@ class TestResumeBatching:
     def test_cli_args_parse(self, mover):
         args = mover.parser.parse_args(["--host", "localhost:8080", "--resume-batch-size", "10", "--resume-batch-delay", "30"])
         assert (args.resume_batch_size, args.resume_batch_delay) == (10, 30)
+
+    @pytest.mark.parametrize(
+        "flag,value",
+        [
+            ("--resume-batch-size", "-1"),
+            ("--resume-batch-delay", "-1"),
+            ("--resume-batch-delay", "nan"),
+            ("--resume-batch-delay", "inf"),
+        ],
+    )
+    def test_cli_rejects_invalid_batch_values(self, mover, flag, value):
+        with pytest.raises(SystemExit):
+            mover.parser.parse_args(["--host", "localhost:8080", flag, value])
