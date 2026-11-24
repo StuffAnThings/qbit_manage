@@ -65,6 +65,9 @@ def validate_share_limit_action(raw, cleanup, group):
     Pure function — callable from both Config.__init__ and unit tests so test
     assertions are tied to the production logic, not a stale local mirror.
     """
+    if isinstance(raw, str) and raw.lower() == "pause":
+        logger.warning(f"share_limit_action 'pause' is deprecated for the grouping '{group}'; using 'Stop'. Update your config.")
+        raw = "Stop"
     if raw is not None and raw != "" and (not isinstance(raw, str) or raw not in SHARE_LIMIT_ACTIONS):
         raise Failed(
             f"Config Error: invalid share_limit_action '{raw}' for the grouping "
@@ -1170,11 +1173,11 @@ class Config:
             else:
                 self.recycle_dir = None
             if self.recyclebin["enabled"] and self.recyclebin["save_torrents"]:
-                self.torrents_dir = self.util.check_for_attribute(self.data, "torrents_dir", parent="directory", var_type="path")
-                if not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
-                    err = f"Config Error: The location {self.torrents_dir} does not contain any .torrents"
-                    self.notify(err, "Config")
-                    raise Failed(err)
+                self.torrents_dir = self.util.check_for_attribute(
+                    self.data, "torrents_dir", parent="directory", var_type="path", default_is_none=True
+                )
+                if self.torrents_dir and not any(File.endswith(".torrent") for File in os.listdir(self.torrents_dir)):
+                    logger.warning(f"Config Warning: The location {self.torrents_dir} does not contain any .torrents")
             else:
                 self.torrents_dir = self.util.check_for_attribute(
                     self.data, "torrents_dir", parent="directory", default_is_none=True

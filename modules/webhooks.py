@@ -4,8 +4,10 @@ import time
 from json import JSONDecodeError
 
 from requests.exceptions import JSONDecodeError as requestsJSONDecodeError
+from requests.exceptions import RequestException
 
 from modules import util
+from modules.util import Failed
 
 logger = util.logger
 
@@ -78,7 +80,11 @@ class Webhooks:
             elif (webhook == "notifiarr" and self.notifiarr is None) or (webhook == "apprise" and self.apprise is None):
                 logger.warning(f"Webhook attribute set to {webhook} but {webhook} attribute is not configured.")
                 break
-            response = self.request_and_check(webhook, json)
+            try:
+                response = self.request_and_check(webhook, json)
+            except (RequestException, Failed) as e:
+                logger.warning(f"Webhook Warning: unable to send to {webhook} ({e}), skipping")
+                continue
             if response is not None:
                 skip = False
                 try:
