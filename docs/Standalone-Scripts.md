@@ -63,7 +63,7 @@ This script is designed to pause torrents older than a specified age range, trig
 
 **Usage:**
 ```bash
-python scripts/mover.py --host <qb_host:port> [--user <username>] [--password <password>] [--cache-mount <path>] [--days-from <days>] [--days-to <days>] [--mover-old] [--status-filter <status>]
+python scripts/mover.py --host <qb_host:port> [--user <username>] [--password <password>] [--cache-mount <path>] [--days-from <days>] [--days-to <days>] [--mover-old] [--status-filter <status>] [--resume-batch-size <n>] [--resume-batch-delay <seconds>]
 ```
 
 **Arguments:**
@@ -75,6 +75,8 @@ python scripts/mover.py --host <qb_host:port> [--user <username>] [--password <p
 - `--days-to`: Number of days from the current date to stop pausing torrents (inclusive, default: `2`). `days-from` must be less than or equal to `days-to`.
 - `--mover-old`: Use `mover.old` instead of `mover`. Useful if you're using the Mover Tuning Plugin.
 - `--status-filter`: Define a status to limit which torrents to pause. Useful if you want to leave certain torrents unpaused. Choices include: `all`, `downloading`, `seeding`, `completed`, `paused`, `stopped`, `active`, `inactive`, `resumed`, `running`, `stalled`, `stalled_uploading`, `stalled_downloading`, `checking`, `moving`, `errored`. (default: `completed`).
+- `--resume-batch-size`: Resume this many torrents at a time instead of all at once. `0` resumes everything at once (default: `0`).
+- `--resume-batch-delay`: Seconds to wait between resume batches. Only used when `--resume-batch-size` is set (default: `0`).
 
 ### [`remove_cross-seed_tag.py`](scripts/remove_cross-seed_tag.py)
 This script removes a specific tag (defaulting to 'cross-seed') from all torrents in your qBittorrent client. You can configure the qBittorrent connection details and the tag to be removed.
