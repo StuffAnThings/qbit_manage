@@ -1851,3 +1851,63 @@ def test_a_session_can_save_an_env_reference_to_a_new_host(local_dir):
     _, cookie = login(app)
     body = {"data": {"qbt": {"host": "b:8080", "pass": "!ENV QBT_PASS"}}}
     assert send(app, "PUT", "/api/configs/config.yml", headers=cookie, body=body).status == 200
+
+
+# --- Browser origin checks on writes -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "extra,allowed",
+    [
+        ([], True),  # no browser headers: a script or an old browser
+        ([("Sec-Fetch-Site", "same-origin")], True),
+        ([("Sec-Fetch-Site", "same-site")], False),  # a sibling subdomain
+        ([("Sec-Fetch-Site", "cross-site")], False),
+        ([("Sec-Fetch-Site", "cross-site"), ("Origin", "http://127.0.0.1:8181")], False),  # Sec-Fetch-Site decides
+        ([("Origin", "http://127.0.0.1:8181")], True),
+        ([("Origin", "http://evil.example")], False),
+        ([("Origin", "null")], False),
+    ],
+)
+def test_session_writes_must_come_from_this_site(local_dir, extra, allowed):
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    resp = send(app, "POST", "/api/configs/config.yml/backup", headers=cookie + extra, body={})
+    assert (resp.status != 403) is allowed, resp.text
+
+
+def test_a_cross_site_delete_is_refused(local_dir):
+    (local_dir / "other.yml").write_text(CONFIG, encoding="utf-8")
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    resp = send(app, "DELETE", "/api/configs/other.yml", headers=cookie + [("Origin", "http://evil.example")])
+    assert resp.status == 403
+    assert (local_dir / "other.yml").exists()
+
+
+def test_a_cross_site_login_post_is_refused(local_dir):
+    body = {"username": "owner", "password": PASSWORD}
+    resp = send(make_app(local_dir), "POST", "/login", headers=[("Sec-Fetch-Site", "cross-site")], body=body)
+    assert resp.status == 403
+
+
+def test_origin_may_match_the_public_url_behind_a_proxy(config_dir):
+    local_settings(config_dir, public_url="https://qbm.example.com")
+    app = make_app(config_dir)
+    _, cookie = login(app)
+    ok = send(app, "POST", "/api/configs/config.yml/backup", headers=cookie + [("Origin", "https://qbm.example.com")], body={})
+    assert ok.status != 403
+    downgraded = [("Origin", "http://qbm.example.com"), ("Host", "qbm.example.com")]
+    assert send(app, "POST", "/api/configs/config.yml/backup", headers=cookie + downgraded, body={}).status == 403
+
+
+def test_api_key_scripts_need_no_content_type_on_bodyless_posts(local_dir):
+    resp = send(make_app(local_dir), "POST", "/api/configs/config.yml/backup", headers=[("X-Api-Key", API_KEY)])
+    assert resp.status == 200, resp.text
+
+
+def test_basic_auth_writes_still_need_json_and_origin(local_dir):
+    app = make_app(local_dir)
+    assert send(app, "POST", "/api/configs/config.yml/backup", headers=list(basic().items())).status == 415
+    cross = list(basic().items()) + [("Origin", "http://evil.example")]
+    assert send(app, "POST", "/api/configs/config.yml/backup", headers=cross, body={}).status == 403

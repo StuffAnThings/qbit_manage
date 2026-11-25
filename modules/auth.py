@@ -6,7 +6,8 @@ A login is always required while the web server is on. Modes:
   api_only  X-Api-Key or HTTP Basic on /api, no browser login
 
 Every mode also accepts the API key (X-Api-Key) and HTTP Basic on /api. Failed logins are limited per client
-address. Writes need a JSON content type; with the SameSite=Lax cookie, that blocks cross-site form posts.
+address. Browser writes need a JSON content type and must come from this site (Sec-Fetch-Site, else Origin);
+API key requests are exempt.
 """
 
 import hmac
@@ -651,6 +652,28 @@ def json_write_ok(request: Request) -> bool:
     return request.headers.get("content-type", "").split(";")[0].strip().lower() == "application/json"
 
 
+def same_origin_ok(request: Request, settings: AuthSettings) -> bool:
+    """The write came from this site's own pages. Sec-Fetch-Site decides when the browser sends it (same-site
+    includes sibling subdomains, so only same-origin passes); older browsers fall back to Origin."""
+    site = request.headers.get("sec-fetch-site")
+    if site is not None:
+        return site.strip().lower() in ("same-origin", "none")
+    origin = request.headers.get("origin")
+    if origin is None:
+        return True  # not a browser, or one too old to send either header; the JSON type check still applies
+    parts = urlsplit(origin)
+    if origin == "null" or not parts.scheme or not parts.netloc:  # sandboxed frames, file:, and data: send Origin: null
+        return False
+    if settings.public_url:
+        public = urlsplit(settings.public_url)
+        if parts.netloc == public.netloc:  # a proxy forwards this Host, so the scheme must decide
+            return parts.scheme == public.scheme
+    if settings.https_only and parts.scheme != "https":
+        return False
+    host = request.headers.get("host", "")
+    return bool(host) and parts.netloc == host
+
+
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     """Requires a login for every request except health, static files, and the login routes."""
 
@@ -704,8 +727,13 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         settings = self.store.get()
         if settings is None:
             return PlainTextResponse("Authentication settings could not be used", status_code=503)
-        if request.method in UNSAFE_METHODS and not json_write_ok(request):
-            return PlainTextResponse("Writes need Content-Type: application/json", status_code=415)
+        if request.method in UNSAFE_METHODS and not (self._is_api(path) and "x-api-key" in request.headers):
+            # A cross-site page cannot set X-Api-Key without a CORS preflight, so those requests skip these checks.
+            if not json_write_ok(request):
+                return PlainTextResponse("Writes need Content-Type: application/json", status_code=415)
+            if not same_origin_ok(request, settings):
+                logger.info(f"Cross-site write refused for {clean_for_log(path)} from {client_ip(request, settings)}")
+                return PlainTextResponse("Cross-site request refused", status_code=403)
         if path in self.login_paths:
             return await call_next(request)
         how = await self._identify(request, settings, client_ip(request, settings))

@@ -27,7 +27,7 @@ access to the qBittorrent account and to the files of the user that runs qBit Ma
 | Scripts | `X-Api-Key` header or HTTP Basic on `/api` only. An API key cannot change security settings |
 | Session cookie | `qbm_session`, `HttpOnly`, `SameSite=Lax`, path = base URL, 7 days, `https_only` setting. Logout or a credential change revokes old cookies. The signing key is in `.qbm_session_key` (owner-only) |
 | Peer address | Uvicorn runs with `proxy_headers=False`. Rate limits and logs use the raw TCP peer, which behind a reverse proxy is the proxy's address |
-| CSRF | Writes need a JSON content type and an `Origin` matching the host or `public_url`. API key requests are exempt |
+| CSRF | Browser writes need a JSON content type and `Sec-Fetch-Site: same-origin`; browsers that do not send it need an `Origin` matching the host or `public_url`. API key requests are exempt |
 | Broken settings | Unreadable, empty, or unknown-mode settings deny every request (HTTP 503) |
 | Settings writes | Atomic; the scheduler never rewrites the authentication section |
 | Secret redaction | Config and backup reads return `<redacted>` for passwords, keys, tokens, `notify_url`, and webhook URLs. A save keeps the stored value, unless the host or URL beside it changed. Notification and webhook URLs are masked in logs |

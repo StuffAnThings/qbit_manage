@@ -115,7 +115,7 @@ If `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` are set while a login exists and `Q
 
 ## Other protections
 
-- Writes need a JSON content type. With the `SameSite=Lax` cookie, this stops another site from sending writes with your session.
+- Browser writes need a JSON content type and must come from this site: `Sec-Fetch-Site: same-origin`, or, from browsers that do not send it, an `Origin` matching the host or `public_url`. API key requests are exempt.
 - The session cookie is `HttpOnly` and `SameSite=Lax`. Set `https_only: true` when you serve over HTTPS.
 - The cookie signing key lives in `.qbm_session_key` (readable by you only), outside the config files and their backups.
 - The Web UI shows `<redacted>` for passwords, keys, tokens, and webhook URLs. Saving a redacted value keeps the stored one, unless the host or URL beside it changed.
