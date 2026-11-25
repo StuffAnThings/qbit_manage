@@ -554,7 +554,7 @@ class QbitManageApp {
         } catch (error) {
             console.error('Failed to save config:', error);
             hideLoading();
-            showToast(`Failed to save configuration "${this.currentConfig}"`, 'error');
+            showToast(`Failed to save configuration "${this.currentConfig}": ${error.message}`, 'error');
         }
     }
 
@@ -732,7 +732,7 @@ class QbitManageApp {
         } catch (error) {
             console.error('Failed to validate config:', error);
             hideLoading();
-            showToast('Failed to validate configuration', 'error');
+            showToast(`Failed to validate configuration: ${error.message}`, 'error');
         }
     }
 
