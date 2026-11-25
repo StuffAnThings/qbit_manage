@@ -1,0 +1,37 @@
+name: '🔎 Antigravity PR Review'
+
+on:
+  pull_request:
+    types: [opened, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}'
+  cancel-in-progress: true
+
+jobs:
+  antigravity-review:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 20
+
+    permissions:
+      contents: 'read'
+      pull-requests: 'write'
+      issues: 'write'
+
+    steps:
+      - name: 'Checkout Repository'
+        uses: 'actions/checkout@v6'
+        with:
+          persist-credentials: false
+
+      - name: 'Run Antigravity PR Review'
+        uses: 'rsamborski/run-agy-sdk@main'
+        id: 'agy_pr_review'
+        with:
+          api-key: '${{ secrets.ANTIGRAVITY_API_KEY }}'
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          mode: 'review'
+          prompt: '/antigravity-review'
+          trust-workspace: 'true'
+          sandbox-profile: 'true'
