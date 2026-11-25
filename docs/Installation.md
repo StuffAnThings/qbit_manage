@@ -159,11 +159,8 @@ qbit-manage --help
 # Run once (without scheduler)
 qbit-manage --run
 
-# Run with web UI (default on desktop)
+# Turn the web server on (off by default)
 qbit-manage --web-server
-
-# Run without web UI (force disable)
-qbit-manage --web-server=False
 ```
 
 ### Usage
@@ -220,8 +217,8 @@ uv pip install -e . --upgrade
 - **Linux**: `~/.config/qbit-manage/config.yml`
 
 ### Docker Installation
-- **Container Path**: `/app/config.yml`
-- **Host Mount**: Typically mounted from `/path/to/your/config:/config`
+- **Container path**: `/config/config.yml`
+- **Host mount**: `/path/to/your/config:/config`
 
 ### Custom Location
 You can override the default location using the `--config-dir` or `-cd` command line option:
@@ -229,9 +226,19 @@ You can override the default location using the `--config-dir` or `-cd` command 
 qbit-manage --config-dir /path/to/your/config/directory
 ```
 
-## Changing the Default Web Server Port
+## Turning on the Web Server
 
-The web server defaults to port **8181**, which avoids conflict with qBittorrent's own default WebUI port (8080). There are two ways to change it.
+The web server is off by default. Turn it on with `--web-server` or `QBT_WEB_SERVER=true`. It binds to `127.0.0.1`, so only this computer can reach it. To reach it from another machine, set `--host` (or `QBT_HOST`) and a login: set `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` before the first start. A login is always required. Without credentials, qbit_manage generates a password into `qbm_initial_password.txt` in the config folder. See [Security](Security) and [Upgrading to 5.0](Security#upgrading-to-50).
+
+### Upgrading to 5.0
+
+- Python, source, or standalone binary: add `--web-server` if you use the Web UI. It is off by default and binds to `127.0.0.1`.
+- Desktop app: no change. Sign in with the generated password on first start.
+- Docker and Unraid: see [Docker Installation](Docker-Installation#upgrading-to-50) and [Unraid Installation](Unraid-Installation#upgrading-to-50).
+
+## Changing the Web Server Port
+
+The web server uses port **8181** by default. qBittorrent's own Web UI uses 8080. Change it with an environment variable or a flag.
 
 ### Option 1: Environment variable
 
@@ -280,15 +287,14 @@ qbit-manage-windows-amd64.exe --port 9090
 .\qbit-manage-windows-amd64.exe --port 9090
 ```
 
-You can also change the bind address with `--host` (default `0.0.0.0`) and add a URL path prefix with `--base-url`:
+`--host` sets the bind address (default `127.0.0.1`). Any non-loopback address needs authentication. `--base-url` adds a URL path prefix.
 
 ```bash
 ./qbit-manage --port 9090 --host 127.0.0.1 --base-url /qbm
 ```
 
 > [!NOTE]
-> Environment variables take precedence over CLI flags. The full priority order is:
-> `QBT_PORT` / `QBT_HOST` / `QBT_BASE_URL` environment variables → `--port` / `--host` / `--base-url` CLI flags → built-in defaults (8181 / 0.0.0.0 / empty).
+> Environment variables win over flags, and flags win over the defaults (8181, `127.0.0.1`, empty).
 
 ### Desktop App
 

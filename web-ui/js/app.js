@@ -46,8 +46,8 @@ class QbitManageApp {
             // Initialize modal system
             initModal();
 
-            // Fetch app configuration including base URL
-            await this.fetchAppConfig();
+            // Fetch app configuration including base URL; stop on a 401 so nothing overwrites the login redirect
+            if (!(await this.fetchAppConfig())) return;
 
             // Initialize components
             this.initComponents();
@@ -104,6 +104,11 @@ class QbitManageApp {
             const configUrl = basePath + '/api/get_base_url';
 
             const response = await fetch(configUrl);
+            if (response.status === 401) {
+                // The base URL is not known yet; this page's own path is where the login lives.
+                window.location.href = `${basePath}/login`;
+                return false;
+            }
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -118,6 +123,7 @@ class QbitManageApp {
             console.error('Failed to fetch app configuration:', error);
             // Continue with default configuration
         }
+        return true;
     }
 
     async fetchVersion() {
@@ -526,7 +532,9 @@ class QbitManageApp {
             );
 
             showLoading(get('section-content'));
-            await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+            const saved = await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+            const history = this.historyManager.getHistoryStats(this.currentConfig);
+            this.historyManager.associateBackup(this.currentConfig, saved?.backup_file, history.currentIndex - 1);
 
             // Reload the configuration from the server to get the actual saved data
             // This ensures we have the correct data that was actually written to the file
@@ -573,7 +581,10 @@ class QbitManageApp {
                 const cleanedConfigData = this.configForm.cleanupEmptyValues(this.configData);
 
                 // Save the undone state to the config file (overwrite without backup)
-                await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+                this.api.restoredFrom = result.restoredFrom;
+                const saved = await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+                const index = this.historyManager.getHistoryStats(this.currentConfig).currentIndex;
+                this.historyManager.associateBackup(this.currentConfig, saved?.backup_file, index + 1);
 
                 this.initialConfigData = JSON.parse(JSON.stringify(this.configData));
                 this.isDirty = false;
@@ -622,7 +633,10 @@ class QbitManageApp {
                 const cleanedConfigData = this.configForm.cleanupEmptyValues(this.configData);
 
                 // Save the redone state to the config file (overwrite without backup)
-                await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+                this.api.restoredFrom = result.restoredFrom;
+                const saved = await this.api.updateConfig(this.currentConfig, { data: cleanedConfigData || {} });
+                const index = this.historyManager.getHistoryStats(this.currentConfig).currentIndex;
+                this.historyManager.associateBackup(this.currentConfig, saved?.backup_file, index - 1);
 
                 this.initialConfigData = JSON.parse(JSON.stringify(this.configData));
                 this.isDirty = false;
@@ -680,14 +694,16 @@ class QbitManageApp {
             if (response.valid) {
                 // Check if config was modified during validation
                 if (response.config_modified) {
-                    showToast('Configuration validated successfully! Default values have been added.', 'success');
+                    showToast('Configuration is valid. Default values were added; save to keep them.', 'success');
 
-                    // Reload the configuration data from the server to reflect changes
+                    // Validate does not save: show the returned defaults in the editor for the next save
                     try {
-                        const configResponse = await this.api.getConfig(this.currentConfig);
+                        const configResponse = { data: response.data };
                         if (configResponse && configResponse.data) {
                             // Update the app's config data
                             this.configData = configResponse.data;
+                            this.isDirty = JSON.stringify(this.configData) !== JSON.stringify(this.initialConfigData);
+                            this.updateSaveButton();
 
                             // Reload the current section to reflect changes
                             if (this.configForm && this.currentSection) {
@@ -1265,17 +1281,6 @@ class QbitManageApp {
                         <a href="https://github.com/StuffAnThings/qbit_manage/wiki" target="_blank" rel="noopener noreferrer">
                             Official GitHub Repository
                         </a>.
-                    </p>
-                    <h3 class="help-title">Developer Resources</h3>
-                    <p>For API documentation and technical details:
-                        <br>
-                        <a href="/docs" target="_blank" rel="noopener noreferrer">
-                            📚 Interactive API Documentation (Swagger UI)
-                        </a>
-                        <br>
-                        <a href="/redoc" target="_blank" rel="noopener noreferrer">
-                            📖 Alternative API Documentation (ReDoc)
-                        </a>
                     </p>
                 </div>
                 <div class="modal-footer">

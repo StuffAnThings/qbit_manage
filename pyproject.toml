@@ -18,10 +18,15 @@ authors = [
 ]
 dependencies = [
     "argon2-cffi==25.1.0",
+    "authlib==1.9.10",
     "bencode.py==4.1.0",
     "croniter==6.2.4",
     "fastapi==0.148.0",
+    "filelock==4.3.1",
+    "httpx2==2.16.2",
     "humanize==4.16.0",
+    "itsdangerous==2.2.0",
+    "limits==5.8.0",
     "pytimeparse2==1.7.1",
     "qbittorrent-api==2026.11.0",
     "requests==2.34.2",

@@ -303,7 +303,14 @@ fn parse_base_url_from_args(args: &[String]) -> Option<String> {
 }
 
 fn parse_host_from_args(args: &[String]) -> String {
-  // CLI args take precedence
+  // QBT_HOST wins over --host in the server, so the launcher must poll the same address
+  if let Ok(v) = std::env::var("QBT_HOST") {
+    let s = v.trim().to_string();
+    if !s.is_empty() {
+      return s;
+    }
+  }
+  // CLI args next
   let mut i = 0;
   while i < args.len() {
     let arg = &args[i];

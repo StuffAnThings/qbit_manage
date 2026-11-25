@@ -4,7 +4,7 @@
 > Below is a summary of the WebUI. For details on the specific features and settings please see the rest of the wiki and sample config file to understand the functionality and description of each setting. The WebUI is effectively a GUI config file editor. You cannot edit environmental or container variables via the WebUI.
 
 ## Overview
-The qBit Manage Web UI provides a modern interface for configuring and managing qBit Manage. It offers real-time editing of YAML configuration files through an intuitive visual interface, eliminating the need for manual file editing.
+The Web UI edits your YAML config files in a browser and runs commands on demand.
 
 ## Key Features
 The qBit Manage Web UI offers a range of features designed to simplify your configuration and management tasks:
@@ -15,52 +15,25 @@ The qBit Manage Web UI offers a range of features designed to simplify your conf
 - **Responsive Design**: Access and manage your qBit Manage instance seamlessly from both desktop and mobile devices.
 - **YAML Preview**: See a real-time preview of the YAML configuration as you make changes, ensuring accuracy before saving.
 
-## Security Features
-The Web UI includes built-in security options to protect your qBit Manage instance:
+## Turn it on and log in
 
-## Changing the Web Server Port
+The web server is off by default. Turn it on with `--web-server` or `QBT_WEB_SERVER=true` (the desktop app does this for you). A login is always required.
 
-The web server defaults to **port 8181**. If you need a different port, set the `QBT_PORT` environment variable or pass the `--port` flag. See [Changing the Default Web Server Port](Installation#changing-the-default-web-server-port) in the Installation guide for step-by-step instructions for Windows, macOS, and Linux.
+1. Set `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` before the first start, or read the generated password from `qbm_initial_password.txt` in your config folder.
+2. Open the Web UI and sign in. Change the password under Security. Example of a valid password: `Wh1te-Rabbit!`.
+3. For single sign-on, use the `oidc` mode.
 
-### Authentication Methods
-- **None**: No authentication required (default for personal use)
-- **Basic Authentication**: Username and password login with browser popup
-- **API Only**: No web UI authentication, but API key required for API requests
+## Upgrading to 5.0
 
-### API Key Usage
-When authentication is enabled, you can generate an API key for programmatic access:
-1. Access the Security section in the Web UI
-2. Generate a new API key
-3. Use the key in API requests with the `X-API-Key` header
+- Docker and Unraid: add `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD`. Keep `QBT_WEB_SERVER=true`.
+- Python, binary, headless, or seedbox: add `--web-server` if you use the Web UI. The default bind is now `127.0.0.1`.
+- Desktop app: no change. Sign in with the generated password.
 
-Example API call with key:
-```bash
-curl -H "X-API-Key: your_api_key_here" http://localhost:8181/api/run-command
-```
+See [Security](Security#upgrading-to-50) for every install type.
 
-### Security Best Practices
-- Use strong passwords with at least 8 characters
-- Enable authentication when running on public networks
-- Keep API keys secure and regenerate them periodically
-- Use HTTPS in production environments
+## Port, host, and base URL
 
-### Troubleshooting Authentication Issues
-
-#### Can't Access Web UI After Enabling Authentication
-
-If you get locked out after enabling authentication:
-
-1. Edit the settings file directly (`config/qbm_settings.yml`)
-2. Set `authentication.enabled: false` or `authentication.method: none`
-3. Restart qBit Manage
-4. Reconfigure authentication through the web UI
-
-#### Basic Authentication Not Working
-
-- Ensure your browser supports HTTP Basic Authentication
-- Check that your credentials are correct
-- Try clearing browser cache/cookies
-- If rate limited, wait 1 minute before trying again (maximum 10 attempts per minute)
+The web server uses port 8181 and binds to `127.0.0.1` by default (`0.0.0.0` in Docker). Change them with `--port`, `--host`, and `--base-url` or `QBT_PORT`, `QBT_HOST`, and `QBT_BASE_URL`. See [Installation](Installation#changing-the-web-server-port).
 
 ## Configuration Sections
 The Web UI organizes all configuration options into logical sections for easy navigation and management:
@@ -80,7 +53,7 @@ The Web UI organizes all configuration options into logical sections for easy na
 
 ## Usage
 To get started with the qBit Manage Web UI:
-1. Ensure the qBit Manage backend is running and accessible. If running in Docker, ensure the web server is enabled and the port is mapped (e.g., `QBT_WEB_SERVER=true` and `ports: - "8181:8181"`).
+1. Ensure the qBit Manage backend is running and accessible. In Docker, set `QBT_WEB_SERVER=true`, `QBT_WEB_USERNAME`, and `QBT_WEB_PASSWORD`, and publish the port.
 2. Access the Web UI through your web browser at the configured address (e.g., `http://localhost:8181` or `http://your-docker-host-ip:8181`).
 3. Select your desired configuration file from the dropdown menu.
 4. Navigate through the different configuration sections using the sidebar.

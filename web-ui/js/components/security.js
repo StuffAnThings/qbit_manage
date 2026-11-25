@@ -1,6 +1,6 @@
 /**
  * Security Component for qBit Manage Web UI
- * Handles authentication settings and user management
+ * Login mode, OpenID Connect settings, password, and API key.
  */
 
 import { API } from '../api.js';
@@ -8,17 +8,22 @@ import { showToast } from '../utils/toast.js';
 import { showModal } from '../utils/modal.js';
 import { EYE_ICON_SVG, EYE_SLASH_ICON_SVG } from '../utils/icons.js';
 
+const MODE_HELP = {
+    local: '<strong>Local:</strong> login form with a username and password.',
+    oidc: '<strong>OpenID Connect:</strong> single sign-on for one user, for example with Authentik. The local password works only if you turn on the break-glass option.',
+    api_only: '<strong>API only:</strong> no browser login. Scripts use an API key or HTTP Basic.'
+};
+
 export class SecurityComponent {
     constructor(containerId, apiInstance = null) {
         this.container = document.getElementById(containerId);
         this.api = apiInstance || window.app?.api || new API();
-        this.currentSettings = null;
-        this.hasApiKey = false; // Track whether we have an API key without storing the key itself
+        this.settings = null;
     }
 
     async init() {
         try {
-            await this.loadSecuritySettings();
+            await this.load();
             this.render();
             this.bindEvents();
         } catch (error) {
@@ -26,569 +31,271 @@ export class SecurityComponent {
         }
     }
 
-    async loadSecuritySettings() {
-        try {
-            const response = await this.api.makeRequest('/security', 'GET');
-            this.currentSettings = response;
-
-            // Also fetch security status to determine if API key exists
-            const statusResponse = await this.api.makeRequest('/security/status', 'GET');
-            this.hasApiKey = statusResponse.has_api_key;
-
-            // Initialize actualApiKey for copy functionality (empty for security)
-            this.actualApiKey = '';
-        } catch (error) {
-            // Use default settings if loading fails
-            this.currentSettings = {
-                enabled: false,
-                method: 'none',
-                bypass_auth_for_local: false,
-                trusted_proxies: [],
-                username: '',
-                password_hash: '',
-                api_key: ''
-            };
-            this.hasApiKey = false;
-            this.actualApiKey = '';
-        }
+    async load() {
+        this.settings = await this.api.makeRequest('/security', 'GET');
     }
 
-    maskApiKey(apiKey) {
-        // Completely mask the API key for display - show only dots
-        if (!apiKey) {
-            return '';
-        }
-        return '•'.repeat(Math.max(32, apiKey.length));
+    esc(value) {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML.replace(/"/g, '&quot;');
     }
 
     render() {
+        const s = this.settings;
+        const mode = s.mode || 'local';
+        const modes = [['local', 'Local login'], ['oidc', 'OpenID Connect']];
+        if (mode === 'api_only') {
+            modes.push(['api_only', 'API only']);
+        }
         this.container.innerHTML = `
             <div class="security-settings">
                 <div class="section-header">
                     <h2>Security Settings</h2>
                     <p class="section-description">
-                        Configure authentication for the qBit Manage web interface.
-                        Choose between no authentication or basic HTTP authentication.
+                        A login is always required while the web server is on. Choose how people sign in.
                     </p>
                 </div>
 
                 <div class="settings-form">
-
-                    <!-- Authentication Method -->
                     <div class="form-group">
-                        <label for="auth-method" class="form-label">Authentication Method</label>
-                        <select id="auth-method" class="form-select">
-                            <option value="none" ${this.currentSettings.method === 'none' ? 'selected' : ''}>None (Disabled)</option>
-                            <option value="basic" ${this.currentSettings.method === 'basic' ? 'selected' : ''}>Basic (HTTP Authentication)</option>
-                            <option value="api_only" ${this.currentSettings.method === 'api_only' ? 'selected' : ''}>API Only</option>
+                        <label for="auth-mode" class="form-label">Login mode</label>
+                        <select id="auth-mode" class="form-select">
+                            ${modes.map(([value, label]) => `<option value="${value}" ${mode === value ? 'selected' : ''}>${label}</option>`).join('')}
                         </select>
-                        <div class="field-description">
-                            <strong>None:</strong> No authentication required<br>
-                            <strong>Basic:</strong> Browser popup for username/password authentication<br>
-                            <strong>API Only:</strong> No auth for web UI, API key required for API requests
-                        </div>
+                        <div class="field-description" id="mode-help"></div>
                     </div>
 
-                    <!-- Allow Local Addresses -->
-                    <div class="form-group" id="local-addresses-group" style="${this.currentSettings.method === 'none' ? 'display: none;' : ''}">
+                    <div class="form-group" id="public-url-group">
+                        <label for="public-url" class="form-label">Public URL</label>
+                        <input type="text" id="public-url" class="form-input" value="${this.esc(s.public_url)}" placeholder="https://qbm.example.com">
+                        <div class="field-description">The address people type in the browser, scheme and host only (no path). Used for the OpenID Connect redirect and for the browser origin check when a proxy changes the host name.</div>
+                    </div>
+
+                    <div class="form-group" id="https-only-group">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="allow-local" ${this.currentSettings.bypass_auth_for_local ? 'checked' : ''}>
+                            <input type="checkbox" id="https-only" ${s.https_only ? 'checked' : ''}>
                             <span class="checkmark"></span>
-                            Allow local/private IPs without authentication
+                            Send the session cookie over HTTPS only
                         </label>
-                        <div class="field-description">
-                            When checked, requests from localhost and RFC 1918 private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) won't require authentication
+                        <div class="field-description">Turn on when you reach qBit Manage through HTTPS. Takes effect after a restart.</div>
+                    </div>
+
+                    <div id="oidc-section">
+                        <h3>OpenID Connect</h3>
+                        <div class="form-group">
+                            <label for="oidc-metadata-url" class="form-label">Issuer discovery URL</label>
+                            <input type="text" id="oidc-metadata-url" class="form-input" value="${this.esc(s.oidc_metadata_url)}" placeholder="https://auth.example.com/application/o/qbit-manage/.well-known/openid-configuration">
+                        </div>
+                        <div class="form-group">
+                            <label for="oidc-client-id" class="form-label">Client ID</label>
+                            <input type="text" id="oidc-client-id" class="form-input" value="${this.esc(s.oidc_client_id)}">
+                        </div>
+                        <div class="form-group">
+                            <label for="oidc-client-secret" class="form-label">Client secret</label>
+                            <input type="password" id="oidc-client-secret" class="form-input" autocomplete="new-password" placeholder="${s.has_oidc_client_secret ? '&lt;redacted&gt; (leave blank to keep)' : 'Enter client secret'}">
+                        </div>
+                        <div class="form-group">
+                            <label for="oidc-sub" class="form-label">Allowed user (sub claim)</label>
+                            <input type="text" id="oidc-sub" class="form-input" value="${this.esc(s.oidc_sub)}">
+                        </div>
+                        <div class="form-group">
+                            <label for="oidc-email" class="form-label">Or allowed email</label>
+                            <input type="text" id="oidc-email" class="form-input" value="${this.esc(s.oidc_email)}">
+                            <div class="field-description">Accepted only when the provider marks the address as verified. One identity is allowed.</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="allow-local-login" ${s.allow_local_login ? 'checked' : ''}>
+                                <span class="checkmark"></span>
+                                Break-glass: also allow the local password
+                            </label>
                         </div>
                     </div>
 
-                    <!-- Trusted Proxies -->
-                    <div class="form-group" id="trusted-proxies-group" style="${this.currentSettings.method === 'none' ? 'display: none;' : ''}">
-                        <label for="trusted-proxies" class="form-label">Trusted Proxy IPs/Subnets</label>
-                        <textarea id="trusted-proxies" class="form-textarea" rows="3" placeholder="One IP/subnet per line (e.g., 127.0.0.1, 172.17.0.0/16)">${(this.currentSettings.trusted_proxies || []).join('\n')}</textarea>
-                        <div class="field-description">
-                            List of trusted proxy IPs or subnets (one per line). When set, the app will trust X-Forwarded-For headers from these proxies to determine the real client IP for local bypass decisions. Leave empty for direct connections.<br>
-                            <strong>Format:</strong> IPv4 addresses (e.g., 192.168.1.1) or CIDR notation (e.g., 192.168.1.0/24, 10.0.0.0/8)
-                        </div>
-                    </div>
-
-                    <!-- Credentials Section -->
-                    <div id="credentials-section" style="${this.currentSettings.method !== 'none' ? '' : 'display: none;'}">
-                        <h3>Credentials</h3>
-
-                        <!-- Username -->
+                    <div id="credentials-section">
+                        <h3>Local login</h3>
                         <div class="form-group">
                             <label for="username" class="form-label">Username</label>
-                            <input type="text" id="username" class="form-input" value="${this.currentSettings.username || ''}" placeholder="Enter username">
-                            <div class="field-description">Username for authentication</div>
+                            <input type="text" id="username" class="form-input" value="${this.esc(s.username)}" autocomplete="username">
                         </div>
-
-                        <!-- Password -->
                         <div class="form-group">
-                            <label for="password" class="form-label">Password</label>
+                            <label for="password" class="form-label">New password</label>
                             <div class="password-input-group">
-                                <input type="password" id="password" class="form-input" placeholder="Enter new password">
-                                <button type="button" class="btn btn-icon password-toggle" data-target="password">
-                                    ${EYE_ICON_SVG}
-                                </button>
+                                <input type="password" id="password" class="form-input" autocomplete="new-password" placeholder="Leave blank to keep the current password">
+                                <button type="button" class="btn btn-icon password-toggle" data-target="password">${EYE_ICON_SVG}</button>
                             </div>
-                            <div class="field-description">Leave blank to keep current password</div>
+                            <div class="field-description">8 or more characters with 3 of: uppercase, lowercase, number, special (!@#$%^&amp;*).</div>
                         </div>
-
-                        <!-- Confirm Password -->
                         <div class="form-group">
-                            <label for="confirm-password" class="form-label">Confirm Password</label>
+                            <label for="confirm-password" class="form-label">Confirm new password</label>
                             <div class="password-input-group">
-                                <input type="password" id="confirm-password" class="form-input" placeholder="Confirm new password">
-                                <button type="button" class="btn btn-icon password-toggle" data-target="confirm-password">
-                                    ${EYE_ICON_SVG}
-                                </button>
+                                <input type="password" id="confirm-password" class="form-input" autocomplete="new-password">
+                                <button type="button" class="btn btn-icon password-toggle" data-target="confirm-password">${EYE_ICON_SVG}</button>
                             </div>
-                            <div class="field-description">Must match the password above</div>
                         </div>
+                        ${s.has_password ? `
+                        <div class="form-group">
+                            <label for="current-password" class="form-label">Current password</label>
+                            <input type="password" id="current-password" class="form-input" autocomplete="current-password">
+                            <div class="field-description">Needed to set a new password. Changing the password, username, or mode signs out every browser.</div>
+                        </div>` : ''}
                     </div>
 
-                    <!-- API Key Section -->
                     <div id="api-key-section">
                         <h3>API Key</h3>
                         <div class="form-group">
+                            <div class="field-description">${s.has_api_key ? 'An API key is set. The key is never shown again after it is created.' : 'No API key is set.'}</div>
                             <div class="api-key-input-group">
-                                <button type="button" class="btn btn-secondary" id="generate-api-key">
-                                    ${this.hasApiKey ? 'Generate New Key' : 'Generate Key'}
-                                </button>
-                                ${this.hasApiKey ? `
-                                <button type="button" class="btn btn-outline" id="clear-api-key">
-                                    Clear Key
-                                </button>
-                                ` : ''}
+                                <button type="button" class="btn btn-secondary" id="generate-api-key">${s.has_api_key ? 'Regenerate Key' : 'Generate Key'}</button>
+                                ${s.has_api_key ? '<button type="button" class="btn btn-outline" id="clear-api-key">Clear Key</button>' : ''}
                             </div>
-                            <div class="field-description">
-                                API key for programmatic access. Click "Generate Key" to create a new key. The key will be displayed in a popup and won't be shown again.
-                            </div>
+                            <div class="field-description">Scripts send it in the X-Api-Key header. An API key cannot change these settings.</div>
                         </div>
                     </div>
 
-                    <!-- Save Button -->
                     <div class="form-actions">
-                        <button type="button" class="btn btn-primary" id="save-security-settings">
-                            Save Settings
-                        </button>
+                        <button type="button" class="btn btn-primary" id="save-security-settings">Save Settings</button>
                     </div>
-
                 </div>
             </div>
         `;
+        this.applyMode();
     }
 
     bindEvents() {
-        // Cache DOM elements for better performance
-        this.authMethod = document.getElementById('auth-method');
-        this.localAddressesGroup = document.getElementById('local-addresses-group');
-        this.trustedProxiesGroup = document.getElementById('trusted-proxies-group');
-        this.credentialsSection = document.getElementById('credentials-section');
-        this.generateApiKeyBtn = document.getElementById('generate-api-key');
-        this.clearApiKeyBtn = document.getElementById('clear-api-key');
-        this.saveBtn = document.getElementById('save-security-settings');
-
-        // Handle authentication method change
-        if (this.authMethod) {
-            this.authMethod.addEventListener('change', () => {
-                this.handleMethodChange(this.authMethod.value);
-            });
-        }
-
-        // Handle password visibility toggles
-        const passwordToggles = document.querySelectorAll('.password-toggle');
-        passwordToggles.forEach(toggle => {
-            toggle.addEventListener('click', (e) => {
-                const targetId = toggle.dataset.target;
-                this.togglePasswordVisibility(targetId);
+        const on = (id, event, handler) => document.getElementById(id)?.addEventListener(event, handler);
+        on('auth-mode', 'change', () => this.applyMode());
+        on('save-security-settings', 'click', () => this.saveSettings());
+        on('generate-api-key', 'click', () => this.generateApiKey());
+        on('clear-api-key', 'click', () => this.clearApiKey());
+        this.container.querySelectorAll('.password-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const input = document.getElementById(button.dataset.target);
+                const hidden = input.type === 'password';
+                input.type = hidden ? 'text' : 'password';
+                button.innerHTML = hidden ? EYE_SLASH_ICON_SVG : EYE_ICON_SVG;
             });
         });
-
-        // Handle generate API key
-        if (this.generateApiKeyBtn) {
-            this.generateApiKeyBtn.addEventListener('click', () => {
-                this.generateApiKey();
-            });
-        }
-
-        // Handle clear API key
-        if (this.clearApiKeyBtn) {
-            this.clearApiKeyBtn.addEventListener('click', () => {
-                this.clearApiKey();
-            });
-        }
-
-        // Handle save settings
-        if (this.saveBtn) {
-            this.saveBtn.addEventListener('click', () => {
-                this.saveSettings();
-            });
-        }
     }
 
-
-    handleMethodChange(method) {
-        const isNone = method === 'none';
-        const isApiOnly = method === 'api_only';
-        if (this.localAddressesGroup) {
-            this.localAddressesGroup.style.display = isNone ? 'none' : '';
-        }
-        if (this.trustedProxiesGroup) {
-            this.trustedProxiesGroup.style.display = isNone ? 'none' : '';
-        }
-        if (this.credentialsSection) {
-            this.credentialsSection.style.display = (isNone || isApiOnly) ? 'none' : '';
-        }
+    applyMode() {
+        const mode = document.getElementById('auth-mode').value;
+        const show = (id, visible) => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = visible ? '' : 'none';
+        };
+        show('public-url-group', mode !== 'api_only');
+        show('https-only-group', mode !== 'api_only');
+        show('oidc-section', mode === 'oidc');
+        show('credentials-section', mode !== 'api_only');
+        document.getElementById('mode-help').innerHTML = MODE_HELP[mode] || '';
     }
 
-    togglePasswordVisibility(targetId) {
-        const input = document.getElementById(targetId);
-        const button = document.querySelector(`[data-target="${targetId}"]`);
-
-        if (!input || !button) {
-            console.error('Password input or toggle button not found:', targetId);
-            return;
-        }
-
-        // Standard password field behavior (no special handling for API key anymore)
-        const isPassword = input.type === 'password';
-        input.type = isPassword ? 'text' : 'password';
-        button.innerHTML = isPassword ? EYE_SLASH_ICON_SVG : EYE_ICON_SVG;
+    validatePasswordComplexity(password) {
+        const kinds = [/[A-Z]/, /[a-z]/, /\d/, /[!@#$%^&*]/].filter(re => re.test(password)).length;
+        return password.length >= 8 && kinds >= 3;
     }
 
-    // Removed maskApiKey and toggleApiKeyVisibility methods - API key is always shown in full
+    formValues() {
+        const value = id => document.getElementById(id)?.value.trim() ?? '';
+        const mode = value('auth-mode');
+        const data = {
+            mode,
+            username: value('username'),
+            password: document.getElementById('password')?.value || '',
+            current_password: document.getElementById('current-password')?.value || '',
+            public_url: value('public-url'),
+            https_only: !!document.getElementById('https-only')?.checked,
+            oidc_metadata_url: value('oidc-metadata-url'),
+            oidc_client_id: value('oidc-client-id'),
+            oidc_client_secret: document.getElementById('oidc-client-secret')?.value || '',
+            oidc_sub: value('oidc-sub'),
+            oidc_email: value('oidc-email'),
+            allow_local_login: !!document.getElementById('allow-local-login')?.checked
+        };
+        return data;
+    }
+
+    async saveSettings() {
+        const data = this.formValues();
+        const confirmPassword = document.getElementById('confirm-password').value;
+        if (data.password) {
+            if (data.password !== confirmPassword) return showToast('Passwords do not match', 'error');
+            if (!this.validatePasswordComplexity(data.password)) {
+                return showToast('Password needs 8 or more characters and 3 of: uppercase, lowercase, number, special (!@#$%^&*)', 'error');
+            }
+        }
+        if (data.mode === 'oidc' && (!data.public_url || !data.oidc_metadata_url || !data.oidc_client_id || !(data.oidc_sub || data.oidc_email))) {
+            return showToast('OpenID Connect needs the public URL, discovery URL, client ID, and an allowed user or email', 'error');
+        }
+        if (data.mode === 'api_only' && this.settings.mode !== 'api_only') {
+            if (!confirm('API only mode has no browser login. This page signs out and cannot sign in again until the mode is changed in qbm_settings.yml. Continue?')) return;
+        }
+        await this.submit(data, 'Security settings saved. A new password, username, or mode signs out every browser.');
+    }
+
+    async submit(data, successMessage) {
+        try {
+            const response = await this.api.makeRequest('/security', 'PUT', data);
+            if (!response.success) {
+                showToast(response.message || 'Failed to save security settings', 'error');
+                return null;
+            }
+            showToast(successMessage, 'success');
+            await this.load();
+            this.render();
+            this.bindEvents();
+            return response;
+        } catch (error) {
+            showToast(error.message || 'Failed to save security settings', 'error');
+            return null;
+        }
+    }
 
     async generateApiKey() {
-        if (!confirm('Are you sure you want to generate a new API key? The old key will no longer work.')) {
-            return;
-        }
-
+        if (!confirm('Generate a new API key? The old key stops working.')) return;
         try {
-            // Get current form values to send complete request
-            const method = document.getElementById('auth-method').value;
-            const allowLocalCheckbox = document.getElementById('allow-local');
-            const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
-            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
-            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
-            const username = document.getElementById('username')?.value.trim() || '';
-            const password = document.getElementById('password')?.value || '';
-
-            const requestData = {
-                enabled: method !== 'none',
-                method: method,
-                bypass_auth_for_local: allowLocalIps,
-                trusted_proxies: trustedProxies,
-                username: username,
-                password: password,
-                generate_api_key: true
-            };
-
-            const response = await this.api.makeRequest('/security', 'PUT', requestData);
-
-            if (response.success) {
-                // Store the newly generated API key temporarily for the modal
-                const newApiKey = response.api_key;
-
-                // Show modal with the API key
-                const modalContent = `
-                    <div class="api-key-modal">
-                        <p><strong>Important:</strong> Copy this API key now. It will not be shown again.</p>
-                        <div class="api-key-display-modal">
-                            <input type="text" id="modal-api-key" class="form-input" readonly value="${newApiKey}">
-                            <button type="button" class="btn btn-icon" id="modal-copy-api-key" title="Copy to clipboard">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <p class="modal-warning">This key provides full access to the qBit Manage API. Keep it secure!</p>
+            const response = await this.api.makeRequest('/security', 'PUT', { generate_api_key: true });
+            if (!response.success) return showToast(response.message || 'Failed to generate API key', 'error');
+            const key = response.api_key;
+            const content = `
+                <div class="api-key-modal">
+                    <p><strong>Copy this API key now.</strong> It is not shown again.</p>
+                    <div class="api-key-display-modal">
+                        <input type="text" id="modal-api-key" class="form-input" readonly value="${this.esc(key)}">
+                        <button type="button" class="btn btn-icon" id="modal-copy-api-key" title="Copy to clipboard">Copy</button>
                     </div>
-                `;
-
-                // Add copy functionality using event delegation before showing modal
-                const handleCopyClick = (event) => {
-                    if (event.target && event.target.id === 'modal-copy-api-key') {
-                        navigator.clipboard.writeText(newApiKey)
-                            .then(() => showToast('API key copied to clipboard', 'success'))
-                            .catch(() => showToast('Failed to copy API key', 'error'));
-                    }
-                };
-
-                // Attach event listener to document for the copy button
-                document.addEventListener('click', handleCopyClick);
-
-                // Show the modal
-                const modalResult = await showModal('New API Key Generated', modalContent, {
-                    confirmText: 'Close',
-                    showCancel: false
-                });
-
-                // Clean up event listener after modal is closed
-                document.removeEventListener('click', handleCopyClick);
-
-                // Update the component state to reflect that we now have a key
-                this.hasApiKey = true;
-
-                // Re-render to update button states
-                this.render();
-                this.bindEvents();
-
-                showToast('New API key generated successfully', 'success');
-            } else {
-                showToast(response.message || 'Failed to generate API key', 'error');
-            }
+                </div>`;
+            const copy = event => {
+                if (event.target?.id === 'modal-copy-api-key') {
+                    navigator.clipboard.writeText(key)
+                        .then(() => showToast('API key copied to clipboard', 'success'))
+                        .catch(() => showToast('Failed to copy API key', 'error'));
+                }
+            };
+            document.addEventListener('click', copy);
+            await showModal('New API Key Generated', content, { confirmText: 'Close', showCancel: false });
+            document.removeEventListener('click', copy);
+            await this.load();
+            this.render();
+            this.bindEvents();
         } catch (error) {
-            console.error('Failed to generate API key:', error);
-            showToast('Failed to generate API key', 'error');
+            showToast(error.message || 'Failed to generate API key', 'error');
         }
     }
 
     async clearApiKey() {
-        if (!confirm('Are you sure you want to clear the API key? This will disable API access until a new key is generated.')) {
-            return;
-        }
-
+        if (!confirm('Clear the API key? API access with a key stops until you generate a new one.')) return;
         try {
-            // Get current form values to send complete request
-            const method = document.getElementById('auth-method').value;
-            const allowLocalCheckbox = document.getElementById('allow-local');
-            const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
-            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
-            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
-            const username = document.getElementById('username')?.value.trim() || '';
-            const password = document.getElementById('password')?.value || '';
-
-            const requestData = {
-                enabled: method !== 'none',
-                method: method,
-                bypass_auth_for_local: allowLocalIps,
-                trusted_proxies: trustedProxies,
-                username: username,
-                password: password,
-                clear_api_key: true
-            };
-
-            const response = await this.api.makeRequest('/security', 'PUT', requestData);
-
-            if (response.success) {
-                // Clear the API key state
-                this.hasApiKey = false;
-
-                // Re-render to update button states
-                this.render();
-                this.bindEvents();
-
-                showToast('API key cleared successfully', 'success');
-            } else {
-                showToast(response.message || 'Failed to clear API key', 'error');
-            }
+            const response = await this.api.makeRequest('/security', 'PUT', { clear_api_key: true });
+            if (!response.success) return showToast(response.message || 'Failed to clear API key', 'error');
+            showToast('API key cleared', 'success');
+            await this.load();
+            this.render();
+            this.bindEvents();
         } catch (error) {
-            console.error('Failed to clear API key:', error);
-            showToast('Failed to clear API key', 'error');
-        }
-    }
-
-
-    validatePasswordComplexity(password) {
-        const minLength = 8;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasLower = /[a-z]/.test(password);
-        const hasNumber = /\d/.test(password);
-        const hasSpecial = /[!@#$%^&*]/.test(password);
-
-        // Count how many character types are present
-        const typeCount = [hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
-
-        return password.length >= minLength && typeCount >= 3;
-    }
-
-    validateIpOrCidr(ip) {
-        // Check if it's a valid IPv4 address
-        const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-        const match = ip.match(ipv4Regex);
-
-        if (match) {
-            // Check if it's a valid IP address (each octet 0-255)
-            for (let i = 1; i <= 4; i++) {
-                const octet = parseInt(match[i], 10);
-                if (octet < 0 || octet > 255) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Check if it's a valid CIDR notation
-        const cidrRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
-        const cidrMatch = ip.match(cidrRegex);
-
-        if (cidrMatch) {
-            // Validate IP part
-            for (let i = 1; i <= 4; i++) {
-                const octet = parseInt(cidrMatch[i], 10);
-                if (octet < 0 || octet > 255) {
-                    return false;
-                }
-            }
-            // Validate subnet mask (0-32)
-            const mask = parseInt(cidrMatch[5], 10);
-            return mask >= 0 && mask <= 32;
-        }
-
-        return false;
-    }
-
-    validateTrustedProxies(proxies) {
-        if (!proxies || proxies.length === 0) {
-            return { valid: true }; // Empty is valid
-        }
-
-        const invalidEntries = [];
-        const duplicates = [];
-
-        for (let i = 0; i < proxies.length; i++) {
-            const proxy = proxies[i].trim();
-
-            if (!proxy) continue; // Skip empty lines
-
-            // Check format
-            if (!this.validateIpOrCidr(proxy)) {
-                invalidEntries.push(proxy);
-            }
-
-            // Check for duplicates
-            if (proxies.indexOf(proxy) !== i) {
-                if (!duplicates.includes(proxy)) {
-                    duplicates.push(proxy);
-                }
-            }
-        }
-
-        if (invalidEntries.length > 0 || duplicates.length > 0) {
-            return {
-                valid: false,
-                invalidEntries,
-                duplicates
-            };
-        }
-
-        return { valid: true };
-    }
-
-    async saveSettings() {
-        try {
-            const method = document.getElementById('auth-method').value;
-            const allowLocalCheckbox = document.getElementById('allow-local');
-            const allowLocalIps = allowLocalCheckbox && allowLocalCheckbox.checked;
-            const trustedProxiesTextarea = document.getElementById('trusted-proxies');
-            const trustedProxies = trustedProxiesTextarea ? trustedProxiesTextarea.value.split('\n').map(line => line.trim()).filter(line => line) : [];
-            const username = document.getElementById('username')?.value.trim() || '';
-            const password = document.getElementById('password')?.value || '';
-            const confirmPassword = document.getElementById('confirm-password')?.value || '';
-
-            // Validate trusted proxies
-            const proxyValidation = this.validateTrustedProxies(trustedProxies);
-            if (!proxyValidation.valid) {
-                let errorMessage = 'Invalid trusted proxy entries:';
-
-                if (proxyValidation.invalidEntries.length > 0) {
-                    errorMessage += `\n• Invalid format: ${proxyValidation.invalidEntries.join(', ')}`;
-                    errorMessage += '\n  (Use IPv4 addresses like 192.168.1.1 or CIDR notation like 192.168.1.0/24)';
-                }
-
-                if (proxyValidation.duplicates.length > 0) {
-                    errorMessage += `\n• Duplicates found: ${proxyValidation.duplicates.join(', ')}`;
-                }
-
-                showToast(errorMessage, 'error');
-                return;
-            }
-
-            // Validation
-            if (method !== 'none' && method !== 'api_only') {
-                if (!username) {
-                    showToast('Username is required', 'error');
-                    return;
-                }
-
-                // For basic authentication, password is required
-                if (method === 'basic') {
-                    const hasExistingPassword = this.currentSettings.password_hash && this.currentSettings.password_hash !== '';
-                    const hasNewPassword = password && password.trim() !== '';
-
-                    if (!hasExistingPassword && !hasNewPassword) {
-                        showToast('Password is required for basic authentication', 'error');
-                        return;
-                    }
-                }
-
-                if (password && password !== confirmPassword) {
-                    showToast('Passwords do not match', 'error');
-                    return;
-                }
-
-                // Password complexity validation
-                if (password && !this.validatePasswordComplexity(password)) {
-                    showToast('Password must be at least 8 characters with at least 3 of: uppercase, lowercase, number, special character', 'error');
-                    return;
-                }
-            }
-
-            // Prepare request data
-            const requestData = {
-                enabled: method !== 'none',
-                method: method,
-                bypass_auth_for_local: allowLocalIps,
-                trusted_proxies: trustedProxies,
-                username: username,
-                password: password,
-                generate_api_key: false
-            };
-
-            // Make API request
-            const response = await this.api.makeRequest('/security', 'PUT', requestData);
-
-            if (response.success) {
-                showToast('Security settings saved successfully', 'success');
-
-                // Update current settings
-                this.currentSettings = {
-                    enabled: method !== 'none',
-                    method: method,
-                    bypass_auth_for_local: allowLocalIps,
-                    trusted_proxies: trustedProxies,
-                    username: username,
-                    password_hash: password ? '***' : this.currentSettings.password_hash,
-                    api_key: this.currentSettings.api_key
-                };
-
-                // Clear password fields
-                const passwordField = document.getElementById('password');
-                const confirmPasswordField = document.getElementById('confirm-password');
-                if (passwordField) passwordField.value = '';
-                if (confirmPasswordField) confirmPasswordField.value = '';
-            } else {
-                showToast(response.message || 'Failed to save settings', 'error');
-            }
-
-        } catch (error) {
-            console.error('Failed to save security settings:', error);
-            showToast('Failed to save security settings', 'error');
-        }
-    }
-
-    async resetSettings() {
-        if (confirm('Are you sure you want to reset security settings? This will disable authentication.')) {
-            try {
-                await this.loadSecuritySettings();
-                this.render();
-                this.bindEvents();
-                showToast('Security settings reset', 'info');
-            } catch (error) {
-                console.error('Failed to reset settings:', error);
-                showToast('Failed to reset settings', 'error');
-            }
+            showToast(error.message || 'Failed to clear API key', 'error');
         }
     }
 }

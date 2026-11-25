@@ -9,6 +9,10 @@ ENV QBM_DOCKER=True
 RUN apk add --no-cache \
     gcc \
     g++ \
+    musl-dev \
+    cargo \
+    rust \
+    openssl-dev \
     libxml2-dev \
     libxslt-dev \
     zlib-dev \

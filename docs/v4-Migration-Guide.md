@@ -1,6 +1,5 @@
 # Qbit-Manage Migration
 
-> Last validated against qbit_manage v4.7.1.
 
 Currently the qbit-manage (qbm) config file manages torrents in two ways: via tracker and via hardlinks. The section of the config where you specify your trackers is also where you can specify share limits (duration and ratio) on a per-tracker basis. The section of the config where you address no hardlinks (noHL) is where you specify share limits for files that are not hardlinked.
 

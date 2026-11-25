@@ -309,8 +309,10 @@ class MyLogger:
             log_only = True
         else:
             for secret in sorted(self.secrets, reverse=True):
-                if secret in msg:
-                    msg = msg.replace(secret, "(redacted)")
+                # Also the JSON-escaped form, as json.dumps writes it (quotes, backslashes, non-ASCII)
+                for form in {secret, json.dumps(secret)[1:-1]}:
+                    if form and form in msg:
+                        msg = msg.replace(form, "(redacted)")
             if "HTTPConnectionPool" in msg:
                 msg = re.sub("HTTPConnectionPool\\((.*?)\\)", "HTTPConnectionPool(redacted)", msg)
             if "HTTPSConnectionPool" in msg:

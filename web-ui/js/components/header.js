@@ -52,6 +52,12 @@ class HeaderComponent {
             backupBtn.addEventListener('click', () => this.handleBackup());
         }
 
+        // Logout button
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
         // Help button
         const helpBtn = document.getElementById('help-btn');
         if (helpBtn) {
@@ -160,6 +166,21 @@ class HeaderComponent {
     handleBackup() {
         // Emit backup event
         window.dispatchEvent(new CustomEvent('header:backup'));
+    }
+
+    async handleLogout() {
+        const base = window.app?.api?.baseUrl || '';
+        try {
+            const response = await fetch(`${base}/logout`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}'
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            window.location.href = `${base}/login`;
+        } catch (error) {
+            window.alert(`Logout failed: ${error.message}`);
+        }
     }
 
     handleHelp() {

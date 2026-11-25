@@ -1,29 +1,18 @@
 # Docker Installation
 
-> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
+The image is `ghcr.io/stuffanthings/qbit_manage`. A Dockerfile is in the repo if you want to build it yourself.
 
-A simple Dockerfile is available in this repo if you'd like to build it yourself.
-The official build on github is available [here](https://ghcr.io/StuffAnThings/qbit_manage): <br>
-`docker run -it -v <PATH_TO_CONFIG>:/config:rw ghcr.io/stuffanthings/qbit_manage:latest`
+```bash
+docker run -it -v <PATH_TO_CONFIG>:/config:rw ghcr.io/stuffanthings/qbit_manage:latest
+```
 
-* The -v <PATH_TO_CONFIG>:/config:rw mounts the location you choose as a persistent volume to store your files.
-  * Change <PATH_TO_CONFIG> to a folder where your config.yml and other files are.
-  * The docker image defaults to running the config named config.yml in your persistent volume.
-  * Use quotes around the whole thing if your path has spaces i.e. -v "<PATH_TO_CONFIG>:/config:rw"
+- `<PATH_TO_CONFIG>` is the folder that holds your `config.yml`. The image reads `config.yml` from `/config`.
+- Quote the whole mapping if the path has spaces.
+- qbit_manage must see your files at the same path as qBittorrent. If qBittorrent maps `/mnt/user/data/:/data`, map it the same way here.
+- Set `root_dir` in the config to the folder you want to manage, for example `/data/torrents`.
+- `remote_dir` is optional. Comment it out if you do not need it.
 
-* Fill out your location for your downloads downloads folder (`Root_Dir`).
-   1. qbit_manage needs to be able to view all torrents the way that your qbittorrent views them.
-      1. Example: If you have qbittorrent mapped to `/mnt/user/data/:/data` This means that you **MUST** have qbit_managed mapped the same way.
-      2. Furthermore, the config file must map the root directory you wish to monitor. This means that in our example of `/data` (which is how qbittorrent views the torrents) that if in your `/data` directory you drill down to `/torrents` that you'll need to update your config file to `/data/torrents`
-   2. This could be different depending on your specific setup.
-   3. The key takeaways are
-      1. Both qbit_manage needs to have the same mappings as qbittorrent
-      2. The config file needs to drill down (if required) further to the desired root dir.
-* `remote_dir`: is not required and can be commented out with `#`
-
-Please see [Commands](https://github.com/StuffAnThings/qbit_manage/wiki/Commands) for a list of arguments and docker environment variables.
-
-Here is an example of a docker compose
+## Example compose file
 
 ```yaml
 services:
@@ -35,92 +24,18 @@ services:
       - /mnt/user/data/torrents/:/data/torrents:rw
       - /mnt/user/appdata/qbittorrent/:/qbittorrent/:ro
     ports:
-      - "8181:8181"  # Web API port (when enabled)
+      - "127.0.0.1:8181:8181"  # only if you turn the web server on
     environment:
-      # Web API Configuration
-      - QBT_WEB_SERVER=true     # disabled by default in Docker; set to true to enable
-      - QBT_PORT=8181           # Web API port (default: 8181)
-
-      # Scheduler Configuration
-      - QBT_RUN=false
-      - QBT_SCHEDULE=1440
-      - QBT_CONFIG_DIR=/config
-      - QBT_LOGFILE=qbit_manage.log
-
-      # Command Flags
-      - QBT_RECHECK=false
-      - QBT_CAT_UPDATE=false
-      - QBT_TAG_UPDATE=false
-      - QBT_REM_UNREGISTERED=false
-      - QBT_REM_ORPHANED=false
-      - QBT_TAG_TRACKER_ERROR=false
-      - QBT_TAG_NOHARDLINKS=false
-      - QBT_SHARE_LIMITS=false
-      - QBT_SKIP_CLEANUP=false
-      - QBT_DRY_RUN=false
-      - QBT_STARTUP_DELAY=0
-      - QBT_SKIP_QB_VERSION_CHECK=false
-      - QBT_DEBUG=false
-      - QBT_TRACE=false
-
-      # Logging Configuration
-      - QBT_LOG_LEVEL=INFO
-      - QBT_LOG_SIZE=10
-      - QBT_LOG_COUNT=5
-      - QBT_DIVIDER==
-      - QBT_WIDTH=100
-    restart: on-failure:2
-```
-
-### Web API and Web UI Usage
-
-In this example compose, the web server is enabled via `QBT_WEB_SERVER=true`. By default in Docker, the web server is **disabled** (per `qbit_manage.py:280-281`: `if web_server is None and not is_docker: web_server = True`). Set `QBT_WEB_SERVER=true` to enable.
-1. Ensure port 8181 (or your chosen `QBT_PORT`) is mapped using the `ports` section.
-2. Access the Web UI at `http://your-host:8181`
-3. Access the Web API at `http://your-host:8181/api/run-command`
-
-See the [Web API Documentation](Web-API) and [Web UI Documentation](Web-UI) for detailed usage instructions, security features, and examples.
-
-You will also need to define not just the config volume but the volume to your torrents, this is in order to use the recycling bin, remove orphans and the no hard link options
-
-Here we have `/mnt/user/data/torrents/` mapped to `/data/torrents/` furthermore in the config file associated with it the root_dir is mapped to `/data/torrents/`
-We also have `/mnt/user/appdata/qbittorrent/` mapped to `/qbittorrent` and in the config file we associated torrents_dir to `/qbittorrent/data/BT_backup` to use the save_torrents functionality
-
----
-
-## Worked Example: End-to-End Docker Deploy with Web UI Enabled
-
-This section walks through a complete deployment using the `develop` image with the web API and web UI enabled.
-
-### 1. docker-compose.yml
-
-```yaml
-services:
-  qbit_manage:
-    container_name: qbit_manage
-    image: ghcr.io/stuffanthings/qbit_manage:develop
-    volumes:
-      - /mnt/data/appdata/qbit_manage:/config:rw   # persistent config, logs, settings
-      - /mnt/data/torrents:/data/torrents:rw         # must mirror qBittorrent's path
-    ports:
-      - "8181:8181"   # Web API / Web UI port
-    environment:
-      # Identity — match the UID/GID that owns your /mnt/data/torrents files
       - PUID=1000
       - PGID=1000
       - TZ=America/New_York
-
-      # Enable the built-in web server (disabled by default in Docker)
-      - QBT_WEB_SERVER=true
-      - QBT_PORT=8181
-
-      # Run on a schedule (every 1440 minutes = daily); set QBT_RUN=true for one-shot
+      - QBT_WEB_SERVER=true    # off by default
+      - QBT_WEB_USERNAME=admin # creates the login on first start
+      - QBT_WEB_PASSWORD=Wh1te-Rabbit! # replace it; 8+ characters, 3 of upper/lower/number/special
       - QBT_RUN=false
       - QBT_SCHEDULE=1440
       - QBT_CONFIG_DIR=/config
       - QBT_LOGFILE=qbit_manage.log
-
-      # Commands to run each cycle (all false = web-API-only mode)
       - QBT_RECHECK=false
       - QBT_CAT_UPDATE=false
       - QBT_TAG_UPDATE=false
@@ -132,66 +47,40 @@ services:
       - QBT_SKIP_CLEANUP=false
       - QBT_DRY_RUN=false
       - QBT_STARTUP_DELAY=0
-      - QBT_SKIP_QB_VERSION_CHECK=false
-      - QBT_DEBUG=false
-      - QBT_TRACE=false
-
-      # Logging
       - QBT_LOG_LEVEL=INFO
-      - QBT_LOG_SIZE=10
-      - QBT_LOG_COUNT=5
     restart: on-failure:2
 ```
 
-### 2. Bring-Up Commands
+- Mount every folder you want the recycle bin, orphan removal, and no-hardlink tagging to reach.
+- To use `torrents_dir`, mount the qBittorrent data folder and point `torrents_dir` at `BT_backup` inside it.
+- See [Commands](Commands) for every variable.
+
+## Web UI and Web API
+
+The web server is off unless you set `QBT_WEB_SERVER=true`. A login is always required. Set `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` before the first start, or read the generated password from `/config/qbm_initial_password.txt`. Read [Security](Security) before you turn it on.
+
+1. Set `QBT_WEB_SERVER=true`.
+2. Publish the port. The example above binds it to the Docker host only.
+3. Open `http://<host>:8181` for the Web UI. The API is under `/api`.
+
+To check that it runs, call the health endpoint. It needs no login.
 
 ```bash
-# Start in detached mode and tail logs
-docker compose up -d && docker compose logs -f qbit_manage
+curl -s http://localhost:8181/api/health
 ```
 
-Press `Ctrl+C` to stop following logs; the container keeps running.
+The `status` value is `healthy`, `degraded`, `busy`, or `unhealthy`.
 
-### 3. Verify the Server Is Running
+## Upgrading to 5.0
 
-The `/api/health` endpoint is **always public** (no auth required):
+1. Keep `QBT_WEB_SERVER=true` if you use the Web UI.
+2. Add `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD`, or read `/config/qbm_initial_password.txt`.
+3. `bypass_auth_for_local` is gone, and so is `external` mode: it becomes `local`, with a password in `/config/qbm_initial_password.txt` if none was set.
+4. Run `docker compose up -d`.
 
-```bash
-curl -s http://localhost:8181/api/health | python3 -m json.tool
-```
+## Reverse proxy
 
-Expected response shape:
-
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-05-21T10:00:00.000000",
-  "version": "4.7.1",
-  "branch": "master",
-  "application": {
-    "web_api_responsive": true,
-    "can_accept_requests": true,
-    "queue_size": 0,
-    "has_queued_requests": false,
-    "next_scheduled_run": "2026-05-22T10:00:00.000000",
-    "next_scheduled_run_text": "in 24 hours"
-  },
-  "directories": {
-    "config_dir_exists": true,
-    "config_files_count": 1,
-    "logs_dir_exists": true,
-    "recent_log_entries": 150,
-    "last_activity": "Recent activity detected"
-  },
-  "issues": []
-}
-```
-
-`status` values: `healthy` | `degraded` | `busy` | `unhealthy`.
-
-### 4. Reverse-Proxy Snippet
-
-#### SWAG / nginx
+Put a reverse proxy in front of the web server for TLS. qbit_manage keeps its own login; set `public_url` to the address people type (see [Security](Security#behind-a-reverse-proxy)). If you serve it under a sub-path, set `QBT_BASE_URL` to that path.
 
 ```nginx
 location /qbitmanage/ {
@@ -207,10 +96,6 @@ location /qbitmanage/ {
 }
 ```
 
-If qbit_manage is on the same Docker network as SWAG, use the service name (`qbit_manage`) instead of `localhost`. Add `--base-url /qbitmanage` (or `QBT_BASE_URL=/qbitmanage`) to the container's environment if mounting at a sub-path.
-
-#### Caddy
-
 ```
 handle /qbitmanage/* {
     uri strip_prefix /qbitmanage
@@ -218,12 +103,13 @@ handle /qbitmanage/* {
 }
 ```
 
-### 5. Common Gotchas
+## Troubleshooting
 
 | Problem | Cause | Fix |
 |---|---|---|
-| Web UI returns 404 | Port not mapped in compose | Add `ports: - "8181:8181"` |
-| "Permission denied" on torrent files | `PUID`/`PGID` mismatch with qBittorrent host user | Match `PUID`/`PGID` to the UID/GID that owns your torrent data |
-| qbit_manage can't see torrents | Volume path differs from qBittorrent's view | Both containers **must** mount the same host path to the **same container path** |
-| Health returns `degraded` — "No configuration files found" | `/config` volume is empty | Copy your `config.yml` into the mapped host dir before starting |
-| API returns 401 | Auth enabled but no key sent | Include `X-API-Key: <key>` header or use HTTP Basic auth |
+| Web UI does not load | Web server is off, or the port is not published | Set `QBT_WEB_SERVER=true` and add the `ports` entry |
+| Permission denied on torrent files | `PUID` and `PGID` do not match the file owner | Use the UID and GID that own your torrent data |
+| qbit_manage cannot see torrents | Paths differ from qBittorrent's | Mount the same host path at the same container path |
+| Health is `degraded`: no configuration files | `/config` is empty | Copy `config.yml` into the mapped folder |
+| Locked out | Forgot the password | Add `QBT_WEB_PASSWORD_RESET=true` with the username and a new password, run `docker compose up -d`, log in, then remove the reset variable. See [Security](Security#recovery) |
+| API returns 401 | Authentication is on and no key was sent | Send the `X-API-Key` header, or use basic auth |
