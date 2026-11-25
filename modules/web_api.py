@@ -1080,9 +1080,12 @@ class WebAPI:
                         modified_data = redact_secrets(self._preserve_env_syntax(modified_temp_data))
                         try:  # the editor keeps the values it sent, unsaved secrets included
                             modified_data = restore_redacted(modified_data, request.data)
+                            logger.info("Configuration was modified during validation (defaults added)")
                         except HTTPException:
-                            pass
-                        logger.info("Configuration was modified during validation (defaults added)")
+                            # A normalized host or resized secret list: never hand <redacted> placeholders back
+                            config_modified = False
+                            modified_data = None
+                            logger.info("Defaults added during validation were not returned: secrets could not be restored")
                 except Exception as e:
                     logger.warning(f"Error checking if config was modified: {str(e)}")
             finally:
