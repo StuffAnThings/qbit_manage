@@ -1841,13 +1841,72 @@ def test_an_env_password_reset_signs_out_every_browser(local_dir):
     assert send(app, "GET", "/api/configs/config.yml", headers=cookie).status == 401
 
 
-def test_a_settings_change_that_keeps_the_login_keeps_the_session(local_dir):
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"generate_api_key": True},
+        {"clear_api_key": True},
+        {"https_only": True},
+        {"trusted_proxies": ["10.0.0.0/8"]},
+        {"username": "owner2"},
+        {"allow_local_login": True},
+        {"mode": "oidc", "oidc_metadata_url": "https://evil.example/.well-known/openid-configuration",
+         "oidc_client_id": "x", "oidc_sub": "attacker", "public_url": "https://qbm.example.com"},
+    ],
+)  # fmt: skip
+def test_every_security_change_needs_the_current_password(local_dir, change):
     app = make_app(local_dir)
     _, cookie = login(app)
-    assert send(app, "PUT", "/api/security", headers=cookie, body={"https_only": True}).status == 200
+    before = (local_dir / "qbm_settings.yml").read_text()
+    resp = send(app, "PUT", "/api/security", headers=cookie, body=change)
+    assert resp.status == 403 and resp.json()["message"] == "Enter your current password"
+    assert send(app, "PUT", "/api/security", headers=cookie, body={**change, "current_password": "wrong"}).status == 403
+    assert (local_dir / "qbm_settings.yml").read_text() == before
+    _, other = login(app)
+    assert send(app, "PUT", "/api/security", headers=cookie, body={**change, "current_password": PASSWORD}).status == 200
+    assert send(app, "GET", "/api/configs/config.yml", headers=other).status == 401  # every session is signed out
+
+
+def test_an_unchanged_save_needs_no_password(local_dir):
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    assert send(app, "PUT", "/api/security", headers=cookie, body={"https_only": False}).status == 200
     assert send(app, "GET", "/api/configs/config.yml", headers=cookie).status == 200
-    assert send(app, "PUT", "/api/security", headers=cookie, body={"username": "owner2"}).status == 200
-    assert send(app, "GET", "/api/configs/config.yml", headers=cookie).status == 401
+
+
+def test_an_oidc_only_change_needs_a_fresh_oidc_login(config_dir, monkeypatch):
+    app, cookie = oidc_only_app(config_dir, monkeypatch)
+    real_time = time.time
+    monkeypatch.setattr(auth.time, "time", lambda: real_time() + auth.REAUTH_SECONDS + 1)
+    resp = send(app, "PUT", "/api/security", headers=cookie, body={"generate_api_key": True})
+    assert resp.status == 403 and "Sign in again" in resp.json()["message"]
+
+
+def test_an_oidc_reauth_without_a_fresh_auth_time_is_refused(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(username="").model_dump())
+    client = MagicMock()
+    client.authorize_redirect = AsyncMock(return_value=auth.RedirectResponse("https://idp.example/authorize"))
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "user-1", "auth_time": 1}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    app = make_app(config_dir)
+    started = send(app, "GET", "/auth/oidc/login?reauth=1")
+    assert client.authorize_redirect.call_args.kwargs == {"prompt": "login", "max_age": 0}
+    assert send(app, "GET", "/auth/oidc/callback", headers=cookie_header(cookie_of(started))).status == 401
+
+
+def test_a_concurrent_security_save_is_refused_not_clobbered(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    real_save = auth.save_auth_settings
+
+    def other_session_saves_first(path, settings, expected=None):
+        assert real_save(path, expected.model_copy(update={"https_only": True}))
+        return real_save(path, settings, expected)
+
+    monkeypatch.setattr(auth, "save_auth_settings", other_session_saves_first)
+    body = {"trusted_proxies": ["10.0.0.0/8"], "current_password": PASSWORD}
+    assert send(app, "PUT", "/api/security", headers=cookie, body=body).status == 500
+    assert "10.0.0.0/8" not in (local_dir / "qbm_settings.yml").read_text()
 
 
 def test_a_session_can_save_an_env_reference_to_a_new_host(local_dir):

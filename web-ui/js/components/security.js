@@ -134,12 +134,15 @@ export class SecurityComponent {
                                 <button type="button" class="btn btn-icon password-toggle" data-target="confirm-password">${EYE_ICON_SVG}</button>
                             </div>
                         </div>
-                        ${s.has_password ? `
+                        ${s.reauth_with_password ? `
                         <div class="form-group">
                             <label for="current-password" class="form-label">Current password</label>
                             <input type="password" id="current-password" class="form-input" autocomplete="current-password">
-                            <div class="field-description">Needed to set a new password. Changing the password, username, or mode signs out every browser.</div>
-                        </div>` : ''}
+                            <div class="field-description">Needed for every change on this page. A change signs out every browser.</div>
+                        </div>` : `
+                        <div class="field-description" id="oidc-reauth-note">
+                            There is no local password. Changes need a fresh OpenID Connect login: <a href="${this.api.baseUrl}/auth/oidc/login?reauth=1">sign in again</a>, then save within 5 minutes. A change signs out every browser.
+                        </div>`}
                     </div>
 
                     <div id="api-key-section">
@@ -232,7 +235,7 @@ export class SecurityComponent {
         if (data.mode === 'api_only' && this.settings.mode !== 'api_only') {
             if (!confirm('API only mode has no browser login. This page signs out and cannot sign in again until the mode is changed in qbm_settings.yml. Continue?')) return;
         }
-        await this.submit(data, 'Security settings saved. A new password, username, or mode signs out every browser.');
+        await this.submit(data, 'Security settings saved. Every browser is signed out.');
     }
 
     async submit(data, successMessage) {
@@ -253,10 +256,19 @@ export class SecurityComponent {
         }
     }
 
+    // The server needs the current password for every change; without a local password it needs a fresh OIDC login.
+    askCurrentPassword() {
+        if (!this.settings.reauth_with_password) return '';
+        const typed = document.getElementById('current-password')?.value;
+        return typed || window.prompt('Enter your current password to continue');
+    }
+
     async generateApiKey() {
-        if (!confirm('Generate a new API key? The old key stops working.')) return;
+        if (!confirm('Generate a new API key? The old key stops working, and every browser is signed out.')) return;
+        const current = this.askCurrentPassword();
+        if (current === null) return;
         try {
-            const response = await this.api.makeRequest('/security', 'PUT', { generate_api_key: true });
+            const response = await this.api.makeRequest('/security', 'PUT', { generate_api_key: true, current_password: current });
             if (!response.success) return showToast(response.message || 'Failed to generate API key', 'error');
             const key = response.api_key;
             const content = `
@@ -287,8 +299,10 @@ export class SecurityComponent {
 
     async clearApiKey() {
         if (!confirm('Clear the API key? API access with a key stops until you generate a new one.')) return;
+        const current = this.askCurrentPassword();
+        if (current === null) return;
         try {
-            const response = await this.api.makeRequest('/security', 'PUT', { clear_api_key: true });
+            const response = await this.api.makeRequest('/security', 'PUT', { clear_api_key: true, current_password: current });
             if (!response.success) return showToast(response.message || 'Failed to clear API key', 'error');
             showToast('API key cleared', 'success');
             await this.load();

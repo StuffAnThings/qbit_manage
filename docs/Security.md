@@ -65,7 +65,7 @@ authentication:
 - Unauthenticated `/api` scripts get 401. Send `X-Api-Key` or HTTP Basic.
 - Anonymous `/api/version` monitors now get 401. `/api/health` stays public and returns only the status.
 - pip and source installs bind to `127.0.0.1`. Pass `--host` (or `QBT_HOST`) for LAN access, and keep the login on.
-- Setting a new password needs the current one. A new password, username, or mode signs out every browser. Logging out ends only the browser you used.
+- Every security change (password, username, mode, API key, OpenID Connect, proxy, or cookie settings) needs the current password. Without a usable local password, it needs an OpenID Connect sign-in from the last 5 minutes. A change signs out every browser. Logging out ends only the browser you used.
 - `https_only` takes effect after a restart.
 
 ### Steps by install type

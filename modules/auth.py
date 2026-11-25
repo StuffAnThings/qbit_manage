@@ -68,6 +68,7 @@ INITIAL_PASSWORD_FILE = "qbm_initial_password.txt"
 SESSION_KEY_FILE = ".qbm_session_key"
 SESSION_COOKIE = "qbm_session"
 SESSION_MAX_AGE = 7 * 24 * 3600
+REAUTH_SECONDS = 300  # an OIDC-only owner must have signed in this recently to change security settings
 UNSAFE_METHODS = ("POST", "PUT", "PATCH", "DELETE")
 BODY_METHODS = ("POST", "PUT", "PATCH")
 
@@ -327,12 +328,18 @@ def load_settings(path: Path) -> AuthSettings:
     return settings
 
 
-def save_auth_settings(path: Path, settings: AuthSettings) -> bool:
-    """Write the authentication section atomically (0600), keeping the rest of the file."""
+def save_auth_settings(path: Path, settings: AuthSettings, expected: AuthSettings | None = None) -> bool:
+    """Write the authentication section atomically (0600), keeping the rest of the file.
+
+    With `expected`, the write is refused when the stored section no longer equals it (another session saved first).
+    """
     tmp = None
     try:
         with settings_lock(path):
             data = _read_yaml(path)  # an unparseable file is never overwritten
+            if expected is not None and AuthSettings(**_normalize(data.get("authentication"))) != expected:
+                logger.warning("Security settings changed while this change was being made; not saved")
+                return False
             data["authentication"] = settings.model_dump()
             fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".qbm_settings.", suffix=".tmp")  # created 0600
             with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -373,8 +380,8 @@ class AuthStore:
                 self._key = key
             return self._settings
 
-    def save(self, settings: AuthSettings) -> bool:
-        ok = save_auth_settings(self.path, settings)  # not under self._lock: the file lock can wait
+    def save(self, settings: AuthSettings, expected: AuthSettings | None = None) -> bool:
+        ok = save_auth_settings(self.path, settings, expected)  # not under self._lock: the file lock can wait
         with self._lock:
             self._key = None
         return ok
@@ -701,9 +708,18 @@ def oidc_identity_allowed(userinfo: dict, settings: AuthSettings) -> bool:
 # --- Middleware and routes -----------------------------------------------------------------------------
 
 
-def _start_session(request: Request, identity: str) -> None:
+def _start_session(request: Request, identity: str, proved_at: int | None = None) -> None:
     request.session.clear()
     request.session["u"] = identity
+    # When the person last proved who they are. For OIDC this is the provider's auth_time claim, or 0 (not fresh).
+    request.session["t"] = int(time.time()) if proved_at is None else proved_at
+
+
+def session_is_fresh(request: Request) -> bool:
+    try:
+        return time.time() - int(request.session.get("t", 0)) <= REAUTH_SECONDS
+    except (TypeError, ValueError):
+        return False
 
 
 def json_write_ok(request: Request) -> bool:
@@ -895,8 +911,11 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
         redirect_uri = f"{settings.public_url.rstrip('/')}{base_url}/auth/oidc/callback"
         if not _limiter.hit(_FAILURE_LIMIT, "oidc_login", client_ip(request, settings)):
             return _limited_response()
+        extra = {"prompt": "login", "max_age": 0} if request.query_params.get("reauth") else {}
         try:
-            return await oidc_client(settings).authorize_redirect(request, redirect_uri)
+            response = await oidc_client(settings).authorize_redirect(request, redirect_uri, **extra)
+            request.session["reauth"] = bool(extra)  # never carry an abandoned re-auth into an ordinary login
+            return response
         except Exception as e:
             logger.error(f"OIDC provider unreachable or misconfigured: {clean_for_log(e)}")
             return PlainTextResponse("The login provider is unavailable", status_code=503)
@@ -920,7 +939,15 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
         if not oidc_identity_allowed(userinfo, settings):
             logger.info(f"OIDC login refused for sub={clean_for_log(userinfo.get('sub', ''))} from {ip}")
             return PlainTextResponse("This account is not allowed", status_code=403)
-        _start_session(request, f"oidc:{userinfo.get('sub', '')}")
+        try:
+            auth_time = int(userinfo.get("auth_time", 0))
+        except (TypeError, ValueError):
+            auth_time = 0
+        if request.session.get("reauth") and time.time() - auth_time > REAUTH_SECONDS:
+            logger.info(f"OIDC re-authentication refused from {ip}: the provider did not confirm a fresh login")
+            return PlainTextResponse("Authentication failed", status_code=401)
+        # A future auth_time would keep the session fresh until that time
+        _start_session(request, f"oidc:{userinfo.get('sub', '')}", proved_at=min(auth_time, int(time.time())))
         return RedirectResponse(f"{base_url}/", status_code=302)
 
     return router

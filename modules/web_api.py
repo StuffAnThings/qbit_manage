@@ -61,6 +61,7 @@ from modules.auth import has_credentials
 from modules.auth import hash_password_async
 from modules.auth import password_ok
 from modules.auth import rotate_session_secret
+from modules.auth import session_is_fresh
 from modules.auth import session_secret
 from modules.config import Config
 from modules.scheduler import Scheduler
@@ -1828,6 +1829,8 @@ class WebAPI:
         data.update(
             usable=True,
             has_password=bool(settings.password_hash),
+            # The same rule as _reauth_problem: a leftover hash in OIDC-only mode cannot confirm a change.
+            reauth_with_password=bool(settings.password_hash) and (settings.mode != "oidc" or settings.allow_local_login),
             has_api_key=bool(settings.api_key),
             has_oidc_client_secret=bool(settings.oidc_client_secret),
         )
@@ -1843,10 +1846,24 @@ class WebAPI:
             "enabled": settings is not None,
         }
 
-    async def update_security_settings(self, request: SecuritySettingsRequest, req: Request):
-        """Update security settings. An API key cannot call this. A new password needs the current one, when set.
+    async def _reauth_problem(self, settings, request: SecuritySettingsRequest, req: Request) -> str:
+        """Why a change is refused, or "" when the caller has just proved who they are."""
+        if settings.password_hash and (settings.mode != "oidc" or settings.allow_local_login):
+            if not request.current_password:  # nothing to check yet: ask for it without spending a guess
+                return "Enter your current password"
+            ok = await password_ok(client_ip(req, settings), settings.username, request.current_password, settings)
+            if ok is None:
+                return "Too many failed attempts. Try again later."
+            return "" if ok else "Current password is wrong"
+        if getattr(req.state, "auth_method", "") != "session" or not session_is_fresh(req):
+            return "Sign in again with OpenID Connect, then retry within 5 minutes"
+        return ""
 
-        A change to the password, username, or mode rotates the session key, which signs out every browser.
+    async def update_security_settings(self, request: SecuritySettingsRequest, req: Request):
+        """Update security settings. An API key cannot call this.
+
+        Every change needs the current password, or a fresh OIDC login when there is no usable local password, and
+        rotates the session key, which signs out every browser.
         """
         if getattr(req.state, "auth_method", "") == "api_key":
             raise HTTPException(status_code=403, detail="Security settings cannot be changed with an API key")
@@ -1878,12 +1895,17 @@ class WebAPI:
         except ValueError as e:
             return _refused(400, str(e))
 
-        if request.password and settings.password_hash:
-            ok = await password_ok(client_ip(req, settings), settings.username, request.current_password, settings)
-            if ok is None:
-                return _refused(429, "Too many failed attempts. Try again later.")
-            if not ok:
-                return _refused(403, "Current password is wrong")
+        changed = (
+            bool(request.password)
+            or request.generate_api_key
+            or request.clear_api_key
+            or bool(request.oidc_client_secret)
+            or updated != settings
+        )
+        if changed:
+            problem = await self._reauth_problem(settings, request, req)
+            if problem:
+                return _refused(429 if problem.startswith("Too many") else 403, problem)
         if request.password:
             updated.password_hash = await hash_password_async(request.password)
         if request.generate_api_key:
@@ -1892,9 +1914,11 @@ class WebAPI:
             updated.api_key = ""
         if not has_credentials(updated):
             return _refused(400, "These settings leave no way to log in")
-        if not await run_in_threadpool(self.auth_store.save, updated):
-            return _refused(500, "Failed to save security settings")
-        if request.password or updated.username != settings.username or updated.mode != settings.mode:
+        if not await run_in_threadpool(self.auth_store.save, updated, settings):
+            return _refused(
+                500, "Failed to save security settings; they may have changed in another session, so reload and retry"
+            )
+        if changed:
             rotate_session_secret(Path(self.default_dir))
         if request.password:
             (Path(self.default_dir) / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
