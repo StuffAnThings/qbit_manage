@@ -55,13 +55,11 @@ from modules.auth import AuthStore
 from modules.auth import RotatingSessionMiddleware
 from modules.auth import SecuritySettingsRequest
 from modules.auth import build_auth_router
-from modules.auth import check_login
 from modules.auth import client_ip
 from modules.auth import generate_api_key
 from modules.auth import has_credentials
-from modules.auth import hash_password
-from modules.auth import is_rate_limited
-from modules.auth import record_failure
+from modules.auth import hash_password_async
+from modules.auth import password_ok
 from modules.auth import rotate_session_secret
 from modules.auth import session_secret
 from modules.config import Config
@@ -1881,14 +1879,13 @@ class WebAPI:
             return _refused(400, str(e))
 
         if request.password and settings.password_hash:
-            ip = client_ip(req, settings)
-            if is_rate_limited(ip):
+            ok = await password_ok(client_ip(req, settings), settings.username, request.current_password, settings)
+            if ok is None:
                 return _refused(429, "Too many failed attempts. Try again later.")
-            if not await run_in_threadpool(check_login, settings.username, request.current_password, settings):
-                record_failure(ip)
+            if not ok:
                 return _refused(403, "Current password is wrong")
         if request.password:
-            updated.password_hash = await run_in_threadpool(hash_password, request.password)
+            updated.password_hash = await hash_password_async(request.password)
         if request.generate_api_key:
             updated.api_key = generate_api_key()
         if request.clear_api_key:

@@ -63,7 +63,7 @@ class Resp:
         return json.loads(self.text)
 
 
-def send(app, method, path, *, ip="127.0.0.1", headers=(), body=None, content_type="application/json"):
+async def asend(app, method, path, *, ip="127.0.0.1", headers=(), body=None, content_type="application/json"):
     payload = b"" if body is None else (body if isinstance(body, bytes) else json.dumps(body).encode())
     hdrs = [(b"host", b"127.0.0.1:8181")]
     if body is not None and content_type:
@@ -101,8 +101,12 @@ def send(app, method, path, *, ip="127.0.0.1", headers=(), body=None, content_ty
         elif message["type"] == "http.response.body":
             out["body"] += message.get("body", b"")
 
-    asyncio.run(app(scope, receive, send_))
+    await app(scope, receive, send_)
     return Resp(out["status"], out["body"].decode("utf-8", "replace"), out["headers"])
+
+
+def send(app, method, path, **kwargs):
+    return asyncio.run(asend(app, method, path, **kwargs))
 
 
 def call(app, method, path, *, client_ip="127.0.0.1", headers=None, body=None):
@@ -1911,3 +1915,58 @@ def test_basic_auth_writes_still_need_json_and_origin(local_dir):
     assert send(app, "POST", "/api/configs/config.yml/backup", headers=list(basic().items())).status == 415
     cross = list(basic().items()) + [("Origin", "http://evil.example")]
     assert send(app, "POST", "/api/configs/config.yml/backup", headers=cross, body={}).status == 403
+
+
+# --- Password checks under concurrency ---------------------------------------------------------------
+
+
+def _counting_check(monkeypatch):
+    real = auth.check_login
+    state = {"calls": 0, "running": 0, "peak": 0}
+
+    def counted(*a):
+        state["calls"] += 1
+        state["running"] += 1
+        state["peak"] = max(state["peak"], state["running"])
+        try:
+            time.sleep(0.02)
+            return real(*a)
+        finally:
+            state["running"] -= 1
+
+    monkeypatch.setattr(auth, "check_login", counted)
+    return state
+
+
+async def _burst(app, requests):
+    return await asyncio.gather(*(asend(app, method, path, **kw) for method, path, kw in requests))
+
+
+def test_a_burst_of_guesses_cannot_pass_the_limit_together(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    state = _counting_check(monkeypatch)
+    wrong = {"username": "owner", "password": "wrong"}
+    burst = [("POST", "/login", {"body": wrong}) for _ in range(15)]
+    burst += [("GET", "/api/configs", {"headers": list(basic(password="wrong").items())}) for _ in range(15)]
+    statuses = [r.status for r in asyncio.run(_burst(app, burst))]
+    assert state["calls"] == auth.MAX_AUTH_ATTEMPTS
+    assert statuses.count(429) == 30 - auth.MAX_AUTH_ATTEMPTS
+
+
+def test_password_checks_run_one_at_a_time(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    state = _counting_check(monkeypatch)
+    burst = [("POST", "/login", {"ip": f"198.51.100.{i}", "body": {"username": "owner", "password": "x"}}) for i in range(8)]
+    asyncio.run(_burst(app, burst))
+    assert state["calls"] == 8 and state["peak"] == 1
+
+
+def test_current_password_checks_share_the_login_limit(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    for _ in range(auth.MAX_AUTH_ATTEMPTS):
+        send(app, "POST", "/login", body={"username": "owner", "password": "wrong"})
+    state = _counting_check(monkeypatch)
+    body = {"password": "N3w-" + "Passw0rd!x", "current_password": PASSWORD}
+    assert send(app, "PUT", "/api/security", headers=cookie, body=body).status == 429
+    assert state["calls"] == 0

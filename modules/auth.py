@@ -10,6 +10,7 @@ address. Browser writes need a JSON content type and must come from this site (S
 API key requests are exempt.
 """
 
+import asyncio
 import hmac
 import html
 import ipaddress
@@ -19,6 +20,7 @@ import re
 import secrets
 import tempfile
 import threading
+import weakref
 from base64 import b64decode
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -595,6 +597,35 @@ def record_failure(ip: str) -> None:
     _limiter.hit(_FAILURE_LIMIT, ip)
 
 
+# One password check or hash at a time for the whole process, per event loop. Each Argon2 call takes 64 MiB, and the
+# limit check, the check, and the failure count must run as one step or a burst of guesses all pass the limit together.
+_password_locks = weakref.WeakKeyDictionary()
+
+
+def _password_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _password_locks.get(loop)
+    if lock is None:
+        lock = _password_locks[loop] = asyncio.Lock()
+    return lock
+
+
+async def password_ok(ip: str, username: str, password: str, settings: AuthSettings):
+    """Check a password against the per-address failure limit. Returns True, False, or None when limited."""
+    async with _password_lock():
+        if is_rate_limited(ip):
+            return None
+        if await run_in_threadpool(check_login, username, password, settings):
+            return True
+        record_failure(ip)
+        return False
+
+
+async def hash_password_async(password: str) -> str:
+    async with _password_lock():
+        return await run_in_threadpool(hash_password, password)
+
+
 def _limited_response():
     return PlainTextResponse("Rate limit exceeded. Try again later.", status_code=429, headers={"Retry-After": "60"})
 
@@ -706,14 +737,14 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     credentials = await _basic(request)
                 except HTTPException:
                     credentials = None
-                allowed = settings.mode != "oidc" or settings.allow_local_login
-                if (
-                    credentials
-                    and allowed
-                    and await run_in_threadpool(check_login, credentials.username, credentials.password, settings)
-                ):
-                    return "basic"
-                record_failure(ip)
+                if credentials and (settings.mode != "oidc" or settings.allow_local_login):
+                    ok = await password_ok(ip, credentials.username, credentials.password, settings)
+                    if ok is None:
+                        return "limited"
+                    if ok:
+                        return "basic"
+                else:
+                    record_failure(ip)
                 logger.info(f"Basic auth failed for {clean_for_log(request.url.path)} from {ip}")
                 return None
         if settings.mode != "api_only" and request.session.get("u"):
@@ -812,8 +843,10 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
             username, password = str(body.get("username", "")), str(body.get("password", ""))
         except Exception:
             return PlainTextResponse("Invalid request", status_code=400)
-        if not await run_in_threadpool(check_login, username, password, settings):
-            record_failure(ip)
+        ok = await password_ok(ip, username, password, settings)
+        if ok is None:
+            return _limited_response()
+        if not ok:
             logger.info(f"Login failed for user={clean_for_log(username)} from {ip}")
             return PlainTextResponse("Authentication failed", status_code=401)
         _start_session(request, settings.username)
