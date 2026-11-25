@@ -157,6 +157,33 @@ jobs:
           fi
           echo "Smoke test passed: multiprocessing.Manager() initialized in the frozen binary."
 
+      # The web server needs the bundled web-ui, auth, and FastAPI modules; the step above runs with it off.
+      - name: Smoke test binary web server (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="$PWD/out/${APP_NAME}-linux-${{ matrix.arch }}"
+          mkdir -p smoke-web
+          cp smoke/config.yml smoke-web/config.yml
+          export QBT_WEB_USERNAME=smoke QBT_WEB_PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -d '/+=')"
+          "$BIN" --web-server --host 127.0.0.1 --port 18181 --config-dir smoke-web > smoke-web/out.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ok=""
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18181/api/health >/dev/null 2>&1; then ok=1; break; fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+          cat smoke-web/out.log
+          if [ -z "$ok" ]; then
+            echo "::error::frozen binary web server did not answer /api/health"
+            exit 1
+          fi
+          curl -fsS http://127.0.0.1:18181/login | grep -qi '<form' || { echo "::error::login page not served from the frozen binary"; exit 1; }
+          echo "Smoke test passed: web server started in the frozen binary."
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
