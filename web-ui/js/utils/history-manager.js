@@ -49,11 +49,11 @@ export class HistoryManager {
 
         // If we're not at the end of history, remove future states (redo history)
         if (history.currentIndex < history.states.length - 1) {
-            history.states.splice(history.currentIndex + 1);
-            // Clean up backup mappings for removed states
+            // Clean up backup mappings for the states about to be removed
             for (let i = history.currentIndex + 1; i < history.states.length; i++) {
                 history.backupMapping.delete(i);
             }
+            history.states.splice(history.currentIndex + 1);
         }
 
         // Add new state
@@ -114,7 +114,8 @@ export class HistoryManager {
         return {
             data: targetState.data,
             description: targetState.description,
-            timestamp: targetState.timestamp
+            timestamp: targetState.timestamp,
+            restoredFrom: history.backupMapping.get(history.currentIndex) || null
         };
     }
 
@@ -160,7 +161,8 @@ export class HistoryManager {
         return {
             data: targetState.data,
             description: targetState.description,
-            timestamp: targetState.timestamp
+            timestamp: targetState.timestamp,
+            restoredFrom: history.backupMapping.get(history.currentIndex) || null
         };
     }
 
@@ -346,15 +348,15 @@ export class HistoryManager {
     }
 
     /**
-     * Associate a backup file with the current state
+     * Associate the backup a write made with the state that write replaced
      * @param {string} configName - Name of the config file
      * @param {string} backupFilename - Name of the backup file
+     * @param {number} replacedIndex - Index of the replaced state
      */
-    associateBackup(configName, backupFilename) {
+    associateBackup(configName, backupFilename, replacedIndex) {
         const history = this._getHistoryState(configName);
-        if (history.currentIndex >= 0) {
-            history.backupMapping.set(history.currentIndex, backupFilename);
-            console.log(`Associated backup ${backupFilename} with state ${history.currentIndex} for ${configName}`);
+        if (backupFilename && replacedIndex >= 0) {
+            history.backupMapping.set(replacedIndex, backupFilename);
         }
     }
 

@@ -54,16 +54,20 @@ class API {
                 const htmlContent = await response.text();
                 if (htmlContent.includes('login-form') || htmlContent.includes('Please sign in')) {
                     // Redirect to login page
-                    window.location.href = '/login';
+                    window.location.href = `${this.baseUrl}/login`;
                     throw new APIError('Authentication required', 401, { redirect: true });
                 }
                 return htmlContent;
             }
 
+            if (response.status === 401) {
+                window.location.href = `${this.baseUrl}/login`;
+            }
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new APIError(
-                    errorData.detail || `HTTP ${response.status}: ${response.statusText}`,
+                    errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`,
                     response.status,
                     errorData
                 );
@@ -159,6 +163,7 @@ class API {
      * Get configuration file content
      */
     async getConfig(filename) {
+        this.restoredFrom = null; // a backup restored for another load must not supply this config's secrets
         return this.get(`/configs/${encodeURIComponent(filename)}`);
     }
 
@@ -173,7 +178,11 @@ class API {
      * Update configuration file
      */
     async updateConfig(filename, data) {
-        return this.put(`/configs/${encodeURIComponent(filename)}`, data);
+        // Secrets shown as <redacted> after loading a backup come from that backup, not the current config
+        const body = this.restoredFrom ? { ...data, restored_from: this.restoredFrom } : data;
+        const result = await this.put(`/configs/${encodeURIComponent(filename)}`, body);
+        this.restoredFrom = null;
+        return result;
     }
 
     /**
@@ -189,7 +198,7 @@ class API {
     async validateConfig(filename, data = null) {
         const endpoint = `/configs/${encodeURIComponent(filename)}/validate`;
         if (data) {
-            return this.post(endpoint, data);
+            return this.post(endpoint, this.restoredFrom ? { ...data, restored_from: this.restoredFrom } : data);
         } else {
             return this.get(endpoint);
         }
@@ -206,6 +215,7 @@ class API {
      * Restore configuration from backup
      */
     async restoreConfig(filename) {
+        this.restoredFrom = filename;
         return this.post(`/configs/${encodeURIComponent(filename)}/restore`, {});
     }
 
@@ -393,13 +403,6 @@ class API {
      */
     async getApiDocs() {
         return this.get('/docs');
-    }
-
-    /**
-     * Get OpenAPI schema
-     */
-    async getOpenApiSchema() {
-        return this.get('/openapi.json');
     }
 }
 

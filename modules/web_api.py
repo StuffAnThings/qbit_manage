@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import math
@@ -25,34 +24,45 @@ from pathlib import Path
 from typing import Any
 from typing import Optional
 from typing import Union
+from urllib.parse import urlsplit
 
 import ruamel.yaml
 from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi import Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.responses import PlainTextResponse
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from humanize import precisedelta
 from pydantic import BaseModel
+from pydantic import field_validator
 from slowapi import Limiter
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from modules import util
+from modules.auth import INITIAL_PASSWORD_FILE
+from modules.auth import SESSION_COOKIE
+from modules.auth import SESSION_MAX_AGE
 from modules.auth import AuthenticationMiddleware
 from modules.auth import AuthSettings
+from modules.auth import AuthStore
+from modules.auth import RotatingSessionMiddleware
 from modules.auth import SecuritySettingsRequest
-from modules.auth import authenticate_user
+from modules.auth import build_auth_router
+from modules.auth import client_ip
 from modules.auth import generate_api_key
-from modules.auth import hash_password
-from modules.auth import is_local_ip
-from modules.auth import load_auth_settings
-from modules.auth import save_auth_settings
-from modules.auth import verify_api_key
+from modules.auth import has_credentials
+from modules.auth import hash_password_async
+from modules.auth import password_ok
+from modules.auth import rotate_session_secret
+from modules.auth import session_is_fresh
+from modules.auth import session_secret
 from modules.config import Config
 from modules.scheduler import Scheduler
 from modules.util import YAML
@@ -71,6 +81,103 @@ logger = _LoggerProxy()
 
 LOG_FILE_PATTERN = re.compile(r"^(?P<base>.+?)(?:\.(?P<rotation>\d+))?\.log$")
 
+REDACTED = "<redacted>"
+# Files in the config folder that the config API never lists, reads, writes, deletes, or runs.
+SENSITIVE_CONFIG_FILES = {
+    "qbm_settings.yml",
+    "schedule.yml",
+    "secrets.yml",
+    "credentials.yml",
+    "auth.yml",
+    "keys.yml",
+    "passwords.yml",
+}
+SECRET_KEYS = {"pass", "password", "password_hash", "apikey", "api_key", "token", "secret", "client_secret", "notify_url"}
+
+
+def _is_secret(key, value, in_webhooks: bool) -> bool:
+    if not isinstance(value, str) or not value or value.startswith("!ENV "):
+        return False
+    if str(key).lower() in SECRET_KEYS:
+        return True
+    # Webhook URLs (Discord, Slack, ...) carry their token in the URL itself.
+    return in_webhooks and value.lower().startswith(("http://", "https://"))
+
+
+def redact_secrets(data, key=None, in_webhooks=False):
+    """Return a copy of config data with secret values replaced by REDACTED."""
+    if isinstance(data, dict):
+        return {k: redact_secrets(v, k, in_webhooks or str(k).lower() == "webhooks") for k, v in data.items()}
+    if isinstance(data, list):
+        return [redact_secrets(item, key, in_webhooks) for item in data]
+    return REDACTED if _is_secret(key, data, in_webhooks) else data
+
+
+_DROP = object()
+_HOST_KEYS = ("host", "url", "api_url", "base_url")
+
+
+def _has_redacted(value):
+    return value == REDACTED or (isinstance(value, list) and any(_has_redacted(v) for v in value))
+
+
+def contained_config_path(default_dir, name: str) -> str:
+    """The resolved path of a config file, which must sit inside the config directory (a symlink may not leave it)."""
+    for directory in (Path("/config"), Path(default_dir)):  # the same order as get_matching_config_files
+        path = (directory / name).resolve()
+        if path.is_file() and path.is_relative_to(directory.resolve()):
+            return str(path)
+    raise HTTPException(status_code=400, detail=f"Config file {name!r} is not inside the config directory")
+
+
+def _env_ref(value):
+    """An environment reference in any field: it resolves on the next run, and any variable can hold a secret."""
+    if isinstance(value, list):
+        return any(_env_ref(item) for item in value)
+    return isinstance(value, str) and value.startswith("!ENV ")
+
+
+def _restore(new, old, allow_env_refs):
+    if isinstance(new, dict):
+        old_dict = old if isinstance(old, dict) else {}
+        out = {}
+        for key, value in new.items():
+            restored = _restore(value, old_dict.get(key), allow_env_refs)
+            if restored is not _DROP:
+                out[key] = restored
+        host_changed = any(k in new and old_dict.get(k) != new[k] for k in _HOST_KEYS)
+        if host_changed and any(_has_redacted(v) for v in new.values()):
+            raise HTTPException(status_code=400, detail="Enter the secret again when you change the host or URL it belongs to")
+        env_refs = [k for k, v in new.items() if _env_ref(v)]
+        # A host change, or an env reference that is new or changed (two saves could otherwise move the host first).
+        if env_refs and not allow_env_refs and (host_changed or any(old_dict.get(k) != new[k] for k in env_refs)):
+            raise HTTPException(status_code=403, detail=ENV_REF_DETAIL)
+        return out
+    if isinstance(new, list):
+        same = isinstance(old, list) and len(old) == len(new)
+        if not same and _has_redacted(new):
+            raise HTTPException(status_code=400, detail="Enter the secrets in this list again")
+        items = [_restore(v, old[i] if same else None, allow_env_refs) for i, v in enumerate(new)]
+        return [v for v in items if v is not _DROP]
+    if new == REDACTED:
+        return _DROP if old is None else old
+    return new
+
+
+ENV_REF_DETAIL = "An API key cannot send an environment variable to a new or changed host; save it from the Web UI"
+
+
+def restore_redacted(new, old, allow_env_refs: bool = True):
+    """Put the stored value back where the client sent REDACTED unchanged.
+
+    A list holding a redacted value is refused when its length changed. A redacted value with no stored
+    counterpart is dropped. A redacted secret whose host or URL changed is refused. Without allow_env_refs (an API
+    key caller), a new or changed !ENV reference, or one beside a changed host, is refused: an API key does not
+    carry the login's right to read the container environment.
+    """
+    restored = _restore(new, old, allow_env_refs)
+    return {} if restored is _DROP else restored
+
 
 class CommandRequest(BaseModel):
     """Command request model."""
@@ -83,11 +190,21 @@ class CommandRequest(BaseModel):
     skip_qb_version_check: bool = False
     log_level: Optional[str] = None
 
+    @field_validator("config_file")
+    @classmethod
+    def config_file_must_be_a_name(cls, v):
+        if not v or any(c in v for c in "/\\:") or ".." in v or os.path.isabs(v):
+            raise ValueError("config_file must be a file name or pattern inside the config directory")
+        if v.casefold() in util.RESERVED_FILES:
+            raise ValueError("config_file cannot name the settings file")
+        return v
+
 
 class ConfigRequest(BaseModel):
     """Configuration request model."""
 
     data: dict[str, Any]
+    restored_from: Optional[str] = None  # a backup the data was loaded from: its secrets fill the <redacted> values
 
 
 class ConfigListResponse(BaseModel):
@@ -113,6 +230,7 @@ class ValidationResponse(BaseModel):
     errors: list[str] = []
     warnings: list[str] = []
     config_modified: bool = False
+    data: Optional[dict] = None  # the redacted config with the added defaults, for the editor to show and save
 
 
 SCHEDULER_HEARTBEAT_MAX_AGE = timedelta(minutes=5)
@@ -189,37 +307,6 @@ async def process_queue_periodically(web_api: WebAPI) -> None:
         raise
 
 
-async def watch_settings_file(web_api: WebAPI) -> None:
-    """Monitor the settings file for changes and reload authentication settings."""
-    settings_path = Path(web_api.default_dir) / "qbm_settings.yml"
-    last_hash = None
-
-    try:
-        while True:
-            try:
-                if settings_path.exists():
-                    # Calculate current file hash
-                    with open(settings_path, "rb") as f:
-                        current_hash = hashlib.sha256(f.read()).hexdigest()
-
-                    # If hash has changed, reload authentication settings
-                    if last_hash is not None and current_hash != last_hash:
-                        logger.info("Settings file changed, reloading authentication settings")
-                        AuthenticationMiddleware.force_reload_all_settings()
-
-                    last_hash = current_hash
-                else:
-                    last_hash = None
-            except Exception as e:
-                logger.error(f"Error monitoring settings file: {e}")
-                last_hash = None
-
-            await asyncio.sleep(0.5)  # Check every 500ms for changes
-    except asyncio.CancelledError:
-        logger.info("Settings file watching task cancelled")
-        raise
-
-
 @dataclass(frozen=True)
 class WebAPI:
     """Web API handler for qBittorrent-Manage."""
@@ -248,10 +335,9 @@ class WebAPI:
             # Startup: Start background tasks
             app.state.web_api = self
             app.state.queue_task = asyncio.create_task(process_queue_periodically(self))
-            app.state.settings_watcher_task = asyncio.create_task(watch_settings_file(self))
             yield
             # Shutdown: Clean up background tasks
-            for task_name in ["queue_task", "settings_watcher_task"]:
+            for task_name in ["queue_task"]:
                 if hasattr(app.state, task_name):
                     task = getattr(app.state, task_name)
                     task.cancel()
@@ -261,7 +347,7 @@ class WebAPI:
                         pass
 
         # Create app with lifespan context manager
-        app = FastAPI(lifespan=lifespan)
+        app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
         object.__setattr__(self, "app", app)
 
         # Ensure default dir is initialized
@@ -299,10 +385,23 @@ class WebAPI:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
             return response
 
-        # Configure Authentication Middleware
+        # Login and the JSON-write check. The session middleware is added last so it runs first.
+        session_secret(Path(self.default_dir))  # the cookie key file exists from startup
         settings_path = Path(self.default_dir) / "qbm_settings.yml"
-        self.app.add_middleware(AuthenticationMiddleware, settings_path=settings_path, base_url=base_url)
-        logger.info(f"Authentication middleware configured with settings path: {settings_path}")
+        auth_store = AuthStore(settings_path)
+        object.__setattr__(self, "auth_store", auth_store)
+        self.app.add_middleware(AuthenticationMiddleware, store=auth_store, base_url=base_url)
+        current_auth = auth_store.get()
+        self.app.add_middleware(
+            RotatingSessionMiddleware,
+            config_dir=Path(self.default_dir),
+            session_cookie=SESSION_COOKIE,
+            path=base_url or "/",
+            same_site="lax",
+            https_only=bool(current_auth and current_auth.https_only),
+            max_age=SESSION_MAX_AGE,
+        )
+        self.app.include_router(build_auth_router(auth_store, base_url), prefix=base_url)
 
         # Create API router with clean route definitions
         api_router = APIRouter()
@@ -330,7 +429,8 @@ class WebAPI:
         api_router.get("/log_files")(self.list_log_files)
         api_router.get("/docs")(self.get_documentation)
         api_router.get("/version")(self.get_version)
-        api_router.get("/health")(self.health_check)
+        api_router.get("/health")(self.public_health)
+        api_router.get("/health_details")(self.health_details)
         api_router.get("/get_base_url")(self.get_base_url)
 
         # Authentication routes
@@ -464,11 +564,19 @@ class WebAPI:
                 "update_available": False,
             }
 
-    async def health_check(self) -> HealthCheckResponse:
-        """Health check endpoint providing application status information."""
+    async def public_health(self) -> dict:
+        """Anonymous health probe: the status only. No version, branch, paths, or log reads."""
+        return {"status": (await self.health_check(detailed=False))["status"]}
+
+    async def health_details(self) -> HealthCheckResponse:
+        """Full health information; needs a login."""
+        return await self.health_check()
+
+    async def health_check(self, detailed: bool = True) -> HealthCheckResponse:
+        """Health check providing application status information."""
         try:
             # Get basic application info
-            version, branch = util.get_current_version()
+            version, branch = util.get_current_version() if detailed else (None, None)
 
             # Check queue status - this is more meaningful than the running flag
             # since the health check itself can't run while commands are executing
@@ -509,7 +617,7 @@ class WebAPI:
             # Check if we can read the most recent log file for additional health info
             recent_log_entries = 0
             last_log_time = None
-            if logs_dir_exists:
+            if logs_dir_exists and detailed:
                 try:
                     log_file_path = self.logs_path / "qbit_manage.log"
                     if log_file_path.exists():
@@ -579,6 +687,9 @@ class WebAPI:
                     status = "unhealthy"
                     issues.append("Scheduler heartbeat is stale")
 
+            if not detailed:
+                return {"status": status}
+
             health_info = {
                 "status": status,
                 "timestamp": current_time,
@@ -638,7 +749,14 @@ class WebAPI:
             if request.skip_qb_version_check is not None:
                 logger.info(f"Skip qBittorrent Version Check: {request.skip_qb_version_check}")
 
-            config_files = get_matching_config_files(request.config_file, self.default_dir)
+            config_files = [
+                name
+                for name in get_matching_config_files(request.config_file, self.default_dir)
+                if not self._is_sensitive_config_file(name)
+            ]
+            if not config_files:
+                raise HTTPException(status_code=400, detail=f"No config file matches {request.config_file!r}")
+            config_paths = {name: contained_config_path(self.default_dir, name) for name in config_files}
             logger.info(f"Found config files: {', '.join(config_files)}")
 
             now = datetime.now()
@@ -685,7 +803,9 @@ class WebAPI:
 
             for config_file in config_files:
                 run_args = base_args.copy()
-                run_args["config_file"] = config_file
+                run_args["config_file"] = config_paths[
+                    config_file
+                ]  # an absolute path, so Config never looks in the working directory
                 run_args["config_files"] = [config_file]
 
                 config_base = os.path.splitext(config_file)[0]
@@ -725,6 +845,8 @@ class WebAPI:
 
             return {"status": "success", "message": "Commands executed successfully for all configs", "results": all_stats}
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.stacktrace()
             logger.error(f"Error executing commands: {str(e)}")
@@ -750,11 +872,7 @@ class WebAPI:
             for pattern in ["*.yml", "*.yaml"]:
                 config_files.extend([f.name for f in self.config_path.glob(pattern)])
 
-            # Define sensitive files to filter out
-            sensitive_files = {"qbm_settings.yml", "secrets.yml", "credentials.yml", "auth.yml", "keys.yml", "passwords.yml"}
-
-            # Filter out sensitive configuration files
-            filtered_configs = [f for f in config_files if f not in sensitive_files]
+            filtered_configs = [f for f in config_files if not self._is_sensitive_config_file(f)]
 
             # Determine default config
             default_config = "config.yml"
@@ -773,7 +891,7 @@ class WebAPI:
             config_file_path = self._validate_config_filename(filename)
 
             # Explicitly block access to sensitive settings file
-            if filename == "qbm_settings.yml":
+            if self._is_sensitive_config_file(filename):
                 raise HTTPException(status_code=403, detail="Access to settings file is forbidden")
 
             if not config_file_path.exists():
@@ -784,7 +902,7 @@ class WebAPI:
             config_data = yaml_loader.data
 
             # Convert EnvStr objects back to !ENV syntax for frontend display
-            config_data_for_frontend = self._preserve_env_syntax(config_data)
+            config_data_for_frontend = redact_secrets(self._preserve_env_syntax(config_data))
 
             # Get file stats
             stat = config_file_path.stat()
@@ -801,7 +919,7 @@ class WebAPI:
             logger.error(f"Error getting config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def create_config(self, filename: str, request: ConfigRequest) -> dict:
+    async def create_config(self, filename: str, request: ConfigRequest, req: Request) -> dict:
         """Create a new configuration file."""
         try:
             # Validate filename to prevent path traversal
@@ -810,11 +928,15 @@ class WebAPI:
             if config_file_path.exists():
                 raise HTTPException(status_code=409, detail=f"Configuration file '{filename}' already exists")
 
+            # A placeholder with nothing stored behind it is dropped
+            data = restore_redacted(request.data, None, _env_refs_allowed(req))
+
             # Create backup directory if it doesn't exist
             self.backup_path.mkdir(exist_ok=True)
 
-            # Write YAML file
-            self._write_yaml_config(config_file_path, request.data)
+            config_data_for_save = self._restore_env_objects(data)
+            self._register_sensitive_fields_as_secrets(config_data_for_save)
+            self._write_yaml_config(config_file_path, config_data_for_save)
 
             return {"status": "success", "message": f"Configuration '{filename}' created successfully"}
         except HTTPException:
@@ -823,7 +945,7 @@ class WebAPI:
             logger.error(f"Error creating config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def update_config(self, filename: str, request: ConfigRequest) -> dict:
+    async def update_config(self, filename: str, request: ConfigRequest, req: Request) -> dict:
         """Update an existing configuration file."""
         try:
             # Validate filename to prevent path traversal
@@ -832,25 +954,31 @@ class WebAPI:
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
 
+            stored = self._secret_data(config_file_path, request)
+            request.data = restore_redacted(request.data, stored, _env_refs_allowed(req))
+
             # Create backup
-            await self._create_backup(config_file_path)
-
-            # Register sensitive fields as secrets for automatic redaction in logs
-            self._register_sensitive_fields_as_secrets(request.data)
-
-            # Debug: Log what we received from frontend (secrets will be automatically redacted)
-            logger.trace(f"[DEBUG] Raw data received from frontend: {json.dumps(request.data, indent=2, default=str)}")
+            backup_name = await self._create_backup(config_file_path)
 
             # Convert !ENV syntax back to EnvStr objects for proper YAML serialization
             config_data_for_save = self._restore_env_objects(request.data)
+            # Registered after !ENV resolution, so the resolved values are masked too
+            self._register_sensitive_fields_as_secrets(config_data_for_save)
 
-            # Debug: Log what we have after restoration (secrets will be automatically redacted)
-            logger.trace(f"[DEBUG] Data after _restore_env_objects: {json.dumps(config_data_for_save, indent=2, default=str)}")
+            # The redacted copy: json.dumps escapes quotes, backslashes, and non-ASCII, so a logged secret can
+            # differ from the registered one
+            logger.trace(
+                f"[DEBUG] Data received from frontend: {json.dumps(redact_secrets(request.data), indent=2, default=str)}"
+            )
 
             # Write updated YAML file
             self._write_yaml_config(config_file_path, config_data_for_save)
 
-            return {"status": "success", "message": f"Configuration '{filename}' updated successfully"}
+            return {
+                "status": "success",
+                "message": f"Configuration '{filename}' updated successfully",
+                "backup_file": backup_name,
+            }
         except HTTPException:
             raise
         except Exception as e:
@@ -879,8 +1007,8 @@ class WebAPI:
             logger.error(f"Error deleting config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def validate_config(self, filename: str, request: ConfigRequest) -> ValidationResponse:
-        """Validate a configuration using a temporary file, but persist changes if defaults are added."""
+    async def validate_config(self, filename: str, request: ConfigRequest, req: Request) -> ValidationResponse:
+        """Validate a configuration using a temporary file; defaults Config adds are returned, not saved."""
         try:
             errors = []
             warnings = []
@@ -891,54 +1019,39 @@ class WebAPI:
             if not config_path.exists():
                 raise HTTPException(status_code=404, detail=f"Config file '{filename}' not found")
 
-            # Load original config
-            original_yaml = None
-            try:
-                original_yaml = YAML(str(config_path))
-            except Exception as e:
-                logger.error(f"Error reading original config: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Failed to read original config: {str(e)}")
+            source = self._secret_data(config_path, request)
+            unredacted = restore_redacted(request.data, source, _env_refs_allowed(req))
 
-            # Create temporary config file for validation
             temp_config_path = None
             try:
-                # Create a temporary file in the same directory as the config
+                # A temporary file in the config directory, closed before the YAML writer opens it by name
                 temp_fd, temp_path = tempfile.mkstemp(suffix=".yml", dir=str(config_path.parent))
-                temp_config_path = Path(temp_path)
-
-                # Convert !ENV strings back to EnvStr objects before saving
-                processed_data = self._restore_env_objects(request.data)
-
-                # Write to temporary file for validation
-                temp_yaml = YAML(str(temp_config_path))
-                temp_yaml.data = processed_data
-                temp_yaml.save_preserving_format(processed_data)
-
-                # Close the file descriptor
                 os.close(temp_fd)
+                temp_config_path = Path(temp_path)
+                try:
+                    processed_data = self._restore_env_objects(unredacted)
+                    temp_yaml = YAML(str(temp_config_path))
+                    temp_yaml.data = processed_data
+                    temp_yaml.save_preserving_format(processed_data)
+                except Exception as e:
+                    logger.error(f"Error creating temporary config: {str(e)}")
+                    raise HTTPException(status_code=500, detail=f"Failed to create temporary config: {str(e)}")
 
-            except Exception as e:
-                logger.error(f"Error creating temporary config: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Failed to create temporary config: {str(e)}")
+                # Create validation args using the temporary file
+                now = datetime.now()
+                temp_args = self.args.copy()
+                temp_args["config_file"] = str(temp_config_path)  # an absolute path, as in _execute_command
+                temp_args["_from_web_api"] = True
+                temp_args["validation_mode"] = True  # Flag to indicate this is validation, not a real run
+                temp_args["time"] = now.strftime("%H:%M")
+                temp_args["time_obj"] = now
+                temp_args["run"] = True
+                commands = processed_data.get("commands")
+                # A commands section replaces env/CLI commands in a normal run, with missing keys defaulting to False.
+                if isinstance(commands, dict):
+                    temp_args["skip_qb_version_check"] = str(commands.get("skip_qb_version_check")).lower() == "true"
 
-            # Create validation args using the temporary file
-            now = datetime.now()
-            temp_args = self.args.copy()
-            temp_args["config_file"] = temp_config_path.name  # Use temp file name
-            temp_args["_from_web_api"] = True
-            temp_args["validation_mode"] = True  # Flag to indicate this is validation, not a real run
-            temp_args["time"] = now.strftime("%H:%M")
-            temp_args["time_obj"] = now
-            temp_args["run"] = True
-            commands = processed_data.get("commands")
-            # A commands section replaces env/CLI commands in a normal run, with missing keys defaulting to False.
-            if isinstance(commands, dict):
-                temp_args["skip_qb_version_check"] = str(commands.get("skip_qb_version_check")).lower() == "true"
-
-            try:
                 logger.separator("Configuration Validation Check", space=False, border=False)
-
-                # Try to load config using existing validation logic
                 try:
                     Config(self.default_dir, temp_args)
                 except Exception as e:
@@ -948,33 +1061,21 @@ class WebAPI:
                 if valid:
                     logger.separator("Configuration Valid", space=False, border=False)
 
-                # Check if temp config was modified during validation
+                # Defaults that Config added go back to the editor, never to the config file: Validate does not save.
+                modified_data = None
                 try:
-                    # Reload the temp config to see if it was modified
-                    modified_temp_yaml = YAML(str(temp_config_path))
-                    modified_temp_data = modified_temp_yaml.data.copy() if modified_temp_yaml.data else {}
-
-                    # Compare the data structures
+                    modified_temp_data = YAML(str(temp_config_path)).data or {}
                     if processed_data != modified_temp_data:
                         config_modified = True
+                        modified_data = redact_secrets(self._preserve_env_syntax(modified_temp_data))
+                        try:  # the editor keeps the values it sent, unsaved secrets included
+                            modified_data = restore_redacted(modified_data, request.data)
+                        except HTTPException:
+                            pass
                         logger.info("Configuration was modified during validation (defaults added)")
-
-                        # If config was modified, copy the changes to the original file
-                        try:
-                            original_yaml.data = modified_temp_data
-                            original_yaml.save_preserving_format(modified_temp_data)
-                            logger.info("Successfully applied validation changes to original config")
-                        except Exception as copy_error:
-                            logger.error(f"Failed to copy changes to original config: {str(copy_error)}")
-                            # Don't fail the validation if we can't copy changes
                 except Exception as e:
                     logger.warning(f"Error checking if config was modified: {str(e)}")
-
-            except Exception as e:
-                logger.error(f"Validation failed: {str(e)}")
-                raise
             finally:
-                # Clean up temporary file
                 try:
                     if temp_config_path and temp_config_path.exists():
                         temp_config_path.unlink()
@@ -983,10 +1084,18 @@ class WebAPI:
                     logger.warning(f"Failed to clean up temporary config file: {str(cleanup_error)}")
 
             # Create response with modification info
-            response_data = {"valid": valid, "errors": errors, "warnings": warnings, "config_modified": config_modified}
+            response_data = {
+                "valid": valid,
+                "errors": errors,
+                "warnings": warnings,
+                "config_modified": config_modified,
+                "data": modified_data,
+            }
 
-            logger.info(f"Validation response: {response_data}")
+            logger.info(f"Validation response: valid={valid} errors={errors} config_modified={config_modified}")
             return ValidationResponse(**response_data)
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error validating config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -995,16 +1104,23 @@ class WebAPI:
         """Write configuration data to YAML file while preserving formatting and comments."""
 
         try:
-            logger.trace(f"Attempting to write config to: {config_path}")
-            logger.trace(f"[DEBUG] Full data structure being written: {json.dumps(data, indent=2, default=str)}")
-
-            logger.trace(f"Data to write: {data}")
-
             # Convert !ENV strings back to EnvStr objects
             processed_data = self._restore_env_objects(data)
+            # Every caller's secrets, including resolved !ENV values, are masked before anything is logged
+            self._register_sensitive_fields_as_secrets(processed_data)
 
+            logger.trace(f"Attempting to write config to: {config_path}")
+            logger.trace(
+                f"[DEBUG] Full data structure being written: {json.dumps(redact_secrets(processed_data), indent=2, default=str)}"
+            )
+
+            existed = config_path.exists()
+            if not existed:  # created private: config files hold passwords and API keys
+                os.close(os.open(config_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+            elif os.name != "nt":
+                os.chmod(config_path, 0o600)
             # Use the custom YAML class with format preservation
-            if config_path.exists():
+            if existed:
                 # Load existing file to preserve formatting
                 yaml_writer = YAML(path=str(config_path))
                 yaml_writer.save_preserving_format(processed_data)
@@ -1023,17 +1139,22 @@ class WebAPI:
             logger.error(f"Error writing config to {config_path}: {e}")
             raise HTTPException(status_code=500, detail=f"File write error: {e}")
 
-    async def _create_backup(self, config_path: Path):
-        """Create a backup of the configuration file."""
+    async def _create_backup(self, config_path: Path) -> str:
+        """Create a backup of the configuration file and return its name."""
         self.backup_path.mkdir(exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_name = f"{config_path.stem}_{timestamp}{config_path.suffix}"
         backup_file_path = self.backup_path / backup_name
 
-        shutil.copy2(config_path, backup_file_path)
+        # Created 0600 before the copy: a backup holds the same secrets as the config
+        os.close(os.open(backup_file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600))
+        if os.name != "nt":
+            os.chmod(backup_file_path, 0o600)
+        shutil.copyfile(config_path, backup_file_path)
         logger.info(f"Created backup: {backup_file_path}")
         await self._cleanup_backups(config_path)
+        return backup_name
 
     async def _cleanup_backups(self, config_path: Path):
         """Clean up old backups for a configuration file, keeping the last 30."""
@@ -1337,45 +1458,47 @@ class WebAPI:
             logger.error(f"Error listing backups for '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    @staticmethod
+    def _backup_pattern(config_path: Path):
+        """Backups of this config file: {stem}_{YYYYMMDD}_{HHMMSS}.{suffix}."""
+        stem, suffix = config_path.stem, config_path.suffix.lstrip(".")
+        return re.compile(f"^{re.escape(stem)}_(\\d{{8}}_\\d{{6}})\\.{re.escape(suffix)}$")
+
+    def _secret_data(self, config_path: Path, request: ConfigRequest):
+        """The stored values behind <redacted>: the config file, or the backup of it the editor restored."""
+        if not request.restored_from:
+            return self._preserve_env_syntax(YAML(str(config_path)).data)
+        if not self._backup_pattern(config_path).match(request.restored_from):
+            raise HTTPException(status_code=400, detail=f"restored_from is not a backup of {config_path.name}")
+        data = YAML(str(self._backup_file(request.restored_from))).data
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=400, detail="The restored backup is empty; enter the secrets again")
+        return self._preserve_env_syntax(data)
+
+    def _backup_file(self, name: str) -> Path:
+        """The path of a backup file, which must be a plain file name inside the backups directory."""
+        if not name or os.path.basename(name) != name or any(c in name for c in ["..", "/", "\\", "\0"]):
+            raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+        path = (self.backup_path / name).resolve()
+        if not path.is_relative_to(self.backup_path.resolve()):  # a string prefix would accept .backups_other/
+            raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
+        if not path.exists():
+            raise HTTPException(status_code=404, detail=f"Backup file '{name}' not found")
+        return path
+
     async def restore_config_from_backup(self, filename: str) -> dict:
         """Restore configuration from a backup file."""
         try:
-            # Use the filename from the URL path as the backup file to restore
-            backup_filename = filename
-            if not backup_filename:
-                raise HTTPException(status_code=400, detail="filename is required")
-
-            # Security: Validate and sanitize the backup_filename to prevent path traversal
-            # Remove any path separators and parent directory references
-            sanitized_backup_filename = os.path.basename(backup_filename)
-            if not sanitized_backup_filename or sanitized_backup_filename != backup_filename:
-                raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
-
-            # Additional validation: ensure the backup filename doesn't contain dangerous characters
-            if any(char in sanitized_backup_filename for char in ["..", "/", "\\", "\0"]):
-                raise HTTPException(status_code=400, detail="Invalid filename: contains forbidden characters")
-
-            # Construct the backup file path safely
-            backup_file_path = self.backup_path / sanitized_backup_filename
-
-            # Security: Ensure the resolved path is still within the backup directory
-            try:
-                backup_file_path = backup_file_path.resolve()
-                backup_dir_resolved = self.backup_path.resolve()
-                if not str(backup_file_path).startswith(str(backup_dir_resolved)):
-                    raise HTTPException(status_code=400, detail="Invalid filename: path traversal not allowed")
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid filename: unable to resolve path")
-
-            if not backup_file_path.exists():
-                raise HTTPException(status_code=404, detail=f"Backup file '{sanitized_backup_filename}' not found")
+            backup_file_path = self._backup_file(filename)
+            sanitized_backup_filename = backup_file_path.name
 
             # Load backup data
             yaml_loader = YAML(str(backup_file_path))
             backup_data = yaml_loader.data
 
             # Convert EnvStr objects back to !ENV syntax for frontend display
-            backup_data_for_frontend = self._preserve_env_syntax(backup_data)
+            backup_data = self._preserve_env_syntax(backup_data)
+            backup_data_for_frontend = redact_secrets(backup_data)
 
             return {
                 "status": "success",
@@ -1439,8 +1562,9 @@ class WebAPI:
 
     def _is_sensitive_config_file(self, filename: str) -> bool:
         """Check if a config file is sensitive and should be protected from API operations."""
-        sensitive_files = {"qbm_settings.yml"}
-        return filename in sensitive_files
+        # Only YAML configs: this also keeps out the first-run password file and the session and key files.
+        name = filename.lower()
+        return name in SENSITIVE_CONFIG_FILES or not name.endswith((".yml", ".yaml"))
 
     def _validate_config_filename(self, filename: str) -> Path:
         """Validate filename and return safe path to prevent path traversal attacks."""
@@ -1466,25 +1590,30 @@ class WebAPI:
         try:
             # Use resolve() to get absolute path and check if it's within config_path
             resolved_path = config_file_path.resolve()
-            if not resolved_path.is_relative_to(self.config_path):
+            if not resolved_path.is_relative_to(self.config_path.resolve()):
                 raise HTTPException(status_code=403, detail="Access denied: path outside config directory")
         except (OSError, ValueError):
             raise HTTPException(status_code=400, detail="Invalid filename")
 
-        return config_file_path
+        return resolved_path  # the checked path, so a symlink swapped after the check cannot redirect the write
 
-    def _register_sensitive_fields_as_secrets(self, data):
+    def _register_sensitive_fields_as_secrets(self, data, key=None, in_webhooks=False):
         """Register sensitive fields as secrets for automatic redaction in logs."""
         if isinstance(data, dict):
-            for key, value in data.items():
-                if key.lower() in ["password", "password_hash", "api_key", "secret", "token", "key"]:
-                    if isinstance(value, str) and value:
-                        logger.secret(value)
-                else:
-                    self._register_sensitive_fields_as_secrets(value)
+            for k, value in data.items():
+                self._register_sensitive_fields_as_secrets(value, k, in_webhooks or str(k).lower() == "webhooks")
         elif isinstance(data, list):
             for item in data:
-                self._register_sensitive_fields_as_secrets(item)
+                self._register_sensitive_fields_as_secrets(item, key, in_webhooks)
+        elif _is_secret(key, data, in_webhooks) or (str(key).lower() == "key" and isinstance(data, str) and data):
+            logger.secret(data)
+        elif isinstance(data, str) and "@" in data:
+            try:
+                password = urlsplit(data if "://" in data else f"//{data}").password  # user:pass@host
+            except ValueError:
+                password = None
+            if password:
+                logger.secret(password)
 
     async def get_scheduler_status(self) -> dict:
         """Get complete scheduler status including schedule configuration and persistence information."""
@@ -1726,203 +1855,130 @@ class WebAPI:
 
     # Authentication methods
 
-    async def get_security_settings(self) -> AuthSettings:
-        """Get current security settings."""
-        try:
-            settings_path = Path(self.default_dir) / "qbm_settings.yml"
-            settings = load_auth_settings(settings_path)
-
-            # Don't return sensitive information for security
-            settings.password_hash = "***" if settings.password_hash else ""
-            # Don't return API key for security - it should only be shown once when generated
-            settings.api_key = ""
-
-            return settings
-        except Exception as e:
-            logger.error(f"Error getting security settings: {str(e)}")
-            return AuthSettings()
+    async def get_security_settings(self) -> dict:
+        """Current security settings without secrets."""
+        settings = self.auth_store.get()
+        if settings is None:
+            return {"mode": "", "usable": False}
+        data = settings.model_dump(exclude={"password_hash", "api_key", "oidc_client_secret"})
+        data.update(
+            usable=True,
+            has_password=bool(settings.password_hash),
+            # The same rule as _reauth_problem: a leftover hash in OIDC-only mode cannot confirm a change.
+            reauth_with_password=bool(settings.password_hash) and (settings.mode != "oidc" or settings.allow_local_login),
+            has_api_key=bool(settings.api_key),
+            has_oidc_client_secret=bool(settings.oidc_client_secret),
+        )
+        return data
 
     async def get_security_status(self) -> dict:
-        """Get security status information without sensitive data."""
+        """Security status without sensitive data."""
+        settings = self.auth_store.get()
+        return {
+            "has_api_key": bool(settings and settings.api_key),
+            "mode": settings.mode if settings else "",
+            "method": settings.mode if settings else "",
+            "enabled": settings is not None,
+        }
+
+    async def _reauth_problem(self, settings, request: SecuritySettingsRequest, req: Request) -> str:
+        """Why a change is refused, or "" when the caller has just proved who they are."""
+        if settings.password_hash and (settings.mode != "oidc" or settings.allow_local_login):
+            if not request.current_password:  # nothing to check yet: ask for it without spending a guess
+                return "Enter your current password"
+            ok = await password_ok(client_ip(req, settings), settings.username, request.current_password, settings)
+            if ok is None:
+                return "Too many failed attempts. Try again later."
+            return "" if ok else "Current password is wrong"
+        if getattr(req.state, "auth_method", "") != "session" or not session_is_fresh(req):
+            return "Sign in again with OpenID Connect, then retry within 5 minutes"
+        return ""
+
+    async def update_security_settings(self, request: SecuritySettingsRequest, req: Request):
+        """Update security settings. An API key cannot call this.
+
+        Every change needs the current password, or a fresh OIDC login when there is no usable local password, and
+        rotates the session key, which signs out every browser.
+        """
+        if getattr(req.state, "auth_method", "") == "api_key":
+            raise HTTPException(status_code=403, detail="Security settings cannot be changed with an API key")
+        settings = self.auth_store.get()
+        if settings is None:
+            return _refused(503, "Authentication settings are unusable; fix qbm_settings.yml")
+        updated = settings.model_copy(deep=True)
         try:
-            settings_path = Path(self.default_dir) / "qbm_settings.yml"
-            settings = load_auth_settings(settings_path)
-
-            return {
-                "has_api_key": bool(settings.api_key and settings.api_key.strip()),
-                "method": settings.method,
-                "enabled": settings.enabled,
-            }
-        except Exception as e:
-            logger.error(f"Error getting security status: {str(e)}")
-            return {"has_api_key": False, "method": "none", "enabled": False}
-
-    async def update_security_settings(self, request: SecuritySettingsRequest, req: Request) -> dict[str, Any]:
-        """Update security settings."""
-        try:
-            settings_path = Path(self.default_dir) / "qbm_settings.yml"
-            current_settings = load_auth_settings(settings_path)
-
-            # Capture original values before any modifications for audit logging
-            original_settings = {
-                "enabled": current_settings.enabled,
-                "method": current_settings.method,
-                "bypass_auth_for_local": current_settings.bypass_auth_for_local,
-                "trusted_proxies": current_settings.trusted_proxies,
-                "username": current_settings.username,
-                "api_key": current_settings.api_key,
-            }
-
-            # DEBUG: Log the request data to understand what's being sent
-            logger.trace(
-                f"Security settings update request: current_api_key={bool(request.current_api_key)}, "
-                f"current_username={bool(request.current_username)}, "
-                f"current_password={bool(request.current_password)}"
+            updated.mode = request.mode or {"basic": "local", "api_only": "api_only", "external": "local"}.get(
+                request.method, settings.mode
             )
-            logger.trace(
-                f"Current settings: method={current_settings.method}, "
-                f"has_api_key={bool(current_settings.api_key)}, "
-                f"has_username={bool(current_settings.username)}"
+            for name in (
+                "public_url",
+                "https_only",
+                "allow_local_login",
+                "oidc_metadata_url",
+                "oidc_client_id",
+                "oidc_sub",
+                "oidc_email",
+                "trusted_proxies",
+            ):
+                if name in request.model_fields_set:  # a field the client did not send keeps its value
+                    setattr(updated, name, getattr(request, name))
+            if request.oidc_client_secret:
+                updated.oidc_client_secret = request.oidc_client_secret
+            if request.username:
+                updated.username = request.username
+            AuthSettings.model_validate(updated.model_dump())
+        except ValueError as e:
+            return _refused(400, str(e))
+
+        changed = (
+            bool(request.password)
+            or request.generate_api_key
+            or request.clear_api_key
+            or bool(request.oidc_client_secret)
+            or updated != settings
+        )
+        if changed:
+            problem = await self._reauth_problem(settings, request, req)
+            if problem:
+                return _refused(429 if problem.startswith("Too many") else 403, problem)
+        if request.password:
+            updated.password_hash = await hash_password_async(request.password)
+        if request.generate_api_key:
+            updated.api_key = generate_api_key()
+        if request.clear_api_key:
+            updated.api_key = ""
+        if not has_credentials(updated):
+            return _refused(400, "These settings leave no way to log in")
+        if not await run_in_threadpool(self.auth_store.save, updated, settings):
+            return _refused(
+                500, "Failed to save security settings; they may have changed in another session, so reload and retry"
             )
+        if changed:
+            rotate_session_secret(Path(self.default_dir))
+        if request.password:
+            (Path(self.default_dir) / INITIAL_PASSWORD_FILE).unlink(missing_ok=True)
+        logger.info(f"Security settings updated by {getattr(req.state, 'auth_method', 'unknown')} login")
+        return {
+            "success": True,
+            "message": "Security settings updated successfully",
+            "api_key": updated.api_key if request.generate_api_key else None,
+        }
 
-            # Check if this is initial setup (no authentication currently configured)
-            is_initial_setup = not current_settings.enabled or (
-                current_settings.method == "none" and not current_settings.username and not current_settings.api_key
-            )
 
-            # Check if client is local and bypass_auth_for_local is enabled
-            if current_settings.bypass_auth_for_local and is_local_ip(req, current_settings.trusted_proxies):
-                logger.trace("Local client with bypass_auth_for_local enabled, skipping credential verification")
-                auth_verified = True
-            elif is_initial_setup:
-                # Allow initial setup without credentials when no authentication is configured
-                logger.trace("Initial authentication setup detected, skipping credential verification")
-                auth_verified = True
-            else:
-                # Verify current credentials for reauthentication
-                auth_verified = False
+def _env_refs_allowed(req: Request) -> bool:
+    return getattr(req.state, "auth_method", "") != "api_key"
 
-            # First, try credentials provided in the request body
-            # Try API key verification first
-            if not auth_verified and request.current_api_key and current_settings.api_key:
-                logger.trace("Attempting API key verification from request body")
-                if verify_api_key(request.current_api_key, current_settings.api_key):
-                    auth_verified = True
-                    logger.trace("API key verification successful")
-                else:
-                    logger.trace("API key verification failed")
-                    return {"success": False, "message": "Invalid current API key"}
 
-            # If API key not provided or invalid, try username/password
-            if not auth_verified and request.current_username and request.current_password:
-                logger.trace("Attempting username/password verification from request body")
-                if authenticate_user(request.current_username, request.current_password, current_settings):
-                    auth_verified = True
-                    logger.trace("Username/password verification successful")
-                else:
-                    logger.trace("Username/password verification failed")
-                    return {"success": False, "message": "Invalid current username or password"}
+def _refused(status: int, message: str) -> JSONResponse:
+    """A refused security change: an error status that keeps the {success, message} body."""
+    return JSONResponse(status_code=status, content={"success": False, "message": message})
 
-            # If no credentials in request body, try to extract from request headers
-            if not auth_verified:
-                logger.trace("No credentials in request body, attempting to extract from headers")
 
-                # Try API key from header
-                api_key_header = req.headers.get("X-API-Key")
-                if api_key_header and current_settings.api_key:
-                    logger.trace("Attempting API key verification from X-API-Key header")
-                    if verify_api_key(api_key_header, current_settings.api_key):
-                        auth_verified = True
-                        logger.trace("API key verification from header successful")
+def build_uvicorn_config(app, host: str, port: int):
+    """Uvicorn config that never lets request headers rewrite the peer address: auth reads the raw TCP peer."""
+    import uvicorn
 
-                # If API key header didn't work, try Basic auth from Authorization header
-                if not auth_verified:
-                    auth_header = req.headers.get("Authorization")
-                    if auth_header and auth_header.startswith("Basic "):
-                        logger.trace("Attempting Basic auth verification from Authorization header")
-                        try:
-                            import base64
-
-                            encoded_credentials = auth_header.split(" ")[1]
-                            decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
-                            username, password = decoded_credentials.split(":", 1)
-
-                            if authenticate_user(username, password, current_settings):
-                                auth_verified = True
-                                logger.trace("Basic auth verification from header successful")
-                            else:
-                                logger.trace("Basic auth verification from header failed")
-                        except Exception as e:
-                            logger.warning(f"Error parsing Basic auth header: {e}")
-
-            # If neither method worked and it's not initial setup, require authentication
-            if not auth_verified and not is_initial_setup:
-                logger.warning("No valid current credentials provided for security settings update")
-                return {"success": False, "message": "Current credentials required to update security settings"}
-
-            # Update settings
-            current_settings.enabled = request.enabled
-            current_settings.method = request.method
-            current_settings.bypass_auth_for_local = request.bypass_auth_for_local
-            current_settings.trusted_proxies = request.trusted_proxies
-            current_settings.username = request.username
-
-            # Handle password
-            if request.password:
-                current_settings.password_hash = hash_password(request.password)
-
-            # Handle API key generation
-            if request.generate_api_key:
-                current_settings.api_key = generate_api_key()
-
-            # Handle API key clearing
-            if hasattr(request, "clear_api_key") and request.clear_api_key:
-                current_settings.api_key = ""
-
-            # Save settings
-            if save_auth_settings(settings_path, current_settings):
-                # Force reload authentication settings to ensure immediate effect
-                AuthenticationMiddleware.force_reload_all_settings()
-
-                # Audit log the security changes by comparing original with updated values
-                changes = []
-                if original_settings["enabled"] != current_settings.enabled:
-                    changes.append(f"enabled: {original_settings['enabled']} -> {current_settings.enabled}")
-                if original_settings["method"] != current_settings.method:
-                    changes.append(f"method: {original_settings['method']} -> {current_settings.method}")
-                if original_settings["bypass_auth_for_local"] != current_settings.bypass_auth_for_local:
-                    changes.append(
-                        f"bypass_auth_for_local: {original_settings['bypass_auth_for_local']} -> "
-                        f"{current_settings.bypass_auth_for_local}"
-                    )
-                if original_settings["trusted_proxies"] != current_settings.trusted_proxies:
-                    changes.append(
-                        f"trusted_proxies: {original_settings['trusted_proxies']} -> {current_settings.trusted_proxies}"
-                    )
-                if original_settings["username"] != current_settings.username:
-                    changes.append(f"username: {original_settings['username']} -> {current_settings.username}")
-                if request.password:
-                    changes.append("password: [CHANGED]")
-                if request.generate_api_key:
-                    changes.append("api_key: [GENERATED]")
-                if request.clear_api_key:
-                    changes.append("api_key: [CLEARED]")
-
-                if changes:
-                    logger.info(f"Security settings updated: {', '.join(changes)}")
-
-                logger.info("Authentication settings reloaded after update")
-                return {
-                    "success": True,
-                    "message": "Security settings updated successfully",
-                    "api_key": current_settings.api_key if request.generate_api_key else None,
-                }
-            else:
-                return {"success": False, "message": "Failed to save security settings"}
-
-        except Exception as e:
-            logger.error(f"Error updating security settings: {str(e)}")
-            return {"success": False, "message": f"Error updating security settings: {str(e)}"}
+    return uvicorn.Config(app, host=host, port=port, log_level="info", access_log=False, proxy_headers=False)
 
 
 def create_app(

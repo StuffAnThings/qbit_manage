@@ -26,7 +26,7 @@ def api(tmp_path):
 
 
 def validate(api, data):
-    return asyncio.run(api.validate_config("config.yml", ConfigRequest(data=data)))
+    return asyncio.run(api.validate_config("config.yml", ConfigRequest(data=data), MagicMock()))
 
 
 @patch("modules.qbittorrent.Version.is_app_version_supported", return_value=False)

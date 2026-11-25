@@ -951,6 +951,12 @@
     min-width: 0;
   }
 
+  /* justify-self:end sizes the cell to its content, which pushes the extra logout button past 320px. */
+  .header-right {
+    max-width: 100%;
+    justify-content: flex-end;
+  }
+
   .header-actions {
     overflow-x: auto;
     scrollbar-width: none; /* Firefox */

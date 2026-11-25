@@ -2,6 +2,7 @@
 
 import math
 import os
+import tempfile
 import threading
 from datetime import datetime
 from datetime import timedelta
@@ -154,12 +155,18 @@ class Scheduler:
                 }
 
                 # Write new settings file
-                tmp_path = self.settings_file.with_suffix(".yml.tmp")
-                yaml_writer = YAML(input_data="")
-                yaml_writer.data = new_data
-                yaml_writer.path = str(tmp_path)
-                yaml_writer.save()
-                os.replace(tmp_path, self.settings_file)
+                # mkstemp creates the file 0600, so the settings are never readable by others, even briefly
+                fd, tmp_path = tempfile.mkstemp(dir=self.settings_file.parent, prefix=".qbm_settings.", suffix=".tmp")
+                os.close(fd)
+                try:
+                    yaml_writer = YAML(input_data="")
+                    yaml_writer.data = new_data
+                    yaml_writer.path = tmp_path
+                    yaml_writer.save()
+                    os.replace(tmp_path, self.settings_file)
+                except BaseException:
+                    os.unlink(tmp_path)
+                    raise
 
                 # Remove legacy file
                 self.legacy_schedule_file.unlink()
@@ -250,6 +257,7 @@ class Scheduler:
         if not self._validate_schedule(schedule_type, schedule_value):
             logger.error(f"Invalid schedule: {schedule_type}={schedule_value}")
             return False
+        was_disabled = self._persistence_disabled
         try:
             # Requirement: any explicit save (e.g. via WebUI) must re-enable persistence
             if self._persistence_disabled:
@@ -268,6 +276,7 @@ class Scheduler:
                 logger.info(f"Schedule saved and updated: {schedule_type}={schedule_value}")
             return True
         except Exception as e:
+            self._persistence_disabled = was_disabled
             logger.error(f"Failed to save schedule: {e}")
             return False
 
@@ -276,6 +285,7 @@ class Scheduler:
         Toggle persistent schedule enable/disable (non-destructive, stored in qbm_settings.yml under schedule.disabled).
         Reduced logging (no stack trace).
         """
+        was_disabled = self._persistence_disabled
         try:
             # Load existing file data (if any) to preserve schedule type/value
             existing_type = None
@@ -315,6 +325,7 @@ class Scheduler:
 
             return True
         except Exception as e:
+            self._persistence_disabled = was_disabled
             logger.error(f"Failed to toggle persistent schedule: {e}")
             return False
 
@@ -577,33 +588,40 @@ class Scheduler:
         Uses new structure with 'schedule' root key. Preserves other settings in the file.
         If schedule_type/value are None (e.g., user disabled before ever saving), we still write disabled state.
         """
-        # Load existing settings file to preserve other settings
-        existing_data = {}
-        if self.settings_file.exists():
+        with util.settings_lock(self.settings_file):
+            # Load existing settings file to preserve other settings
+            existing_data = {}
+            if self.settings_file.exists():
+                try:
+                    yaml_loader = YAML(str(self.settings_file))
+                    existing_data = yaml_loader.data or {}
+                except Exception as e:
+                    # Rewriting from nothing would drop the authentication section.
+                    raise OSError(f"Could not read {self.settings_file}; schedule not saved: {e}") from e
+
+            # Update schedule section
+            schedule_data = {
+                "type": schedule_type,
+                "value": schedule_value,
+                "disabled": self._persistence_disabled,
+                "updated_at": datetime.now().isoformat(),
+            }
+
+            # Merge with existing data
+            existing_data["schedule"] = schedule_data
+
+            # mkstemp makes a new 0600 file, so a leftover temp file's mode never applies to the secrets
+            fd, tmp_path = tempfile.mkstemp(dir=self.settings_file.parent, prefix=".qbm_settings.", suffix=".tmp")
+            os.close(fd)
             try:
-                yaml_loader = YAML(str(self.settings_file))
-                existing_data = yaml_loader.data or {}
-            except Exception:
-                # If we can't read existing file, start fresh
-                existing_data = {}
-
-        # Update schedule section
-        schedule_data = {
-            "type": schedule_type,
-            "value": schedule_value,
-            "disabled": self._persistence_disabled,
-            "updated_at": datetime.now().isoformat(),
-        }
-
-        # Merge with existing data
-        existing_data["schedule"] = schedule_data
-
-        tmp_path = self.settings_file.with_suffix(".yml.tmp")
-        yaml_writer = YAML(input_data="")
-        yaml_writer.data = existing_data
-        yaml_writer.path = str(tmp_path)
-        yaml_writer.save()
-        os.replace(tmp_path, self.settings_file)
+                yaml_writer = YAML(input_data="")
+                yaml_writer.data = existing_data
+                yaml_writer.path = tmp_path
+                yaml_writer.save()
+                os.replace(tmp_path, self.settings_file)
+            except BaseException:
+                os.unlink(tmp_path)
+                raise
 
     def _scheduler_loop(self):
         """Main scheduler loop running in background thread."""

@@ -1,10 +1,8 @@
 # Web API Documentation
 
-> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
-
 ## Overview
 
-qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The API server runs at 8181, listening to all hostnames by default, and can be configured using the `--host` and `--port` options or `QBT_HOST` and `QBT_PORT` environment variables.
+qBit Manage provides a REST API that allows you to trigger commands via HTTP requests. The server uses port 8181 and binds to `127.0.0.1` by default (`0.0.0.0` in Docker). Change them with `--host` and `--port` or `QBT_HOST` and `QBT_PORT`. It is off by default; enable it with `--web-server` or `QBT_WEB_SERVER=true`. Every request needs a login, on any address. See [Security](Security) before you expose it.
 
 ## Running the Web Server
 
@@ -23,17 +21,16 @@ services:
     container_name: qbit_manage
     environment:
       - QBT_WEB_SERVER=true # Enable web server (set to false to disable)
-      - QBT_HOST=0.0.0.0 # Set web server host
       - QBT_PORT=8181 # Set web server port
     ports:
-      - "8181:8181" # Map container port to host
+      - "127.0.0.1:8181:8181" # Publish on the host only
     volumes:
       - /path/to/config:/config
 ```
 
 ## API Endpoints
 
-> Most endpoints require authentication via API key or basic auth when authentication is enabled. **Exceptions:** `GET /api/health`, `GET /api/version`, and `GET /api/get_base_url` are always public (unconditionally bypassed by `AuthenticationMiddleware` per `modules/auth.py` `skip_auth_paths`), even when authentication is enabled.
+> A login is always required. Scripts send an API key in the `X-Api-Key` header, or HTTP Basic (`curl -u user:password`). **Exception:** `GET /api/health` is public and returns only `{"status": ...}`. An API key cannot change `/api/security`. Writes need `Content-Type: application/json`. After 10 failed logins or API key attempts in one minute, that client address gets `429` until the minute passes.
 
 ### Endpoint Summary
 
@@ -55,9 +52,10 @@ services:
 | `/api/logs` | GET | Yes |
 | `/api/log_files` | GET | Yes |
 | `/api/docs` | GET | Yes |
-| `/api/version` | GET | No (always public) |
-| `/api/health` | GET | No (always public) |
-| `/api/get_base_url` | GET | No (always public) |
+| `/api/version` | GET | Yes |
+| `/api/health` | GET | No (status only) |
+| `/api/health_details` | GET | Yes |
+| `/api/get_base_url` | GET | Yes |
 | `/api/security` | GET | Yes |
 | `/api/security/status` | GET | Yes |
 | `/api/security` | PUT | Yes |
@@ -152,7 +150,7 @@ Delete a config file permanently. A backup is created before deletion.
 
 #### POST /api/configs/{filename}/validate
 
-Validate a config file for correctness by running it through qbit_manage's config parser without executing commands. If validation causes defaults to be written (e.g., missing keys are backfilled), those changes are applied to the **actual** config file.
+Validate a config file for correctness by running it through qbit_manage's config parser without executing commands. Validation runs on a temporary copy and never writes the config file. Defaults the parser adds (missing keys are backfilled) come back in `data` for the editor.
 
 **Request body:**
 
@@ -190,7 +188,7 @@ Validate a config file for correctness by running it through qbit_manage's confi
 }
 ```
 
-`config_modified: true` means defaults were written back to the on-disk config during validation.
+`config_modified: true` means the parser added defaults; `data` holds the config with them. The file on disk is unchanged.
 
 #### POST /api/configs/{filename}/backup
 
@@ -339,7 +337,7 @@ Return documentation metadata for the API (markdown file content).
 
 #### GET /api/version
 
-Return version information for qBit Manage. **Always public — no auth required.**
+Return version information for qBit Manage. **Needs a login.** Anonymous monitors get 401; use `/api/health` for a liveness check.
 
 **Response:**
 
@@ -357,7 +355,15 @@ Return version information for qBit Manage. **Always public — no auth required
 
 #### GET /api/health
 
-Liveness and readiness probe. **Always public — no auth required.** Returns full application state.
+Liveness probe. **Public.** Anonymous callers get only the status:
+
+```json
+{ "status": "healthy" }
+```
+
+#### GET /api/health_details
+
+Full application state. **Needs a login.**
 
 **Response:**
 
@@ -395,7 +401,7 @@ Liveness and readiness probe. **Always public — no auth required.** Returns fu
 
 #### GET /api/get_base_url
 
-Return the resolved base URL the server is listening on. **Always public — no auth required.**
+Return the resolved base URL the server is listening on. **Needs a login.**
 
 **Response:**
 
@@ -412,7 +418,7 @@ Return the current security configuration (API key and basic auth settings).
 Return a summary of whether authentication is enabled and which methods are active.
 
 #### PUT /api/security
-Update security settings (API key, basic auth credentials, etc.).
+Update security settings (mode, username, password, OpenID Connect, API key). A new password needs `current_password`. A new password, username, or mode signs out every browser. An API key cannot call this endpoint.
 
 #### POST /api/system/force-reset
 Force-reset the internal running state. Use when a stuck run has left the system in an inconsistent state.
@@ -609,7 +615,7 @@ curl -X POST http://localhost:8181/api/run-command \
   }'
 ```
 
-If authentication is enabled, include your API key:
+Include your API key:
 
 ```bash
 curl -X POST http://localhost:8181/api/run-command \
@@ -626,7 +632,7 @@ curl -X POST http://localhost:8181/api/run-command \
   }'
 ```
 
-Alternatively, if Basic Authentication is enabled and you don't have an API key:
+Or use HTTP Basic with your web login username and password (in OpenID Connect mode only when `allow_local_login` is on):
 
 ```bash
 curl -X POST http://localhost:8181/api/run-command \
@@ -663,7 +669,7 @@ response = requests.post(
 print(response.json())
 ```
 
-If authentication is enabled, include your API key:
+Include your API key:
 
 ```python
 import requests
@@ -686,7 +692,7 @@ response = requests.post(
 print(response.json())
 ```
 
-Alternatively, if Basic Authentication is enabled:
+Or use HTTP Basic with your web login username and password:
 
 ```python
 import requests

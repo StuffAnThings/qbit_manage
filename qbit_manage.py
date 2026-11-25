@@ -12,6 +12,7 @@ import webbrowser
 from datetime import datetime
 from datetime import timedelta
 from multiprocessing import Manager
+from pathlib import Path
 
 import requests
 
@@ -57,15 +58,15 @@ parser.add_argument(
     default=None,
     help="Start the webUI server to handle command requests via HTTP API. "
     "Pass --web-server to enable, --web-server=False to disable. "
-    "Default: enabled on desktop (non-Docker) runs; disabled in Docker.",
+    "Default: disabled. The desktop app enables it.",
 )
 parser.add_argument(
     "-H",
     "--host",
     dest="host",
     type=str,
-    default="0.0.0.0",
-    help="Hostname for the web server (default: 0.0.0.0).",
+    default=None,
+    help="Hostname for the web server (default: 127.0.0.1; 0.0.0.0 in Docker). A web login is always required, on every address.",
 )
 parser.add_argument(
     "-p",
@@ -272,10 +273,7 @@ args, _unknown_cli = parser.parse_known_args()
 env_version = get_arg("BRANCH_NAME", "master")
 is_docker = get_arg("QBM_DOCKER", False, arg_bool=True) or in_docker()
 web_server = get_arg("QBT_WEB_SERVER", args.web_server, arg_bool=True)
-# Auto-enable web server by default on non-Docker if not explicitly set via env/flag
-if web_server is None and not is_docker:
-    web_server = True
-host = get_arg("QBT_HOST", args.host, arg_int=True)
+host = get_arg("QBT_HOST", args.host) or ("0.0.0.0" if is_docker else "127.0.0.1")
 port = get_arg("QBT_PORT", args.port, arg_int=True)
 base_url = get_arg("QBT_BASE_URL", args.base_url)
 run = get_arg("QBT_RUN", args.run, arg_bool=True)
@@ -680,8 +678,9 @@ def run_web_server(
         # Configure and run uvicorn
         import uvicorn as _uvicorn
 
-        config = _uvicorn.Config(app, host=host, port=port, log_level="info", access_log=False)
-        server = _uvicorn.Server(config)
+        from modules.web_api import build_uvicorn_config
+
+        server = _uvicorn.Server(build_uvicorn_config(app, host, port))
         server.run()
     except KeyboardInterrupt:
         # Gracefully allow shutdown
@@ -793,7 +792,8 @@ def main():
         globals()["next_scheduled_run_info_shared"] = next_scheduled_run_info_shared
 
         # Start web server if enabled and not in run mode
-        if web_server:
+        start_web_server = bool(web_server)
+        if start_web_server:
             # One-time info message about how the web server was enabled
             try:
                 _cli_ws_flag = any(a in ("-ws", "--web-server") for a in sys.argv[1:])
@@ -803,11 +803,20 @@ def main():
                         logger.info("    Web server enabled via override: ENV (QBT_WEB_SERVER)")
                     elif _cli_ws_flag:
                         logger.info("    Web server enabled via override: CLI (-ws/--web-server)")
-                    else:
-                        logger.info("    Web server enabled automatically (desktop default)")
             except Exception:
                 pass
 
+            from modules.auth import ensure_credentials
+
+            start_web_server = ensure_credentials(Path(args["config_dir"]) / "qbm_settings.yml", os.environ)
+        else:
+            from modules.auth import web_server_off_notice
+
+            notice = web_server_off_notice(Path(args["config_dir"]) / "qbm_settings.yml")
+            if notice:
+                logger.warning(notice)
+
+        if start_web_server:
             # Log any unknown CLI args (useful for PyInstaller/multiprocessing flags on Windows)
             if _unknown_cli:
                 logger.debug(f"Unknown CLI arguments ignored: {_unknown_cli}")

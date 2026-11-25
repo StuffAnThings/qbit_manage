@@ -26,7 +26,7 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
    - Ensure both containers can see torrents at the same paths
 
 3. **Configure Environment Variables**
-   - Set `QBT_WEB_SERVER=true` to enable the Web UI (recommended)
+   - Set `QBT_WEB_SERVER=true`, `QBT_WEB_USERNAME`, and `QBT_WEB_PASSWORD` to enable the Web UI
    - Configure other QBT environment options as needed
 
 4. **Apply and Download**
@@ -48,10 +48,7 @@ Install [Community Applications](https://forums.unraid.net/topic/38582-plug-in-c
 
 ### Web UI Access
 
-If you enabled the web server, access the Web UI at:
-```
-http://[UNRAID-IP]:8181
-```
+The web server is off by default. To use the Web UI, add `QBT_WEB_SERVER=true`, `QBT_WEB_USERNAME`, and `QBT_WEB_PASSWORD` to the container, then open `http://[UNRAID-IP]:8181`. Read [Security](Security) first.
 
 ## Alternative: User Scripts Installation
 
@@ -109,3 +106,9 @@ http://[UNRAID-IP]:8181
 - Review container logs in the Docker tab
 - Verify config.yml syntax is correct
 - Ensure all required path mappings exist
+
+## Upgrading to 5.0
+
+1. Edit the container and add `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD`, or read `qbm_initial_password.txt` in the config path.
+2. Keep `QBT_WEB_SERVER=true` if you use the Web UI.
+3. Apply, then sign in. See [Security](Security#upgrading-to-50).

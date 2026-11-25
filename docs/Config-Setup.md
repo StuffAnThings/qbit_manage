@@ -1,8 +1,6 @@
 # Overview
 
-> Last validated against qbit_manage v4.7.1. See [v4 Migration Guide](v4-Migration-Guide.md) for changes since v4.0.
-
-The script utilizes a YAML config file to load information to connect to the various APIs you can connect with. Alternatively, you can configure qBit Manage using the [Web UI](Web-UI), which requires the [Web API](Web-API) to be enabled.
+qbit_manage reads a YAML config file. You can also edit it in the [Web UI](Web-UI), which needs the web server on.
 
 ## Default Configuration File Locations
 
@@ -24,8 +22,8 @@ A template Configuration File can be found in the repo [config/config.yml.sample
 
 You can reference environment variables inside your `config.yml` by `!ENV VAR_NAME`
 
-> [!CAUTION]
-> As this software is constantly evolving and this wiki might not be up to date the sample shown here might not be current. Please refer to the repo for the most current version.
+> [!NOTE]
+> The sample file in the repo is the current reference. If this page and the sample disagree, trust the sample.
 
 # Config File
 
@@ -61,21 +59,21 @@ This section defines your qBittorrent instance.
 
 | Variable | Definition                          | Required            |
 | :------- | :---------------------------------- | :------------------ |
-| `host`   | IP address of your qB installation. | <center>✅</center> |
+| `host`   | Address and port of your qBittorrent Web UI, for example `localhost:8080`. | <center>✅</center> |
 | `user`   | The user name of your qB's webUI.   | <center>❌</center> |
 | `pass`   | Thee password of your qB's webUI.   | <center>❌</center> |
 | `apikey` | API key for qBittorrent v5.2.0+; takes precedence over `user` and `pass`. | <center>❌</center> |
 
 ### Environment variable override
 
-Every CLI flag (and a few internal settings) can be set via environment variable. The table below lists every `get_arg(...)` call found in `qbit_manage.py` on master as of v4.7.1.
+Every CLI flag has an environment variable. A variable wins over its flag.
 
 | Env var | Maps to CLI / config key | Override? | Notes |
 |---------|--------------------------|-----------|-------|
-| `QBT_HOST` | `qbt.host` in YAML / `-H`/`--host` web-server flag | YAML default | IP/hostname of qBittorrent instance |
+| `QBT_HOST` | `-H`/`--host` | CLI default | Web server bind address (default: `127.0.0.1`, `0.0.0.0` in Docker). Not the qBittorrent host; set that in `qbt.host`. |
 | `QBT_PORT` | `-p`/`--port` | CLI default | Web-server port (default: 8181) |
 | `QBT_BASE_URL` | `-b`/`--base-url` | CLI default | Base URL path for the web UI |
-| `QBT_WEB_SERVER` | `-ws`/`--web-server` | CLI default | Enable/disable the built-in web server |
+| `QBT_WEB_SERVER` | `-ws`/`--web-server` | CLI default | Turn the web server on or off. Default: off. Before 5.0.0 it was on outside a container. |
 | `QBT_RUN` | `-r`/`--run` | CLI default | Run once and exit (no scheduler) |
 | `QBT_SCHEDULE` | `-sch`/`--schedule` | CLI default | Schedule interval in minutes (or cron string) |
 | `QBT_STARTUP_DELAY` | `-sd`/`--startup-delay` | CLI default | Delay in seconds before first scheduled run |
@@ -96,14 +94,15 @@ Every CLI flag (and a few internal settings) can be set via environment variable
 | `QBT_LOG_LEVEL` | `-ll`/`--log-level` | CLI default | Log verbosity (default: `INFO`) |
 | `QBT_LOG_SIZE` | `-ls`/`--log-size` | CLI default | Max log file size in MB (default: 10) |
 | `QBT_LOG_COUNT` | `-lc`/`--log-count` | CLI default | Max number of log files to keep (default: 5) |
+| `QBT_LOG_FORMAT` | `--log-format` | CLI default | `text` (default) or `json` |
 | `QBT_DIVIDER` | `-d`/`--divider` | CLI default | Section divider character (default: `=`) |
 | `QBT_WIDTH` | `-w`/`--width` | CLI default | Screen width for log formatting (default: 100) |
 | `QBT_DEBUG` | `--debug` | CLI default | Enable debug logging |
 | `QBT_TRACE` | `--trace` | CLI default | Enable trace logging |
-| `QBM_DOCKER` | Internal only | — | Detected automatically via `in_docker()`; set to force Docker mode |
+| `QBM_DOCKER` | Internal only | — | Set to `true` to force container mode. The Docker image sets it. |
 | `BRANCH_NAME` | Internal only | — | Used to select the correct version string at startup (default: `"master"`) |
 
-**Keys with NO env-var override:** `qbt.user`, `qbt.pass`, and `qbt.apikey` must be set in YAML (or via `!ENV` interpolation within `config.yml`). No `get_arg(...)` call exists for these keys.
+`qbt.user`, `qbt.pass`, and `qbt.apikey` have no variable. Set them in YAML, or use `!ENV VAR_NAME` inside `config.yml`.
 
 ## **settings:**
 
@@ -128,8 +127,8 @@ This section defines any settings defined in the configuration.
 | `cat_update_all`                    | When running `--cat-update` function, it will check and update all torrents categories, otherwise it will only update uncategorized torrents.                                                                                                                                                                                                   | True                      | <center>❌</center> |
 | `disable_qbt_default_share_limits`  | When running `--share-limits` function, it allows QBM to handle share limits by disabling qBittorrents default Share limits.                                                                                                                                                                                                                    | True                      | <center>❌</center> |
 | `tag_stalled_torrents`              | Tags any downloading torrents that are stalled with the user defined `stalledDL` tag when running the tag_update command                                                                                                                                                                                                                        | True                      | <center>❌</center> |
-| `stalled_tag`                       | Tag applied to torrents in `stalledDL` state when `tag_stalled_torrents: true`. Customizable. Reference: `modules/config.py:304`.                                                                                                                                                                                                               | stalledDL                 | <center>❌</center> |
-| `rem_unregistered_filter_completed` | Restrict the `rem_unregistered` command to completed torrents only. Reference: `modules/config.py:327-329`.                                                                                                                                                                                                                                     | false                     | <center>❌</center> |
+| `stalled_tag`                       | Tag applied to torrents in `stalledDL` state when `tag_stalled_torrents: true`.                                                                                                                                                                                                               | stalledDL                 | <center>❌</center> |
+| `rem_unregistered_filter_completed` | Restrict the `rem_unregistered` command to completed torrents only.                                                                                                                                                                                                                                     | false                     | <center>❌</center> |
 | `rem_unregistered_ignore_list`      | Ignores a list of words found in the status of the tracker when running rem_unregistered command and will not remove the torrent if matched                                                                                                                                                                                                     |                           | <center>❌</center> |
 | `rem_unregistered_grace_minutes`    | Minimum age in minutes to protect newly added torrents from removal when a tracker reports unregistered. Set to 0 to disable.                                                                                                                                                                                                                   | 10                        | <center>❌</center> |
 | `rem_unregistered_max_torrents`     | Maximum number of torrents to remove per tracker per run. Set to 0 to disable.                                                                                                                                                                                                                                                                  | 10                        | <center>❌</center> |

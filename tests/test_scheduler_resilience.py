@@ -142,3 +142,19 @@ def test_health_unhealthy_when_heartbeat_stale(tmp_path):
 
     assert health["status"] == "unhealthy"
     assert "Scheduler heartbeat is stale" in health["issues"]
+
+
+def test_schedule_save_keeps_settings_file_0600(tmp_path):
+    import os
+
+    sched = Scheduler(config_dir=str(tmp_path), suppress_logging=True)
+    sched.settings_file.write_text("authentication: {}\n")
+    os.chmod(sched.settings_file, 0o600)
+    sched._persist_schedule_file("interval", 30)
+    assert sched.settings_file.stat().st_mode & 0o777 == 0o600
+
+
+def test_legacy_migration_writes_settings_file_0600(tmp_path):
+    (tmp_path / "schedule.yml").write_text("type: interval\nvalue: 30\n")
+    sched = Scheduler(config_dir=str(tmp_path), suppress_logging=True)
+    assert sched.settings_file.stat().st_mode & 0o777 == 0o600

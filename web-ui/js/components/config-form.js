@@ -1460,11 +1460,11 @@ class ConfigForm {
                 if (response.valid) {
                     // Check if config was modified during validation
                     if (response.config_modified) {
-                        showToast('Configuration validated successfully! Default values have been added.', 'success');
+                        showToast('Configuration is valid. Default values were added; save to keep them.', 'success');
 
-                        // Reload the configuration data from the server to reflect changes
+                        // Validate does not save: show the returned defaults in the editor for the next save
                         try {
-                            const configResponse = await this.api.getConfig(filename);
+                            const configResponse = { data: response.data };
                             if (configResponse && configResponse.data) {
                                 if (window.app) {
                                     window.app.configData = configResponse.data;

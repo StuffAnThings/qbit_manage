@@ -25,6 +25,8 @@
     - [Commands](Commands)
     - [Web API](Web-API)
     - [Web UI](Web-UI)
+    - [Security](Security)
+        - [Upgrading to 5.0](Security#upgrading-to-50)
     - [Contributing & Building](Contributing)
     - Extras
        - [Standalone Scripts](Standalone-Scripts)

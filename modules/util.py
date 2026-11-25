@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 import requests
 import ruamel.yaml
+from filelock import FileLock
 from pytimeparse2 import parse
 
 
@@ -38,6 +39,8 @@ class LoggerProxy:
         # If MyLogger is set, delegate to it; otherwise, fallback to std logging.
         if self._logger is not None:
             return getattr(self._logger, name)
+        if name == "secret":  # nothing to mask before MyLogger exists
+            return lambda *_args, **_kwargs: None
         fallback = logging.getLogger("qBit Manage")
         return getattr(fallback, name)
 
@@ -1758,6 +1761,14 @@ class EnvStr(str):
         return super().__repr__()
 
 
+RESERVED_FILES = {"qbm_settings.yml", "schedule.yml"}
+
+
+def settings_lock(settings_path) -> FileLock:
+    """Cross-process lock for read-modify-write of qbm_settings.yml (the scheduler and the web server both write it)."""
+    return FileLock(f"{os.path.abspath(settings_path)}.lock", timeout=10)
+
+
 def get_matching_config_files(config_pattern: str, default_dir: str, use_config_dir_mode: bool = False) -> list:
     """Get list of config files matching a pattern.
 
@@ -1806,7 +1817,11 @@ def get_matching_config_files(config_pattern: str, default_dir: str, use_config_
                 raise Failed(f"Config Error: Unable to find config file '{config_pattern}' in '{search_dir}'")
         else:
             # For patterns, use glob matching
-            glob_configs = glob.glob(os.path.join(search_dir, config_pattern))
+            glob_configs = [
+                x
+                for x in glob.glob(os.path.join(search_dir, config_pattern))
+                if os.path.basename(x).casefold() not in RESERVED_FILES
+            ]
             if glob_configs:
                 # Return just the filenames without paths
                 return [os.path.basename(x) for x in glob_configs]

@@ -28,6 +28,12 @@ class Webhooks:
                 self.function_webhooks = []
         else:
             self.function_webhooks = []
+        function_urls = []
+        for value in self.function_webhooks.values() if isinstance(self.function_webhooks, dict) else []:
+            function_urls.extend(value if isinstance(value, list) else [value])
+        for hook in [*self.error_webhooks, *self.run_start_webhooks, *self.run_end_webhooks, *function_urls]:
+            if isinstance(hook, str) and hook.lower().startswith(("http://", "https://")):
+                logger.secret(hook)
         self.notifiarr = notifiarr
         self.apprise = apprise
         self.web_api_used = web_api_used

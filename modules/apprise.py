@@ -17,6 +17,8 @@ class Apprise:
         self.config = config
         self.api_url = params["api_url"]
         logger.secret(self.api_url)
+        for url in params["notify_url"]:
+            logger.secret(url)
         self.notify_url = ",".join(params["notify_url"])
         response = self.check_api_url()
         time.sleep(1)  # Pause for 1 second before sending the next request
