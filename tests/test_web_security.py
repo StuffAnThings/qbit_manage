@@ -1132,8 +1132,9 @@ def test_failed_oidc_callbacks_do_not_lock_out_the_address(config_dir, monkeypat
     client.authorize_access_token = AsyncMock(side_effect=ValueError("bad code"))
     monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
     app = make_app(config_dir)
-    for _ in range(auth.MAX_AUTH_ATTEMPTS + 1):
+    for _ in range(auth.MAX_AUTH_ATTEMPTS):
         assert send(app, "GET", "/auth/oidc/callback").status == 401
+    assert send(app, "GET", "/auth/oidc/callback").status == 429
     assert not auth.is_rate_limited("127.0.0.1")
 
 
@@ -1970,3 +1971,43 @@ def test_current_password_checks_share_the_login_limit(local_dir, monkeypatch):
     body = {"password": "N3w-" + "Passw0rd!x", "current_password": PASSWORD}
     assert send(app, "PUT", "/api/security", headers=cookie, body=body).status == 429
     assert state["calls"] == 0
+
+
+# --- OIDC state and limits ----------------------------------------------------------------------------
+
+
+def test_a_replayed_oidc_callback_never_reaches_the_provider_again(provider):
+    app, token_requests = provider
+    cookie, state = start_login(app)
+    assert send(app, "GET", f"/auth/oidc/callback?state={state}&code=junk", headers=cookie).status == 401
+    assert len(token_requests) == 1
+    # The pre-callback cookie still carries the state; the server-side copy is gone.
+    assert send(app, "GET", f"/auth/oidc/callback?state={state}&code=junk", headers=cookie).status == 401
+    assert len(token_requests) == 1
+
+
+def test_oidc_login_starts_are_limited_per_address(provider):
+    app, _ = provider
+    for _ in range(auth.MAX_AUTH_ATTEMPTS):
+        assert send(app, "GET", "/auth/oidc/login", ip="203.0.113.7").status in (302, 307)
+    assert send(app, "GET", "/auth/oidc/login", ip="203.0.113.7").status == 429
+    assert send(app, "GET", "/auth/oidc/login", ip="203.0.113.8").status in (302, 307)
+
+
+def test_failed_oidc_callbacks_are_limited_per_address(provider):
+    app, token_requests = provider
+    for _ in range(auth.MAX_AUTH_ATTEMPTS):
+        assert send(app, "GET", "/auth/oidc/callback?state=forged&code=junk", ip="203.0.113.7").status == 401
+    cookie, state = start_login(app, ip="203.0.113.7")
+    resp = send(app, "GET", f"/auth/oidc/callback?state={state}&code=junk", ip="203.0.113.7", headers=cookie)
+    assert resp.status == 429 and token_requests == []
+
+
+def test_pending_oidc_states_are_capped():
+    cache = auth._OidcStateCache()
+    for i in range(auth.OIDC_STATE_MAX + 5):
+        asyncio.run(cache.set(f"s{i}", "v", 600))
+    assert len(cache._items) == auth.OIDC_STATE_MAX
+    assert asyncio.run(cache.get("s0")) is None
+    assert asyncio.run(cache.get(f"s{auth.OIDC_STATE_MAX + 4}")) == "v"
+    assert asyncio.run(cache.get(f"s{auth.OIDC_STATE_MAX + 4}")) is None  # single use

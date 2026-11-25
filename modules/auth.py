@@ -20,6 +20,7 @@ import re
 import secrets
 import tempfile
 import threading
+import time
 import weakref
 from base64 import b64decode
 from pathlib import Path
@@ -632,20 +633,49 @@ def _limited_response():
 
 # --- OIDC ----------------------------------------------------------------------------------------------
 
+OIDC_STATE_MAX = 1000
+
+
+class _OidcStateCache:
+    """Authlib's server-side store for pending OIDC logins (state, nonce, PKCE verifier).
+
+    The session cookie keeps only a marker, so a copied pre-callback cookie cannot replay a state: get() removes
+    the entry. At most OIDC_STATE_MAX logins are pending; the oldest is dropped first.
+    """
+
+    def __init__(self):
+        self._items = {}  # key -> (expiry, value), in insertion order
+
+    async def get(self, key):
+        expires, value = self._items.pop(key, (0, None))
+        return value if expires > time.monotonic() else None
+
+    async def set(self, key, value, expires_in):
+        now = time.monotonic()
+        self._items = {k: v for k, v in self._items.items() if v[0] > now}
+        while len(self._items) >= OIDC_STATE_MAX:
+            del self._items[next(iter(self._items))]
+        self._items[key] = (now + expires_in, value)
+
+    async def delete(self, key):
+        self._items.pop(key, None)
+
+
+_oidc_states = _OidcStateCache()
 _oidc_clients = {}
 
 
 def oidc_client(settings: AuthSettings):
     """Authlib client for the configured provider: discovery document, authorization code flow with PKCE S256.
 
-    Authlib keeps the state, nonce, and PKCE verifier in the session, pops the state on the callback, and
-    rejects an ID token whose nonce claim differs.
+    Authlib keeps the state, nonce, and PKCE verifier in _oidc_states, each usable once, and rejects an ID token
+    whose nonce claim differs.
     """
     from authlib.integrations.starlette_client import OAuth
 
     key = (settings.oidc_metadata_url, settings.oidc_client_id, settings.oidc_client_secret)
     if key not in _oidc_clients:
-        _oidc_clients[key] = OAuth().register(
+        _oidc_clients[key] = OAuth(cache=_oidc_states).register(
             name="oidc",
             client_id=settings.oidc_client_id,
             client_secret=settings.oidc_client_secret,
@@ -863,6 +893,8 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
         if settings is None or settings.mode != "oidc":
             return PlainTextResponse("Not found", status_code=404)
         redirect_uri = f"{settings.public_url.rstrip('/')}{base_url}/auth/oidc/callback"
+        if not _limiter.hit(_FAILURE_LIMIT, "oidc_login", client_ip(request, settings)):
+            return _limited_response()
         try:
             return await oidc_client(settings).authorize_redirect(request, redirect_uri)
         except Exception as e:
@@ -874,11 +906,15 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
         settings = store.get()
         if settings is None or settings.mode != "oidc":
             return PlainTextResponse("Not found", status_code=404)
+        # A separate bucket from passwords, so failed callbacks behind a shared proxy cannot block the password login.
         ip = client_ip(request, settings)
+        if not _limiter.test(_FAILURE_LIMIT, "oidc_callback", ip):
+            return _limited_response()
         try:
             token = await oidc_client(settings).authorize_access_token(request)
             userinfo = token.get("userinfo") or {}
         except Exception as e:
+            _limiter.hit(_FAILURE_LIMIT, "oidc_callback", ip)
             logger.info(f"OIDC login failed from {ip}: {clean_for_log(e)}")
             return PlainTextResponse("Authentication failed", status_code=401)
         if not oidc_identity_allowed(userinfo, settings):
