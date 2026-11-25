@@ -4,9 +4,15 @@ on:
   pull_request:
     types: [opened, reopened]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to review (e.g. 123)'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}'
+  group: '${{ github.workflow }}-${{ inputs.pr_number || github.event.pull_request.number || github.ref_name }}'
   cancel-in-progress: true
 
 jobs:
@@ -24,6 +30,7 @@ jobs:
         uses: 'actions/checkout@v6'
         with:
           persist-credentials: false
+          ref: ${{ inputs.pr_number != '' && format('refs/pull/{0}/head', inputs.pr_number) || '' }}
 
       - name: 'Run Antigravity PR Review'
         uses: 'rsamborski/run-agy-sdk@main'
@@ -35,3 +42,5 @@ jobs:
           prompt: '/antigravity-review'
           trust-workspace: 'true'
           sandbox-profile: 'true'
+          github_pr_number: '${{ inputs.pr_number || github.event.pull_request.number }}'
+          github_issue_number: '${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number }}'
