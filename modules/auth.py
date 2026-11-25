@@ -515,7 +515,17 @@ def ensure_credentials(path: Path, env) -> bool:
     reset = str(env.get("QBT_WEB_PASSWORD_RESET", "")).lower() in ("1", "true", "t", "yes")
     has_login = bool(settings.username and settings.password_hash)
     if reset and has_login and username == settings.username and verify_password(password, settings.password_hash):
-        # Left set after a reset, it would otherwise sign everyone out and re-open break-glass on every restart.
+        if settings.mode == "oidc" and not settings.allow_local_login:
+            # Recovery with the existing password: open break-glass, but sign no one out (the password is unchanged).
+            settings.allow_local_login = True
+            if not save_auth_settings(path, settings):
+                return False
+            logger.warning(
+                "QBT_WEB_PASSWORD_RESET turned on the local break-glass login for OpenID Connect mode. Unset it, or "
+                "break-glass turns on again at every start."
+            )
+            return True
+        # Left set after a reset, it would otherwise sign everyone out on every restart.
         logger.info("QBT_WEB_PASSWORD_RESET ignored: the stored login already uses this password. Unset it.")
         reset, username, password = False, "", ""
     if username and password and (reset or not has_login):

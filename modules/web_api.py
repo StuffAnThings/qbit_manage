@@ -130,36 +130,52 @@ def contained_config_path(default_dir, name: str) -> str:
     raise HTTPException(status_code=400, detail=f"Config file {name!r} is not inside the config directory")
 
 
-def _restore(new, old):
+def _env_ref(value):
+    """An environment reference in any field: it resolves on the next run, and any variable can hold a secret."""
+    if isinstance(value, list):
+        return any(_env_ref(item) for item in value)
+    return isinstance(value, str) and value.startswith("!ENV ")
+
+
+def _restore(new, old, allow_env_refs):
     if isinstance(new, dict):
         old_dict = old if isinstance(old, dict) else {}
         out = {}
         for key, value in new.items():
-            restored = _restore(value, old_dict.get(key))
+            restored = _restore(value, old_dict.get(key), allow_env_refs)
             if restored is not _DROP:
                 out[key] = restored
         host_changed = any(k in new and old_dict.get(k) != new[k] for k in _HOST_KEYS)
         if host_changed and any(_has_redacted(v) for v in new.values()):
             raise HTTPException(status_code=400, detail="Enter the secret again when you change the host or URL it belongs to")
+        env_refs = [k for k, v in new.items() if _env_ref(v)]
+        # A host change, or an env reference that is new or changed (two saves could otherwise move the host first).
+        if env_refs and not allow_env_refs and (host_changed or any(old_dict.get(k) != new[k] for k in env_refs)):
+            raise HTTPException(status_code=403, detail=ENV_REF_DETAIL)
         return out
     if isinstance(new, list):
         same = isinstance(old, list) and len(old) == len(new)
         if not same and _has_redacted(new):
             raise HTTPException(status_code=400, detail="Enter the secrets in this list again")
-        items = [_restore(v, old[i] if same else None) for i, v in enumerate(new)]
+        items = [_restore(v, old[i] if same else None, allow_env_refs) for i, v in enumerate(new)]
         return [v for v in items if v is not _DROP]
     if new == REDACTED:
         return _DROP if old is None else old
     return new
 
 
-def restore_redacted(new, old):
+ENV_REF_DETAIL = "An API key cannot send an environment variable to a new or changed host; save it from the Web UI"
+
+
+def restore_redacted(new, old, allow_env_refs: bool = True):
     """Put the stored value back where the client sent REDACTED unchanged.
 
     A list holding a redacted value is refused when its length changed. A redacted value with no stored
-    counterpart is dropped. A redacted secret whose host or URL changed is refused.
+    counterpart is dropped. A redacted secret whose host or URL changed is refused. Without allow_env_refs (an API
+    key caller), a new or changed !ENV reference, or one beside a changed host, is refused: an API key does not
+    carry the login's right to read the container environment.
     """
-    restored = _restore(new, old)
+    restored = _restore(new, old, allow_env_refs)
     return {} if restored is _DROP else restored
 
 
@@ -903,7 +919,7 @@ class WebAPI:
             logger.error(f"Error getting config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def create_config(self, filename: str, request: ConfigRequest) -> dict:
+    async def create_config(self, filename: str, request: ConfigRequest, req: Request) -> dict:
         """Create a new configuration file."""
         try:
             # Validate filename to prevent path traversal
@@ -912,7 +928,8 @@ class WebAPI:
             if config_file_path.exists():
                 raise HTTPException(status_code=409, detail=f"Configuration file '{filename}' already exists")
 
-            data = restore_redacted(request.data, None)  # a placeholder with nothing stored behind it is dropped
+            # A placeholder with nothing stored behind it is dropped
+            data = restore_redacted(request.data, None, _env_refs_allowed(req))
 
             # Create backup directory if it doesn't exist
             self.backup_path.mkdir(exist_ok=True)
@@ -928,7 +945,7 @@ class WebAPI:
             logger.error(f"Error creating config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def update_config(self, filename: str, request: ConfigRequest) -> dict:
+    async def update_config(self, filename: str, request: ConfigRequest, req: Request) -> dict:
         """Update an existing configuration file."""
         try:
             # Validate filename to prevent path traversal
@@ -937,8 +954,8 @@ class WebAPI:
             if not config_file_path.exists():
                 raise HTTPException(status_code=404, detail=f"Configuration file '{filename}' not found")
 
-            stored = self._preserve_env_syntax(YAML(str(self._secret_source(config_file_path, request))).data)
-            request.data = restore_redacted(request.data, stored)
+            stored = self._secret_data(config_file_path, request)
+            request.data = restore_redacted(request.data, stored, _env_refs_allowed(req))
 
             # Create backup
             backup_name = await self._create_backup(config_file_path)
@@ -990,7 +1007,7 @@ class WebAPI:
             logger.error(f"Error deleting config '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def validate_config(self, filename: str, request: ConfigRequest) -> ValidationResponse:
+    async def validate_config(self, filename: str, request: ConfigRequest, req: Request) -> ValidationResponse:
         """Validate a configuration using a temporary file; defaults Config adds are returned, not saved."""
         try:
             errors = []
@@ -1002,8 +1019,8 @@ class WebAPI:
             if not config_path.exists():
                 raise HTTPException(status_code=404, detail=f"Config file '{filename}' not found")
 
-            source = self._preserve_env_syntax(YAML(str(self._secret_source(config_path, request))).data)
-            unredacted = restore_redacted(request.data, source)
+            source = self._secret_data(config_path, request)
+            unredacted = restore_redacted(request.data, source, _env_refs_allowed(req))
 
             temp_config_path = None
             try:
@@ -1051,6 +1068,10 @@ class WebAPI:
                     if processed_data != modified_temp_data:
                         config_modified = True
                         modified_data = redact_secrets(self._preserve_env_syntax(modified_temp_data))
+                        try:  # the editor keeps the values it sent, unsaved secrets included
+                            modified_data = restore_redacted(modified_data, request.data)
+                        except HTTPException:
+                            pass
                         logger.info("Configuration was modified during validation (defaults added)")
                 except Exception as e:
                     logger.warning(f"Error checking if config was modified: {str(e)}")
@@ -1437,8 +1458,22 @@ class WebAPI:
             logger.error(f"Error listing backups for '{filename}': {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def _secret_source(self, config_path: Path, request: ConfigRequest) -> Path:
-        return self._backup_file(request.restored_from) if request.restored_from else config_path
+    @staticmethod
+    def _backup_pattern(config_path: Path):
+        """Backups of this config file: {stem}_{YYYYMMDD}_{HHMMSS}.{suffix}."""
+        stem, suffix = config_path.stem, config_path.suffix.lstrip(".")
+        return re.compile(f"^{re.escape(stem)}_(\\d{{8}}_\\d{{6}})\\.{re.escape(suffix)}$")
+
+    def _secret_data(self, config_path: Path, request: ConfigRequest):
+        """The stored values behind <redacted>: the config file, or the backup of it the editor restored."""
+        if not request.restored_from:
+            return self._preserve_env_syntax(YAML(str(config_path)).data)
+        if not self._backup_pattern(config_path).match(request.restored_from):
+            raise HTTPException(status_code=400, detail=f"restored_from is not a backup of {config_path.name}")
+        data = YAML(str(self._backup_file(request.restored_from))).data
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=400, detail="The restored backup is empty; enter the secrets again")
+        return self._preserve_env_syntax(data)
 
     def _backup_file(self, name: str) -> Path:
         """The path of a backup file, which must be a plain file name inside the backups directory."""
@@ -1928,6 +1963,10 @@ class WebAPI:
             "message": "Security settings updated successfully",
             "api_key": updated.api_key if request.generate_api_key else None,
         }
+
+
+def _env_refs_allowed(req: Request) -> bool:
+    return getattr(req.state, "auth_method", "") != "api_key"
 
 
 def _refused(status: int, message: str) -> JSONResponse:

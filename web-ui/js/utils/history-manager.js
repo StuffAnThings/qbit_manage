@@ -49,11 +49,11 @@ export class HistoryManager {
 
         // If we're not at the end of history, remove future states (redo history)
         if (history.currentIndex < history.states.length - 1) {
-            history.states.splice(history.currentIndex + 1);
-            // Clean up backup mappings for removed states
+            // Clean up backup mappings for the states about to be removed
             for (let i = history.currentIndex + 1; i < history.states.length; i++) {
                 history.backupMapping.delete(i);
             }
+            history.states.splice(history.currentIndex + 1);
         }
 
         // Add new state

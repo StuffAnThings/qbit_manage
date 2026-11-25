@@ -1275,8 +1275,9 @@ def test_config_writes_never_log_secrets_at_trace(local_dir, trace_log, monkeypa
     created = {"qbt": {"host": "http://admin:url-canary-pass@qbt:8080", "pass": "create-canary-pass"}}
     assert send(app, "POST", "/api/configs/new.yml", headers=key, body={"data": created}).status == 200
     updated = {"qbt": {"host": "localhost:8080", "user": "admin", "pass": "!ENV QBM_CANARY_PASS"}}
-    body = {"data": updated, "current_password": PASSWORD}  # a new !ENV secret needs the login password
-    assert send(app, "PUT", "/api/configs/config.yml", headers=key, body=body).status == 200
+    body = {"data": updated}
+    assert send(app, "PUT", "/api/configs/config.yml", headers=key, body=body).status == 403  # a new !ENV needs a login
+    assert send(app, "PUT", "/api/configs/config.yml", headers=login(app)[1], body=body).status == 200
     text = trace_log.read_text(encoding="utf-8")
     assert "Full data structure being written" in text
     for canary in ("create-canary-pass", "url-canary-pass", "env-canary-secret"):
@@ -1663,13 +1664,21 @@ def test_a_password_reset_left_set_applies_once(tmp_path):
     first = auth.load_settings(path)
     first_key = auth.session_secret(tmp_path)
     assert first.allow_local_login and auth.verify_password(NEW_PASSWORD, first.password_hash)
-    # The owner turns the break-glass login off again; the next restart must not undo that or sign anyone out.
+    # Left set, the next restart signs no one out and keeps the password; break-glass stays reachable for recovery.
     auth.save_auth_settings(path, first.model_copy(update={"allow_local_login": False}))
     assert auth.ensure_credentials(path, env)
     second = auth.load_settings(path)
-    assert second.allow_local_login is False
+    assert second.allow_local_login is True
     assert auth.session_secret(tmp_path) == first_key  # no sign-out on the second start
     assert second.password_hash == first.password_hash
+
+
+def test_a_reset_with_the_existing_password_opens_oidc_break_glass(tmp_path):
+    path = tmp_path / "qbm_settings.yml"
+    write_settings(tmp_path, **oidc_settings(username="owner", password_hash=auth.hash_password(PASSWORD)).model_dump())
+    env = {"QBT_WEB_USERNAME": "owner", "QBT_WEB_PASSWORD": PASSWORD, "QBT_WEB_PASSWORD_RESET": "true"}
+    assert auth.ensure_credentials(path, env)
+    assert auth.load_settings(path).allow_local_login is True
 
 
 def test_a_skipped_reset_is_logged(tmp_path, monkeypatch):
@@ -2070,3 +2079,51 @@ def test_pending_oidc_states_are_capped():
     assert asyncio.run(cache.get("s0")) is None
     assert asyncio.run(cache.get(f"s{auth.OIDC_STATE_MAX + 4}")) == "v"
     assert asyncio.run(cache.get(f"s{auth.OIDC_STATE_MAX + 4}")) is None  # single use
+
+
+# --- Config editor: restored backups, validate, env references -------------------------------------------
+
+
+def test_restored_from_must_be_a_backup_of_the_same_config(local_dir):
+    (local_dir / "other.yml").write_text("qbt:\n  host: localhost:8080\n  pass: other-secret\n", encoding="utf-8")
+    backups = local_dir / ".backups"
+    backups.mkdir(exist_ok=True)
+    (backups / "other_20260101_000000.yml").write_text("qbt:\n  host: localhost:8080\n  pass: other-secret\n")
+    app = make_app(local_dir)
+    body = {"data": {"qbt": {"host": "localhost:8080", "pass": REDACTED}}, "restored_from": "other_20260101_000000.yml"}
+    resp = send(app, "PUT", "/api/configs/config.yml", headers=KEY, body=body)
+    assert resp.status == 400
+    assert "other-secret" not in (local_dir / "config.yml").read_text()
+
+
+def test_an_empty_restored_backup_is_refused_not_silently_dropped(local_dir):
+    backups = local_dir / ".backups"
+    backups.mkdir(exist_ok=True)
+    (backups / "config_20260101_000000.yml").write_text("")
+    body = {"data": {"qbt": {"host": "localhost:8080", "pass": REDACTED}}, "restored_from": "config_20260101_000000.yml"}
+    assert send(make_app(local_dir), "PUT", "/api/configs/config.yml", headers=KEY, body=body).status == 400
+    assert "qbt-secret-pass" in (local_dir / "config.yml").read_text()
+
+
+def test_validate_keeps_the_editors_unsaved_secrets(local_dir, monkeypatch):
+    import modules.web_api as web_api
+
+    def add_default(default_dir, args):
+        data = ruamel.yaml.YAML(typ="safe").load(Path(args["config_file"]).read_text())
+        data["added_default"] = True
+        Path(args["config_file"]).write_text(json.dumps(data))
+
+    monkeypatch.setattr(web_api, "Config", add_default)
+    body = {"data": {"qbt": {"host": "localhost:8080", "user": "admin", "pass": "typed-not-saved"}}}
+    resp = send(make_app(local_dir), "POST", "/api/configs/config.yml/validate", headers=KEY, body=body)
+    data = resp.json()["data"]
+    assert data["added_default"] is True and data["qbt"]["pass"] == "typed-not-saved"
+
+
+def test_an_api_key_cannot_add_an_env_reference(local_dir):
+    app = make_app(local_dir)
+    body = {"data": {"qbt": {"host": "evil.example:80", "user": "!ENV QBT_SECRET"}}}
+    for method, path in (("PUT", "/api/configs/config.yml"), ("POST", "/api/configs/config.yml/validate")):
+        assert send(app, method, path, headers=KEY, body=body).status == 403
+    assert send(app, "POST", "/api/configs/new.yml", headers=KEY, body=body).status == 403
+    assert not (local_dir / "new.yml").exists()

@@ -56,3 +56,39 @@ test("undo and redo send the backup that holds the target state's secrets", asyn
   // save (no restore), undo (the backup the save made), redo (the backup the undo made)
   expect(puts).toEqual([null, "config_1.yml", "config_2.yml"]);
 });
+
+test("a new edit after undo drops the backups of the discarded redo states", async ({ page }) => {
+  await loadApplication(page);
+
+  const mapped = await page.evaluate(async () => {
+    const hm = window.app.historyManager;
+    await hm.initializeFromBackups("x.yml", { a: 0 });
+    hm.createCheckpoint("x.yml", { a: 1 }, "one");
+    hm.createCheckpoint("x.yml", { a: 2 }, "two");
+    const history = hm.histories.get("x.yml");
+    history.backupMapping.set(2, "x_stale.yml");
+    history.currentIndex = 1;
+    hm.createCheckpoint("x.yml", { a: 3 }, "branch");
+    return [...history.backupMapping.values()];
+  });
+
+  expect(mapped).not.toContain("x_stale.yml");
+});
+
+test("loading a config forgets a restored backup, and validate sends it", async ({ page }) => {
+  await loadApplication(page);
+
+  const sent = await page.evaluate(async () => {
+    const api = window.app.api;
+    const bodies = [];
+    api.post = async (_endpoint, body) => (bodies.push(body.restored_from ?? null), {});
+    api.get = async () => ({ data: {} });
+    api.restoredFrom = "config_20260101_000000.yml";
+    await api.validateConfig("config.yml", { data: {} });
+    await api.getConfig("other.yml");
+    await api.validateConfig("other.yml", { data: {} });
+    return bodies;
+  });
+
+  expect(sent).toEqual(["config_20260101_000000.yml", null]);
+});

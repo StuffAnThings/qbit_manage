@@ -163,6 +163,7 @@ class API {
      * Get configuration file content
      */
     async getConfig(filename) {
+        this.restoredFrom = null; // a backup restored for another load must not supply this config's secrets
         return this.get(`/configs/${encodeURIComponent(filename)}`);
     }
 
@@ -197,7 +198,7 @@ class API {
     async validateConfig(filename, data = null) {
         const endpoint = `/configs/${encodeURIComponent(filename)}/validate`;
         if (data) {
-            return this.post(endpoint, data);
+            return this.post(endpoint, this.restoredFrom ? { ...data, restored_from: this.restoredFrom } : data);
         } else {
             return this.get(endpoint);
         }
