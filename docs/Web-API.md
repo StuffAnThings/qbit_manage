@@ -150,7 +150,7 @@ Delete a config file permanently. A backup is created before deletion.
 
 #### POST /api/configs/{filename}/validate
 
-Validate a config file for correctness by running it through qbit_manage's config parser without executing commands. If validation causes defaults to be written (e.g., missing keys are backfilled), those changes are applied to the **actual** config file.
+Validate a config file for correctness by running it through qbit_manage's config parser without executing commands. Validation runs on a temporary copy and never writes the config file. Defaults the parser adds (missing keys are backfilled) come back in `data` for the editor.
 
 **Request body:**
 
@@ -188,7 +188,7 @@ Validate a config file for correctness by running it through qbit_manage's confi
 }
 ```
 
-`config_modified: true` means defaults were written back to the on-disk config during validation.
+`config_modified: true` means the parser added defaults; `data` holds the config with them. The file on disk is unchanged.
 
 #### POST /api/configs/{filename}/backup
 

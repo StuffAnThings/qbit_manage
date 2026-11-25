@@ -2127,3 +2127,13 @@ def test_an_api_key_cannot_add_an_env_reference(local_dir):
         assert send(app, method, path, headers=KEY, body=body).status == 403
     assert send(app, "POST", "/api/configs/new.yml", headers=KEY, body=body).status == 403
     assert not (local_dir / "new.yml").exists()
+
+
+def test_requests_do_not_read_the_signing_key_file(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    reads = []
+    real = Path.read_text
+    monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: (reads.append(self.name), real(self, *a, **k))[1])
+    assert send(app, "GET", "/api/configs/config.yml", headers=cookie).status == 200
+    assert auth.SESSION_KEY_FILE not in reads

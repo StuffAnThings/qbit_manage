@@ -25,8 +25,8 @@ access to the qBittorrent account and to the files of the user that runs qBit Ma
 | Modes | `local` (Argon2 login, signed session cookie), `oidc` (single user, Authlib, PKCE S256), `api_only` |
 | First run | A generated password is written to `qbm_initial_password.txt` (owner-only) and deleted on the first password change. `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` seed the login when none exists; `QBT_WEB_PASSWORD_RESET=true` replaces it |
 | Scripts | `X-Api-Key` header or HTTP Basic on `/api` only. An API key cannot change security settings |
-| Session cookie | `qbm_session`, `HttpOnly`, `SameSite=Lax`, path = base URL, 7 days, `https_only` setting. Logout or a credential change revokes old cookies. The signing key is in `.qbm_session_key` (owner-only) |
-| Peer address | Uvicorn runs with `proxy_headers=False`. Rate limits and logs use the raw TCP peer, which behind a reverse proxy is the proxy's address |
+| Session cookie | `qbm_session`, `HttpOnly`, `SameSite=Lax`, path = base URL, 7 days, `https_only` setting. Logout ends that browser's session. Any security settings change, or `QBT_WEB_PASSWORD_RESET`, signs out every browser. The signing key is in `.qbm_session_key` (owner-only) |
+| Peer address | Uvicorn runs with `proxy_headers=False`. Rate limits and logs use the raw TCP peer, or, when that peer is in `trusted_proxies` (`QBT_TRUSTED_PROXIES`), the right-most `X-Forwarded-For` entry that is not a trusted proxy |
 | CSRF | Browser writes need a JSON content type and `Sec-Fetch-Site: same-origin`; browsers that do not send it need an `Origin` matching the host or `public_url`. API key requests are exempt |
 | Broken settings | Unreadable, empty, or unknown-mode settings deny every request (HTTP 503) |
 | Settings writes | Atomic; the scheduler never rewrites the authentication section |

@@ -430,12 +430,16 @@ def clean_for_log(value, limit: int = 100) -> str:
 # --- Session key -----------------------------------------------------------------------------------------
 
 
+_session_keys: dict = {}  # config dir -> signing key; a rotation in this process updates it, so requests read no file
+
+
 def _write_key(key_path: Path) -> str:
     key = secrets.token_urlsafe(48)
     fd, tmp = tempfile.mkstemp(dir=key_path.parent, prefix=".qbm_key.")  # created 0600
     with os.fdopen(fd, "w") as f:
         f.write(key)
     os.replace(tmp, key_path)
+    _session_keys[key_path.parent.resolve()] = key
     return key
 
 
@@ -447,6 +451,7 @@ def session_secret(config_dir: Path) -> str:
         return _write_key(key_path)
     if os.name != "nt" and key_path.stat().st_mode & 0o077:
         os.chmod(key_path, 0o600)
+    _session_keys[key_path.parent.resolve()] = key
     return key
 
 
@@ -459,13 +464,13 @@ class RotatingSessionMiddleware(SessionMiddleware):
     """Starlette's session cookie, re-keyed when the key file changes (a password change signs out every device)."""
 
     def __init__(self, app, config_dir: Path, **kwargs):
-        self.config_dir = Path(config_dir)
+        self.config_dir = Path(config_dir).resolve()
         self._key = session_secret(self.config_dir)
         super().__init__(app, secret_key=self._key, **kwargs)
 
     async def __call__(self, scope, receive, send):
         if scope["type"] in ("http", "websocket"):
-            key = session_secret(self.config_dir)
+            key = _session_keys.get(self.config_dir, self._key)
             if key != self._key:
                 self._key, self.signer = key, itsdangerous.TimestampSigner(key)
         await super().__call__(scope, receive, send)
