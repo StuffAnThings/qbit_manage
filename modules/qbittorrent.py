@@ -579,7 +579,7 @@ class Qbt:
                         logger.warning(f"RecycleBin Warning: {ex}")
                     dot_torrent_files.append(os.path.basename(torrent_export_file))
                 # Exporting torrent via torrent directory (backwards compatibility)
-                for file in os.listdir(self.config.torrents_dir) if self.config.torrents_dir else []:
+                for file in os.listdir(self.config.torrents_dir) if os.path.isdir(self.config.torrents_dir or "") else []:
                     if file.startswith(info_hash):
                         dot_torrent_files.append(file)
                         try:
