@@ -10,6 +10,7 @@ Coverage:
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -516,6 +517,15 @@ class TestTorDeleteRecycle:
     @patch("modules.qbittorrent.logger")
     def test_long_name_aggregates_into_one_reloadable_backup(self, _mock_logger, tmp_path, torrent_name):
         """A long name keeps its extensions within 255 bytes and a second removal of the same name merges into it."""
+        probe = tmp_path / f"{recycle_backup_name(torrent_name)} [{'1' * 8}].torrent"
+        try:
+            probe.write_bytes(b"")
+            probe.unlink(missing_ok=True)
+        except OSError as exc:
+            if exc.errno in (errno.EOPNOTSUPP, errno.ENAMETOOLONG):
+                pytest.skip(f"Filesystem at {tmp_path} does not support this filename ({exc})")
+            raise
+
         recycle_dir = tmp_path / ".RecycleBin"
         torrents_dir = tmp_path / "BT_backup"
         torrents_dir.mkdir()

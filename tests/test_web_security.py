@@ -1063,10 +1063,12 @@ def test_function_webhook_urls_are_registered_as_secrets(monkeypatch):
 def test_run_command_config_must_stay_in_the_config_directory(local_dir, tmp_path_factory):
     from modules.web_api import contained_config_path
 
+    inside = local_dir / "inside.yml"
+    inside.write_text(CONFIG, encoding="utf-8")
     outside = tmp_path_factory.mktemp("outside") / "other.yml"
     outside.write_text(CONFIG, encoding="utf-8")
     (local_dir / "link.yml").symlink_to(outside)
-    assert contained_config_path(local_dir, "config.yml") == str((local_dir / "config.yml").resolve())
+    assert contained_config_path(local_dir, "inside.yml") == str(inside.resolve())
     with pytest.raises(HTTPException) as refused:
         contained_config_path(local_dir, "link.yml")
     assert refused.value.status_code == 400
