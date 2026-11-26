@@ -77,6 +77,7 @@ def test_empty_torrents_dir_warns_and_continues(tmp_path, log):
     cfg = _directory_config(tmp_path, bt)
     cfg.process_config_directories()
     assert cfg.torrents_dir is not None
+    assert "does not contain any .torrents" in str(log.warning.call_args)
 
 
 def test_missing_torrents_dir_warns_and_continues(tmp_path, log):
