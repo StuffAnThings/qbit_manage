@@ -840,19 +840,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-LOGIN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>qBit Manage login</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
-<h1>qBit Manage</h1>{oidc}{local}
-<script>
-const form = document.getElementById('login-form');
-if (form) form.addEventListener('submit', async (e) => {{
-  e.preventDefault();
-  const r = await fetch({base_js} + '/login', {{method: 'POST', headers: {{'Content-Type': 'application/json'}},
-    body: JSON.stringify({{username: form.username.value, password: form.password.value}})}});
-  if (r.ok) location.href = {base_js} + '/';
-  else document.getElementById('msg').textContent = r.status === 401 ? 'Login failed' : await r.text();
-}});
-</script></body></html>"""
+_LOGIN_PLACEHOLDERS = re.compile(r"__(BASE_HREF|BASE_JS|SUBTITLE|OIDC|DIVIDER|LOCAL)__")
+_LOGIN_HTML_PATH = util.runtime_path("web-ui", "login.html")
+LOGIN_PAGE = _LOGIN_HTML_PATH.read_text(encoding="utf-8") if _LOGIN_HTML_PATH.is_file() else ""
 
 
 def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
@@ -868,24 +858,55 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
             return unusable()
         if settings.mode == "api_only":
             return PlainTextResponse("Not found", status_code=404)
+        base_href = html.escape(base_url)
+        has_local = settings.mode != "oidc" or settings.allow_local_login
         oidc = (
-            f'<p><a href="{html.escape(base_url)}/auth/oidc/login">Sign in with OpenID Connect</a></p>'
+            '<div class="login-oidc">'
+            f'<a class="btn btn-primary login-btn login-oidc-btn" href="{base_href}/auth/oidc/login">'
+            '<span id="oidc-login-icon" aria-hidden="true"></span><span>Sign in with OpenID Connect</span></a></div>'
             if settings.mode == "oidc"
             else ""
         )
+        divider = '<div class="login-divider"><span>or sign in locally</span></div>' if oidc and has_local else ""
         local = ""
         if (store.path.parent / INITIAL_PASSWORD_FILE).exists():
             local += (
-                f"<p>The first-run password is in <code>{html.escape(INITIAL_PASSWORD_FILE)}</code> in the config folder.</p>"
+                '<p class="login-notice" role="status">'
+                f"The first-run password is in <code>{html.escape(INITIAL_PASSWORD_FILE)}</code> in the config folder.</p>"
             )
-        if settings.mode != "oidc" or settings.allow_local_login:
+        if has_local:
+            btn_class = "btn btn-secondary login-btn" if oidc else "btn btn-primary login-btn"
+            autofocus = "" if oidc else " autofocus"
             local += (
-                '<form id="login-form"><label>Username <input name="username" autocomplete="username"></label> '
-                '<label>Password <input name="password" type="password" autocomplete="current-password"></label> '
-                '<button type="submit">Sign in</button> <span id="msg"></span></form>'
+                '<form id="login-form" class="login-form">'
+                '<div class="form-group">'
+                '<label for="login-username" class="form-label">Username</label>'
+                f'<input id="login-username" name="username" class="form-input" autocomplete="username" required{autofocus}>'
+                "</div>"
+                '<div class="form-group">'
+                '<label for="login-password" class="form-label">Password</label>'
+                '<div class="password-input-group">'
+                '<input id="login-password" name="password" type="password" '
+                'class="form-input hide-password-toggle" autocomplete="current-password" required>'
+                '<button type="button" id="password-toggle" class="password-toggle" '
+                'aria-label="Show password" aria-pressed="false"></button>'
+                "</div>"
+                "</div>"
+                '<div id="msg" class="login-error hidden" role="alert" aria-live="polite"></div>'
+                f'<button type="submit" id="login-submit" class="{btn_class}">Sign in</button>'
+                "</form>"
             )
+        subtitle = "Sign in with your identity provider" if oidc and not has_local else "Sign in to continue"
         base_js = json.dumps(base_url).replace("<", "\\u003c")  # a JS string literal that cannot close the script tag
-        return HTMLResponse(LOGIN_PAGE.format(base_js=base_js, oidc=oidc, local=local))
+        values = {
+            "BASE_HREF": base_href,
+            "BASE_JS": base_js,
+            "SUBTITLE": subtitle,
+            "OIDC": oidc,
+            "DIVIDER": divider,
+            "LOCAL": local,
+        }
+        return HTMLResponse(_LOGIN_PLACEHOLDERS.sub(lambda m: values[m.group(1)], LOGIN_PAGE))
 
     @router.post("/login")
     async def login(request: Request):

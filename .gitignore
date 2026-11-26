@@ -41,3 +41,5 @@ node_modules/
 playwright-report/
 test-results/
 .DS_Store
+config/.qbm_session_key
+config/qbm_settings.yml.lock
