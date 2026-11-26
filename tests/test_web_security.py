@@ -2342,3 +2342,11 @@ def test_oidc_claim_first_login_stale_reauth_does_not_bind_sub(config_dir, monke
     assert send(app, "GET", "/auth/oidc/callback", headers=cookie_header(cookie_of(started))).status == 401
     saved = auth.load_settings(config_dir / "qbm_settings.yml")
     assert saved.oidc_sub == "" and saved.oidc_claim_first_login is True
+
+
+def test_save_auth_settings_omits_default_empty_keys(tmp_path):
+    path = tmp_path / "qbm_settings.yml"
+    assert auth.ensure_credentials(path, {}) is True
+    raw = ruamel.yaml.YAML(typ="safe").load(path.read_text(encoding="utf-8"))["authentication"]
+    assert set(raw) == {"mode", "username", "password_hash"}
+    assert raw["mode"] == "local"

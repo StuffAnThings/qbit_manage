@@ -341,6 +341,11 @@ def load_settings(path: Path) -> AuthSettings:
     return settings
 
 
+def dump_auth_settings(settings: AuthSettings) -> dict:
+    """Serialize authentication settings for qbm_settings.yml, omitting empty/default optional keys."""
+    return {"mode": settings.mode, **settings.model_dump(exclude_defaults=True)}
+
+
 def save_auth_settings(path: Path, settings: AuthSettings, expected: AuthSettings | None = None) -> bool:
     """Write the authentication section atomically (0600), keeping the rest of the file.
 
@@ -353,7 +358,7 @@ def save_auth_settings(path: Path, settings: AuthSettings, expected: AuthSetting
             if expected is not None and AuthSettings(**_normalize(data.get("authentication"))) != expected:
                 logger.warning("Security settings changed while this change was being made; not saved")
                 return False
-            data["authentication"] = settings.model_dump()
+            data["authentication"] = dump_auth_settings(settings)
             fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".qbm_settings.", suffix=".tmp")  # created 0600
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 ruamel.yaml.YAML().dump(data, f)
