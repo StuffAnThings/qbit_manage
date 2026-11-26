@@ -24,9 +24,11 @@ import time
 import weakref
 from base64 import b64decode
 from pathlib import Path
+from urllib.parse import parse_qs
 from urllib.parse import urlsplit
 
 import argon2
+import httpx2
 import itsdangerous
 import ruamel.yaml
 from fastapi import APIRouter
@@ -180,7 +182,7 @@ class AuthSettings(BaseModel):
     oidc_client_id: str = ""
     oidc_client_secret: str = ""
     oidc_sub: str = ""
-    oidc_email: str = ""
+    oidc_claim_first_login: bool = False
     trusted_proxies: list[str] = []  # peers whose X-Forwarded-For names the client
 
     @field_validator("public_url")
@@ -221,7 +223,7 @@ class SecuritySettingsRequest(BaseModel):
     oidc_client_id: str = ""
     oidc_client_secret: str = ""
     oidc_sub: str = ""
-    oidc_email: str = ""
+    oidc_claim_first_login: bool = False
     trusted_proxies: list[str] = []
     generate_api_key: bool = False
     clear_api_key: bool = False
@@ -252,6 +254,17 @@ class SecuritySettingsRequest(BaseModel):
     @classmethod
     def password_must_be_strong(cls, v):
         return check_password_strength(v)
+
+
+class OidcDiscoveryRequest(BaseModel):
+    """OpenID Connect discovery check request."""
+
+    oidc_metadata_url: str = ""
+
+    @field_validator("oidc_metadata_url")
+    @classmethod
+    def metadata_url_must_be_https(cls, v):
+        return check_metadata_url(v)
 
 
 def _read_yaml(path: Path) -> dict:
@@ -305,7 +318,7 @@ def has_credentials(s: AuthSettings) -> bool:
     if s.mode == "local":
         return local
     if s.mode == "oidc":
-        return bool(s.oidc_metadata_url and s.oidc_client_id and s.public_url and (s.oidc_sub or s.oidc_email))
+        return bool(s.oidc_metadata_url and s.oidc_client_id and s.public_url and (s.oidc_sub or s.oidc_claim_first_login))
     return bool(s.api_key) or local
 
 
@@ -491,10 +504,9 @@ def ensure_credentials(path: Path, env) -> bool:
     except Exception as e:
         logger.error(f"Web server not started: cannot read the authentication settings in {path}: {_clean_error(e)}")
         return False
-    if settings.mode == "oidc" and settings.oidc_email and not settings.oidc_sub:
+    if settings.mode == "oidc" and settings.oidc_claim_first_login and not settings.oidc_sub:
         logger.warning(
-            "oidc_email without oidc_sub trusts the provider's email claim. Use it only with a provider you run "
-            "yourself, and prefer oidc_sub."
+            "oidc_claim_first_login is enabled: the next successful OpenID Connect sign-in will be bound as the allowed user."
         )
     overrides = {}
     if env.get("QBT_PUBLIC_URL"):
@@ -656,6 +668,8 @@ def _limited_response():
 # --- OIDC ----------------------------------------------------------------------------------------------
 
 OIDC_STATE_MAX = 1000
+OIDC_CLIENTS_MAX = 64
+OIDC_DISCOVERY_MAX_BYTES = 256 * 1024
 
 
 class _OidcStateCache:
@@ -667,6 +681,16 @@ class _OidcStateCache:
 
     def __init__(self):
         self._items = {}  # key -> (expiry, value), in insertion order
+
+    async def peek(self, key):
+        entry = self._items.get(key)
+        if not entry:
+            return None
+        expires, value = entry
+        if expires <= time.monotonic():
+            self._items.pop(key, None)
+            return None
+        return value
 
     async def get(self, key):
         expires, value = self._items.pop(key, (0, None))
@@ -684,7 +708,72 @@ class _OidcStateCache:
 
 
 _oidc_states = _OidcStateCache()
+_oidc_link_pending = _OidcStateCache()
+_oidc_link_results = _OidcStateCache()
 _oidc_clients = {}
+
+
+def hit_oidc_limit(bucket: str, ip: str) -> bool:
+    """Record and check an OIDC rate-limit hit for a given bucket and client IP."""
+    return _limiter.hit(_FAILURE_LIMIT, bucket, ip)
+
+
+def resolve_oidc_client_secret(submitted_secret: str, metadata_url: str, client_id: str, stored: AuthSettings) -> str:
+    """Use the submitted secret, or keep the stored secret only when the provider URL and client ID are unchanged."""
+    if submitted_secret:
+        return submitted_secret
+    if metadata_url == stored.oidc_metadata_url and client_id == stored.oidc_client_id:
+        return stored.oidc_client_secret
+    return ""
+
+
+async def discover_oidc_provider(metadata_url: str) -> dict:
+    """Fetch and validate an OIDC discovery document, returning key endpoints."""
+    chunks = []
+    total = 0
+    async with httpx2.AsyncClient(timeout=10.0) as client:
+        async with client.stream("GET", metadata_url, headers={"Accept": "application/json"}) as response:
+            response.raise_for_status()
+            async for chunk in response.aiter_bytes():
+                total += len(chunk)
+                if total > OIDC_DISCOVERY_MAX_BYTES:
+                    raise ValueError("Discovery document is too large")
+                chunks.append(chunk)
+    data = json.loads(b"".join(chunks).decode("utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("Discovery endpoint did not return a JSON object")
+    for required in ("issuer", "authorization_endpoint", "token_endpoint"):
+        val = data.get(required)
+        if not isinstance(val, str) or not val.strip():
+            raise ValueError(f"Discovery document is missing {required}")
+    check_metadata_url(data["authorization_endpoint"])
+    check_metadata_url(data["token_endpoint"])
+    return {"issuer": data["issuer"], "authorization_endpoint": data["authorization_endpoint"]}
+
+
+async def create_oidc_link_url(request: Request, base_url: str, draft: AuthSettings) -> str:
+    """Start an OIDC authorization flow bound to the current authenticated session to detect the user's sub."""
+    redirect_uri = f"{draft.public_url.rstrip('/')}{base_url}/auth/oidc/callback"
+    response = await oidc_client(draft).authorize_redirect(request, redirect_uri)
+    location = response.headers["location"]
+    check_metadata_url(location)
+    state = parse_qs(urlsplit(location).query).get("state", [""])[0]
+    if not state:
+        raise ValueError("Authorization URL did not include a state parameter")
+    link_token = secrets.token_urlsafe(24)
+    request.session["oidc_link_token"] = link_token
+    await _oidc_link_pending.set(state, (link_token, draft), 600)
+    return location
+
+
+async def peek_oidc_link_result(result_id: str):
+    """Return the pending OIDC link (draft_settings, summary) without consuming it."""
+    return await _oidc_link_results.peek(result_id) if result_id else None
+
+
+async def consume_oidc_link_result(result_id: str):
+    """Return and remove the pending OIDC link (draft_settings, summary)."""
+    return await _oidc_link_results.get(result_id) if result_id else None
 
 
 def oidc_client(settings: AuthSettings):
@@ -697,6 +786,8 @@ def oidc_client(settings: AuthSettings):
 
     key = (settings.oidc_metadata_url, settings.oidc_client_id, settings.oidc_client_secret)
     if key not in _oidc_clients:
+        while len(_oidc_clients) >= OIDC_CLIENTS_MAX:
+            del _oidc_clients[next(iter(_oidc_clients))]
         _oidc_clients[key] = OAuth(cache=_oidc_states).register(
             name="oidc",
             client_id=settings.oidc_client_id,
@@ -708,16 +799,8 @@ def oidc_client(settings: AuthSettings):
 
 
 def oidc_identity_allowed(userinfo: dict, settings: AuthSettings) -> bool:
-    """Single user: the configured sub, or the configured email when the provider says it is verified."""
-    if settings.oidc_sub:  # a configured subject is authoritative; the email is only for installs without one
-        return hmac.compare_digest(str(userinfo.get("sub", "")).encode(), settings.oidc_sub.encode())
-    email = userinfo.get("email")
-    return bool(
-        settings.oidc_email
-        and isinstance(email, str)
-        and userinfo.get("email_verified") is True
-        and email.lower() == settings.oidc_email.lower()
-    )
+    """Single user: matches the linked subject (sub) claim."""
+    return bool(settings.oidc_sub) and hmac.compare_digest(str(userinfo.get("sub", "")).encode(), settings.oidc_sub.encode())
 
 
 # --- Middleware and routes -----------------------------------------------------------------------------
@@ -845,6 +928,43 @@ _LOGIN_HTML_PATH = util.runtime_path("web-ui", "login.html")
 LOGIN_PAGE = _LOGIN_HTML_PATH.read_text(encoding="utf-8") if _LOGIN_HTML_PATH.is_file() else ""
 
 
+def _render_login_shell(base_url: str, *, subtitle: str, oidc: str = "", divider: str = "", local: str = "") -> str:
+    base_href = html.escape(base_url)
+    base_js = json.dumps(base_url).replace("<", "\\u003c")  # a JS string literal that cannot close the script tag
+    values = {
+        "BASE_HREF": base_href,
+        "BASE_JS": base_js,
+        "SUBTITLE": html.escape(subtitle),
+        "OIDC": oidc,
+        "DIVIDER": divider,
+        "LOCAL": local,
+    }
+    return _LOGIN_PLACEHOLDERS.sub(lambda m: values[m.group(1)], LOGIN_PAGE)
+
+
+def _oidc_error(
+    base_url: str,
+    status_code: int,
+    title: str,
+    message: str,
+    *,
+    hint: str = "",
+    back_to_security: bool = False,
+):
+    if not LOGIN_PAGE:
+        return PlainTextResponse(message, status_code=status_code)
+    err_html = f'<div class="login-error" role="alert">{html.escape(message)}</div>'
+    if hint:
+        err_html += f'<p class="login-notice">{html.escape(hint)}</p>'
+    back_href = f"{base_url}/#security" if back_to_security else f"{base_url}/login"
+    back_label = "Back to Security Settings" if back_to_security else "Back to sign in"
+    btn_html = f'<a class="btn btn-primary login-btn" href="{html.escape(back_href)}">{back_label}</a>'
+    return HTMLResponse(
+        _render_login_shell(base_url, subtitle=title, oidc=err_html, local=btn_html),
+        status_code=status_code,
+    )
+
+
 def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
     router = APIRouter()
 
@@ -897,16 +1017,7 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
                 "</form>"
             )
         subtitle = "Sign in with your identity provider" if oidc and not has_local else "Sign in to continue"
-        base_js = json.dumps(base_url).replace("<", "\\u003c")  # a JS string literal that cannot close the script tag
-        values = {
-            "BASE_HREF": base_href,
-            "BASE_JS": base_js,
-            "SUBTITLE": subtitle,
-            "OIDC": oidc,
-            "DIVIDER": divider,
-            "LOCAL": local,
-        }
-        return HTMLResponse(_LOGIN_PLACEHOLDERS.sub(lambda m: values[m.group(1)], LOGIN_PAGE))
+        return HTMLResponse(_render_login_shell(base_url, subtitle=subtitle, oidc=oidc, divider=divider, local=local))
 
     @router.post("/login")
     async def login(request: Request):
@@ -954,15 +1065,90 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
             return response
         except Exception as e:
             logger.error(f"OIDC provider unreachable or misconfigured: {clean_for_log(e)}")
-            return PlainTextResponse("The login provider is unavailable", status_code=503)
+            return _oidc_error(
+                base_url,
+                503,
+                "Login provider unavailable",
+                "The OpenID Connect provider is currently unreachable or misconfigured.",
+            )
+
+    async def _handle_oidc_link_callback(request: Request, ip: str, draft: AuthSettings):
+        if not _limiter.test(_FAILURE_LIMIT, "oidc_callback", ip):
+            return _limited_response()
+        if request.query_params.get("error"):
+            _limiter.hit(_FAILURE_LIMIT, "oidc_callback", ip)
+            return _oidc_error(
+                base_url,
+                401,
+                "OpenID Connect link failed",
+                "The identity provider refused or cancelled the sign-in request.",
+                back_to_security=True,
+            )
+        try:
+            token = await oidc_client(draft).authorize_access_token(request)
+            userinfo = token.get("userinfo") or {}
+        except Exception as e:
+            _limiter.hit(_FAILURE_LIMIT, "oidc_callback", ip)
+            logger.info(f"OIDC link failed from {ip}: {clean_for_log(e)}")
+            return _oidc_error(
+                base_url,
+                401,
+                "OpenID Connect link failed",
+                "Could not verify the sign-in response from the provider. Check your Client ID, Client Secret, and Redirect URI.",
+                back_to_security=True,
+            )
+        sub = str(userinfo.get("sub") or "").strip()
+        if not sub:
+            return _oidc_error(
+                base_url,
+                403,
+                "OpenID Connect link failed",
+                "The identity provider did not return a user subject (sub) claim.",
+                back_to_security=True,
+            )
+        result_id = secrets.token_urlsafe(24)
+        summary = {
+            "sub": sub,
+            "email": str(userinfo.get("email") or "") if userinfo.get("email_verified") is True else "",
+            "preferred_username": str(userinfo.get("preferred_username") or userinfo.get("name") or ""),
+            "public_url": draft.public_url,
+            "oidc_metadata_url": draft.oidc_metadata_url,
+            "oidc_client_id": draft.oidc_client_id,
+            "has_client_secret": bool(draft.oidc_client_secret),
+        }
+        await _oidc_link_results.set(result_id, (draft, summary), 600)
+        request.session["oidc_link_result_id"] = result_id
+        logger.info(f"OIDC account linked for sub={clean_for_log(sub)} from {ip}")
+        return RedirectResponse(f"{base_url}/#security", status_code=302)
 
     @router.get("/auth/oidc/callback")
     async def oidc_callback(request: Request):
         settings = store.get()
-        if settings is None or settings.mode != "oidc":
-            return PlainTextResponse("Not found", status_code=404)
+        if settings is None:
+            return unusable()
         # A separate bucket from passwords, so failed callbacks behind a shared proxy cannot block the password login.
         ip = client_ip(request, settings)
+        state = request.query_params.get("state", "")
+        pending_link = await _oidc_link_pending.peek(state) if state else None
+        if pending_link is not None:
+            if not _limiter.test(_FAILURE_LIMIT, "oidc_callback", ip):
+                return _limited_response()
+            link_token, draft = pending_link
+            session_token = str(request.session.get("oidc_link_token", ""))
+            if not request.session.get("u") or not session_token or not hmac.compare_digest(session_token, link_token):
+                _limiter.hit(_FAILURE_LIMIT, "oidc_callback", ip)
+                return _oidc_error(
+                    base_url,
+                    401,
+                    "OpenID Connect link failed",
+                    "Your linking session is missing or expired. Return to Security Settings and try again.",
+                    back_to_security=True,
+                )
+            await _oidc_link_pending.delete(state)
+            request.session.pop("oidc_link_token", None)
+            return await _handle_oidc_link_callback(request, ip, draft)
+        if settings.mode != "oidc":
+            return PlainTextResponse("Not found", status_code=404)
         if not _limiter.test(_FAILURE_LIMIT, "oidc_callback", ip):
             return _limited_response()
         try:
@@ -971,19 +1157,51 @@ def build_auth_router(store: AuthStore, base_url: str) -> APIRouter:
         except Exception as e:
             _limiter.hit(_FAILURE_LIMIT, "oidc_callback", ip)
             logger.info(f"OIDC login failed from {ip}: {clean_for_log(e)}")
-            return PlainTextResponse("Authentication failed", status_code=401)
-        if not oidc_identity_allowed(userinfo, settings):
-            logger.info(f"OIDC login refused for sub={clean_for_log(userinfo.get('sub', ''))} from {ip}")
-            return PlainTextResponse("This account is not allowed", status_code=403)
+            return _oidc_error(base_url, 401, "Sign-in failed", "OpenID Connect authentication failed. Please try again.")
+        sub = str(userinfo.get("sub") or "").strip()
         try:
             auth_time = int(userinfo.get("auth_time", 0))
         except (TypeError, ValueError):
             auth_time = 0
-        if request.session.get("reauth") and time.time() - auth_time > REAUTH_SECONDS:
+        reauth_stale = bool(request.session.get("reauth") and time.time() - auth_time > REAUTH_SECONDS)
+        claiming = bool(settings.oidc_claim_first_login and not settings.oidc_sub)
+        if claiming:
+            if not sub:
+                logger.info(f"OIDC first-login claim refused from {ip}: empty sub claim")
+                return _oidc_error(
+                    base_url,
+                    403,
+                    "Account not allowed",
+                    "The identity provider did not return a user subject (sub) claim.",
+                )
+        elif not oidc_identity_allowed(userinfo, settings):
+            logger.info(f"OIDC login refused for sub={clean_for_log(userinfo.get('sub', ''))} from {ip}")
+            return _oidc_error(
+                base_url,
+                403,
+                "Account not allowed",
+                "This OpenID Connect account is not allowed to access this instance.",
+                hint=(
+                    "Sign in locally (if break-glass is enabled) and use Security Settings to re-link your "
+                    "OpenID Connect account."
+                ),
+            )
+        if reauth_stale:
             logger.info(f"OIDC re-authentication refused from {ip}: the provider did not confirm a fresh login")
-            return PlainTextResponse("Authentication failed", status_code=401)
+            return _oidc_error(
+                base_url,
+                401,
+                "Re-authentication required",
+                "The identity provider did not confirm a fresh login.",
+            )
+        if claiming:
+            claimed = settings.model_copy(update={"oidc_sub": sub, "oidc_claim_first_login": False})
+            if not await run_in_threadpool(store.save, claimed, settings):
+                logger.info(f"OIDC first-login claim lost race for sub={clean_for_log(sub)} from {ip}")
+                return _oidc_error(base_url, 403, "Account not allowed", "This account is not allowed.")
+            logger.warning(f"OIDC first-login claimed by sub={clean_for_log(sub)} from {ip}; oidc_claim_first_login disabled")
         # A future auth_time would keep the session fresh until that time
-        _start_session(request, f"oidc:{userinfo.get('sub', '')}", proved_at=min(auth_time, int(time.time())))
+        _start_session(request, f"oidc:{sub}", proved_at=min(auth_time, int(time.time())))
         return RedirectResponse(f"{base_url}/", status_code=302)
 
     return router

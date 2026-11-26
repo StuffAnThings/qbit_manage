@@ -566,14 +566,6 @@ def test_oidc_accepts_the_configured_sub_only():
     assert not auth.oidc_identity_allowed({"sub": "user-2"}, oidc_settings())
 
 
-def test_oidc_email_needs_email_verified_true():
-    settings = oidc_settings(oidc_sub="", oidc_email="me@example.com")
-    assert auth.oidc_identity_allowed({"sub": "x", "email": "me@example.com", "email_verified": True}, settings)
-    assert not auth.oidc_identity_allowed({"sub": "x", "email": "me@example.com", "email_verified": False}, settings)
-    assert not auth.oidc_identity_allowed({"sub": "x", "email": "me@example.com"}, settings)
-    assert not auth.oidc_identity_allowed({"sub": "x", "email": "me@example.com", "email_verified": "true"}, settings)
-
-
 def test_oidc_login_redirect_uses_public_url_and_pkce(config_dir, monkeypatch):
     write_settings(config_dir, **oidc_settings(username="owner").model_dump())
     client = MagicMock()
@@ -783,13 +775,13 @@ def test_no_server_side_restore_state(local_dir):
 # --- Review round: small checks ---------------------------------------------------------------------------------
 
 
-def test_email_only_oidc_logs_a_warning(tmp_path, monkeypatch):
+def test_oidc_claim_first_login_logs_a_warning(tmp_path, monkeypatch):
     path = tmp_path / "qbm_settings.yml"
-    write_settings(tmp_path, **oidc_settings(oidc_sub="", oidc_email="me@example.com").model_dump())
+    write_settings(tmp_path, **oidc_settings(oidc_sub="", oidc_claim_first_login=True).model_dump())
     spy = MagicMock()
     monkeypatch.setattr(auth, "logger", spy)
     assert auth.ensure_credentials(path, {}) is True
-    assert "oidc_sub" in spy.warning.call_args[0][0]
+    assert "oidc_claim_first_login" in spy.warning.call_args[0][0]
 
 
 def test_settings_writers_share_one_lock(config_dir):
@@ -1040,11 +1032,6 @@ def test_loading_tightens_a_world_readable_settings_file(local_dir):
     path.chmod(0o644)
     auth.load_settings(path)
     assert path.stat().st_mode & 0o077 == 0
-
-
-def test_a_configured_oidc_subject_is_authoritative():
-    settings = oidc_settings(oidc_sub="user-1", oidc_email="me@example.com")
-    assert not auth.oidc_identity_allowed({"sub": "other", "email": "me@example.com", "email_verified": True}, settings)
 
 
 def test_api_only_with_a_password_and_no_key_is_usable():
@@ -1397,11 +1384,6 @@ def test_api_prefix_does_not_match_other_paths(local_dir):
     assert send(app, "GET", "/api-anything", headers=[("X-Api-Key", API_KEY)]).status == 401
     assert send(app, "GET", "/api-anything", headers=list(basic().items())).status == 401
     assert send(app, "GET", "/api/version", headers=[("X-Api-Key", API_KEY)]).status == 200
-
-
-def test_oidc_email_must_be_a_string():
-    settings = oidc_settings(oidc_sub="", oidc_email="me@example.invalid")
-    assert not auth.oidc_identity_allowed({"email": ["me@example.invalid"], "email_verified": True}, settings)
 
 
 def test_login_page_base_url_is_a_js_string_literal(local_dir):
@@ -2139,3 +2121,224 @@ def test_requests_do_not_read_the_signing_key_file(local_dir, monkeypatch):
     monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: (reads.append(self.name), real(self, *a, **k))[1])
     assert send(app, "GET", "/api/configs/config.yml", headers=cookie).status == 200
     assert auth.SESSION_KEY_FILE not in reads
+
+
+# --- OIDC onboarding helpers -------------------------------------------------------------------------------
+
+
+def test_oidc_claim_first_login_binds_sub_and_disables_flag(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(oidc_sub="", oidc_claim_first_login=True).model_dump())
+    client = MagicMock()
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "authentik-sub-1"}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    app = make_app(config_dir)
+    resp = send(app, "GET", "/auth/oidc/callback")
+    assert resp.status == 302
+    saved = auth.load_settings(config_dir / "qbm_settings.yml")
+    assert saved.oidc_sub == "authentik-sub-1" and saved.oidc_claim_first_login is False
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "attacker-sub-2"}})
+    assert send(app, "GET", "/auth/oidc/callback").status == 403
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "authentik-sub-1"}})
+    assert send(app, "GET", "/auth/oidc/callback").status == 302
+
+
+def test_oidc_claim_first_login_does_not_overwrite_existing_sub(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(oidc_sub="user-1", oidc_claim_first_login=True).model_dump())
+    client = MagicMock()
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "other-user"}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    assert send(make_app(config_dir), "GET", "/auth/oidc/callback").status == 403
+    assert auth.load_settings(config_dir / "qbm_settings.yml").oidc_sub == "user-1"
+
+
+def test_oidc_claim_first_login_rejects_empty_sub(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(oidc_sub="", oidc_claim_first_login=True).model_dump())
+    client = MagicMock()
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    assert send(make_app(config_dir), "GET", "/auth/oidc/callback").status == 403
+    assert auth.load_settings(config_dir / "qbm_settings.yml").oidc_claim_first_login is True
+
+
+def test_oidc_discovery_test_endpoint_requires_session_and_validates_url(local_dir, monkeypatch):
+    app = make_app(local_dir)
+    url = "https://idp.example/.well-known/openid-configuration"
+    assert send(app, "POST", "/api/security/oidc/test", body={"oidc_metadata_url": url}).status == 401
+    api_resp = send(app, "POST", "/api/security/oidc/test", headers=[("X-Api-Key", API_KEY)], body={"oidc_metadata_url": url})
+    assert api_resp.status == 403
+    _, cookie = login(app)
+    assert (
+        send(
+            app,
+            "POST",
+            "/api/security/oidc/test",
+            headers=cookie,
+            body={"oidc_metadata_url": "http://idp.example/.well-known/openid-configuration"},
+        ).status
+        == 422
+    )
+    monkeypatch.setattr(
+        "modules.web_api.discover_oidc_provider",
+        AsyncMock(return_value={"issuer": "https://idp.example", "authorization_endpoint": "https://idp.example/auth"}),
+    )
+    ok = send(
+        app,
+        "POST",
+        "/api/security/oidc/test",
+        headers=cookie,
+        body={"oidc_metadata_url": "https://idp.example/.well-known/openid-configuration"},
+    )
+    assert ok.status == 200 and ok.json()["success"] is True and ok.json()["issuer"] == "https://idp.example"
+
+
+def test_oidc_link_flow_detects_sub_and_keeps_secret_server_side(local_dir, monkeypatch):
+    auth._oidc_link_pending._items.clear()
+    auth._oidc_link_results._items.clear()
+    seen = {}
+
+    class Client:
+        async def authorize_redirect(self, request, redirect_uri, **kw):
+            seen["redirect_uri"] = redirect_uri
+            return auth.RedirectResponse("https://idp.example/authorize?state=link-state-1")
+
+        async def authorize_access_token(self, request):
+            return {
+                "userinfo": {
+                    "sub": "authentik-sub-999",
+                    "email": "alice@example.com",
+                    "email_verified": True,
+                    "preferred_username": "alice",
+                }
+            }
+
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: Client())
+    app = make_app(local_dir)
+    assert (
+        send(
+            app,
+            "POST",
+            "/api/security/oidc/link",
+            headers=[("X-Api-Key", API_KEY)],
+            body={
+                "public_url": "https://qbm.example.com",
+                "oidc_metadata_url": "https://idp.example/.well-known/openid-configuration",
+                "oidc_client_id": "qbm",
+            },
+        ).status
+        == 403
+    )
+    _, cookie = login(app)
+    started = send(
+        app,
+        "POST",
+        "/api/security/oidc/link",
+        headers=cookie,
+        body={
+            "public_url": "https://qbm.example.com",
+            "oidc_metadata_url": "https://idp.example/.well-known/openid-configuration",
+            "oidc_client_id": "qbm",
+            "oidc_client_secret": "draft-secret-xyz",
+        },
+    )
+    assert started.status == 200 and started.json()["authorize_url"].startswith("https://idp.example/authorize")
+    assert seen["redirect_uri"] == "https://qbm.example.com/auth/oidc/callback"
+
+    # Unauthenticated callback cannot hijack or consume the pending link
+    assert send(app, "GET", "/auth/oidc/callback?code=c&state=link-state-1").status == 401
+
+    link_cookie = new_cookie(started, cookie)
+    cb = send(app, "GET", "/auth/oidc/callback?code=c&state=link-state-1", headers=link_cookie)
+    assert cb.status == 302 and cb.header("location") == ["/#security"]
+
+    final_cookie = new_cookie(cb, link_cookie)
+    sec = send(app, "GET", "/api/security", headers=final_cookie)
+    assert sec.status == 200 and "draft-secret-xyz" not in sec.text
+    sec_data = sec.json()
+    assert sec_data["oidc_link"]["sub"] == "authentik-sub-999"
+    assert sec_data["oidc_link"]["preferred_username"] == "alice"
+    assert sec_data["oidc_link"]["has_client_secret"] is True
+
+    saved = send(
+        app,
+        "PUT",
+        "/api/security",
+        headers=final_cookie,
+        body={
+            "mode": "oidc",
+            "public_url": "https://qbm.example.com",
+            "oidc_metadata_url": "https://idp.example/.well-known/openid-configuration",
+            "oidc_client_id": "qbm",
+            "oidc_sub": "authentik-sub-999",
+            "allow_local_login": True,
+            "current_password": PASSWORD,
+        },
+    )
+    assert saved.status == 200 and saved.json()["success"] is True
+    stored = auth.load_settings(local_dir / "qbm_settings.yml")
+    assert stored.mode == "oidc" and stored.oidc_sub == "authentik-sub-999" and stored.oidc_client_secret == "draft-secret-xyz"
+
+
+def test_oidc_error_renders_html_without_leaking_sub(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(username="owner").model_dump())
+    client = MagicMock()
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "secret-refused-sub"}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    resp = send(make_app(config_dir), "GET", "/auth/oidc/callback")
+    assert resp.status == 403
+    assert "Back to sign in" in resp.text and "secret-refused-sub" not in resp.text
+
+
+def test_security_ui_has_oidc_onboarding_helpers():
+    panel = (WEB_UI / "js" / "components" / "security.js").read_text(encoding="utf-8")
+    for elem_id in ("oidc-redirect-uri", "test-oidc-discovery", "link-oidc-account"):
+        assert elem_id in panel
+    for removed in ('id="oidc-sub"', 'id="oidc-email"', 'id="oidc-claim-first-login"'):
+        assert removed not in panel
+    assert "window.location.href" not in panel
+
+
+def test_oidc_link_rejects_unsafe_authorize_redirect_and_keeps_stored_secret_isolated(local_dir, monkeypatch):
+    local_settings(
+        local_dir,
+        oidc_metadata_url="https://good-idp.example/.well-known/openid-configuration",
+        oidc_client_id="good-client",
+        oidc_client_secret="STORED-SECRET-CANARY",
+    )
+    seen_secrets = []
+
+    class UnsafeClient:
+        async def authorize_redirect(self, request, redirect_uri, **kw):
+            return auth.RedirectResponse("javascript:alert(1)")
+
+    def fake_client(settings):
+        seen_secrets.append(settings.oidc_client_secret)
+        return UnsafeClient()
+
+    monkeypatch.setattr(auth, "oidc_client", fake_client)
+    app = make_app(local_dir)
+    _, cookie = login(app)
+    resp = send(
+        app,
+        "POST",
+        "/api/security/oidc/link",
+        headers=cookie,
+        body={
+            "public_url": "https://qbm.example.com",
+            "oidc_metadata_url": "https://other-idp.example/.well-known/openid-configuration",
+            "oidc_client_id": "other-client",
+        },
+    )
+    assert resp.status == 502 and seen_secrets == [""]
+
+
+def test_oidc_claim_first_login_stale_reauth_does_not_bind_sub(config_dir, monkeypatch):
+    write_settings(config_dir, **oidc_settings(oidc_sub="", oidc_claim_first_login=True).model_dump())
+    client = MagicMock()
+    client.authorize_redirect = AsyncMock(return_value=auth.RedirectResponse("https://idp.example/authorize"))
+    client.authorize_access_token = AsyncMock(return_value={"userinfo": {"sub": "user-1", "auth_time": 1}})
+    monkeypatch.setattr(auth, "oidc_client", lambda settings: client)
+    app = make_app(config_dir)
+    started = send(app, "GET", "/auth/oidc/login?reauth=1")
+    assert send(app, "GET", "/auth/oidc/callback", headers=cookie_header(cookie_of(started))).status == 401
+    saved = auth.load_settings(config_dir / "qbm_settings.yml")
+    assert saved.oidc_sub == "" and saved.oidc_claim_first_login is True

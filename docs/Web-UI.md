@@ -21,7 +21,7 @@ The web server is off by default. Turn it on with `--web-server` or `QBT_WEB_SER
 
 1. Set `QBT_WEB_USERNAME` and `QBT_WEB_PASSWORD` before the first start, or read the generated password from `qbm_initial_password.txt` in your config folder.
 2. Open the Web UI and sign in. Change the password under Security. Example of a valid password: `Wh1te-Rabbit!`.
-3. For single sign-on, use the `oidc` mode.
+3. For single sign-on, switch to **OpenID Connect** (`oidc`) under **Security** — you can copy the Redirect URI, test your Issuer/Discovery URL, and sign in with your provider to link your admin account automatically. See [Security](Security#openid-connect-authentik-example).
 
 ## Upgrading to 5.0
 

@@ -17,7 +17,7 @@ Set the mode in the Web UI under Security, or under `authentication:` in `qbm_se
 | Mode | What it does |
 |---|---|
 | `local` (default) | Login form with a username and password. Only an Argon2 hash is stored. A signed cookie keeps you logged in for 7 days. |
-| `oidc` | Single-user OpenID Connect login (for example Authentik). The local password is off unless `allow_local_login: true`. Prefer `oidc_sub`; `oidc_email` trusts the provider's email claim, so use it only with a provider you run yourself. |
+| `oidc` | Single-user OpenID Connect login (for example Authentik). The local password is off unless `allow_local_login: true`. |
 | `api_only` | No browser login. API key or Basic only. |
 
 ## First login
@@ -35,8 +35,20 @@ Failed logins are rate limited: 10 failures per client address per minute, count
 
 ## OpenID Connect (Authentik example)
 
+### Option A: Set up from the Web UI (recommended)
+
+1. In Authentik, create an OAuth2/OpenID provider and application.
+2. Open the **Security** tab in qBit Manage and select **OpenID Connect**:
+   - Set **Public URL** (or click **Use current URL**) and copy the **Redirect URI** shown (e.g. `https://qbm.example.com/auth/oidc/callback`, including any `--base-url` prefix) into Authentik's Redirect URIs.
+   - Enter the **Issuer / Discovery URL** (either Authentik's Issuer URL or full OpenID Configuration URL) and click **Test URL** to verify reachability.
+   - Enter **Client ID** and **Client secret**.
+   - Click **Sign in with OIDC to link account**. After signing in through Authentik, qBit Manage verifies and links your account automatically without signing you out or requiring manual `sub` lookups.
+3. Click **Save Settings**. Keep **Break-glass: also allow the local password** enabled until you confirm OIDC sign-in works.
+
+### Option B: Headless setup via `qbm_settings.yml`
+
 1. In Authentik, create an OAuth2/OpenID provider and application. Set the redirect URI to `https://qbm.example.com/auth/oidc/callback` (add your base URL if you use one).
-2. In `qbm_settings.yml`:
+2. In `qbm_settings.yml`, set `oidc_claim_first_login: true` so the next successful OIDC sign-in binds your account automatically and turns `oidc_claim_first_login` back off (only enable `oidc_claim_first_login` with a provider where you restrict which users can authenticate):
 
 ```yaml
 authentication:
@@ -45,10 +57,8 @@ authentication:
   oidc_metadata_url: https://auth.example.com/application/o/qbit-manage/.well-known/openid-configuration
   oidc_client_id: <client id>
   oidc_client_secret: <client secret>
-  oidc_sub: <your user's sub claim>
+  oidc_claim_first_login: true
 ```
-
-3. Use `oidc_email` instead of `oidc_sub` only if your provider marks the address as verified. Only one identity is allowed.
 
 ## Upgrading to 5.0
 

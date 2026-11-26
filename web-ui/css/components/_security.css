@@ -1,0 +1,63 @@
+/* Security Settings Component */
+.security-settings {
+  max-width: 48rem;
+  min-width: 0;
+}
+
+.security-input-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+}
+
+.security-input-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.security-input-row .btn {
+  flex-shrink: 0;
+}
+
+.security-redirect-input {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.security-oidc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.security-link-status {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.security-link-banner {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.security-status-ok {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.security-status-err {
+  color: var(--error-color);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .security-input-row {
+    flex-direction: column;
+  }
+
+  .security-input-row .btn {
+    width: 100%;
+  }
+}

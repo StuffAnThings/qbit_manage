@@ -52,14 +52,22 @@ from modules.auth import SESSION_MAX_AGE
 from modules.auth import AuthenticationMiddleware
 from modules.auth import AuthSettings
 from modules.auth import AuthStore
+from modules.auth import OidcDiscoveryRequest
 from modules.auth import RotatingSessionMiddleware
 from modules.auth import SecuritySettingsRequest
 from modules.auth import build_auth_router
+from modules.auth import clean_for_log
 from modules.auth import client_ip
+from modules.auth import consume_oidc_link_result
+from modules.auth import create_oidc_link_url
+from modules.auth import discover_oidc_provider
 from modules.auth import generate_api_key
 from modules.auth import has_credentials
 from modules.auth import hash_password_async
+from modules.auth import hit_oidc_limit
 from modules.auth import password_ok
+from modules.auth import peek_oidc_link_result
+from modules.auth import resolve_oidc_client_secret
 from modules.auth import rotate_session_secret
 from modules.auth import session_is_fresh
 from modules.auth import session_secret
@@ -437,6 +445,8 @@ class WebAPI:
         api_router.get("/security")(self.get_security_settings)
         api_router.get("/security/status")(self.get_security_status)
         api_router.put("/security")(self.update_security_settings)
+        api_router.post("/security/oidc/test")(self.test_oidc_discovery)
+        api_router.post("/security/oidc/link")(self.start_oidc_link)
 
         # System management routes
         api_router.post("/system/force-reset")(self.force_reset_running_state)
@@ -1855,7 +1865,13 @@ class WebAPI:
 
     # Authentication methods
 
-    async def get_security_settings(self) -> dict:
+    def _base_url(self) -> str:
+        base_url = self.args.get("base_url", "")
+        if base_url and not base_url.startswith("/"):
+            return "/" + base_url
+        return base_url
+
+    async def get_security_settings(self, req: Request) -> dict:
         """Current security settings without secrets."""
         settings = self.auth_store.get()
         if settings is None:
@@ -1869,7 +1885,67 @@ class WebAPI:
             has_api_key=bool(settings.api_key),
             has_oidc_client_secret=bool(settings.oidc_client_secret),
         )
+        link_result_id = req.session.get("oidc_link_result_id")
+        if link_result_id:
+            pending = await peek_oidc_link_result(link_result_id)
+            if pending:
+                data["oidc_link"] = pending[1]
+            else:
+                req.session.pop("oidc_link_result_id", None)
         return data
+
+    async def test_oidc_discovery(self, body: OidcDiscoveryRequest, req: Request):
+        """Fetch and verify an OIDC discovery document from the server."""
+        if getattr(req.state, "auth_method", "") == "api_key":
+            raise HTTPException(status_code=403, detail="OIDC discovery test cannot be called with an API key")
+        settings = self.auth_store.get()
+        if settings is None:
+            return _refused(503, "Authentication settings are unusable; fix qbm_settings.yml")
+        if not hit_oidc_limit("oidc_test", client_ip(req, settings)):
+            return _refused(429, "Rate limit exceeded. Try again later.")
+        if not body.oidc_metadata_url:
+            return _refused(400, "Enter an Issuer discovery URL first")
+        try:
+            info = await discover_oidc_provider(body.oidc_metadata_url)
+            return {
+                "success": True,
+                "issuer": info["issuer"],
+                "message": f"Discovery document reachable (issuer: {info['issuer']})",
+            }
+        except Exception as e:
+            logger.info(f"OIDC discovery test failed for {clean_for_log(body.oidc_metadata_url)}: {clean_for_log(e)}")
+            return _refused(400, "Could not reach or parse the OIDC discovery document. Check the URL and TLS/network settings.")
+
+    async def start_oidc_link(self, request: SecuritySettingsRequest, req: Request):
+        """Start an authenticated OIDC login flow to verify provider settings and detect the user's sub."""
+        if getattr(req.state, "auth_method", "") == "api_key":
+            raise HTTPException(status_code=403, detail="OIDC linking cannot be started with an API key")
+        if getattr(req.state, "auth_method", "") != "session":
+            raise HTTPException(status_code=403, detail="OIDC linking requires a browser login session")
+        settings = self.auth_store.get()
+        if settings is None:
+            return _refused(503, "Authentication settings are unusable; fix qbm_settings.yml")
+        if not hit_oidc_limit("oidc_login", client_ip(req, settings)):
+            return _refused(429, "Rate limit exceeded. Try again later.")
+        if not request.public_url or not request.oidc_metadata_url or not request.oidc_client_id:
+            return _refused(400, "Enter the Public URL, Issuer discovery URL, and Client ID first")
+        secret = resolve_oidc_client_secret(
+            request.oidc_client_secret, request.oidc_metadata_url, request.oidc_client_id, settings
+        )
+        draft = settings.model_copy(
+            update={
+                "public_url": request.public_url,
+                "oidc_metadata_url": request.oidc_metadata_url,
+                "oidc_client_id": request.oidc_client_id,
+                "oidc_client_secret": secret,
+            }
+        )
+        try:
+            authorize_url = await create_oidc_link_url(req, self._base_url(), draft)
+            return {"success": True, "authorize_url": authorize_url}
+        except Exception as e:
+            logger.error(f"OIDC link start failed: {clean_for_log(e)}")
+            return _refused(502, "The OpenID Connect provider is unreachable or returned an invalid discovery document")
 
     async def get_security_status(self) -> dict:
         """Security status without sensitive data."""
@@ -1906,6 +1982,8 @@ class WebAPI:
         if settings is None:
             return _refused(503, "Authentication settings are unusable; fix qbm_settings.yml")
         updated = settings.model_copy(deep=True)
+        used_link_secret = False
+        link_result_id = req.session.get("oidc_link_result_id")
         try:
             updated.mode = request.mode or {"basic": "local", "api_only": "api_only", "external": "local"}.get(
                 request.method, settings.mode
@@ -1917,13 +1995,25 @@ class WebAPI:
                 "oidc_metadata_url",
                 "oidc_client_id",
                 "oidc_sub",
-                "oidc_email",
+                "oidc_claim_first_login",
                 "trusted_proxies",
             ):
                 if name in request.model_fields_set:  # a field the client did not send keeps its value
                     setattr(updated, name, getattr(request, name))
+            if updated.oidc_sub:
+                updated.oidc_claim_first_login = False
             if request.oidc_client_secret:
                 updated.oidc_client_secret = request.oidc_client_secret
+            elif link_result_id:
+                pending = await peek_oidc_link_result(link_result_id)
+                if (
+                    pending
+                    and pending[0].oidc_metadata_url == updated.oidc_metadata_url
+                    and pending[0].oidc_client_id == updated.oidc_client_id
+                    and pending[0].oidc_client_secret
+                ):
+                    updated.oidc_client_secret = pending[0].oidc_client_secret
+                    used_link_secret = True
             if request.username:
                 updated.username = request.username
             AuthSettings.model_validate(updated.model_dump())
@@ -1935,6 +2025,7 @@ class WebAPI:
             or request.generate_api_key
             or request.clear_api_key
             or bool(request.oidc_client_secret)
+            or used_link_secret
             or updated != settings
         )
         if changed:
@@ -1953,6 +2044,10 @@ class WebAPI:
             return _refused(
                 500, "Failed to save security settings; they may have changed in another session, so reload and retry"
             )
+        oidc_fields = {"mode", "oidc_metadata_url", "oidc_client_id", "oidc_sub"}
+        if link_result_id and (used_link_secret or any(k in request.model_fields_set for k in oidc_fields)):
+            req.session.pop("oidc_link_result_id", None)
+            await consume_oidc_link_result(link_result_id)
         if changed:
             rotate_session_secret(Path(self.default_dir))
         if request.password:

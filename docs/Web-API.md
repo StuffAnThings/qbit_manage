@@ -59,6 +59,8 @@ services:
 | `/api/security` | GET | Yes |
 | `/api/security/status` | GET | Yes |
 | `/api/security` | PUT | Yes |
+| `/api/security/oidc/test` | POST | Yes (no API key) |
+| `/api/security/oidc/link` | POST | Yes (session only) |
 | `/api/system/force-reset` | POST | Yes |
 
 ---
@@ -418,7 +420,13 @@ Return the current security configuration (API key and basic auth settings).
 Return a summary of whether authentication is enabled and which methods are active.
 
 #### PUT /api/security
-Update security settings (mode, username, password, OpenID Connect, API key). A new password needs `current_password`. A new password, username, or mode signs out every browser. An API key cannot call this endpoint.
+Update security settings (mode, username, password, OpenID Connect, API key). A new password needs `current_password` (or a fresh OIDC login in OIDC-only mode). A change signs out every browser. An API key cannot call this endpoint.
+
+#### POST /api/security/oidc/test
+Fetch and validate an OpenID Connect discovery URL (`oidc_metadata_url`) from the server, returning the discovered `issuer`. An API key cannot call this endpoint.
+
+#### POST /api/security/oidc/link
+Start an authenticated OpenID Connect linking flow for draft provider settings (`public_url`, `oidc_metadata_url`, `oidc_client_id`, optional `oidc_client_secret`) and return an `authorize_url` so the callback detects the user's `sub` claim without changing the active login mode yet. Requires an active browser session (not an API key or HTTP Basic).
 
 #### POST /api/system/force-reset
 Force-reset the internal running state. Use when a stuck run has left the system in an inconsistent state.
