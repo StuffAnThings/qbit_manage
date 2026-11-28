@@ -37,10 +37,29 @@ static SHOULD_EXIT: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(fa
 static MINIMIZE_TO_TRAY: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 static STARTUP_ENABLED: Lazy<Arc<Mutex<bool>>> = Lazy::new(|| Arc::new(Mutex::new(false)));
 
+#[cfg(all(windows, feature = "winjob"))]
+struct JobHandle(usize);
+
+#[cfg(all(windows, feature = "winjob"))]
+impl JobHandle {
+  fn as_raw(&self) -> windows::Win32::Foundation::HANDLE {
+    windows::Win32::Foundation::HANDLE(self.0 as _)
+  }
+}
+
+#[cfg(all(windows, feature = "winjob"))]
+impl Drop for JobHandle {
+  fn drop(&mut self) {
+    unsafe {
+      let _ = windows::Win32::Foundation::CloseHandle(self.as_raw());
+    }
+  }
+}
+
 struct ServerProcess {
   child: Child,
   #[cfg(all(windows, feature = "winjob"))]
-  job: Option<windows::Win32::Foundation::HANDLE>,
+  job: Option<JobHandle>,
 }
 
 #[derive(Debug, Clone)]
@@ -425,13 +444,14 @@ fn stop_server() {
     let mut child = server_process.child;
     let pid = child.id();
 
-    // On Windows, use immediate process tree termination for faster cleanup
+    // On Windows, terminate via Win32 APIs rather than spawning taskkill.exe,
+    // which fails with 0xc0000142 (STATUS_DLL_INIT_FAILED) during OS shutdown.
     #[cfg(all(windows, feature = "winjob"))]
     {
-      if let Some(job) = server_process.job {
+      if let Some(ref job) = server_process.job {
         unsafe {
           use windows::Win32::System::JobObjects::TerminateJobObject;
-          let _ = TerminateJobObject(job, 1);
+          let _ = TerminateJobObject(job.as_raw(), 1);
         }
       } else {
         terminate_process_tree_windows(pid);
@@ -464,30 +484,63 @@ fn stop_server() {
 }
 
 #[cfg(windows)]
-fn terminate_process_tree_windows(pid: u32) {
-  use std::os::windows::process::CommandExt;
+fn terminate_process_tree_windows(root_pid: u32) {
+  use std::collections::{HashSet, VecDeque};
+  use windows::Win32::Foundation::CloseHandle;
+  use windows::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+  };
+  use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
 
-  let null_stdio = || (std::process::Stdio::null(), std::process::Stdio::null(), std::process::Stdio::null());
+  let mut pids_to_kill = Vec::new();
 
-  // Kill the process tree on Windows using taskkill with hidden window
-  let (stdin, stdout, stderr) = null_stdio();
-  let _ = std::process::Command::new("taskkill")
-    .args(&["/F", "/T", "/PID", &pid.to_string()])
-    .creation_flags(CREATE_NO_WINDOW)
-    .stdin(stdin)
-    .stdout(stdout)
-    .stderr(stderr)
-    .output();
+  unsafe {
+    if let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+      let mut entries: Vec<(u32, u32)> = Vec::new();
+      let mut entry = PROCESSENTRY32W::default();
+      entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
 
-  // Also try direct process termination as backup with hidden window
-  let (stdin, stdout, stderr) = null_stdio();
-  let _ = std::process::Command::new("taskkill")
-    .args(&["/F", "/IM", "qbit-manage-windows-amd64.exe"])
-    .creation_flags(CREATE_NO_WINDOW)
-    .stdin(stdin)
-    .stdout(stdout)
-    .stderr(stderr)
-    .output();
+      if Process32FirstW(snapshot, &mut entry).is_ok() {
+        loop {
+          if entry.th32ProcessID != 0 {
+            entries.push((entry.th32ProcessID, entry.th32ParentProcessID));
+          }
+          if Process32NextW(snapshot, &mut entry).is_err() {
+            break;
+          }
+        }
+      }
+      let _ = CloseHandle(snapshot);
+
+      let mut seen = HashSet::new();
+      let mut queue = VecDeque::new();
+      seen.insert(root_pid);
+      queue.push_back(root_pid);
+
+      while let Some(parent_pid) = queue.pop_front() {
+        pids_to_kill.push(parent_pid);
+        for &(child_pid, ppid) in &entries {
+          if ppid == parent_pid && seen.insert(child_pid) {
+            queue.push_back(child_pid);
+          }
+        }
+      }
+    } else {
+      pids_to_kill.push(root_pid);
+    }
+
+    let current_pid = std::process::id();
+    // Terminate descendants before the root process
+    for target_pid in pids_to_kill.into_iter().rev() {
+      if target_pid == 0 || target_pid == current_pid {
+        continue;
+      }
+      if let Ok(handle) = OpenProcess(PROCESS_TERMINATE, false, target_pid) {
+        let _ = TerminateProcess(handle, 1);
+        let _ = CloseHandle(handle);
+      }
+    }
+  }
 }
 
 
@@ -501,10 +554,12 @@ fn cleanup_and_exit_with_app(app: &AppHandle) {
     let _ = win.minimize();
   }
 
-  // Do cleanup and exit in background thread so UI doesn't freeze
-  // The tray will disappear when the process exits
-  std::thread::spawn(|| {
+  let app_handle = app.clone();
+  // Do cleanup in background thread so UI doesn't freeze, then ask Tauri to exit cleanly
+  std::thread::spawn(move || {
     stop_server();
+    app_handle.exit(0);
+    std::thread::sleep(Duration::from_millis(500));
     std::process::exit(0);
   });
 }
@@ -594,28 +649,30 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
 
   // Create Windows Job Object if feature is enabled
   #[cfg(all(windows, feature = "winjob"))]
-  let job = unsafe {
+  let mut job = unsafe {
+    use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::JobObjects::*;
-    use windows::Win32::Foundation::*;
 
-    let job = CreateJobObjectW(None, None).ok();
-    if let Some(job) = job {
-      // Configure job to kill all processes when the job handle is closed
-      // and prevent processes from breaking out of the job
-      let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-      info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
+    match CreateJobObjectW(None, None) {
+      Ok(raw_job) => {
+        // Configure job to kill all processes when the job handle is closed
+        let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+          | JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
 
-      let _ = SetInformationJobObject(
-        job,
-        JobObjectExtendedLimitInformation,
-        &info as *const _ as *const _,
-        std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-      );
-
-      Some(job)
-    } else {
-      None
+        if SetInformationJobObject(
+          raw_job,
+          JobObjectExtendedLimitInformation,
+          &info as *const _ as *const _,
+          std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+        ).is_ok() {
+          Some(JobHandle(raw_job.0 as usize))
+        } else {
+          let _ = CloseHandle(raw_job);
+          None
+        }
+      }
+      Err(_) => None,
     }
   };
 
@@ -679,23 +736,25 @@ fn start_server(app: &AppHandle, cfg: &AppConfig) -> tauri::Result<()> {
 
   // Add process to job object on Windows
   #[cfg(all(windows, feature = "winjob"))]
-  if let Some(job) = job {
+  if let Some(ref job_handle) = job {
     unsafe {
+      use windows::Win32::Foundation::CloseHandle;
       use windows::Win32::System::JobObjects::AssignProcessToJobObject;
-      use windows::Win32::Foundation::HANDLE;
-      use windows::Win32::System::Threading::OpenProcess;
-      use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
+      use windows::Win32::System::Threading::{OpenProcess, PROCESS_ALL_ACCESS};
 
-      // Get proper process handle from PID
-      let process_handle = OpenProcess(PROCESS_ALL_ACCESS, false, child.id());
-      if let Ok(handle) = process_handle {
-        let result = AssignProcessToJobObject(job, handle);
-        if result.is_err() {
-          eprintln!("Failed to assign process to job object: {:?}", result);
+      match OpenProcess(PROCESS_ALL_ACCESS, false, child.id()) {
+        Ok(process_handle) => {
+          let result = AssignProcessToJobObject(job_handle.as_raw(), process_handle);
+          let _ = CloseHandle(process_handle);
+          if let Err(e) = result {
+            eprintln!("Failed to assign process to job object: {:?}", e);
+            job = None;
+          }
         }
-        // Don't close the handle here as it's managed by the system
-      } else {
-        eprintln!("Failed to open process handle for PID: {}", child.id());
+        Err(e) => {
+          eprintln!("Failed to open process handle for PID {}: {:?}", child.id(), e);
+          job = None;
+        }
       }
     }
   }
@@ -878,25 +937,11 @@ pub fn run() {
     .expect("error while building tauri application")
     .run(move |_app, event| {
       match event {
-        RunEvent::ExitRequested { .. } => {
-          // Check if we should exit cleanly
-          if *SHOULD_EXIT.lock().unwrap() {
-            // Already in exit process, allow immediate exit
-            return;
-          }
-
-          // Set exit flag immediately for responsive UI
-          *SHOULD_EXIT.lock().unwrap() = true;
-
-          // Do cleanup in background thread to avoid UI freeze
-          std::thread::spawn(|| {
-            stop_server();
-            std::process::exit(0);
-          });
-        }
-        RunEvent::Exit => {
-          // Final cleanup on actual exit
-          if !*SHOULD_EXIT.lock().unwrap() {
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+          let mut should_exit = SHOULD_EXIT.lock().unwrap();
+          if !*should_exit {
+            *should_exit = true;
+            drop(should_exit);
             stop_server();
           }
         }

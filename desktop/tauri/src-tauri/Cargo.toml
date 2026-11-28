@@ -31,7 +31,7 @@ features = ["macros", "rt-multi-thread", "time", "process"]
 version = "1.37"
 
 [features]
-default = []
+default = ["winjob"]
 winjob = []
 
 [package]
@@ -50,5 +50,5 @@ glib = "0.22.0"
 libc = "0.2"
 
 [target."cfg(windows)".dependencies.windows]
-features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_System_Registry"]
+features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_System_Registry"]
 version = "0.62.0"
