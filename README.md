@@ -7,9 +7,9 @@
 [![Github Workflow Status](https://img.shields.io/github/actions/workflow/status/StuffAnThings/qbit_manage/version.yml?style=plastic)](https://github.com/StuffAnThings/qbit_manage/actions/workflows/version.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/StuffAnThings/qbit_manage/develop.svg)](https://results.pre-commit.ci/latest/github/StuffAnThings/qbit_manage/develop)
 [![Ghcr packages](https://img.shields.io/badge/ghcr.io-packages?style=plastic&label=packages)](https://ghcr.io/StuffAnThings/qbit_manage)
+![GHCR Pulls](https://img.shields.io/badge/dynamic/json?url=https://ghcr-badge.elias.eu.org/api/stuffanthings/qbit_manage&query=downloadCount&label=ghcr%20pulls&logo=docker&logoColor=white)
 [![Docker Pulls](https://img.shields.io/docker/pulls/bobokun/qbit_manage?style=plastic)](https://hub.docker.com/r/bobokun/qbit_manage)
 [![Sponsor or Donate](https://img.shields.io/badge/-Sponsor_or_Donate-blueviolet?style=plastic)](https://github.com/sponsors/bobokun)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 This is a program used to manage your qBittorrent instance such as:
 
