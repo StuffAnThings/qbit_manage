@@ -513,6 +513,43 @@ class TestTorDeleteRecycle:
         qbt.config.notify.assert_not_called()
         assert ("delete", {"delete_files": False}) in torrent.calls
 
+    @pytest.mark.parametrize("bad_dir", [None, "missing", "file"])
+    @patch("modules.qbittorrent.logger")
+    def test_unusable_torrents_dir_does_not_crash(self, _mock_logger, tmp_path, bad_dir):
+        """An unset, unmounted, or non-directory torrents_dir must not crash the legacy BT_backup copy."""
+        torrents_dir = {None: None, "missing": str(tmp_path / "gone"), "file": str(tmp_path / "f.txt")}[bad_dir]
+        (tmp_path / "f.txt").write_text("x", encoding="utf-8")
+        recycle_dir = tmp_path / ".RecycleBin"
+        torrent = FakeTorrent(
+            name="Name",
+            hash="00000000000000000000000000000000abcdef12",
+            save_path=str(tmp_path / "downloads"),
+            export=lambda: b"d4:infod4:name4:testee",
+        )
+        qbt = MagicMock(spec=Qbt)
+        qbt.config = SimpleNamespace(
+            recyclebin={"enabled": True, "split_by_category": False, "save_torrents": True},
+            recycle_dir=str(recycle_dir),
+            root_dir=str(tmp_path),
+            remote_dir=str(tmp_path),
+            torrents_dir=torrents_dir,
+            orphaned={"exclude_patterns": []},
+            notify=MagicMock(),
+        )
+        qbt.current_version = "v5.0.0"
+        qbt.torrent_list = [torrent]
+        info = {
+            "torrents": ["Name"],
+            "torrent_category": "books",
+            "torrent_tracker": "https://tracker.example",
+            "torrents_deleted_and_contents": False,
+        }
+
+        Qbt.tor_delete_recycle(qbt, torrent, info)
+
+        assert any((recycle_dir / "torrents_json").iterdir())
+        qbt.config.notify.assert_not_called()
+
     @pytest.mark.parametrize("torrent_name", ["A" * 240 + "/EPUB", "é" * 120 + "/EPUB", "é" * 130])
     @patch("modules.qbittorrent.logger")
     def test_long_name_aggregates_into_one_reloadable_backup(self, _mock_logger, tmp_path, torrent_name):
