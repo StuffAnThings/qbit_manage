@@ -90,5 +90,26 @@ def test_validate_never_returns_redacted_placeholders_when_defaults_cannot_be_re
         response = validate(api, {"qbt": {"host": "localhost:8080", "apikey": "<redacted>"}})
 
     assert response.valid is True
+    assert response.data is None
+    assert response.config_modified is False
+
+
+def test_validate_does_not_overwrite_unsaved_plaintext_secret(api, tmp_path):
+    (tmp_path / "config.yml").write_text("qbt:\n  host: localhost:8080\n  apikey: realsecret\n")
+
+    def normalize_host(default_dir, args):
+        path = args["config_file"]
+        with open(path) as f:
+            text = f.read()
+        with open(path, "w") as f:
+            f.write(text.replace("localhost:8080", "http://localhost:8080"))
+        return MagicMock()
+
+    with patch("modules.web_api.Config", side_effect=normalize_host):
+        response = validate(api, {"qbt": {"host": "localhost:8080", "apikey": "unsavedsecret"}})
+
+    assert response.valid is True
     assert "<redacted>" not in str(response.data)
+    assert "realsecret" not in str(response.data)
+    assert response.data is None
     assert response.config_modified is False

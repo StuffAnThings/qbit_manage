@@ -166,10 +166,12 @@ jobs:
           BIN="$PWD/out/${APP_NAME}-linux-${{ matrix.arch }}"
           mkdir -p smoke-web
           cp smoke/config.yml smoke-web/config.yml
-          export QBT_WEB_USERNAME=smoke QBT_WEB_PASSWORD="$(head -c 18 /dev/urandom | base64 | tr -d '/+=')"
-          "$BIN" --web-server --host 127.0.0.1 --port 18181 --config-dir smoke-web > smoke-web/out.log 2>&1 &
+          # The fixed "Aa1" prefix guarantees upper, lower, and digit classes for check_password_strength.
+          export QBT_WEB_USERNAME=smoke QBT_WEB_PASSWORD="Aa1$(head -c 18 /dev/urandom | base64 | tr -d '/+=')"
+          # setsid gives the server its own process group so cleanup can kill web_process and Manager children too.
+          setsid "$BIN" --web-server --host 127.0.0.1 --port 18181 --config-dir smoke-web > smoke-web/out.log 2>&1 &
           pid=$!
-          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          trap 'kill -KILL -- "-$pid" 2>/dev/null || true' EXIT
           ok=""
           for _ in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:18181/api/health >/dev/null 2>&1; then ok=1; break; fi
